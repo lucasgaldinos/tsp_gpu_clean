@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Prevent VS Code from recreating empty files
+**/VALIDATION_REPORT.md
+**/PROJECT_COMPLETION_SUMMARY.md
+**/implementation_summary.md
+
+.github/.knowledge_base
+knowledge_base/
+arxiv-messy-files/
+tcc_context/
+.github/
+tsplib95_gpu_comparator/
+my_notes/*
+!my_notes/notebooks/
+.tmp/
+.rtk/
+.agents/
+.vscode/

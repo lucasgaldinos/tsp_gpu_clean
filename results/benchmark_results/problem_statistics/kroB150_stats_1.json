@@ -1,0 +1,169 @@
+{
+  "problem_info": {
+    "name": "kroB150",
+    "size": 150,
+    "optimal_cost": 26130
+  },
+  "algorithms": {
+    "HybridNaive": {
+      "mean_time": 17.20291016873428,
+      "std_time": 3.591905123264081,
+      "mean_initial_cost": 227803.93333333332,
+      "std_initial_cost": 2293.6658131084014,
+      "mean_cost": 26148.533333333333,
+      "std_cost": 25.643366047034895,
+      "mean_gap": 0.0709274142109963,
+      "std_gap": 0.09813764273645195,
+      "mean_generations": 73.26666666666667,
+      "std_generations": 15.242338694862049,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "HybridOptimized": {
+      "mean_time": 2.7233354566662458,
+      "std_time": 0.6812708680451771,
+      "mean_initial_cost": 224595.13333333333,
+      "std_initial_cost": 2961.159567166589,
+      "mean_cost": 26142.933333333334,
+      "std_cost": 23.62898408499377,
+      "mean_gap": 0.04949610919760173,
+      "std_gap": 0.0904285651932406,
+      "mean_generations": 68.33333333333333,
+      "std_generations": 17.292259025998373,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "FullGPU": {
+      "mean_time": 7.824294133333024,
+      "std_time": 2.2280254820812524,
+      "mean_initial_cost": 224745.46666666667,
+      "std_initial_cost": 1186.4672416698052,
+      "mean_cost": 26255.333333333332,
+      "std_cost": 50.7880125838984,
+      "mean_gap": 0.4796530169664498,
+      "std_gap": 0.19436667655529427,
+      "mean_generations": 0.0,
+      "std_generations": 0.0,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "kroB150",
+    "optimal_cost": 26130,
+    "baseline_algorithm": "HybridNaive",
+    "friedman_test": {
+      "statistic": 21.41818181818181,
+      "p_value": 2.2340912724534556e-05,
+      "significant": true,
+      "post_hoc_required": true
+    },
+    "nemenyi_posthoc": {
+      "critical_distance": 1.2102817786053515,
+      "mean_ranks": {
+        "HybridNaive": 1.5666666666666667,
+        "HybridOptimized": 1.5,
+        "FullGPU": 2.933333333333333
+      },
+      "algorithm_names": [
+        "HybridNaive",
+        "HybridOptimized",
+        "FullGPU"
+      ],
+      "significant_pairs": [
+        {
+          "algorithm_i": "HybridNaive",
+          "algorithm_j": "FullGPU",
+          "p_value": 0.000533706915869403,
+          "rank_difference": 1.3666666666666665
+        },
+        {
+          "algorithm_i": "HybridOptimized",
+          "algorithm_j": "FullGPU",
+          "p_value": 0.0002553436398505804,
+          "rank_difference": 1.4333333333333331
+        }
+      ]
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.4133023795226214,
+        "mean_difference": 5.6,
+        "ci_95_lower": -15.251075338144508,
+        "ci_95_upper": 26.451075338144506,
+        "cohens_d": 0.21941711456931245,
+        "normality_p_value_a": 0.00015901201842257958,
+        "normality_p_value_b": 2.198442112146511e-06,
+        "p_value_corrected": 0.4133023795226214,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 6.103515625e-05,
+        "mean_difference": -106.8,
+        "ci_95_lower": -134.00640285317195,
+        "ci_95_upper": -79.59359714682805,
+        "cohens_d": -2.5646788538152494,
+        "normality_p_value_a": 0.00015901201842257958,
+        "normality_p_value_b": 0.14450334716665297,
+        "p_value_corrected": 0.00018310546875,
+        "significant_after_correction": true,
+        "effect_interpretation": "large"
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.0001220703125,
+        "mean_difference": -112.4,
+        "ci_95_lower": -146.34937017324657,
+        "ci_95_upper": -78.45062982675344,
+        "cohens_d": -2.741513894802865,
+        "normality_p_value_a": 2.198442112146511e-06,
+        "normality_p_value_b": 0.14450334716665297,
+        "p_value_corrected": 0.000244140625,
+        "significant_after_correction": true,
+        "effect_interpretation": "large"
+      }
+    ]
+  }
+}

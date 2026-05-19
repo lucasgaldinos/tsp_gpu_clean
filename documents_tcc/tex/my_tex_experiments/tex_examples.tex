@@ -1,0 +1,219 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{esint}
+\usepackage{derivative}
+
+\newcommand{\manualindent}[1]{
+    \section{#1}
+    \noindent\hspace*{1.5em} % Adjust this space as needed
+}
+
+% enable and disable indentation by inserting the 
+\makeatletter
+\NewCommandCopy{\indentation}{\@afterindentfalse} %create a deep copy of \@afterindentfalse command as \indentation
+
+\newcommand{\indenton}{\let\@afterindentfalse\@afterindenttrue} % set indent to on
+\newcommand{\indentoff}{\let\@afterindentfalse\indentation} % set indent to off
+\makeatother
+% \makeatletter
+% \let\@afterindentfalse\indentate
+% \makeatother
+
+\bibliographystyle{plain}
+
+
+
+
+% \setlrmarginsandblock{3cm}{3cm}{*}
+% \setulmarginsandblock{3cm}{3cm}{*}
+
+\begin{document}
+
+% prints hello world
+Hello, World!
+% 
+% \ShowCommand{\@afterindenttrue}
+
+\vspace{10cm} %create 10cm of vertical space
+
+
+\section{Most common \LaTeX~commands}
+
+
+\begin{verbatim}
+    \def
+
+    Defines a new macro.
+    Syntax:
+    \def\<macro>{definition}
+    Example:
+    \def\square#1{#1^2} % Defines a macro square which squares its input.
+    When compared with \newcommand, note that \def is more primitive and doesn’t check if a command already exists—overwriting it blindly.
+    \newcommand
+    
+    A safer alternative to defining new macros than using plain TeX’s \def.
+    Syntax:
+    \newcommand{\<macro>}[num_args]{definition}
+    Example:
+    \newcommand{\myname}{John Doe}
+    \renewcommand
+    
+    Used if you need to redefine an existing macro that was previously defined by someone else.
+    Syntax:
+    \renewcommand{\<macro>}[num_args]{definition}
+    \expandafter
+    
+    Used for advanced TeX programming where controlling expansion timing matters.
+    Example use case: Changing expansion order of macros before execution.
+    \csname ... \endcsname
+    
+    Allows dynamic generation of control sequences.
+    Useful when you want programmatic access to macros whose names are not known beforehand but built from other variables.
+    `\if ... \fi Constructs These conditionals allow basic logic within LaTeX documents.
+    
+    **\relax A no-op (does nothing). Often used as a placeholder or delimiter marker in complex macros.
+    
+    Environment Handling (begin{} & end{}) Essential for creating structured blocks like equations (equation*) or itemized lists (itemize).
+\end{verbatim}
+    
+
+% math mode
+\hspace{-3cm} 1. This will start math mode and line break examples:
+
+Math mode: \hfill \break
+\hspace{5cm} The equation is \(E = mc^2\) % inline math, don't know why \hspace does not work.
+\[
+    E=mc^2 % display math
+\]
+
+Math mode: \\
+\hspace{2cm}The equation is $E = mc^2\$$ % inline math not recommended with $
+\[
+    E=mc^2 % display math
+\]
+
+Math mode: \newline
+The equation\\* is \(E = mc^2\) % inline math
+\[E=mc^2\]
+
+% labels and references
+We know from equation~\ref{eq:emc} that $E=mc^2$.\\ % with tilde means a space is added, but if there's a line break, the equation + number will be on the next line
+We know from equation \ref{eq:emc} \dotfill that $E=mc^2$. % without tilde means no space is added
+
+\begin{equation}
+    E=mc^2
+    \label{eq:emc}
+\end{equation}
+
+We know from Equation~\ref{eqn:emc}:
+\begin{equation}
+    E = mc^2
+    \label{eqn:emc}
+\end{equation}
+
+\section{This will start a new section with a number and title}
+
+This is the \textbf{bold} text.
+
+\section[short title]{This will start a new section with a number and title, but the title in the table of contents will be `short title'} % the short title is an optional argument
+
+This is the \textit{italic} text.
+
+\section*{This will start a new section without a number and title}
+
+This is the \underline{underlined} text.
+
+\section[matrices and integrals]{Matrices and integrals expressions}
+
+First, import \verb|amsmath| \verb1package1. % the \verb| | can use different delimiters, such as 1 or <>, it doesn't matter as long as they match and doesn't appear through the content. It does not use curly braces, because curly braces are interpreted are reserved for latex grouping
+
+
+\subsection{Matrices 1} % depends on amsmath package 
+Here is a matrix:
+\[
+    A= \begin{pmatrix}
+        a & b \\
+        c & d \\
+        1 & 2 \\
+    \end{pmatrix}
+\]
+
+\subsection{Integral 1}
+
+\[
+    \int_0^\infty x^2 \,dx > \int_{a}^{b} x^2*y \,dx\,dy
+\]
+
+\subsection{Multiple Integrals}
+
+\indent This is a multiple integral that should be indented % this line is not being indented even after the \indent command
+
+\[
+    \iiiint_V f(x,y,z,w) \,dx\,dy\,dz\,dw
+\]
+
+This is a cyclic multiple integral (does not exist and does not make sense)
+
+\[
+    \oint_C f(x,y,z) \,dx\,dy\,dz
+\]\linebreak
+
+This is another multiple integral with fraction:
+
+\[
+\iiiint_V \frac{f(x,y,z,w)}{2}x^2y^2+z^2+w^2 \,dx\,dy\,dz\,dw
+\]
+
+\indenton
+
+\section{Derivatives}
+
+\subsection{Partial Derivatives}
+to write partial derivatives:
+% Partial derivative symbol in LaTeX
+\[
+   \frac{\partial f}{\partial x_i}
+\]
+
+\subsection{using derivatives package}
+\subsubsection{By using package derivatives}
+\[
+\pdv{f}{x_2, y^3, z} = \pdv{e^{z}\sin(x)}{x} + \pdv{\frac{e^{y}}{\cos(y)}}{y} + \pdv{e^{z}\cot(z)}{z}
+\]
+
+\subsubsection{Evaluate at a specific point}
+
+Some example equations
+\begin{equation}
+    \pdv{U}{x}_p = \pdv{U}{x}\bigg|_p = \pdv{U}{x}\big|_{p, Y}\quad = \pdv{U}{x}\Bigg|_{(p, Y)}\quad
+    \label{eq:partial_derivative}
+\end{equation}
+
+
+\section{section Without Indentation}
+
+text2 should be indented
+
+\subsection{This is an unindented subsection}
+
+tex should be indented
+
+\indentoff
+\subsection{Subsection With Indentation}
+
+This should be unindented
+
+\phantom{hidhsi}
+
+sdasdsda
+
+\section{Citation}
+
+This is a citation \cite{tcc_vitorhp}.
+
+\bibliography{refs}
+% Next in line: multiple types of document classes, packages, and environments
+
+
+\end{document}

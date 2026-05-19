@@ -1,0 +1,430 @@
+/*
+ * =================================================================
+ * Enhanced Admonition Styles with Improved Readability
+ * 
+ * This CSS provides modern, accessible admonition boxes that follow
+ * WCAG accessibility guidelines and current design best practices.
+ * Features include:
+ * - High contrast color schemes
+ * - Proper focus indicators
+ * - Responsive design
+ * - Modern typography
+ * =================================================================
+ */
+
+/* Import Material Icons with fallback */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+/*
+ * =================================================================
+ * CSS Custom Properties for Admonitions
+ * =================================================================
+ */
+:root {
+    /* Admonition colors - bright and vibrant on medium backgrounds */
+    --admonition-info: #5ba7f7;
+    /* Blue - bright friendly blue */
+    --admonition-info-bg: rgba(91, 167, 247, 0.15);
+    --admonition-info-border: #74b9ff;
+
+    --admonition-tip: #5cb85c;
+    /* Green - vibrant green */
+    --admonition-tip-bg: rgba(92, 184, 92, 0.15);
+    --admonition-tip-border: #6bcf7f;
+
+    --admonition-warning: #ff9500;
+    /* Orange - bright orange */
+    --admonition-warning-bg: rgba(255, 149, 0, 0.15);
+    --admonition-warning-border: #ffad33;
+
+    --admonition-danger: #ff4757;
+    /* Red - vibrant red */
+    --admonition-danger-bg: rgba(255, 71, 87, 0.15);
+    --admonition-danger-border: #ff6b7a;
+
+    --admonition-success: #5cb85c;
+    /* Green - vibrant green */
+    --admonition-success-bg: rgba(92, 184, 92, 0.15);
+    --admonition-success-border: #6bcf7f;
+
+    --admonition-question: #a29bfe;
+    /* Purple - soft purple */
+    --admonition-question-bg: rgba(162, 155, 254, 0.15);
+    --admonition-question-border: #b8b3fe;
+
+    /* Typography */
+    --admonition-font-family: inherit;
+    --admonition-title-weight: 600;
+    --admonition-border-width: 3px;
+    --admonition-border-radius: 8px;
+    --admonition-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/*
+ * =================================================================
+ * Base Admonition Styling
+ * =================================================================
+ */
+.admonition {
+    position: relative;
+    margin: 1.5rem 0;
+    padding: 0;
+    border-radius: var(--admonition-border-radius);
+    border-left: var(--admonition-border-width) solid var(--admonition-info-border);
+    background-color: var(--admonition-info-bg);
+    box-shadow: var(--admonition-shadow);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease-in-out;
+}
+
+.admonition:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.admonition-title {
+    font-family: var(--admonition-font-family);
+    font-weight: var(--admonition-title-weight);
+    font-size: 1.1em;
+    margin: 0;
+    padding: 1rem 1.2rem;
+    background-color: rgba(25, 113, 194, 0.1);
+    border-bottom: 1px solid rgba(25, 113, 194, 0.2);
+    display: flex;
+    align-items: center;
+    color: var(--admonition-info);
+}
+
+.admonition-content {
+    padding: 1.2rem;
+    line-height: 1.6;
+}
+
+.admonition-content>*:first-child {
+    margin-top: 0;
+}
+
+.admonition-content>*:last-child {
+    margin-bottom: 0;
+}
+
+/*
+ * =================================================================
+ * Icon Styling with Improved Accessibility
+ * =================================================================
+ */
+.admonition-title::before {
+    font-family: 'Material Icons';
+    margin-right: 0.75rem;
+    font-size: 1.4em;
+    display: inline-block;
+    vertical-align: middle;
+    /* Default Icon */
+    content: 'info';
+    color: var(--admonition-info);
+    flex-shrink: 0;
+}
+
+/* Fallback for when Material Icons don't load */
+@supports not (font-family: 'Material Icons') {
+    .admonition-title::before {
+        content: 'ℹ';
+        font-family: Arial, sans-serif;
+    }
+}
+
+/*
+ * =================================================================
+ * Admonition Type Variants with Enhanced Styling
+ * =================================================================
+ */
+
+/* --- INFO / NOTE --- */
+.admonition.info,
+.admonition.note {
+    border-left-color: var(--admonition-info-border);
+    background-color: var(--admonition-info-bg);
+}
+
+.admonition.info .admonition-title,
+.admonition.note .admonition-title {
+    background-color: rgba(25, 113, 194, 0.1);
+    border-bottom-color: rgba(25, 113, 194, 0.2);
+    color: var(--admonition-info);
+}
+
+.admonition.info .admonition-title::before,
+.admonition.note .admonition-title::before {
+    content: 'info';
+    color: var(--admonition-info);
+}
+
+/* --- TIP / HINT --- */
+.admonition.tip,
+.admonition.hint {
+    border-left-color: var(--admonition-tip-border);
+    background-color: var(--admonition-tip-bg);
+}
+
+.admonition.tip .admonition-title,
+.admonition.hint .admonition-title {
+    background-color: rgba(43, 138, 62, 0.1);
+    border-bottom-color: rgba(43, 138, 62, 0.2);
+    color: var(--admonition-tip);
+}
+
+.admonition.tip .admonition-title::before,
+.admonition.hint .admonition-title::before {
+    content: 'lightbulb_outline';
+    color: var(--admonition-tip);
+}
+
+/* --- QUESTION / HELP --- */
+.admonition.question,
+.admonition.help,
+.admonition.faq {
+    border-left-color: var(--admonition-question-border);
+    background-color: var(--admonition-question-bg);
+}
+
+.admonition.question .admonition-title,
+.admonition.help .admonition-title,
+.admonition.faq .admonition-title {
+    background-color: rgba(112, 72, 232, 0.1);
+    border-bottom-color: rgba(112, 72, 232, 0.2);
+    color: var(--admonition-question);
+}
+
+.admonition.question .admonition-title::before,
+.admonition.help .admonition-title::before,
+.admonition.faq .admonition-title::before {
+    content: 'help_outline';
+    color: var(--admonition-question);
+}
+
+/* --- WARNING / CAUTION / ATTENTION --- */
+.admonition.warning,
+.admonition.caution,
+.admonition.attention {
+    border-left-color: var(--admonition-warning-border);
+    background-color: var(--admonition-warning-bg);
+}
+
+.admonition.warning .admonition-title,
+.admonition.caution .admonition-title,
+.admonition.attention .admonition-title {
+    background-color: rgba(230, 119, 0, 0.1);
+    border-bottom-color: rgba(230, 119, 0, 0.2);
+    color: var(--admonition-warning);
+}
+
+.admonition.warning .admonition-title::before,
+.admonition.caution .admonition-title::before,
+.admonition.attention .admonition-title::before {
+    content: 'warning';
+    color: var(--admonition-warning);
+}
+
+/* --- DANGER / ERROR / FAILURE --- */
+.admonition.danger,
+.admonition.error,
+.admonition.failure,
+.admonition.fail,
+.admonition.missing {
+    border-left-color: var(--admonition-danger-border);
+    background-color: var(--admonition-danger-bg);
+}
+
+.admonition.danger .admonition-title,
+.admonition.error .admonition-title,
+.admonition.failure .admonition-title,
+.admonition.fail .admonition-title,
+.admonition.missing .admonition-title {
+    background-color: rgba(201, 42, 42, 0.1);
+    border-bottom-color: rgba(201, 42, 42, 0.2);
+    color: var(--admonition-danger);
+}
+
+.admonition.danger .admonition-title::before,
+.admonition.error .admonition-title::before {
+    content: 'error';
+    color: var(--admonition-danger);
+}
+
+.admonition.failure .admonition-title::before,
+.admonition.fail .admonition-title::before,
+.admonition.missing .admonition-title::before {
+    content: 'cancel';
+    color: var(--admonition-danger);
+}
+
+/* --- SUCCESS / DONE / CHECK --- */
+.admonition.success,
+.admonition.done,
+.admonition.check {
+    border-left-color: var(--admonition-success-border);
+    background-color: var(--admonition-success-bg);
+}
+
+.admonition.success .admonition-title,
+.admonition.done .admonition-title,
+.admonition.check .admonition-title {
+    background-color: rgba(43, 138, 62, 0.1);
+    border-bottom-color: rgba(43, 138, 62, 0.2);
+    color: var(--admonition-success);
+}
+
+.admonition.success .admonition-title::before,
+.admonition.done .admonition-title::before,
+.admonition.check .admonition-title::before {
+    content: 'check_circle';
+    color: var(--admonition-success);
+}
+
+/* --- EXAMPLE --- */
+.admonition.example {
+    border-left-color: var(--admonition-question-border);
+    background-color: var(--admonition-question-bg);
+}
+
+.admonition.example .admonition-title {
+    background-color: rgba(112, 72, 232, 0.1);
+    border-bottom-color: rgba(112, 72, 232, 0.2);
+    color: var(--admonition-question);
+}
+
+.admonition.example .admonition-title::before {
+    content: 'code';
+    color: var(--admonition-question);
+}
+
+/* --- QUOTE / CITE --- */
+.admonition.quote,
+.admonition.cite {
+    border-left-color: #868e96;
+    background-color: rgba(134, 142, 150, 0.08);
+}
+
+.admonition.quote .admonition-title,
+.admonition.cite .admonition-title {
+    background-color: rgba(134, 142, 150, 0.1);
+    border-bottom-color: rgba(134, 142, 150, 0.2);
+    color: #495057;
+}
+
+.admonition.quote .admonition-title::before,
+.admonition.cite .admonition-title::before {
+    content: 'format_quote';
+    color: #495057;
+}
+
+/* --- BUG --- */
+.admonition.bug {
+    border-left-color: #e03131;
+    background-color: rgba(224, 49, 49, 0.08);
+}
+
+.admonition.bug .admonition-title {
+    background-color: rgba(224, 49, 49, 0.1);
+    border-bottom-color: rgba(224, 49, 49, 0.2);
+    color: #c92a2a;
+}
+
+.admonition.bug .admonition-title::before {
+    content: 'bug_report';
+    color: #c92a2a;
+}
+
+/* --- ABSTRACT / SUMMARY / TODO --- */
+.admonition.abstract,
+.admonition.summary,
+.admonition.tldr,
+.admonition.todo {
+    border-left-color: #868e96;
+    background-color: rgba(134, 142, 150, 0.08);
+}
+
+.admonition.abstract .admonition-title,
+.admonition.summary .admonition-title,
+.admonition.tldr .admonition-title,
+.admonition.todo .admonition-title {
+    background-color: rgba(134, 142, 150, 0.1);
+    border-bottom-color: rgba(134, 142, 150, 0.2);
+    color: #495057;
+}
+
+.admonition.abstract .admonition-title::before,
+.admonition.summary .admonition-title::before,
+.admonition.tldr .admonition-title::before {
+    content: 'subject';
+    color: #495057;
+}
+
+.admonition.todo .admonition-title::before {
+    content: 'checklist';
+    color: #495057;
+}
+
+/*
+ * =================================================================
+ * Accessibility and Responsive Enhancements
+ * =================================================================
+ */
+
+/* Focus indicators for keyboard navigation */
+.admonition:focus-within {
+    outline: 2px solid var(--admonition-info);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+    .admonition {
+        border: 1px solid ButtonBorder !important;
+        background: ButtonFace !important;
+    }
+
+    .admonition-title {
+        background: ButtonFace !important;
+        color: ButtonText !important;
+        border-bottom: 1px solid ButtonBorder !important;
+    }
+
+    .admonition-title::before {
+        color: ButtonText !important;
+    }
+}
+
+/* Responsive design for mobile devices */
+@media (max-width: 48rem) {
+    .admonition {
+        margin: 1rem 0;
+        border-radius: 6px;
+    }
+
+    .admonition-title {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+
+    .admonition-title::before {
+        font-size: 1.2em;
+        margin-right: 0.5rem;
+    }
+
+    .admonition-content {
+        padding: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .admonition {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+
+    .admonition-title::before {
+        content: none;
+    }
+}

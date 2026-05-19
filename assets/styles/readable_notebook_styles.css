@@ -1,0 +1,262 @@
+/* Clean, Readable Notebook Styling - Light Theme with Proper Spacing */
+
+:root {
+    /* Better, softer colors */
+    --bg-primary: #ffffff;
+    /* Pure white */
+    --bg-secondary: #f8f9fa;
+    /* Very light gray */
+    --bg-tertiary: #e9ecef;
+    /* Light gray for contrast */
+
+    /* Text colors with better contrast */
+    --text-primary: #212529;
+    /* Dark gray */
+    --text-secondary: #495057;
+    /* Medium gray */
+    --text-muted: #6c757d;
+    /* Light gray */
+
+    /* Better accent colors */
+    --blue: #007bff;
+    /* Brighter blue */
+    --green: #28a745;
+    /* Keep green */
+    --orange: #fd7e14;
+    /* Softer orange */
+    --red: #dc3545;
+    /* Standard red */
+    --purple: #6f42c1;
+    /* Keep purple */
+
+    /* Minimal spacing system */
+    --space-xs: 2px;
+    --space-sm: 4px;
+    --space-md: 6px;
+    --space-lg: 8px;
+    --space-xl: 12px;
+}
+
+/* Base notebook styling */
+.jp-Notebook {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    line-height: 1.5 !important;
+}
+
+.jp-Cell {
+    background-color: var(--bg-primary) !important;
+    margin-bottom: var(--space-sm) !important;
+}
+
+.jp-MarkdownCell .jp-Cell-inputWrapper {
+    background-color: var(--bg-primary) !important;
+    border-radius: 3px !important;
+    padding: var(--space-sm) !important;
+    border: 1px solid var(--bg-tertiary) !important;
+}
+
+/* Typography with minimal spacing */
+.jp-RenderedMarkdown h1 {
+    color: var(--blue) !important;
+    font-size: 24px !important;
+    font-weight: 600 !important;
+    margin: var(--space-md) 0 var(--space-sm) 0 !important;
+    padding-bottom: var(--space-xs) !important;
+    border-bottom: 1px solid var(--bg-tertiary) !important;
+}
+
+.jp-RenderedMarkdown h2 {
+    color: var(--green) !important;
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    margin: var(--space-md) 0 var(--space-xs) 0 !important;
+}
+
+.jp-RenderedMarkdown h3 {
+    color: var(--orange) !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    margin: var(--space-sm) 0 var(--space-xs) 0 !important;
+}
+
+.jp-RenderedMarkdown h4 {
+    color: var(--purple) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin: var(--space-sm) 0 var(--space-xs) 0 !important;
+}
+
+/* Clean paragraph styling */
+.jp-RenderedMarkdown p {
+    color: var(--text-primary) !important;
+    line-height: 1.4 !important;
+    margin: var(--space-xs) 0 !important;
+    font-size: 13px !important;
+}
+
+
+/* List styling with minimal spacing */
+.jp-RenderedMarkdown ul,
+.jp-RenderedMarkdown ol {
+    margin: var(--space-xs) 0 !important;
+    padding-left: var(--space-lg) !important;
+}
+
+.jp-RenderedMarkdown li {
+    margin: 0 !important;
+    line-height: 1.3 !important;
+}
+
+/* Code blocks with minimal padding */
+.jp-RenderedMarkdown code {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--red) !important;
+    padding: 1px var(--space-xs) !important;
+    border-radius: 2px !important;
+    font-family: 'SF Mono', Monaco, monospace !important;
+    font-size: 12px !important;
+}
+
+.jp-RenderedMarkdown pre {
+    background-color: var(--bg-secondary) !important;
+    border: 1px solid var(--bg-tertiary) !important;
+    border-radius: 3px !important;
+    padding: var(--space-sm) !important;
+    margin: var(--space-sm) 0 !important;
+    overflow-x: auto !important;
+}
+
+.jp-RenderedMarkdown pre code {
+    background-color: transparent !important;
+    padding: 0 !important;
+    color: var(--text-primary) !important;
+}
+
+.jp-RenderedMarkdown a {
+    color: var(--blue) !important;
+    text-decoration: none !important;
+    border-bottom: 1px solid transparent !important;
+}
+
+.jp-RenderedMarkdown a:hover {
+    border-bottom-color: var(--blue) !important;
+}
+
+/* Emphasis with proper contrast */
+.jp-RenderedMarkdown strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.jp-RenderedMarkdown em {
+    color: var(--text-secondary) !important;
+    font-style: italic !important;
+}
+
+/* Clean blockquotes */
+.jp-RenderedMarkdown blockquote {
+    border-left: 2px solid var(--bg-tertiary) !important;
+    background-color: var(--bg-secondary) !important;
+    margin: var(--space-sm) 0 !important;
+    padding: var(--space-xs) var(--space-sm) !important;
+    border-radius: 0 2px 2px 0 !important;
+}
+
+/* Tables with minimal spacing */
+.jp-RenderedMarkdown table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin: var(--space-sm) 0 !important;
+    border: 1px solid var(--bg-tertiary) !important;
+    border-radius: 3px !important;
+    overflow: hidden !important;
+}
+
+.jp-RenderedMarkdown th {
+    background-color: var(--bg-secondary) !important;
+    padding: var(--space-xs) var(--space-sm) !important;
+    text-align: left !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid var(--bg-tertiary) !important;
+}
+
+.jp-RenderedMarkdown td {
+    padding: var(--space-xs) var(--space-sm) !important;
+    border-bottom: 1px solid var(--bg-tertiary) !important;
+}
+
+/* Alert boxes with minimal spacing */
+.admonition {
+    border-radius: 3px !important;
+    margin: var(--space-sm) 0 !important;
+    border: 1px solid var(--bg-tertiary) !important;
+    overflow: hidden !important;
+}
+
+.admonition-title {
+    font-weight: 600 !important;
+    padding: var(--space-xs) var(--space-sm) !important;
+    margin: 0 !important;
+    font-size: 13px !important;
+    background-color: var(--bg-secondary) !important;
+    border-bottom: 1px solid var(--bg-tertiary) !important;
+}
+
+.admonition-content {
+    padding: var(--space-sm) !important;
+    background-color: var(--bg-primary) !important;
+}
+
+.admonition.note .admonition-title {
+    color: var(--blue) !important;
+}
+
+.admonition.tip .admonition-title {
+    color: var(--green) !important;
+}
+
+.admonition.warning .admonition-title {
+    color: var(--orange) !important;
+}
+
+.admonition.danger .admonition-title {
+    color: var(--red) !important;
+}
+
+/* Callouts with minimal styling */
+.callout {
+    border-radius: 3px !important;
+    margin: var(--space-sm) 0 !important;
+    border: 1px solid var(--bg-tertiary) !important;
+    background-color: var(--bg-secondary) !important;
+}
+
+.callout-title {
+    padding: var(--space-xs) var(--space-sm) !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    border-bottom: 1px solid var(--bg-tertiary) !important;
+}
+
+.callout-content {
+    padding: var(--space-sm) !important;
+    background-color: var(--bg-primary) !important;
+}
+
+.callout[data-callout="note"] .callout-title {
+    color: var(--blue) !important;
+}
+
+.callout[data-callout="tip"] .callout-title {
+    color: var(--green) !important;
+}
+
+.callout[data-callout="warning"] .callout-title {
+    color: var(--orange) !important;
+}
+
+.callout[data-callout="danger"] .callout-title {
+    color: var(--red) !important;
+}

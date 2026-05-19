@@ -1,0 +1,74 @@
+{
+  "algorithm": "FullGPU",
+  "repetitions": 2,
+  "successful_runs": 2,
+  "mean_time": 0.09848152650374686,
+  "std_time": 0.00017961550474865362,
+  "min_time": 0.09830191099899821,
+  "max_time": 0.09866114200849552,
+  "mean_cost": 7542.0,
+  "std_cost": 0.0,
+  "best_cost": 7542.0,
+  "worst_cost": 7542.0,
+  "mean_initial_cost": 25360.0,
+  "std_initial_cost": 0.0,
+  "mean_gap": 0.0,
+  "std_gap": 0.0,
+  "best_gap": 0.0,
+  "mean_improvement": 70.2602523659306,
+  "mean_generations": 16.0,
+  "std_generations": 0.0,
+  "min_generations": 16.0,
+  "max_generations": 16.0,
+  "mean_h2d_mb": 0.010816,
+  "mean_d2h_mb": 0.000216,
+  "total_transfer_mb": 0.011032,
+  "mean_kernels": 3.0,
+  "raw_times": [
+    0.09866114200849552,
+    0.09830191099899821
+  ],
+  "raw_initial_costs": [
+    25360.0,
+    25360.0
+  ],
+  "raw_costs": [
+    7542.0,
+    7542.0
+  ],
+  "raw_gaps": [
+    0.0,
+    0.0
+  ],
+  "raw_generations": [
+    16,
+    16
+  ],
+  "raw_stop_reasons": [
+    "hit_optimal",
+    "hit_optimal"
+  ],
+  "raw_seeds": [
+    300397927,
+    1112498570
+  ],
+  "problem_name": "berlin52",
+  "problem_size": 52,
+  "optimal_cost": 7542.0,
+  "max_generations_configured": 749,
+  "backend": "GPU",
+  "timestamp": "2025-11-28T00:21:36.673697",
+  "algorithm_config": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "tournament_size": 5,
+    "two_opt_iterations": 10,
+    "seed": 42
+  },
+  "strategies": {
+    "selection": "TournamentSelection",
+    "crossover": "OrderCrossover",
+    "mutation": "SwapMutation"
+  },
+  "construction_heuristic": "random_initialization"
+}

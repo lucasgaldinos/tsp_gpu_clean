@@ -1,0 +1,5 @@
+algorithm,n_problems,mean_success_rate,median_success_rate,std_success_rate,min_success_rate,max_success_rate
+CPU,12,1.0,1.0,0.0,1.0,1.0
+FullGPU,38,0.7267206477732794,1.0,0.3992826481464523,0.0,1.0
+HybridNaive,38,0.8026315789473685,1.0,0.35703290802357235,0.0,1.0
+HybridOptimized,38,0.7965587044534413,1.0,0.36410025880200453,0.0,1.0

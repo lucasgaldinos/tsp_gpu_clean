@@ -1,0 +1,26 @@
+/* KaTeX Integration for VS Code Markdown Preview */
+
+/* Load KaTeX CSS */
+@import url('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
+
+/* Inject KaTeX JavaScript */
+body::before {
+  content: '';
+  display: none;
+}
+
+/* Style for math expressions while they load */
+.math-inline {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+}
+
+.math-display {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+  text-align: center;
+  margin: 1em 0;
+}
+
+/* Custom script injection for KaTeX auto-render */
+/* Note: This approach has limitations in VS Code's sandboxed preview */

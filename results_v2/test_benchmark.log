@@ -1,0 +1,2131 @@
+2025-11-26 11:12:33,671 - INFO - ================================================================================
+2025-11-26 11:12:33,671 - INFO - Chapter 4 Validation Benchmark V2 (Modular Architecture)
+2025-11-26 11:12:33,671 - INFO - ================================================================================
+2025-11-26 11:12:33,671 - INFO - 
+2025-11-26 11:12:33,671 - INFO - Environment validated successfully
+2025-11-26 11:12:33,671 - INFO - 
+2025-11-26 11:12:33,672 - INFO - Loading configurations...
+2025-11-26 11:12:33,672 - INFO - ================================================================================
+2025-11-26 11:12:33,672 - INFO - CHAPTER 4 VALIDATION: GPU-ACCELERATED GENETIC ALGORITHM BENCHMARK
+2025-11-26 11:12:33,672 - INFO - ================================================================================
+2025-11-26 11:12:33,672 - INFO - 
+2025-11-26 11:12:33,672 - INFO - Configuration:
+2025-11-26 11:12:33,672 - INFO -   Algorithms: CPU, HybridNaive, HybridOptimized, FullGPU
+2025-11-26 11:12:33,672 - INFO -   Problems: 38 TSP instances
+2025-11-26 11:12:33,672 - INFO -   Repetitions: 22
+2025-11-26 11:12:33,672 - INFO -   CPU threshold: n ≤ 100
+2025-11-26 11:12:33,672 - INFO - 
+2025-11-26 11:12:33,672 - INFO - GA Parameters:
+2025-11-26 11:12:33,672 - INFO -   Population size: 256
+2025-11-26 11:12:33,672 - INFO -   Mutation rate: 0.02
+2025-11-26 11:12:33,672 - INFO -   Tournament size: 5
+2025-11-26 11:12:33,672 - INFO -   Early stop patience: Adaptive (2×√n generations)
+2025-11-26 11:12:33,672 - INFO - 
+2025-11-26 11:12:33,685 - INFO - 
+================================================================================
+2025-11-26 11:12:33,685 - INFO - PROBLEM 1/38: eil51
+2025-11-26 11:12:33,685 - INFO - Size: 51 cities | Optimal: 426.0
+2025-11-26 11:12:33,685 - INFO - ================================================================================
+2025-11-26 11:12:33,685 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:12:33,711 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:12:33,722 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:12:33,722 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending eil51 from 20 to 22 runs
+2025-11-26 11:12:33,722 - INFO -     Backend: CPU | Early stopping: patience=14 (adaptive: 2×√51) | New repetitions: 2
+2025-11-26 11:12:33,723 - INFO -     Run 21/22 (new #1/2, seed=586970948)...
+2025-11-26 11:13:01,649 - INFO - Near-optimal solution reached at generation 6 (cost=430.00, optimal=426.00, gap=0.94%)
+2025-11-26 11:13:01,649 - INFO - GeneticAlgorithmCPU evolution complete: best=430.00, improvement=67.98%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:13:01,649 - INFO -       → Completed in 27.93s | Cost: 430 (gap: 0.94%) | Generations: 6/728
+2025-11-26 11:13:01,649 - INFO -     Run 22/22 (new #2/2, seed=96348029)...
+2025-11-26 11:13:22,920 - INFO - Near-optimal solution reached at generation 5 (cost=429.00, optimal=426.00, gap=0.70%)
+2025-11-26 11:13:22,921 - INFO - GeneticAlgorithmCPU evolution complete: best=429.00, improvement=67.08%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:13:22,921 - INFO -       → Completed in 21.27s | Cost: 429 (gap: 0.70%) | Generations: 5/728
+2025-11-26 11:13:22,922 - INFO - 
+    ✓ CPU INCREMENTAL summary for eil51 (22 total runs): Cost=429±1.2 | Gap=0.61%±0.27% | Time=22.93s±4.48s
+2025-11-26 11:13:22,924 - INFO -     ✓ Checkpoint saved: eil51_CPU.json
+2025-11-26 11:13:22,991 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:13:22,992 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:13:22,992 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:13:22,992 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending eil51 from 20 to 22 runs
+2025-11-26 11:13:22,992 - INFO -     Backend: GPU | Early stopping: patience=14 (adaptive: 2×√51) | New repetitions: 2
+2025-11-26 11:13:23,118 - INFO -     Run 21/22 (new #1/2, seed=714334029)...
+2025-11-26 11:13:23,869 - INFO - Near-optimal solution reached at generation 5 (cost=429.00, optimal=426.00, gap=0.70%)
+2025-11-26 11:13:23,869 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=429.00, improvement=68.06%, H2D=0.37MB, D2H=0.26MB, kernels=12800, stopped=hit_optimal
+2025-11-26 11:13:23,869 - INFO -       → Completed in 0.75s | Cost: 429 (gap: 0.70%) | Generations: 5/728
+2025-11-26 11:13:23,869 - INFO -     Run 22/22 (new #2/2, seed=1445320825)...
+2025-11-26 11:13:24,345 - INFO - Near-optimal solution reached at generation 4 (cost=428.00, optimal=426.00, gap=0.47%)
+2025-11-26 11:13:24,345 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=428.00, improvement=69.65%, H2D=0.29MB, D2H=0.21MB, kernels=10240, stopped=hit_optimal
+2025-11-26 11:13:24,345 - INFO -       → Completed in 0.48s | Cost: 428 (gap: 0.47%) | Generations: 4/728
+2025-11-26 11:13:24,346 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for eil51 (22 total runs): Cost=429±1.1 | Gap=0.64%±0.25% | Time=0.61s±0.09s
+2025-11-26 11:13:24,360 - INFO -     ✓ Checkpoint saved: eil51_HybridNaive.json
+2025-11-26 11:13:24,408 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:13:24,409 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:13:24,409 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:13:24,409 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending eil51 from 20 to 22 runs
+2025-11-26 11:13:24,409 - INFO -     Backend: GPU | Early stopping: patience=14 (adaptive: 2×√51) | New repetitions: 2
+2025-11-26 11:13:24,409 - INFO -     Run 21/22 (new #1/2, seed=1699585035)...
+2025-11-26 11:13:24,515 - INFO - Near-optimal solution reached at generation 5 (cost=427.00, optimal=426.00, gap=0.23%)
+2025-11-26 11:13:24,515 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=427.00, improvement=68.21%, H2D=0.28MB, D2H=0.27MB, kernels=55, stopped=hit_optimal
+2025-11-26 11:13:24,515 - INFO -       → Completed in 0.11s | Cost: 427 (gap: 0.23%) | Generations: 5/728
+2025-11-26 11:13:24,515 - INFO -     Run 22/22 (new #2/2, seed=310158447)...
+2025-11-26 11:13:24,626 - INFO - Near-optimal solution reached at generation 5 (cost=429.00, optimal=426.00, gap=0.70%)
+2025-11-26 11:13:24,626 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=429.00, improvement=69.57%, H2D=0.26MB, D2H=0.27MB, kernels=55, stopped=hit_optimal
+2025-11-26 11:13:24,626 - INFO -       → Completed in 0.11s | Cost: 429 (gap: 0.70%) | Generations: 5/728
+2025-11-26 11:13:24,627 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for eil51 (22 total runs): Cost=429±1.0 | Gap=0.65%±0.22% | Time=0.11s±0.02s
+2025-11-26 11:13:24,636 - INFO -     ✓ Checkpoint saved: eil51_HybridOptimized.json
+2025-11-26 11:13:24,698 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:13:24,698 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:13:24,699 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:13:24,699 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending eil51 from 20 to 22 runs
+2025-11-26 11:13:24,699 - INFO -     Backend: GPU | Early stopping: patience=14 (adaptive: 2×√51) | New repetitions: 2
+2025-11-26 11:13:24,699 - INFO -     Run 21/22 (new #1/2, seed=319721900)...
+2025-11-26 11:13:24,731 - INFO - FullGPUEarlyStop: Launching kernel (max=728 gens, optimal=426.0, patience=14)
+2025-11-26 11:13:24,837 - INFO - FullGPUEarlyStop complete: best=428.00, improvement=70.36%, gens=20/728, stopped=hit_optimal, H2D=0.02MB, D2H=0.00MB, kernels=3
+2025-11-26 11:13:24,838 - INFO -       → Completed in 0.14s | Cost: 428 (gap: 0.47%) | Generations: 20/728
+2025-11-26 11:13:24,838 - INFO -     Run 22/22 (new #2/2, seed=508567699)...
+2025-11-26 11:13:24,838 - INFO - FullGPUEarlyStop: Launching kernel (max=728 gens, optimal=426.0, patience=14)
+2025-11-26 11:13:24,944 - INFO - FullGPUEarlyStop complete: best=428.00, improvement=70.36%, gens=20/728, stopped=hit_optimal, H2D=0.02MB, D2H=0.00MB, kernels=3
+2025-11-26 11:13:24,944 - INFO -       → Completed in 0.11s | Cost: 428 (gap: 0.47%) | Generations: 20/728
+2025-11-26 11:13:24,946 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for eil51 (22 total runs): Cost=428±0.6 | Gap=0.44%±0.15% | Time=0.44s±0.38s
+2025-11-26 11:13:24,956 - INFO -     ✓ Checkpoint saved: eil51_FullGPU.json
+2025-11-26 11:13:25,024 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:13:25,024 - INFO - STATISTICS FOR eil51
+2025-11-26 11:13:25,024 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:13:25,024 - INFO - 
+Statistical Analysis: eil51
+2025-11-26 11:13:25,024 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:13:25,029 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:13:25,029 - INFO -   Statistic: 10.4919
+2025-11-26 11:13:25,029 - INFO -   p-value: 0.014816
+2025-11-26 11:13:25,029 - INFO -   Significant: True
+2025-11-26 11:13:25,041 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:13:25,062 - INFO -   Critical distance: 1.4142
+2025-11-26 11:13:25,062 - INFO -   Mean ranks:
+2025-11-26 11:13:25,062 - INFO -     CPU: 2.80
+2025-11-26 11:13:25,062 - INFO -     HybridNaive: 2.68
+2025-11-26 11:13:25,062 - INFO -     HybridOptimized: 2.73
+2025-11-26 11:13:25,062 - INFO -     FullGPU: 1.80
+2025-11-26 11:13:25,062 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:13:25,062 - INFO -     CPU vs FullGPU: rank_diff=1.00, p=0.0500
+2025-11-26 11:13:25,062 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:13:25,062 - INFO - Following statistical methodology:
+2025-11-26 11:13:25,062 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:13:25,062 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:13:25,062 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:13:25,062 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:13:25,063 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:13:25,065 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:13:25,065 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:13:25,065 - INFO -       CPU: p=0.0100 (non-normal)
+2025-11-26 11:13:25,065 - INFO -       HybridNaive: p=0.0065 (non-normal)
+2025-11-26 11:13:25,065 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:13:25,065 - INFO -     Mean difference: -0.14
+2025-11-26 11:13:25,065 - INFO -     95% CI difference: [-0.80, 0.52]
+2025-11-26 11:13:25,065 - INFO -     p-value (uncorrected): 0.813941
+2025-11-26 11:13:25,065 - INFO -     Cohen's d: -0.1206
+2025-11-26 11:13:25,065 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:13:25,068 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:13:25,068 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:13:25,068 - INFO -       CPU: p=0.0100 (non-normal)
+2025-11-26 11:13:25,069 - INFO -       HybridOptimized: p=0.0050 (non-normal)
+2025-11-26 11:13:25,069 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:13:25,069 - INFO -     Mean difference: -0.18
+2025-11-26 11:13:25,069 - INFO -     95% CI difference: [-0.98, 0.61]
+2025-11-26 11:13:25,069 - INFO -     p-value (uncorrected): 0.578962
+2025-11-26 11:13:25,069 - INFO -     Cohen's d: -0.1680
+2025-11-26 11:13:25,069 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:13:25,071 - INFO -   CPU vs FullGPU:
+2025-11-26 11:13:25,071 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:13:25,071 - INFO -       CPU: p=0.0100 (non-normal)
+2025-11-26 11:13:25,071 - INFO -       FullGPU: p=0.0003 (non-normal)
+2025-11-26 11:13:25,071 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:13:25,071 - INFO -     Mean difference: 0.73
+2025-11-26 11:13:25,071 - INFO -     95% CI difference: [0.18, 1.28]
+2025-11-26 11:13:25,072 - INFO -     p-value (uncorrected): 0.014786
+2025-11-26 11:13:25,072 - INFO -     Cohen's d: 0.7655
+2025-11-26 11:13:25,072 - INFO -     Effect size interpretation: medium
+2025-11-26 11:13:25,076 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:13:25,076 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:13:25,076 - INFO -       HybridNaive: p=0.0065 (non-normal)
+2025-11-26 11:13:25,076 - INFO -       HybridOptimized: p=0.0050 (non-normal)
+2025-11-26 11:13:25,076 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:13:25,076 - INFO -     Mean difference: -0.05
+2025-11-26 11:13:25,076 - INFO -     95% CI difference: [-0.76, 0.67]
+2025-11-26 11:13:25,076 - INFO -     p-value (uncorrected): 0.949060
+2025-11-26 11:13:25,076 - INFO -     Cohen's d: -0.0443
+2025-11-26 11:13:25,076 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:13:25,079 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:13:25,079 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:13:25,079 - INFO -       HybridNaive: p=0.0065 (non-normal)
+2025-11-26 11:13:25,079 - INFO -       FullGPU: p=0.0003 (non-normal)
+2025-11-26 11:13:25,079 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:13:25,079 - INFO -     Mean difference: 0.86
+2025-11-26 11:13:25,079 - INFO -     95% CI difference: [0.36, 1.36]
+2025-11-26 11:13:25,079 - INFO -     p-value (uncorrected): 0.003463
+2025-11-26 11:13:25,079 - INFO -     Cohen's d: 0.9750
+2025-11-26 11:13:25,079 - INFO -     Effect size interpretation: large
+2025-11-26 11:13:25,082 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:13:25,082 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:13:25,082 - INFO -       HybridOptimized: p=0.0050 (non-normal)
+2025-11-26 11:13:25,082 - INFO -       FullGPU: p=0.0003 (non-normal)
+2025-11-26 11:13:25,082 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:13:25,082 - INFO -     Mean difference: 0.91
+2025-11-26 11:13:25,082 - INFO -     95% CI difference: [0.35, 1.47]
+2025-11-26 11:13:25,082 - INFO -     p-value (uncorrected): 0.004891
+2025-11-26 11:13:25,082 - INFO -     Cohen's d: 1.1045
+2025-11-26 11:13:25,082 - INFO -     Effect size interpretation: large
+2025-11-26 11:13:25,082 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:13:25,082 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:13:25,082 - INFO -       Original p-value: 0.813941
+2025-11-26 11:13:25,082 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:13:25,082 - INFO -       Significant (after correction): False
+2025-11-26 11:13:25,082 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:13:25,083 - INFO -       Original p-value: 0.578962
+2025-11-26 11:13:25,083 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:13:25,083 - INFO -       Significant (after correction): False
+2025-11-26 11:13:25,083 - INFO -     CPU vs FullGPU:
+2025-11-26 11:13:25,083 - INFO -       Original p-value: 0.014786
+2025-11-26 11:13:25,083 - INFO -       Adjusted p-value: 0.059145
+2025-11-26 11:13:25,083 - INFO -       Significant (after correction): False
+2025-11-26 11:13:25,083 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:13:25,083 - INFO -       Original p-value: 0.949060
+2025-11-26 11:13:25,083 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:13:25,083 - INFO -       Significant (after correction): False
+2025-11-26 11:13:25,083 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:13:25,083 - INFO -       Original p-value: 0.003463
+2025-11-26 11:13:25,083 - INFO -       Adjusted p-value: 0.020777
+2025-11-26 11:13:25,083 - INFO -       Significant (after correction): True
+2025-11-26 11:13:25,083 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:13:25,083 - INFO -       Original p-value: 0.004891
+2025-11-26 11:13:25,083 - INFO -       Adjusted p-value: 0.024455
+2025-11-26 11:13:25,083 - INFO -       Significant (after correction): True
+2025-11-26 11:13:25,083 - INFO - 
+Summary: eil51 (optimal=426.0)
+2025-11-26 11:13:25,083 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:13:25,083 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:13:25,083 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:13:25,083 - INFO - CPU                  428.59          0.61         22.93        0.00         0.00        
+2025-11-26 11:13:25,083 - INFO - HybridNaive          428.73          0.64         0.61         0.33         0.24        
+2025-11-26 11:13:25,083 - INFO - HybridOptimized      428.77          0.65         0.11         0.27         0.27        
+2025-11-26 11:13:25,084 - INFO - FullGPU              427.86          0.44         0.44         0.02         0.00        
+2025-11-26 11:13:25,084 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:13:25,084 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:13:25,084 - INFO -   HybridNaive: 37.39x vs CPU
+2025-11-26 11:13:25,084 - INFO -   HybridOptimized: 203.27x vs CPU
+2025-11-26 11:13:25,084 - INFO -   FullGPU: 51.77x vs CPU
+2025-11-26 11:13:25,084 - INFO - 
+2025-11-26 11:13:25,087 - INFO - ✓ Problem statistics saved: eil51_stats.json
+
+2025-11-26 11:13:25,149 - INFO - 
+================================================================================
+2025-11-26 11:13:25,150 - INFO - PROBLEM 2/38: berlin52
+2025-11-26 11:13:25,150 - INFO - Size: 52 cities | Optimal: 7542.0
+2025-11-26 11:13:25,150 - INFO - ================================================================================
+2025-11-26 11:13:25,150 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:13:25,181 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:13:25,182 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:13:25,182 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending berlin52 from 20 to 22 runs
+2025-11-26 11:13:25,182 - INFO -     Backend: CPU | Early stopping: patience=14 (adaptive: 2×√52) | New repetitions: 2
+2025-11-26 11:13:25,183 - INFO -     Run 21/22 (new #1/2, seed=1858198766)...
+2025-11-26 11:13:55,365 - INFO - Near-optimal solution reached at generation 5 (cost=7542.00, optimal=7542.00, gap=0.00%)
+2025-11-26 11:13:55,365 - INFO - GeneticAlgorithmCPU evolution complete: best=7542.00, improvement=69.63%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:13:55,365 - INFO -       → Completed in 30.18s | Cost: 7542 (gap: 0.00%) | Generations: 5/749
+2025-11-26 11:13:55,366 - INFO -     Run 22/22 (new #2/2, seed=2134927513)...
+2025-11-26 11:14:21,346 - INFO - Near-optimal solution reached at generation 5 (cost=7542.00, optimal=7542.00, gap=0.00%)
+2025-11-26 11:14:21,347 - INFO - GeneticAlgorithmCPU evolution complete: best=7542.00, improvement=69.90%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:14:21,347 - INFO -       → Completed in 25.98s | Cost: 7542 (gap: 0.00%) | Generations: 5/749
+2025-11-26 11:14:21,350 - INFO - 
+    ✓ CPU INCREMENTAL summary for berlin52 (22 total runs): Cost=7554±22.4 | Gap=0.16%±0.30% | Time=26.60s±3.63s
+2025-11-26 11:14:21,356 - INFO -     ✓ Checkpoint saved: berlin52_CPU.json
+2025-11-26 11:14:21,420 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:14:21,420 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:14:21,420 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:14:21,420 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending berlin52 from 20 to 22 runs
+2025-11-26 11:14:21,420 - INFO -     Backend: GPU | Early stopping: patience=14 (adaptive: 2×√52) | New repetitions: 2
+2025-11-26 11:14:21,420 - INFO -     Run 21/22 (new #1/2, seed=107619925)...
+2025-11-26 11:14:22,070 - INFO - Near-optimal solution reached at generation 5 (cost=7542.00, optimal=7542.00, gap=0.00%)
+2025-11-26 11:14:22,070 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=7542.00, improvement=69.63%, H2D=0.37MB, D2H=0.27MB, kernels=12800, stopped=hit_optimal
+2025-11-26 11:14:22,071 - INFO -       → Completed in 0.65s | Cost: 7542 (gap: 0.00%) | Generations: 5/749
+2025-11-26 11:14:22,071 - INFO -     Run 22/22 (new #2/2, seed=1106157219)...
+2025-11-26 11:14:22,685 - INFO - Near-optimal solution reached at generation 5 (cost=7542.00, optimal=7542.00, gap=0.00%)
+2025-11-26 11:14:22,685 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=7542.00, improvement=69.90%, H2D=0.37MB, D2H=0.27MB, kernels=12800, stopped=hit_optimal
+2025-11-26 11:14:22,685 - INFO -       → Completed in 0.61s | Cost: 7542 (gap: 0.00%) | Generations: 5/749
+2025-11-26 11:14:22,687 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for berlin52 (22 total runs): Cost=7548±15.5 | Gap=0.08%±0.21% | Time=0.57s±0.06s
+2025-11-26 11:14:22,696 - INFO -     ✓ Checkpoint saved: berlin52_HybridNaive.json
+2025-11-26 11:14:22,760 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:14:22,760 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:14:22,761 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:14:22,761 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending berlin52 from 20 to 22 runs
+2025-11-26 11:14:22,761 - INFO -     Backend: GPU | Early stopping: patience=14 (adaptive: 2×√52) | New repetitions: 2
+2025-11-26 11:14:22,761 - INFO -     Run 21/22 (new #1/2, seed=1337768689)...
+2025-11-26 11:14:22,855 - INFO - Near-optimal solution reached at generation 4 (cost=7542.00, optimal=7542.00, gap=0.00%)
+2025-11-26 11:14:22,855 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=7542.00, improvement=69.63%, H2D=0.23MB, D2H=0.22MB, kernels=44, stopped=hit_optimal
+2025-11-26 11:14:22,855 - INFO -       → Completed in 0.09s | Cost: 7542 (gap: 0.00%) | Generations: 4/749
+2025-11-26 11:14:22,855 - INFO -     Run 22/22 (new #2/2, seed=1993359324)...
+2025-11-26 11:14:22,996 - INFO - Near-optimal solution reached at generation 5 (cost=7542.00, optimal=7542.00, gap=0.00%)
+2025-11-26 11:14:22,996 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=7542.00, improvement=71.12%, H2D=0.27MB, D2H=0.28MB, kernels=55, stopped=hit_optimal
+2025-11-26 11:14:22,997 - INFO -       → Completed in 0.14s | Cost: 7542 (gap: 0.00%) | Generations: 5/749
+2025-11-26 11:14:22,999 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for berlin52 (22 total runs): Cost=7557±22.1 | Gap=0.20%±0.29% | Time=0.11s±0.01s
+2025-11-26 11:14:23,009 - INFO -     ✓ Checkpoint saved: berlin52_HybridOptimized.json
+2025-11-26 11:14:23,073 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:14:23,074 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:14:23,074 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:14:23,074 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending berlin52 from 20 to 22 runs
+2025-11-26 11:14:23,074 - INFO -     Backend: GPU | Early stopping: patience=14 (adaptive: 2×√52) | New repetitions: 2
+2025-11-26 11:14:23,074 - INFO -     Run 21/22 (new #1/2, seed=1415310499)...
+2025-11-26 11:14:23,075 - INFO - FullGPUEarlyStop: Launching kernel (max=749 gens, optimal=7542.0, patience=14)
+2025-11-26 11:14:23,178 - INFO - FullGPUEarlyStop complete: best=7542.00, improvement=71.38%, gens=17/749, stopped=hit_optimal, H2D=0.02MB, D2H=0.00MB, kernels=3
+2025-11-26 11:14:23,178 - INFO -       → Completed in 0.10s | Cost: 7542 (gap: 0.00%) | Generations: 17/749
+2025-11-26 11:14:23,178 - INFO -     Run 22/22 (new #2/2, seed=308108076)...
+2025-11-26 11:14:23,179 - INFO - FullGPUEarlyStop: Launching kernel (max=749 gens, optimal=7542.0, patience=14)
+2025-11-26 11:14:23,282 - INFO - FullGPUEarlyStop complete: best=7542.00, improvement=71.38%, gens=17/749, stopped=hit_optimal, H2D=0.02MB, D2H=0.00MB, kernels=3
+2025-11-26 11:14:23,282 - INFO -       → Completed in 0.10s | Cost: 7542 (gap: 0.00%) | Generations: 17/749
+2025-11-26 11:14:23,284 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for berlin52 (22 total runs): Cost=7542±0.0 | Gap=0.00%±0.00% | Time=0.28s±0.06s
+2025-11-26 11:14:23,293 - INFO -     ✓ Checkpoint saved: berlin52_FullGPU.json
+2025-11-26 11:14:23,356 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:14:23,356 - INFO - STATISTICS FOR berlin52
+2025-11-26 11:14:23,356 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:14:23,356 - INFO - 
+Statistical Analysis: berlin52
+2025-11-26 11:14:23,356 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:14:23,361 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:14:23,361 - INFO -   Statistic: 10.8557
+2025-11-26 11:14:23,361 - INFO -   p-value: 0.012532
+2025-11-26 11:14:23,361 - INFO -   Significant: True
+2025-11-26 11:14:23,377 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:14:23,393 - INFO -   Critical distance: 1.4142
+2025-11-26 11:14:23,393 - INFO -   Mean ranks:
+2025-11-26 11:14:23,393 - INFO -     CPU: 2.64
+2025-11-26 11:14:23,393 - INFO -     HybridNaive: 2.41
+2025-11-26 11:14:23,393 - INFO -     HybridOptimized: 2.89
+2025-11-26 11:14:23,393 - INFO -     FullGPU: 2.07
+2025-11-26 11:14:23,393 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:14:23,394 - INFO -     None (no significant differences detected)
+2025-11-26 11:14:23,394 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:14:23,394 - INFO - Following statistical methodology:
+2025-11-26 11:14:23,394 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:14:23,394 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:14:23,394 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:14:23,394 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:14:23,394 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:14:23,397 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:14:23,397 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:14:23,397 - INFO -       CPU: p=0.0000 (non-normal)
+2025-11-26 11:14:23,397 - INFO -       HybridNaive: p=0.0000 (non-normal)
+2025-11-26 11:14:23,397 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:14:23,397 - INFO -     Mean difference: 6.00
+2025-11-26 11:14:23,397 - INFO -     95% CI difference: [-6.05, 18.05]
+2025-11-26 11:14:23,397 - INFO -     p-value (uncorrected): 0.261446
+2025-11-26 11:14:23,397 - INFO -     Cohen's d: 0.3042
+2025-11-26 11:14:23,398 - INFO -     Effect size interpretation: small
+2025-11-26 11:14:23,400 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:14:23,400 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:14:23,400 - INFO -       CPU: p=0.0000 (non-normal)
+2025-11-26 11:14:23,400 - INFO -       HybridOptimized: p=0.0000 (non-normal)
+2025-11-26 11:14:23,401 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:14:23,401 - INFO -     Mean difference: -3.09
+2025-11-26 11:14:23,401 - INFO -     95% CI difference: [-15.85, 9.67]
+2025-11-26 11:14:23,401 - INFO -     p-value (uncorrected): 0.432768
+2025-11-26 11:14:23,401 - INFO -     Cohen's d: -0.1358
+2025-11-26 11:14:23,401 - INFO -     Effect size interpretation: negligible
+/home/lucas_galdino/chimera/gpu_accelerated/.venv/lib/python3.10/site-packages/scipy/stats/_axis_nan_policy.py:586: UserWarning: scipy.stats.shapiro: Input data has range zero. The results may not be accurate.
+  res = hypotest_fun_out(*samples, **kwds)
+2025-11-26 11:14:23,404 - INFO -   CPU vs FullGPU:
+2025-11-26 11:14:23,404 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:14:23,404 - INFO -       CPU: p=0.0000 (non-normal)
+2025-11-26 11:14:23,404 - INFO -       FullGPU: p=1.0000 (normal)
+2025-11-26 11:14:23,404 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:14:23,404 - INFO -     Mean difference: 12.27
+2025-11-26 11:14:23,404 - INFO -     95% CI difference: [2.11, 22.44]
+2025-11-26 11:14:23,404 - INFO -     p-value (uncorrected): 0.027708
+2025-11-26 11:14:23,405 - INFO -     Cohen's d: 0.7570
+2025-11-26 11:14:23,405 - INFO -     Effect size interpretation: medium
+2025-11-26 11:14:23,407 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:14:23,407 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:14:23,408 - INFO -       HybridNaive: p=0.0000 (non-normal)
+2025-11-26 11:14:23,408 - INFO -       HybridOptimized: p=0.0000 (non-normal)
+2025-11-26 11:14:23,408 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:14:23,408 - INFO -     Mean difference: -9.09
+2025-11-26 11:14:23,408 - INFO -     95% CI difference: [-20.65, 2.46]
+2025-11-26 11:14:23,408 - INFO -     p-value (uncorrected): 0.099481
+2025-11-26 11:14:23,408 - INFO -     Cohen's d: -0.4655
+2025-11-26 11:14:23,408 - INFO -     Effect size interpretation: small
+2025-11-26 11:14:23,411 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:14:23,411 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:14:23,411 - INFO -       HybridNaive: p=0.0000 (non-normal)
+2025-11-26 11:14:23,411 - INFO -       FullGPU: p=1.0000 (normal)
+2025-11-26 11:14:23,411 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:14:23,411 - INFO -     Mean difference: 6.27
+2025-11-26 11:14:23,411 - INFO -     95% CI difference: [-0.77, 13.32]
+2025-11-26 11:14:23,411 - INFO -     p-value (uncorrected): 0.067889
+2025-11-26 11:14:23,411 - INFO -     Cohen's d: 0.5585
+2025-11-26 11:14:23,411 - INFO -     Effect size interpretation: medium
+2025-11-26 11:14:23,414 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:14:23,414 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:14:23,414 - INFO -       HybridOptimized: p=0.0000 (non-normal)
+2025-11-26 11:14:23,414 - INFO -       FullGPU: p=1.0000 (normal)
+2025-11-26 11:14:23,414 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:14:23,414 - INFO -     Mean difference: 15.36
+2025-11-26 11:14:23,414 - INFO -     95% CI difference: [5.34, 25.38]
+2025-11-26 11:14:23,414 - INFO -     p-value (uncorrected): 0.007686
+2025-11-26 11:14:23,414 - INFO -     Cohen's d: 0.9615
+2025-11-26 11:14:23,414 - INFO -     Effect size interpretation: large
+2025-11-26 11:14:23,415 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:14:23,415 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:14:23,415 - INFO -       Original p-value: 0.261446
+2025-11-26 11:14:23,415 - INFO -       Adjusted p-value: 0.522892
+2025-11-26 11:14:23,415 - INFO -       Significant (after correction): False
+2025-11-26 11:14:23,415 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:14:23,415 - INFO -       Original p-value: 0.432768
+2025-11-26 11:14:23,415 - INFO -       Adjusted p-value: 0.522892
+2025-11-26 11:14:23,415 - INFO -       Significant (after correction): False
+2025-11-26 11:14:23,415 - INFO -     CPU vs FullGPU:
+2025-11-26 11:14:23,415 - INFO -       Original p-value: 0.027708
+2025-11-26 11:14:23,415 - INFO -       Adjusted p-value: 0.138539
+2025-11-26 11:14:23,415 - INFO -       Significant (after correction): False
+2025-11-26 11:14:23,415 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:14:23,416 - INFO -       Original p-value: 0.099481
+2025-11-26 11:14:23,416 - INFO -       Adjusted p-value: 0.298443
+2025-11-26 11:14:23,416 - INFO -       Significant (after correction): False
+2025-11-26 11:14:23,416 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:14:23,416 - INFO -       Original p-value: 0.067889
+2025-11-26 11:14:23,416 - INFO -       Adjusted p-value: 0.271557
+2025-11-26 11:14:23,416 - INFO -       Significant (after correction): False
+2025-11-26 11:14:23,416 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:14:23,416 - INFO -       Original p-value: 0.007686
+2025-11-26 11:14:23,416 - INFO -       Adjusted p-value: 0.046115
+2025-11-26 11:14:23,416 - INFO -       Significant (after correction): True
+2025-11-26 11:14:23,416 - INFO - 
+Summary: berlin52 (optimal=7542.0)
+2025-11-26 11:14:23,416 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:14:23,416 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:14:23,416 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:14:23,416 - INFO - CPU                  7554.27         0.16         26.60        0.00         0.00        
+2025-11-26 11:14:23,416 - INFO - HybridNaive          7548.27         0.08         0.57         0.37         0.27        
+2025-11-26 11:14:23,417 - INFO - HybridOptimized      7557.36         0.20         0.11         0.25         0.25        
+2025-11-26 11:14:23,417 - INFO - FullGPU              7542.00         0.00         0.28         0.02         0.00        
+2025-11-26 11:14:23,417 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:14:23,417 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:14:23,417 - INFO -   HybridNaive: 46.43x vs CPU
+2025-11-26 11:14:23,417 - INFO -   HybridOptimized: 233.37x vs CPU
+2025-11-26 11:14:23,417 - INFO -   FullGPU: 94.25x vs CPU
+2025-11-26 11:14:23,417 - INFO - 
+2025-11-26 11:14:23,422 - INFO - ✓ Problem statistics saved: berlin52_stats.json
+
+2025-11-26 11:14:23,482 - INFO - 
+================================================================================
+2025-11-26 11:14:23,482 - INFO - PROBLEM 3/38: st70
+2025-11-26 11:14:23,482 - INFO - Size: 70 cities | Optimal: 675.0
+2025-11-26 11:14:23,482 - INFO - ================================================================================
+2025-11-26 11:14:23,483 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:14:23,518 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:14:23,519 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:14:23,519 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending st70 from 20 to 22 runs
+2025-11-26 11:14:23,519 - INFO -     Backend: CPU | Early stopping: patience=16 (adaptive: 2×√70) | New repetitions: 2
+2025-11-26 11:14:23,519 - INFO -     Run 21/22 (new #1/2, seed=1370590187)...
+2025-11-26 11:15:28,336 - INFO - Near-optimal solution reached at generation 7 (cost=677.00, optimal=675.00, gap=0.30%)
+2025-11-26 11:15:28,336 - INFO - GeneticAlgorithmCPU evolution complete: best=677.00, improvement=78.91%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:15:28,336 - INFO -       → Completed in 64.82s | Cost: 677 (gap: 0.30%) | Generations: 7/1171
+2025-11-26 11:15:28,337 - INFO -     Run 22/22 (new #2/2, seed=1898650419)...
+2025-11-26 11:16:23,724 - INFO - Near-optimal solution reached at generation 7 (cost=676.00, optimal=675.00, gap=0.15%)
+2025-11-26 11:16:23,724 - INFO - GeneticAlgorithmCPU evolution complete: best=676.00, improvement=79.20%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:16:23,724 - INFO -       → Completed in 55.39s | Cost: 676 (gap: 0.15%) | Generations: 7/1171
+2025-11-26 11:16:23,725 - INFO - 
+    ✓ CPU INCREMENTAL summary for st70 (22 total runs): Cost=678±2.0 | Gap=0.40%±0.30% | Time=56.73s±6.56s
+2025-11-26 11:16:23,727 - INFO -     ✓ Checkpoint saved: st70_CPU.json
+2025-11-26 11:16:23,774 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:16:23,775 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:16:23,775 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:16:23,775 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending st70 from 20 to 22 runs
+2025-11-26 11:16:23,775 - INFO -     Backend: GPU | Early stopping: patience=16 (adaptive: 2×√70) | New repetitions: 2
+2025-11-26 11:16:23,775 - INFO -     Run 21/22 (new #1/2, seed=1844323859)...
+2025-11-26 11:16:24,680 - INFO - Near-optimal solution reached at generation 7 (cost=680.00, optimal=675.00, gap=0.74%)
+2025-11-26 11:16:24,681 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=680.00, improvement=78.82%, H2D=0.78MB, D2H=0.50MB, kernels=17920, stopped=hit_optimal
+2025-11-26 11:16:24,681 - INFO -       → Completed in 0.91s | Cost: 680 (gap: 0.74%) | Generations: 7/1171
+2025-11-26 11:16:24,681 - INFO -     Run 22/22 (new #2/2, seed=1222562984)...
+2025-11-26 11:16:25,548 - INFO - Near-optimal solution reached at generation 7 (cost=675.00, optimal=675.00, gap=0.00%)
+2025-11-26 11:16:25,548 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=675.00, improvement=79.23%, H2D=0.78MB, D2H=0.50MB, kernels=17920, stopped=hit_optimal
+2025-11-26 11:16:25,548 - INFO -       → Completed in 0.87s | Cost: 675 (gap: 0.00%) | Generations: 7/1171
+2025-11-26 11:16:25,548 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for st70 (22 total runs): Cost=677±2.2 | Gap=0.30%±0.33% | Time=0.94s±0.07s
+2025-11-26 11:16:25,557 - INFO -     ✓ Checkpoint saved: st70_HybridNaive.json
+2025-11-26 11:16:25,604 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:16:25,604 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:16:25,604 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:16:25,605 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending st70 from 20 to 22 runs
+2025-11-26 11:16:25,605 - INFO -     Backend: GPU | Early stopping: patience=16 (adaptive: 2×√70) | New repetitions: 2
+2025-11-26 11:16:25,605 - INFO -     Run 21/22 (new #1/2, seed=1495177945)...
+2025-11-26 11:16:25,747 - INFO - Near-optimal solution reached at generation 7 (cost=675.00, optimal=675.00, gap=0.00%)
+2025-11-26 11:16:25,747 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=675.00, improvement=78.97%, H2D=0.54MB, D2H=0.52MB, kernels=77, stopped=hit_optimal
+2025-11-26 11:16:25,747 - INFO -       → Completed in 0.14s | Cost: 675 (gap: 0.00%) | Generations: 7/1171
+2025-11-26 11:16:25,748 - INFO -     Run 22/22 (new #2/2, seed=1801051909)...
+2025-11-26 11:16:25,883 - INFO - Near-optimal solution reached at generation 7 (cost=680.00, optimal=675.00, gap=0.74%)
+2025-11-26 11:16:25,883 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=680.00, improvement=79.08%, H2D=0.50MB, D2H=0.52MB, kernels=77, stopped=hit_optimal
+2025-11-26 11:16:25,883 - INFO -       → Completed in 0.14s | Cost: 680 (gap: 0.74%) | Generations: 7/1171
+2025-11-26 11:16:25,884 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for st70 (22 total runs): Cost=677±1.8 | Gap=0.34%±0.26% | Time=0.18s±0.04s
+2025-11-26 11:16:25,893 - INFO -     ✓ Checkpoint saved: st70_HybridOptimized.json
+2025-11-26 11:16:25,936 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:16:25,937 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:16:25,937 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:16:25,937 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending st70 from 20 to 22 runs
+2025-11-26 11:16:25,937 - INFO -     Backend: GPU | Early stopping: patience=16 (adaptive: 2×√70) | New repetitions: 2
+2025-11-26 11:16:25,937 - INFO -     Run 21/22 (new #1/2, seed=1727750522)...
+2025-11-26 11:16:25,938 - INFO - FullGPUEarlyStop: Launching kernel (max=1171 gens, optimal=675.0, patience=16)
+2025-11-26 11:16:26,187 - INFO - FullGPUEarlyStop complete: best=675.00, improvement=78.66%, gens=21/1171, stopped=hit_optimal, H2D=0.04MB, D2H=0.00MB, kernels=3
+2025-11-26 11:16:26,187 - INFO -       → Completed in 0.25s | Cost: 675 (gap: 0.00%) | Generations: 21/1171
+2025-11-26 11:16:26,187 - INFO -     Run 22/22 (new #2/2, seed=28823852)...
+2025-11-26 11:16:26,188 - INFO - FullGPUEarlyStop: Launching kernel (max=1171 gens, optimal=675.0, patience=16)
+2025-11-26 11:16:26,447 - INFO - FullGPUEarlyStop complete: best=675.00, improvement=78.66%, gens=22/1171, stopped=hit_optimal, H2D=0.04MB, D2H=0.00MB, kernels=3
+2025-11-26 11:16:26,447 - INFO -       → Completed in 0.26s | Cost: 675 (gap: 0.00%) | Generations: 22/1171
+2025-11-26 11:16:26,448 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for st70 (22 total runs): Cost=675±0.0 | Gap=0.00%±0.00% | Time=0.61s±0.12s
+2025-11-26 11:16:26,457 - INFO -     ✓ Checkpoint saved: st70_FullGPU.json
+2025-11-26 11:16:26,500 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:16:26,500 - INFO - STATISTICS FOR st70
+2025-11-26 11:16:26,500 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:16:26,500 - INFO - 
+Statistical Analysis: st70
+2025-11-26 11:16:26,500 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:16:26,505 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:16:26,505 - INFO -   Statistic: 29.7594
+2025-11-26 11:16:26,505 - INFO -   p-value: 0.000002
+2025-11-26 11:16:26,505 - INFO -   Significant: True
+2025-11-26 11:16:26,513 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:16:26,520 - INFO -   Critical distance: 1.4142
+2025-11-26 11:16:26,520 - INFO -   Mean ranks:
+2025-11-26 11:16:26,520 - INFO -     CPU: 3.14
+2025-11-26 11:16:26,520 - INFO -     HybridNaive: 2.64
+2025-11-26 11:16:26,520 - INFO -     HybridOptimized: 2.89
+2025-11-26 11:16:26,520 - INFO -     FullGPU: 1.34
+2025-11-26 11:16:26,520 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:16:26,520 - INFO -     CPU vs FullGPU: rank_diff=1.80, p=0.0000
+2025-11-26 11:16:26,520 - INFO -     HybridNaive vs FullGPU: rank_diff=1.30, p=0.0048
+2025-11-26 11:16:26,520 - INFO -     HybridOptimized vs FullGPU: rank_diff=1.55, p=0.0004
+2025-11-26 11:16:26,520 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:16:26,520 - INFO - Following statistical methodology:
+2025-11-26 11:16:26,520 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:16:26,520 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:16:26,520 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:16:26,520 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:16:26,521 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:16:26,523 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:16:26,523 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:16:26,523 - INFO -       CPU: p=0.0252 (non-normal)
+2025-11-26 11:16:26,523 - INFO -       HybridNaive: p=0.0003 (non-normal)
+2025-11-26 11:16:26,523 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:16:26,523 - INFO -     Mean difference: 0.68
+2025-11-26 11:16:26,523 - INFO -     95% CI difference: [-0.69, 2.05]
+2025-11-26 11:16:26,523 - INFO -     p-value (uncorrected): 0.321011
+2025-11-26 11:16:26,523 - INFO -     Cohen's d: 0.3130
+2025-11-26 11:16:26,523 - INFO -     Effect size interpretation: small
+2025-11-26 11:16:26,526 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:16:26,526 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:16:26,526 - INFO -       CPU: p=0.0252 (non-normal)
+2025-11-26 11:16:26,526 - INFO -       HybridOptimized: p=0.1178 (normal)
+2025-11-26 11:16:26,526 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:16:26,526 - INFO -     Mean difference: 0.41
+2025-11-26 11:16:26,526 - INFO -     95% CI difference: [-0.83, 1.65]
+2025-11-26 11:16:26,526 - INFO -     p-value (uncorrected): 0.474361
+2025-11-26 11:16:26,526 - INFO -     Cohen's d: 0.2102
+2025-11-26 11:16:26,526 - INFO -     Effect size interpretation: small
+/home/lucas_galdino/chimera/gpu_accelerated/.venv/lib/python3.10/site-packages/scipy/stats/_axis_nan_policy.py:586: UserWarning: scipy.stats.shapiro: Input data has range zero. The results may not be accurate.
+  res = hypotest_fun_out(*samples, **kwds)
+2025-11-26 11:16:26,528 - INFO -   CPU vs FullGPU:
+2025-11-26 11:16:26,528 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:16:26,528 - INFO -       CPU: p=0.0252 (non-normal)
+2025-11-26 11:16:26,528 - INFO -       FullGPU: p=1.0000 (normal)
+2025-11-26 11:16:26,529 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:16:26,529 - INFO -     Mean difference: 2.73
+2025-11-26 11:16:26,529 - INFO -     95% CI difference: [1.81, 3.65]
+2025-11-26 11:16:26,529 - INFO -     p-value (uncorrected): 0.000175
+2025-11-26 11:16:26,529 - INFO -     Cohen's d: 1.8593
+2025-11-26 11:16:26,529 - INFO -     Effect size interpretation: large
+2025-11-26 11:16:26,531 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:16:26,531 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:16:26,531 - INFO -       HybridNaive: p=0.0003 (non-normal)
+2025-11-26 11:16:26,531 - INFO -       HybridOptimized: p=0.1178 (normal)
+2025-11-26 11:16:26,531 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:16:26,531 - INFO -     Mean difference: -0.27
+2025-11-26 11:16:26,531 - INFO -     95% CI difference: [-1.71, 1.16]
+2025-11-26 11:16:26,531 - INFO -     p-value (uncorrected): 0.661878
+2025-11-26 11:16:26,532 - INFO -     Cohen's d: -0.1326
+2025-11-26 11:16:26,532 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:16:26,534 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:16:26,534 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:16:26,534 - INFO -       HybridNaive: p=0.0003 (non-normal)
+2025-11-26 11:16:26,534 - INFO -       FullGPU: p=1.0000 (normal)
+2025-11-26 11:16:26,534 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:16:26,534 - INFO -     Mean difference: 2.05
+2025-11-26 11:16:26,534 - INFO -     95% CI difference: [1.04, 3.06]
+2025-11-26 11:16:26,534 - INFO -     p-value (uncorrected): 0.000581
+2025-11-26 11:16:26,534 - INFO -     Cohen's d: 1.2700
+2025-11-26 11:16:26,534 - INFO -     Effect size interpretation: large
+2025-11-26 11:16:26,536 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:16:26,536 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:16:26,536 - INFO -       HybridOptimized: p=0.1178 (normal)
+2025-11-26 11:16:26,536 - INFO -       FullGPU: p=1.0000 (normal)
+2025-11-26 11:16:26,536 - INFO -     Test selected: paired_t_test
+2025-11-26 11:16:26,536 - INFO -     Mean difference: 2.32
+2025-11-26 11:16:26,536 - INFO -     95% CI difference: [1.52, 3.12]
+2025-11-26 11:16:26,536 - INFO -     p-value (uncorrected): 0.000006
+2025-11-26 11:16:26,536 - INFO -     Cohen's d: 1.8116
+2025-11-26 11:16:26,536 - INFO -     Effect size interpretation: large
+2025-11-26 11:16:26,537 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:16:26,537 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:16:26,537 - INFO -       Original p-value: 0.321011
+2025-11-26 11:16:26,537 - INFO -       Adjusted p-value: 0.963032
+2025-11-26 11:16:26,537 - INFO -       Significant (after correction): False
+2025-11-26 11:16:26,537 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:16:26,537 - INFO -       Original p-value: 0.474361
+2025-11-26 11:16:26,537 - INFO -       Adjusted p-value: 0.963032
+2025-11-26 11:16:26,537 - INFO -       Significant (after correction): False
+2025-11-26 11:16:26,537 - INFO -     CPU vs FullGPU:
+2025-11-26 11:16:26,537 - INFO -       Original p-value: 0.000175
+2025-11-26 11:16:26,537 - INFO -       Adjusted p-value: 0.000874
+2025-11-26 11:16:26,537 - INFO -       Significant (after correction): True
+2025-11-26 11:16:26,537 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:16:26,537 - INFO -       Original p-value: 0.661878
+2025-11-26 11:16:26,537 - INFO -       Adjusted p-value: 0.963032
+2025-11-26 11:16:26,537 - INFO -       Significant (after correction): False
+2025-11-26 11:16:26,537 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:16:26,537 - INFO -       Original p-value: 0.000581
+2025-11-26 11:16:26,537 - INFO -       Adjusted p-value: 0.002322
+2025-11-26 11:16:26,537 - INFO -       Significant (after correction): True
+2025-11-26 11:16:26,537 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:16:26,537 - INFO -       Original p-value: 0.000006
+2025-11-26 11:16:26,538 - INFO -       Adjusted p-value: 0.000035
+2025-11-26 11:16:26,538 - INFO -       Significant (after correction): True
+2025-11-26 11:16:26,538 - INFO - 
+Summary: st70 (optimal=675.0)
+2025-11-26 11:16:26,538 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:16:26,538 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:16:26,538 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:16:26,538 - INFO - CPU                  677.73          0.40         56.73        0.00         0.00        
+2025-11-26 11:16:26,538 - INFO - HybridNaive          677.05          0.30         0.94         0.78         0.50        
+2025-11-26 11:16:26,538 - INFO - HybridOptimized      677.32          0.34         0.18         0.52         0.52        
+2025-11-26 11:16:26,538 - INFO - FullGPU              675.00          0.00         0.61         0.04         0.00        
+2025-11-26 11:16:26,538 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:16:26,538 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:16:26,538 - INFO -   HybridNaive: 60.13x vs CPU
+2025-11-26 11:16:26,538 - INFO -   HybridOptimized: 322.46x vs CPU
+2025-11-26 11:16:26,538 - INFO -   FullGPU: 93.18x vs CPU
+2025-11-26 11:16:26,538 - INFO - 
+2025-11-26 11:16:26,542 - INFO - ✓ Problem statistics saved: st70_stats.json
+
+2025-11-26 11:16:26,587 - INFO - 
+================================================================================
+2025-11-26 11:16:26,587 - INFO - PROBLEM 4/38: eil76
+2025-11-26 11:16:26,587 - INFO - Size: 76 cities | Optimal: 538.0
+2025-11-26 11:16:26,587 - INFO - ================================================================================
+2025-11-26 11:16:26,587 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:16:26,613 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:16:26,613 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:16:26,614 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending eil76 from 20 to 22 runs
+2025-11-26 11:16:26,614 - INFO -     Backend: CPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:16:26,614 - INFO -     Run 21/22 (new #1/2, seed=1870364253)...
+2025-11-26 11:17:51,050 - INFO - Near-optimal solution reached at generation 9 (cost=543.00, optimal=538.00, gap=0.93%)
+2025-11-26 11:17:51,051 - INFO - GeneticAlgorithmCPU evolution complete: best=543.00, improvement=75.77%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:17:51,051 - INFO -       → Completed in 84.44s | Cost: 543 (gap: 0.93%) | Generations: 9/1325
+2025-11-26 11:17:51,051 - INFO -     Run 22/22 (new #2/2, seed=260236302)...
+2025-11-26 11:19:19,845 - INFO - Near-optimal solution reached at generation 10 (cost=541.00, optimal=538.00, gap=0.56%)
+2025-11-26 11:19:19,845 - INFO - GeneticAlgorithmCPU evolution complete: best=541.00, improvement=76.21%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:19:19,845 - INFO -       → Completed in 88.79s | Cost: 541 (gap: 0.56%) | Generations: 10/1325
+2025-11-26 11:19:19,846 - INFO - 
+    ✓ CPU INCREMENTAL summary for eil76 (22 total runs): Cost=542±1.4 | Gap=0.71%±0.26% | Time=84.70s±8.94s
+2025-11-26 11:19:19,856 - INFO -     ✓ Checkpoint saved: eil76_CPU.json
+2025-11-26 11:19:19,899 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:19:19,900 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:19:19,900 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:19:19,900 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending eil76 from 20 to 22 runs
+2025-11-26 11:19:19,900 - INFO -     Backend: GPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:19:19,900 - INFO -     Run 21/22 (new #1/2, seed=829150563)...
+2025-11-26 11:19:21,335 - INFO - Near-optimal solution reached at generation 10 (cost=539.00, optimal=538.00, gap=0.19%)
+2025-11-26 11:19:21,336 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=539.00, improvement=75.95%, H2D=1.24MB, D2H=0.78MB, kernels=25600, stopped=hit_optimal
+2025-11-26 11:19:21,336 - INFO -       → Completed in 1.44s | Cost: 539 (gap: 0.19%) | Generations: 10/1325
+2025-11-26 11:19:21,336 - INFO -     Run 22/22 (new #2/2, seed=1229455167)...
+2025-11-26 11:19:22,577 - INFO - Near-optimal solution reached at generation 9 (cost=538.00, optimal=538.00, gap=0.00%)
+2025-11-26 11:19:22,577 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=538.00, improvement=75.92%, H2D=1.12MB, D2H=0.70MB, kernels=23040, stopped=hit_optimal
+2025-11-26 11:19:22,577 - INFO -       → Completed in 1.24s | Cost: 538 (gap: 0.00%) | Generations: 9/1325
+2025-11-26 11:19:22,578 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for eil76 (22 total runs): Cost=541±1.9 | Gap=0.61%±0.35% | Time=1.37s±0.19s
+2025-11-26 11:19:22,621 - INFO -     ✓ Checkpoint saved: eil76_HybridNaive.json
+2025-11-26 11:19:22,665 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:19:22,666 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:19:22,666 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:19:22,666 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending eil76 from 20 to 22 runs
+2025-11-26 11:19:22,666 - INFO -     Backend: GPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:19:22,666 - INFO -     Run 21/22 (new #1/2, seed=998558118)...
+2025-11-26 11:19:22,843 - INFO - Near-optimal solution reached at generation 9 (cost=542.00, optimal=538.00, gap=0.74%)
+2025-11-26 11:19:22,843 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=542.00, improvement=75.81%, H2D=0.75MB, D2H=0.72MB, kernels=99, stopped=hit_optimal
+2025-11-26 11:19:22,843 - INFO -       → Completed in 0.18s | Cost: 542 (gap: 0.74%) | Generations: 9/1325
+2025-11-26 11:19:22,843 - INFO -     Run 22/22 (new #2/2, seed=1231987272)...
+2025-11-26 11:19:23,115 - INFO - Near-optimal solution reached at generation 11 (cost=543.00, optimal=538.00, gap=0.93%)
+2025-11-26 11:19:23,115 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=543.00, improvement=76.12%, H2D=0.86MB, D2H=0.88MB, kernels=121, stopped=hit_optimal
+2025-11-26 11:19:23,115 - INFO -       → Completed in 0.27s | Cost: 543 (gap: 0.93%) | Generations: 11/1325
+2025-11-26 11:19:23,116 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for eil76 (22 total runs): Cost=541±1.7 | Gap=0.62%±0.31% | Time=0.21s±0.04s
+2025-11-26 11:19:23,117 - INFO -     ✓ Checkpoint saved: eil76_HybridOptimized.json
+2025-11-26 11:19:23,161 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:19:23,162 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:19:23,162 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:19:23,162 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending eil76 from 20 to 22 runs
+2025-11-26 11:19:23,162 - INFO -     Backend: GPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:19:23,162 - INFO -     Run 21/22 (new #1/2, seed=994304139)...
+2025-11-26 11:19:23,163 - INFO - FullGPUEarlyStop: Launching kernel (max=1325 gens, optimal=538.0, patience=17)
+2025-11-26 11:19:23,605 - INFO - FullGPUEarlyStop complete: best=541.00, improvement=75.73%, gens=33/1325, stopped=hit_optimal, H2D=0.04MB, D2H=0.00MB, kernels=3
+2025-11-26 11:19:23,605 - INFO -       → Completed in 0.44s | Cost: 541 (gap: 0.56%) | Generations: 33/1325
+2025-11-26 11:19:23,605 - INFO -     Run 22/22 (new #2/2, seed=1865292870)...
+2025-11-26 11:19:23,606 - INFO - FullGPUEarlyStop: Launching kernel (max=1325 gens, optimal=538.0, patience=17)
+2025-11-26 11:19:24,048 - INFO - FullGPUEarlyStop complete: best=541.00, improvement=75.73%, gens=33/1325, stopped=hit_optimal, H2D=0.04MB, D2H=0.00MB, kernels=3
+2025-11-26 11:19:24,048 - INFO -       → Completed in 0.44s | Cost: 541 (gap: 0.56%) | Generations: 33/1325
+2025-11-26 11:19:24,049 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for eil76 (22 total runs): Cost=542±1.8 | Gap=0.79%±0.33% | Time=0.97s±0.25s
+2025-11-26 11:19:24,051 - INFO -     ✓ Checkpoint saved: eil76_FullGPU.json
+2025-11-26 11:19:24,098 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:19:24,098 - INFO - STATISTICS FOR eil76
+2025-11-26 11:19:24,098 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:19:24,098 - INFO - 
+Statistical Analysis: eil76
+2025-11-26 11:19:24,098 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:19:24,102 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:19:24,102 - INFO -   Statistic: 6.4615
+2025-11-26 11:19:24,102 - INFO -   p-value: 0.091192
+2025-11-26 11:19:24,102 - INFO -   Significant: False
+2025-11-26 11:19:24,111 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:19:24,111 - INFO - Following statistical methodology:
+2025-11-26 11:19:24,111 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:19:24,111 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:19:24,111 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:19:24,111 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:19:24,111 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:19:24,113 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:19:24,113 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:19:24,114 - INFO -       CPU: p=0.0002 (non-normal)
+2025-11-26 11:19:24,114 - INFO -       HybridNaive: p=0.0006 (non-normal)
+2025-11-26 11:19:24,114 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:19:24,114 - INFO -     Mean difference: 0.55
+2025-11-26 11:19:24,114 - INFO -     95% CI difference: [-0.63, 1.72]
+2025-11-26 11:19:24,114 - INFO -     p-value (uncorrected): 0.310944
+2025-11-26 11:19:24,114 - INFO -     Cohen's d: 0.3205
+2025-11-26 11:19:24,114 - INFO -     Effect size interpretation: small
+2025-11-26 11:19:24,116 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:19:24,117 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:19:24,117 - INFO -       CPU: p=0.0002 (non-normal)
+2025-11-26 11:19:24,117 - INFO -       HybridOptimized: p=0.0041 (non-normal)
+2025-11-26 11:19:24,117 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:19:24,117 - INFO -     Mean difference: 0.50
+2025-11-26 11:19:24,117 - INFO -     95% CI difference: [-0.66, 1.66]
+2025-11-26 11:19:24,117 - INFO -     p-value (uncorrected): 0.369599
+2025-11-26 11:19:24,117 - INFO -     Cohen's d: 0.3177
+2025-11-26 11:19:24,117 - INFO -     Effect size interpretation: small
+2025-11-26 11:19:24,119 - INFO -   CPU vs FullGPU:
+2025-11-26 11:19:24,119 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:19:24,120 - INFO -       CPU: p=0.0002 (non-normal)
+2025-11-26 11:19:24,120 - INFO -       FullGPU: p=0.0083 (non-normal)
+2025-11-26 11:19:24,120 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:19:24,120 - INFO -     Mean difference: -0.45
+2025-11-26 11:19:24,120 - INFO -     95% CI difference: [-1.63, 0.72]
+2025-11-26 11:19:24,120 - INFO -     p-value (uncorrected): 0.398492
+2025-11-26 11:19:24,120 - INFO -     Cohen's d: -0.2788
+2025-11-26 11:19:24,120 - INFO -     Effect size interpretation: small
+2025-11-26 11:19:24,122 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:19:24,123 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:19:24,123 - INFO -       HybridNaive: p=0.0006 (non-normal)
+2025-11-26 11:19:24,123 - INFO -       HybridOptimized: p=0.0041 (non-normal)
+2025-11-26 11:19:24,123 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:19:24,123 - INFO -     Mean difference: -0.05
+2025-11-26 11:19:24,123 - INFO -     95% CI difference: [-1.11, 1.02]
+2025-11-26 11:19:24,123 - INFO -     p-value (uncorrected): 0.848319
+2025-11-26 11:19:24,123 - INFO -     Cohen's d: -0.0250
+2025-11-26 11:19:24,123 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:19:24,125 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:19:24,125 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:19:24,125 - INFO -       HybridNaive: p=0.0006 (non-normal)
+2025-11-26 11:19:24,126 - INFO -       FullGPU: p=0.0083 (non-normal)
+2025-11-26 11:19:24,126 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:19:24,126 - INFO -     Mean difference: -1.00
+2025-11-26 11:19:24,126 - INFO -     95% CI difference: [-1.97, -0.03]
+2025-11-26 11:19:24,126 - INFO -     p-value (uncorrected): 0.033277
+2025-11-26 11:19:24,126 - INFO -     Cohen's d: -0.5350
+2025-11-26 11:19:24,126 - INFO -     Effect size interpretation: medium
+2025-11-26 11:19:24,128 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:19:24,128 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:19:24,129 - INFO -       HybridOptimized: p=0.0041 (non-normal)
+2025-11-26 11:19:24,129 - INFO -       FullGPU: p=0.0083 (non-normal)
+2025-11-26 11:19:24,129 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:19:24,129 - INFO -     Mean difference: -0.95
+2025-11-26 11:19:24,129 - INFO -     95% CI difference: [-1.62, -0.29]
+2025-11-26 11:19:24,129 - INFO -     p-value (uncorrected): 0.009795
+2025-11-26 11:19:24,129 - INFO -     Cohen's d: -0.5444
+2025-11-26 11:19:24,129 - INFO -     Effect size interpretation: medium
+2025-11-26 11:19:24,129 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:19:24,129 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:19:24,129 - INFO -       Original p-value: 0.310944
+2025-11-26 11:19:24,129 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:19:24,129 - INFO -       Significant (after correction): False
+2025-11-26 11:19:24,129 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:19:24,129 - INFO -       Original p-value: 0.369599
+2025-11-26 11:19:24,129 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:19:24,130 - INFO -       Significant (after correction): False
+2025-11-26 11:19:24,130 - INFO -     CPU vs FullGPU:
+2025-11-26 11:19:24,130 - INFO -       Original p-value: 0.398492
+2025-11-26 11:19:24,130 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:19:24,130 - INFO -       Significant (after correction): False
+2025-11-26 11:19:24,130 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:19:24,130 - INFO -       Original p-value: 0.848319
+2025-11-26 11:19:24,130 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:19:24,130 - INFO -       Significant (after correction): False
+2025-11-26 11:19:24,130 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:19:24,130 - INFO -       Original p-value: 0.033277
+2025-11-26 11:19:24,130 - INFO -       Adjusted p-value: 0.166386
+2025-11-26 11:19:24,130 - INFO -       Significant (after correction): False
+2025-11-26 11:19:24,130 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:19:24,130 - INFO -       Original p-value: 0.009795
+2025-11-26 11:19:24,130 - INFO -       Adjusted p-value: 0.058771
+2025-11-26 11:19:24,130 - INFO -       Significant (after correction): False
+2025-11-26 11:19:24,131 - INFO - 
+Summary: eil76 (optimal=538.0)
+2025-11-26 11:19:24,131 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:19:24,131 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:19:24,131 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:19:24,131 - INFO - CPU                  541.82          0.71         84.70        0.00         0.00        
+2025-11-26 11:19:24,131 - INFO - HybridNaive          541.27          0.61         1.37         1.18         0.74        
+2025-11-26 11:19:24,131 - INFO - HybridOptimized      541.32          0.62         0.21         0.80         0.80        
+2025-11-26 11:19:24,131 - INFO - FullGPU              542.27          0.79         0.97         0.05         0.00        
+2025-11-26 11:19:24,131 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:19:24,131 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:19:24,131 - INFO -   HybridNaive: 61.61x vs CPU
+2025-11-26 11:19:24,131 - INFO -   HybridOptimized: 412.47x vs CPU
+2025-11-26 11:19:24,131 - INFO -   FullGPU: 87.13x vs CPU
+2025-11-26 11:19:24,131 - INFO - 
+2025-11-26 11:19:24,136 - INFO - ✓ Problem statistics saved: eil76_stats.json
+
+2025-11-26 11:19:24,185 - INFO - 
+================================================================================
+2025-11-26 11:19:24,185 - INFO - PROBLEM 5/38: pr76
+2025-11-26 11:19:24,185 - INFO - Size: 76 cities | Optimal: 108159.0
+2025-11-26 11:19:24,185 - INFO - ================================================================================
+2025-11-26 11:19:24,185 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:19:24,211 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:19:24,212 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:19:24,212 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending pr76 from 20 to 22 runs
+2025-11-26 11:19:24,212 - INFO -     Backend: CPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:19:24,212 - INFO -     Run 21/22 (new #1/2, seed=1224184736)...
+2025-11-26 11:20:36,081 - INFO - Near-optimal solution reached at generation 8 (cost=108461.00, optimal=108159.00, gap=0.28%)
+2025-11-26 11:20:36,081 - INFO - GeneticAlgorithmCPU evolution complete: best=108461.00, improvement=78.60%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:20:36,081 - INFO -       → Completed in 71.87s | Cost: 108461 (gap: 0.28%) | Generations: 8/1325
+2025-11-26 11:20:36,081 - INFO -     Run 22/22 (new #2/2, seed=1289981261)...
+2025-11-26 11:21:42,348 - INFO - Near-optimal solution reached at generation 7 (cost=108839.00, optimal=108159.00, gap=0.63%)
+2025-11-26 11:21:42,348 - INFO - GeneticAlgorithmCPU evolution complete: best=108839.00, improvement=77.80%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:21:42,348 - INFO -       → Completed in 66.27s | Cost: 108839 (gap: 0.63%) | Generations: 7/1325
+2025-11-26 11:21:42,349 - INFO - 
+    ✓ CPU INCREMENTAL summary for pr76 (22 total runs): Cost=108725±284.0 | Gap=0.52%±0.26% | Time=76.70s±13.66s
+2025-11-26 11:21:42,359 - INFO -     ✓ Checkpoint saved: pr76_CPU.json
+2025-11-26 11:21:42,407 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:21:42,408 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:21:42,408 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:21:42,408 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending pr76 from 20 to 22 runs
+2025-11-26 11:21:42,408 - INFO -     Backend: GPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:21:42,408 - INFO -     Run 21/22 (new #1/2, seed=444225141)...
+2025-11-26 11:21:43,542 - INFO - Near-optimal solution reached at generation 8 (cost=109085.00, optimal=108159.00, gap=0.86%)
+2025-11-26 11:21:43,542 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=109085.00, improvement=78.47%, H2D=0.99MB, D2H=0.62MB, kernels=20480, stopped=hit_optimal
+2025-11-26 11:21:43,542 - INFO -       → Completed in 1.13s | Cost: 109085 (gap: 0.86%) | Generations: 8/1325
+2025-11-26 11:21:43,542 - INFO -     Run 22/22 (new #2/2, seed=379671734)...
+2025-11-26 11:21:44,606 - INFO - Near-optimal solution reached at generation 8 (cost=108262.00, optimal=108159.00, gap=0.10%)
+2025-11-26 11:21:44,606 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=108262.00, improvement=77.92%, H2D=0.99MB, D2H=0.62MB, kernels=20480, stopped=hit_optimal
+2025-11-26 11:21:44,607 - INFO -       → Completed in 1.06s | Cost: 108262 (gap: 0.10%) | Generations: 8/1325
+2025-11-26 11:21:44,608 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for pr76 (22 total runs): Cost=108592±328.6 | Gap=0.40%±0.30% | Time=1.09s±0.19s
+2025-11-26 11:21:44,617 - INFO -     ✓ Checkpoint saved: pr76_HybridNaive.json
+2025-11-26 11:21:44,660 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:21:44,661 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:21:44,661 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:21:44,661 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending pr76 from 20 to 22 runs
+2025-11-26 11:21:44,661 - INFO -     Backend: GPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:21:44,661 - INFO -     Run 21/22 (new #1/2, seed=1943276302)...
+2025-11-26 11:21:44,820 - INFO - Near-optimal solution reached at generation 8 (cost=108425.00, optimal=108159.00, gap=0.25%)
+2025-11-26 11:21:44,820 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=108425.00, improvement=78.60%, H2D=0.67MB, D2H=0.64MB, kernels=88, stopped=hit_optimal
+2025-11-26 11:21:44,820 - INFO -       → Completed in 0.16s | Cost: 108425 (gap: 0.25%) | Generations: 8/1325
+2025-11-26 11:21:44,821 - INFO -     Run 22/22 (new #2/2, seed=1633261656)...
+2025-11-26 11:21:44,999 - INFO - Near-optimal solution reached at generation 8 (cost=109118.00, optimal=108159.00, gap=0.89%)
+2025-11-26 11:21:44,999 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=109118.00, improvement=77.74%, H2D=0.62MB, D2H=0.64MB, kernels=88, stopped=hit_optimal
+2025-11-26 11:21:44,999 - INFO -       → Completed in 0.18s | Cost: 109118 (gap: 0.89%) | Generations: 8/1325
+2025-11-26 11:21:45,000 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for pr76 (22 total runs): Cost=108753±305.8 | Gap=0.55%±0.28% | Time=0.19s±0.08s
+2025-11-26 11:21:45,011 - INFO -     ✓ Checkpoint saved: pr76_HybridOptimized.json
+2025-11-26 11:21:45,067 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:21:45,067 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:21:45,067 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:21:45,068 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending pr76 from 20 to 22 runs
+2025-11-26 11:21:45,068 - INFO -     Backend: GPU | Early stopping: patience=17 (adaptive: 2×√76) | New repetitions: 2
+2025-11-26 11:21:45,068 - INFO -     Run 21/22 (new #1/2, seed=977783361)...
+2025-11-26 11:21:45,069 - INFO - FullGPUEarlyStop: Launching kernel (max=1325 gens, optimal=108159.0, patience=17)
+2025-11-26 11:21:45,433 - INFO - FullGPUEarlyStop complete: best=108351.00, improvement=78.70%, gens=25/1325, stopped=hit_optimal, H2D=0.04MB, D2H=0.00MB, kernels=3
+2025-11-26 11:21:45,433 - INFO -       → Completed in 0.37s | Cost: 108351 (gap: 0.18%) | Generations: 25/1325
+2025-11-26 11:21:45,433 - INFO -     Run 22/22 (new #2/2, seed=1418960222)...
+2025-11-26 11:21:45,434 - INFO - FullGPUEarlyStop: Launching kernel (max=1325 gens, optimal=108159.0, patience=17)
+2025-11-26 11:21:45,798 - INFO - FullGPUEarlyStop complete: best=108351.00, improvement=78.70%, gens=25/1325, stopped=hit_optimal, H2D=0.04MB, D2H=0.00MB, kernels=3
+2025-11-26 11:21:45,799 - INFO -       → Completed in 0.37s | Cost: 108351 (gap: 0.18%) | Generations: 25/1325
+2025-11-26 11:21:45,800 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for pr76 (22 total runs): Cost=108215±65.0 | Gap=0.05%±0.06% | Time=0.78s±0.14s
+2025-11-26 11:21:45,809 - INFO -     ✓ Checkpoint saved: pr76_FullGPU.json
+2025-11-26 11:21:45,852 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:21:45,852 - INFO - STATISTICS FOR pr76
+2025-11-26 11:21:45,852 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:21:45,852 - INFO - 
+Statistical Analysis: pr76
+2025-11-26 11:21:45,852 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:21:45,855 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:21:45,855 - INFO -   Statistic: 36.4521
+2025-11-26 11:21:45,855 - INFO -   p-value: 0.000000
+2025-11-26 11:21:45,855 - INFO -   Significant: True
+2025-11-26 11:21:45,862 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:21:45,869 - INFO -   Critical distance: 1.4142
+2025-11-26 11:21:45,869 - INFO -   Mean ranks:
+2025-11-26 11:21:45,869 - INFO -     CPU: 3.09
+2025-11-26 11:21:45,869 - INFO -     HybridNaive: 2.61
+2025-11-26 11:21:45,869 - INFO -     HybridOptimized: 3.18
+2025-11-26 11:21:45,870 - INFO -     FullGPU: 1.11
+2025-11-26 11:21:45,870 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:21:45,870 - INFO -     CPU vs FullGPU: rank_diff=1.98, p=0.0000
+2025-11-26 11:21:45,870 - INFO -     HybridNaive vs FullGPU: rank_diff=1.50, p=0.0007
+2025-11-26 11:21:45,870 - INFO -     HybridOptimized vs FullGPU: rank_diff=2.07, p=0.0000
+2025-11-26 11:21:45,870 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:21:45,870 - INFO - Following statistical methodology:
+2025-11-26 11:21:45,870 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:21:45,870 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:21:45,870 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:21:45,870 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:21:45,870 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:21:45,873 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:21:45,873 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:21:45,873 - INFO -       CPU: p=0.2135 (normal)
+2025-11-26 11:21:45,873 - INFO -       HybridNaive: p=0.0204 (non-normal)
+2025-11-26 11:21:45,873 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:21:45,873 - INFO -     Mean difference: 133.32
+2025-11-26 11:21:45,874 - INFO -     95% CI difference: [-38.24, 304.88]
+2025-11-26 11:21:45,874 - INFO -     p-value (uncorrected): 0.120677
+2025-11-26 11:21:45,874 - INFO -     Cohen's d: 0.4241
+2025-11-26 11:21:45,874 - INFO -     Effect size interpretation: small
+2025-11-26 11:21:45,875 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:21:45,875 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:21:45,875 - INFO -       CPU: p=0.2135 (normal)
+2025-11-26 11:21:45,875 - INFO -       HybridOptimized: p=0.0286 (non-normal)
+2025-11-26 11:21:45,876 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:21:45,876 - INFO -     Mean difference: -27.77
+2025-11-26 11:21:45,876 - INFO -     95% CI difference: [-207.50, 151.96]
+2025-11-26 11:21:45,876 - INFO -     p-value (uncorrected): 0.558938
+2025-11-26 11:21:45,876 - INFO -     Cohen's d: -0.0919
+2025-11-26 11:21:45,876 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:21:45,878 - INFO -   CPU vs FullGPU:
+2025-11-26 11:21:45,878 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:21:45,878 - INFO -       CPU: p=0.2135 (normal)
+2025-11-26 11:21:45,879 - INFO -       FullGPU: p=0.0006 (non-normal)
+2025-11-26 11:21:45,879 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:21:45,879 - INFO -     Mean difference: 510.27
+2025-11-26 11:21:45,879 - INFO -     95% CI difference: [377.01, 643.53]
+2025-11-26 11:21:45,879 - INFO -     p-value (uncorrected): 0.000000
+2025-11-26 11:21:45,879 - INFO -     Cohen's d: 2.4197
+2025-11-26 11:21:45,879 - INFO -     Effect size interpretation: large
+2025-11-26 11:21:45,881 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:21:45,882 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:21:45,882 - INFO -       HybridNaive: p=0.0204 (non-normal)
+2025-11-26 11:21:45,882 - INFO -       HybridOptimized: p=0.0286 (non-normal)
+2025-11-26 11:21:45,882 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:21:45,882 - INFO -     Mean difference: -161.09
+2025-11-26 11:21:45,882 - INFO -     95% CI difference: [-399.21, 77.03]
+2025-11-26 11:21:45,882 - INFO -     p-value (uncorrected): 0.247899
+2025-11-26 11:21:45,882 - INFO -     Cohen's d: -0.4958
+2025-11-26 11:21:45,882 - INFO -     Effect size interpretation: small
+2025-11-26 11:21:45,884 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:21:45,884 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:21:45,884 - INFO -       HybridNaive: p=0.0204 (non-normal)
+2025-11-26 11:21:45,884 - INFO -       FullGPU: p=0.0006 (non-normal)
+2025-11-26 11:21:45,884 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:21:45,884 - INFO -     Mean difference: 376.95
+2025-11-26 11:21:45,884 - INFO -     95% CI difference: [216.78, 537.13]
+2025-11-26 11:21:45,884 - INFO -     p-value (uncorrected): 0.000321
+2025-11-26 11:21:45,885 - INFO -     Cohen's d: 1.5548
+2025-11-26 11:21:45,885 - INFO -     Effect size interpretation: large
+2025-11-26 11:21:45,888 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:21:45,888 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:21:45,888 - INFO -       HybridOptimized: p=0.0286 (non-normal)
+2025-11-26 11:21:45,888 - INFO -       FullGPU: p=0.0006 (non-normal)
+2025-11-26 11:21:45,888 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:21:45,888 - INFO -     Mean difference: 538.05
+2025-11-26 11:21:45,888 - INFO -     95% CI difference: [397.74, 678.35]
+2025-11-26 11:21:45,888 - INFO -     p-value (uncorrected): 0.000000
+2025-11-26 11:21:45,888 - INFO -     Cohen's d: 2.3780
+2025-11-26 11:21:45,888 - INFO -     Effect size interpretation: large
+2025-11-26 11:21:45,888 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:21:45,888 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:21:45,889 - INFO -       Original p-value: 0.120677
+2025-11-26 11:21:45,889 - INFO -       Adjusted p-value: 0.362032
+2025-11-26 11:21:45,889 - INFO -       Significant (after correction): False
+2025-11-26 11:21:45,889 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:21:45,889 - INFO -       Original p-value: 0.558938
+2025-11-26 11:21:45,889 - INFO -       Adjusted p-value: 0.558938
+2025-11-26 11:21:45,889 - INFO -       Significant (after correction): False
+2025-11-26 11:21:45,889 - INFO -     CPU vs FullGPU:
+2025-11-26 11:21:45,889 - INFO -       Original p-value: 0.000000
+2025-11-26 11:21:45,889 - INFO -       Adjusted p-value: 0.000003
+2025-11-26 11:21:45,889 - INFO -       Significant (after correction): True
+2025-11-26 11:21:45,889 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:21:45,889 - INFO -       Original p-value: 0.247899
+2025-11-26 11:21:45,889 - INFO -       Adjusted p-value: 0.495798
+2025-11-26 11:21:45,889 - INFO -       Significant (after correction): False
+2025-11-26 11:21:45,889 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:21:45,889 - INFO -       Original p-value: 0.000321
+2025-11-26 11:21:45,889 - INFO -       Adjusted p-value: 0.001284
+2025-11-26 11:21:45,889 - INFO -       Significant (after correction): True
+2025-11-26 11:21:45,889 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:21:45,890 - INFO -       Original p-value: 0.000000
+2025-11-26 11:21:45,890 - INFO -       Adjusted p-value: 0.000003
+2025-11-26 11:21:45,890 - INFO -       Significant (after correction): True
+2025-11-26 11:21:45,890 - INFO - 
+Summary: pr76 (optimal=108159.0)
+2025-11-26 11:21:45,890 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:21:45,890 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:21:45,890 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:21:45,890 - INFO - CPU                  108725.00       0.52         76.70        0.00         0.00        
+2025-11-26 11:21:45,890 - INFO - HybridNaive          108591.68       0.40         1.09         0.99         0.62        
+2025-11-26 11:21:45,890 - INFO - HybridOptimized      108752.77       0.55         0.19         0.65         0.64        
+2025-11-26 11:21:45,890 - INFO - FullGPU              108214.73       0.05         0.78         0.05         0.00        
+2025-11-26 11:21:45,890 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:21:45,890 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:21:45,890 - INFO -   HybridNaive: 70.39x vs CPU
+2025-11-26 11:21:45,890 - INFO -   HybridOptimized: 399.16x vs CPU
+2025-11-26 11:21:45,890 - INFO -   FullGPU: 98.80x vs CPU
+2025-11-26 11:21:45,890 - INFO - 
+2025-11-26 11:21:45,894 - INFO - ✓ Problem statistics saved: pr76_stats.json
+
+2025-11-26 11:21:45,939 - INFO - 
+================================================================================
+2025-11-26 11:21:45,939 - INFO - PROBLEM 6/38: rat99
+2025-11-26 11:21:45,939 - INFO - Size: 99 cities | Optimal: 1211.0
+2025-11-26 11:21:45,939 - INFO - ================================================================================
+2025-11-26 11:21:45,939 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:21:45,961 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:21:45,962 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:21:45,962 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending rat99 from 20 to 22 runs
+2025-11-26 11:21:45,962 - INFO -     Backend: CPU | Early stopping: patience=19 (adaptive: 2×√99) | New repetitions: 2
+2025-11-26 11:21:45,962 - INFO -     Run 21/22 (new #1/2, seed=1256471816)...
+2025-11-26 11:25:06,154 - INFO - Near-optimal solution reached at generation 11 (cost=1219.00, optimal=1211.00, gap=0.66%)
+2025-11-26 11:25:06,154 - INFO - GeneticAlgorithmCPU evolution complete: best=1219.00, improvement=82.81%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:25:06,154 - INFO -       → Completed in 200.19s | Cost: 1219 (gap: 0.66%) | Generations: 11/1970
+2025-11-26 11:25:06,155 - INFO -     Run 22/22 (new #2/2, seed=145595973)...
+2025-11-26 11:28:44,182 - INFO - Near-optimal solution reached at generation 13 (cost=1216.00, optimal=1211.00, gap=0.41%)
+2025-11-26 11:28:44,182 - INFO - GeneticAlgorithmCPU evolution complete: best=1216.00, improvement=82.93%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:28:44,182 - INFO -       → Completed in 218.03s | Cost: 1216 (gap: 0.41%) | Generations: 13/1970
+2025-11-26 11:28:44,183 - INFO - 
+    ✓ CPU INCREMENTAL summary for rat99 (22 total runs): Cost=1220±3.1 | Gap=0.72%±0.25% | Time=192.71s±26.73s
+2025-11-26 11:28:44,185 - INFO -     ✓ Checkpoint saved: rat99_CPU.json
+2025-11-26 11:28:44,233 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:28:44,233 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:28:44,233 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:28:44,233 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending rat99 from 20 to 22 runs
+2025-11-26 11:28:44,234 - INFO -     Backend: GPU | Early stopping: patience=19 (adaptive: 2×√99) | New repetitions: 2
+2025-11-26 11:28:44,234 - INFO -     Run 21/22 (new #1/2, seed=1341209059)...
+2025-11-26 11:28:46,311 - INFO - Near-optimal solution reached at generation 11 (cost=1215.00, optimal=1211.00, gap=0.33%)
+2025-11-26 11:28:46,311 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=1215.00, improvement=82.87%, H2D=1.98MB, D2H=1.12MB, kernels=28160, stopped=hit_optimal
+2025-11-26 11:28:46,311 - INFO -       → Completed in 2.08s | Cost: 1215 (gap: 0.33%) | Generations: 11/1970
+2025-11-26 11:28:46,312 - INFO -     Run 22/22 (new #2/2, seed=1733102987)...
+2025-11-26 11:28:48,280 - INFO - Near-optimal solution reached at generation 12 (cost=1215.00, optimal=1211.00, gap=0.33%)
+2025-11-26 11:28:48,280 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=1215.00, improvement=82.94%, H2D=2.16MB, D2H=1.22MB, kernels=30720, stopped=hit_optimal
+2025-11-26 11:28:48,280 - INFO -       → Completed in 1.97s | Cost: 1215 (gap: 0.33%) | Generations: 12/1970
+2025-11-26 11:28:48,281 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for rat99 (22 total runs): Cost=1219±3.1 | Gap=0.63%±0.25% | Time=1.96s±0.22s
+2025-11-26 11:28:48,282 - INFO -     ✓ Checkpoint saved: rat99_HybridNaive.json
+2025-11-26 11:28:48,333 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:28:48,333 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:28:48,334 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:28:48,334 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending rat99 from 20 to 22 runs
+2025-11-26 11:28:48,334 - INFO -     Backend: GPU | Early stopping: patience=19 (adaptive: 2×√99) | New repetitions: 2
+2025-11-26 11:28:48,334 - INFO -     Run 21/22 (new #1/2, seed=1771619966)...
+2025-11-26 11:28:48,606 - INFO - Near-optimal solution reached at generation 11 (cost=1211.00, optimal=1211.00, gap=0.00%)
+2025-11-26 11:28:48,606 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=1211.00, improvement=82.92%, H2D=1.19MB, D2H=1.14MB, kernels=121, stopped=hit_optimal
+2025-11-26 11:28:48,606 - INFO -       → Completed in 0.27s | Cost: 1211 (gap: 0.00%) | Generations: 11/1970
+2025-11-26 11:28:48,606 - INFO -     Run 22/22 (new #2/2, seed=452269652)...
+2025-11-26 11:28:48,888 - INFO - Near-optimal solution reached at generation 12 (cost=1213.00, optimal=1211.00, gap=0.17%)
+2025-11-26 11:28:48,888 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=1213.00, improvement=82.97%, H2D=1.22MB, D2H=1.24MB, kernels=132, stopped=hit_optimal
+2025-11-26 11:28:48,888 - INFO -       → Completed in 0.28s | Cost: 1213 (gap: 0.17%) | Generations: 12/1970
+2025-11-26 11:28:48,889 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for rat99 (22 total runs): Cost=1217±3.8 | Gap=0.50%±0.31% | Time=0.35s±0.06s
+2025-11-26 11:28:48,899 - INFO -     ✓ Checkpoint saved: rat99_HybridOptimized.json
+2025-11-26 11:28:48,943 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:28:48,944 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:28:48,944 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:28:48,944 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending rat99 from 20 to 22 runs
+2025-11-26 11:28:48,944 - INFO -     Backend: GPU | Early stopping: patience=19 (adaptive: 2×√99) | New repetitions: 2
+2025-11-26 11:28:48,945 - INFO -     Run 21/22 (new #1/2, seed=859714144)...
+2025-11-26 11:28:48,945 - INFO - FullGPUEarlyStop: Launching kernel (max=1970 gens, optimal=1211.0, patience=19)
+2025-11-26 11:28:49,788 - INFO - FullGPUEarlyStop complete: best=1214.00, improvement=82.85%, gens=34/1970, stopped=hit_optimal, H2D=0.07MB, D2H=0.00MB, kernels=3
+2025-11-26 11:28:49,788 - INFO -       → Completed in 0.84s | Cost: 1214 (gap: 0.25%) | Generations: 34/1970
+2025-11-26 11:28:49,788 - INFO -     Run 22/22 (new #2/2, seed=835869055)...
+2025-11-26 11:28:49,789 - INFO - FullGPUEarlyStop: Launching kernel (max=1970 gens, optimal=1211.0, patience=19)
+2025-11-26 11:28:50,858 - INFO - FullGPUEarlyStop complete: best=1220.00, improvement=82.77%, gens=43/1970, stopped=hit_optimal, H2D=0.07MB, D2H=0.00MB, kernels=3
+2025-11-26 11:28:50,858 - INFO -       → Completed in 1.07s | Cost: 1220 (gap: 0.74%) | Generations: 43/1970
+2025-11-26 11:28:50,859 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for rat99 (22 total runs): Cost=1215±3.3 | Gap=0.37%±0.27% | Time=1.75s±0.37s
+2025-11-26 11:28:50,870 - INFO -     ✓ Checkpoint saved: rat99_FullGPU.json
+2025-11-26 11:28:50,958 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:28:50,959 - INFO - STATISTICS FOR rat99
+2025-11-26 11:28:50,960 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:28:50,960 - INFO - 
+Statistical Analysis: rat99
+2025-11-26 11:28:50,961 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:28:50,970 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:28:50,970 - INFO -   Statistic: 18.6429
+2025-11-26 11:28:50,971 - INFO -   p-value: 0.000324
+2025-11-26 11:28:50,971 - INFO -   Significant: True
+2025-11-26 11:28:50,988 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:28:51,005 - INFO -   Critical distance: 1.4142
+2025-11-26 11:28:51,006 - INFO -   Mean ranks:
+2025-11-26 11:28:51,006 - INFO -     CPU: 3.25
+2025-11-26 11:28:51,006 - INFO -     HybridNaive: 2.77
+2025-11-26 11:28:51,006 - INFO -     HybridOptimized: 2.30
+2025-11-26 11:28:51,006 - INFO -     FullGPU: 1.68
+2025-11-26 11:28:51,006 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:28:51,006 - INFO -     CPU vs FullGPU: rank_diff=1.57, p=0.0003
+2025-11-26 11:28:51,006 - INFO -     HybridNaive vs FullGPU: rank_diff=1.09, p=0.0261
+2025-11-26 11:28:51,006 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:28:51,006 - INFO - Following statistical methodology:
+2025-11-26 11:28:51,006 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:28:51,006 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:28:51,006 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:28:51,006 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:28:51,006 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:28:51,009 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:28:51,009 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:28:51,009 - INFO -       CPU: p=0.0050 (non-normal)
+2025-11-26 11:28:51,010 - INFO -       HybridNaive: p=0.2131 (normal)
+2025-11-26 11:28:51,010 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:28:51,010 - INFO -     Mean difference: 1.00
+2025-11-26 11:28:51,010 - INFO -     95% CI difference: [-0.73, 2.73]
+2025-11-26 11:28:51,010 - INFO -     p-value (uncorrected): 0.189669
+2025-11-26 11:28:51,010 - INFO -     Cohen's d: 0.3195
+2025-11-26 11:28:51,010 - INFO -     Effect size interpretation: small
+2025-11-26 11:28:51,015 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:28:51,015 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:28:51,015 - INFO -       CPU: p=0.0050 (non-normal)
+2025-11-26 11:28:51,015 - INFO -       HybridOptimized: p=0.0338 (non-normal)
+2025-11-26 11:28:51,017 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:28:51,017 - INFO -     Mean difference: 2.64
+2025-11-26 11:28:51,017 - INFO -     95% CI difference: [0.64, 4.63]
+2025-11-26 11:28:51,017 - INFO -     p-value (uncorrected): 0.018244
+2025-11-26 11:28:51,018 - INFO -     Cohen's d: 0.7466
+2025-11-26 11:28:51,018 - INFO -     Effect size interpretation: medium
+2025-11-26 11:28:51,021 - INFO -   CPU vs FullGPU:
+2025-11-26 11:28:51,021 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:28:51,021 - INFO -       CPU: p=0.0050 (non-normal)
+2025-11-26 11:28:51,021 - INFO -       FullGPU: p=0.0623 (normal)
+2025-11-26 11:28:51,021 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:28:51,021 - INFO -     Mean difference: 4.23
+2025-11-26 11:28:51,021 - INFO -     95% CI difference: [2.25, 6.20]
+2025-11-26 11:28:51,021 - INFO -     p-value (uncorrected): 0.001201
+2025-11-26 11:28:51,021 - INFO -     Cohen's d: 1.3028
+2025-11-26 11:28:51,021 - INFO -     Effect size interpretation: large
+2025-11-26 11:28:51,024 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:28:51,026 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:28:51,026 - INFO -       HybridNaive: p=0.2131 (normal)
+2025-11-26 11:28:51,026 - INFO -       HybridOptimized: p=0.0338 (non-normal)
+2025-11-26 11:28:51,026 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:28:51,026 - INFO -     Mean difference: 1.64
+2025-11-26 11:28:51,026 - INFO -     95% CI difference: [-0.63, 3.90]
+2025-11-26 11:28:51,026 - INFO -     p-value (uncorrected): 0.166184
+2025-11-26 11:28:51,026 - INFO -     Cohen's d: 0.4643
+2025-11-26 11:28:51,026 - INFO -     Effect size interpretation: small
+2025-11-26 11:28:51,031 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:28:51,032 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:28:51,032 - INFO -       HybridNaive: p=0.2131 (normal)
+2025-11-26 11:28:51,032 - INFO -       FullGPU: p=0.0623 (normal)
+2025-11-26 11:28:51,033 - INFO -     Test selected: paired_t_test
+2025-11-26 11:28:51,033 - INFO -     Mean difference: 3.23
+2025-11-26 11:28:51,033 - INFO -     95% CI difference: [1.41, 5.04]
+2025-11-26 11:28:51,033 - INFO -     p-value (uncorrected): 0.001334
+2025-11-26 11:28:51,033 - INFO -     Cohen's d: 0.9968
+2025-11-26 11:28:51,034 - INFO -     Effect size interpretation: large
+2025-11-26 11:28:51,037 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:28:51,037 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:28:51,037 - INFO -       HybridOptimized: p=0.0338 (non-normal)
+2025-11-26 11:28:51,037 - INFO -       FullGPU: p=0.0623 (normal)
+2025-11-26 11:28:51,037 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:28:51,037 - INFO -     Mean difference: 1.59
+2025-11-26 11:28:51,037 - INFO -     95% CI difference: [-0.35, 3.53]
+2025-11-26 11:28:51,037 - INFO -     p-value (uncorrected): 0.099628
+2025-11-26 11:28:51,037 - INFO -     Cohen's d: 0.4387
+2025-11-26 11:28:51,037 - INFO -     Effect size interpretation: small
+2025-11-26 11:28:51,037 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:28:51,037 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:28:51,037 - INFO -       Original p-value: 0.189669
+2025-11-26 11:28:51,037 - INFO -       Adjusted p-value: 0.332369
+2025-11-26 11:28:51,037 - INFO -       Significant (after correction): False
+2025-11-26 11:28:51,037 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:28:51,038 - INFO -       Original p-value: 0.018244
+2025-11-26 11:28:51,038 - INFO -       Adjusted p-value: 0.072976
+2025-11-26 11:28:51,038 - INFO -       Significant (after correction): False
+2025-11-26 11:28:51,038 - INFO -     CPU vs FullGPU:
+2025-11-26 11:28:51,038 - INFO -       Original p-value: 0.001201
+2025-11-26 11:28:51,038 - INFO -       Adjusted p-value: 0.007208
+2025-11-26 11:28:51,038 - INFO -       Significant (after correction): True
+2025-11-26 11:28:51,038 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:28:51,038 - INFO -       Original p-value: 0.166184
+2025-11-26 11:28:51,038 - INFO -       Adjusted p-value: 0.332369
+2025-11-26 11:28:51,038 - INFO -       Significant (after correction): False
+2025-11-26 11:28:51,038 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:28:51,038 - INFO -       Original p-value: 0.001334
+2025-11-26 11:28:51,038 - INFO -       Adjusted p-value: 0.007208
+2025-11-26 11:28:51,039 - INFO -       Significant (after correction): True
+2025-11-26 11:28:51,039 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:28:51,040 - INFO -       Original p-value: 0.099628
+2025-11-26 11:28:51,040 - INFO -       Adjusted p-value: 0.298885
+2025-11-26 11:28:51,040 - INFO -       Significant (after correction): False
+2025-11-26 11:28:51,040 - INFO - 
+Summary: rat99 (optimal=1211.0)
+2025-11-26 11:28:51,040 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:28:51,041 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:28:51,041 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:28:51,041 - INFO - CPU                  1219.68         0.72         192.71       0.00         0.00        
+2025-11-26 11:28:51,041 - INFO - HybridNaive          1218.68         0.63         1.96         2.07         1.17        
+2025-11-26 11:28:51,041 - INFO - HybridOptimized      1217.05         0.50         0.35         1.21         1.19        
+2025-11-26 11:28:51,042 - INFO - FullGPU              1215.45         0.37         1.75         0.08         0.00        
+2025-11-26 11:28:51,042 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:28:51,042 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:28:51,042 - INFO -   HybridNaive: 98.25x vs CPU
+2025-11-26 11:28:51,042 - INFO -   HybridOptimized: 553.47x vs CPU
+2025-11-26 11:28:51,042 - INFO -   FullGPU: 109.94x vs CPU
+2025-11-26 11:28:51,043 - INFO - 
+2025-11-26 11:28:51,048 - INFO - ✓ Problem statistics saved: rat99_stats.json
+
+2025-11-26 11:28:51,114 - INFO - 
+================================================================================
+2025-11-26 11:28:51,115 - INFO - PROBLEM 7/38: kroA100
+2025-11-26 11:28:51,115 - INFO - Size: 100 cities | Optimal: 21282.0
+2025-11-26 11:28:51,115 - INFO - ================================================================================
+2025-11-26 11:28:51,115 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:28:51,192 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:28:51,193 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:28:51,193 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending kroA100 from 20 to 22 runs
+2025-11-26 11:28:51,194 - INFO -     Backend: CPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:28:51,195 - INFO -     Run 21/22 (new #1/2, seed=1829445524)...
+2025-11-26 11:32:31,087 - INFO - Near-optimal solution reached at generation 10 (cost=21308.00, optimal=21282.00, gap=0.12%)
+2025-11-26 11:32:31,087 - INFO - GeneticAlgorithmCPU evolution complete: best=21308.00, improvement=85.47%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:32:31,087 - INFO -       → Completed in 219.89s | Cost: 21308 (gap: 0.12%) | Generations: 10/2000
+2025-11-26 11:32:31,087 - INFO -     Run 22/22 (new #2/2, seed=327744393)...
+2025-11-26 11:36:46,771 - INFO - Near-optimal solution reached at generation 11 (cost=21320.00, optimal=21282.00, gap=0.18%)
+2025-11-26 11:36:46,771 - INFO - GeneticAlgorithmCPU evolution complete: best=21320.00, improvement=85.78%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:36:46,771 - INFO -       → Completed in 255.68s | Cost: 21320 (gap: 0.18%) | Generations: 11/2000
+2025-11-26 11:36:46,772 - INFO - 
+    ✓ CPU INCREMENTAL summary for kroA100 (22 total runs): Cost=21380±64.3 | Gap=0.46%±0.30% | Time=188.64s±31.14s
+2025-11-26 11:36:46,782 - INFO -     ✓ Checkpoint saved: kroA100_CPU.json
+2025-11-26 11:36:46,857 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:36:46,858 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:36:46,858 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:36:46,858 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending kroA100 from 20 to 22 runs
+2025-11-26 11:36:46,858 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:36:46,858 - INFO -     Run 21/22 (new #1/2, seed=598112813)...
+2025-11-26 11:36:48,924 - INFO - Near-optimal solution reached at generation 10 (cost=21341.00, optimal=21282.00, gap=0.28%)
+2025-11-26 11:36:48,924 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=21341.00, improvement=85.45%, H2D=1.82MB, D2H=1.02MB, kernels=25600, stopped=hit_optimal
+2025-11-26 11:36:48,924 - INFO -       → Completed in 2.07s | Cost: 21341 (gap: 0.28%) | Generations: 10/2000
+2025-11-26 11:36:48,925 - INFO -     Run 22/22 (new #2/2, seed=1875774809)...
+2025-11-26 11:36:51,247 - INFO - Near-optimal solution reached at generation 11 (cost=21292.00, optimal=21282.00, gap=0.05%)
+2025-11-26 11:36:51,247 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=21292.00, improvement=85.80%, H2D=2.01MB, D2H=1.13MB, kernels=28160, stopped=hit_optimal
+2025-11-26 11:36:51,247 - INFO -       → Completed in 2.32s | Cost: 21292 (gap: 0.05%) | Generations: 11/2000
+2025-11-26 11:36:51,248 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for kroA100 (22 total runs): Cost=21374±63.7 | Gap=0.43%±0.30% | Time=1.82s±0.19s
+2025-11-26 11:36:51,259 - INFO -     ✓ Checkpoint saved: kroA100_HybridNaive.json
+2025-11-26 11:36:51,326 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:36:51,326 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:36:51,327 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:36:51,327 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending kroA100 from 20 to 22 runs
+2025-11-26 11:36:51,327 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:36:51,327 - INFO -     Run 21/22 (new #1/2, seed=657348484)...
+2025-11-26 11:36:51,699 - INFO - Near-optimal solution reached at generation 10 (cost=21483.00, optimal=21282.00, gap=0.94%)
+2025-11-26 11:36:51,700 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=21483.00, improvement=85.35%, H2D=1.10MB, D2H=1.04MB, kernels=110, stopped=hit_optimal
+2025-11-26 11:36:51,700 - INFO -       → Completed in 0.37s | Cost: 21483 (gap: 0.94%) | Generations: 10/2000
+2025-11-26 11:36:51,700 - INFO -     Run 22/22 (new #2/2, seed=1851514196)...
+2025-11-26 11:36:52,081 - INFO - Near-optimal solution reached at generation 11 (cost=21399.00, optimal=21282.00, gap=0.55%)
+2025-11-26 11:36:52,081 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=21399.00, improvement=85.73%, H2D=1.13MB, D2H=1.15MB, kernels=121, stopped=hit_optimal
+2025-11-26 11:36:52,081 - INFO -       → Completed in 0.38s | Cost: 21399 (gap: 0.55%) | Generations: 11/2000
+2025-11-26 11:36:52,082 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for kroA100 (22 total runs): Cost=21360±63.4 | Gap=0.37%±0.30% | Time=0.30s±0.04s
+2025-11-26 11:36:52,084 - INFO -     ✓ Checkpoint saved: kroA100_HybridOptimized.json
+2025-11-26 11:36:52,146 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:36:52,147 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:36:52,148 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:36:52,148 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending kroA100 from 20 to 22 runs
+2025-11-26 11:36:52,148 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:36:52,148 - INFO -     Run 21/22 (new #1/2, seed=1753909980)...
+2025-11-26 11:36:52,150 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=21282.0, patience=20)
+2025-11-26 11:36:52,983 - INFO - FullGPUEarlyStop complete: best=21292.00, improvement=85.76%, gens=30/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 11:36:52,983 - INFO -       → Completed in 0.83s | Cost: 21292 (gap: 0.05%) | Generations: 30/2000
+2025-11-26 11:36:52,983 - INFO -     Run 22/22 (new #2/2, seed=1945832095)...
+2025-11-26 11:36:52,984 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=21282.0, patience=20)
+2025-11-26 11:36:53,815 - INFO - FullGPUEarlyStop complete: best=21292.00, improvement=85.76%, gens=30/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 11:36:53,815 - INFO -       → Completed in 0.83s | Cost: 21292 (gap: 0.05%) | Generations: 30/2000
+2025-11-26 11:36:53,817 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for kroA100 (22 total runs): Cost=21285±4.8 | Gap=0.01%±0.02% | Time=1.49s±0.22s
+2025-11-26 11:36:53,831 - INFO -     ✓ Checkpoint saved: kroA100_FullGPU.json
+2025-11-26 11:36:53,993 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:36:53,994 - INFO - STATISTICS FOR kroA100
+2025-11-26 11:36:53,994 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:36:53,995 - INFO - 
+Statistical Analysis: kroA100
+2025-11-26 11:36:53,995 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:36:54,002 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:36:54,003 - INFO -   Statistic: 35.5634
+2025-11-26 11:36:54,004 - INFO -   p-value: 0.000000
+2025-11-26 11:36:54,004 - INFO -   Significant: True
+2025-11-26 11:36:54,022 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:36:54,039 - INFO -   Critical distance: 1.4142
+2025-11-26 11:36:54,039 - INFO -   Mean ranks:
+2025-11-26 11:36:54,040 - INFO -     CPU: 3.09
+2025-11-26 11:36:54,040 - INFO -     HybridNaive: 3.00
+2025-11-26 11:36:54,040 - INFO -     HybridOptimized: 2.80
+2025-11-26 11:36:54,041 - INFO -     FullGPU: 1.11
+2025-11-26 11:36:54,041 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:36:54,041 - INFO -     CPU vs FullGPU: rank_diff=1.98, p=0.0000
+2025-11-26 11:36:54,042 - INFO -     HybridNaive vs FullGPU: rank_diff=1.89, p=0.0000
+2025-11-26 11:36:54,042 - INFO -     HybridOptimized vs FullGPU: rank_diff=1.68, p=0.0001
+2025-11-26 11:36:54,042 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:36:54,042 - INFO - Following statistical methodology:
+2025-11-26 11:36:54,042 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:36:54,042 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:36:54,042 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:36:54,042 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:36:54,042 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:36:54,046 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:36:54,047 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:36:54,049 - INFO -       CPU: p=0.0339 (non-normal)
+2025-11-26 11:36:54,049 - INFO -       HybridNaive: p=0.1198 (normal)
+2025-11-26 11:36:54,049 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:36:54,049 - INFO -     Mean difference: 6.05
+2025-11-26 11:36:54,049 - INFO -     95% CI difference: [-25.71, 37.80]
+2025-11-26 11:36:54,049 - INFO -     p-value (uncorrected): 0.603351
+2025-11-26 11:36:54,049 - INFO -     Cohen's d: 0.0923
+2025-11-26 11:36:54,049 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:36:54,054 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:36:54,055 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:36:54,055 - INFO -       CPU: p=0.0339 (non-normal)
+2025-11-26 11:36:54,055 - INFO -       HybridOptimized: p=0.0491 (non-normal)
+2025-11-26 11:36:54,057 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:36:54,058 - INFO -     Mean difference: 19.86
+2025-11-26 11:36:54,058 - INFO -     95% CI difference: [-17.32, 57.05]
+2025-11-26 11:36:54,058 - INFO -     p-value (uncorrected): 0.265961
+2025-11-26 11:36:54,058 - INFO -     Cohen's d: 0.3040
+2025-11-26 11:36:54,058 - INFO -     Effect size interpretation: small
+2025-11-26 11:36:54,063 - INFO -   CPU vs FullGPU:
+2025-11-26 11:36:54,064 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:36:54,064 - INFO -       CPU: p=0.0339 (non-normal)
+2025-11-26 11:36:54,065 - INFO -       FullGPU: p=0.0000 (non-normal)
+2025-11-26 11:36:54,066 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:36:54,067 - INFO -     Mean difference: 94.68
+2025-11-26 11:36:54,068 - INFO -     95% CI difference: [65.69, 123.68]
+2025-11-26 11:36:54,068 - INFO -     p-value (uncorrected): 0.000059
+2025-11-26 11:36:54,068 - INFO -     Cohen's d: 2.0294
+2025-11-26 11:36:54,068 - INFO -     Effect size interpretation: large
+2025-11-26 11:36:54,074 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:36:54,075 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:36:54,075 - INFO -       HybridNaive: p=0.1198 (normal)
+2025-11-26 11:36:54,076 - INFO -       HybridOptimized: p=0.0491 (non-normal)
+2025-11-26 11:36:54,076 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:36:54,077 - INFO -     Mean difference: 13.82
+2025-11-26 11:36:54,078 - INFO -     95% CI difference: [-23.24, 50.88]
+2025-11-26 11:36:54,078 - INFO -     p-value (uncorrected): 0.380656
+2025-11-26 11:36:54,078 - INFO -     Cohen's d: 0.2124
+2025-11-26 11:36:54,078 - INFO -     Effect size interpretation: small
+2025-11-26 11:36:54,081 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:36:54,081 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:36:54,081 - INFO -       HybridNaive: p=0.1198 (normal)
+2025-11-26 11:36:54,081 - INFO -       FullGPU: p=0.0000 (non-normal)
+2025-11-26 11:36:54,081 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:36:54,081 - INFO -     Mean difference: 88.64
+2025-11-26 11:36:54,081 - INFO -     95% CI difference: [59.38, 117.89]
+2025-11-26 11:36:54,081 - INFO -     p-value (uncorrected): 0.000088
+2025-11-26 11:36:54,082 - INFO -     Cohen's d: 1.9164
+2025-11-26 11:36:54,082 - INFO -     Effect size interpretation: large
+2025-11-26 11:36:54,087 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:36:54,087 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:36:54,089 - INFO -       HybridOptimized: p=0.0491 (non-normal)
+2025-11-26 11:36:54,089 - INFO -       FullGPU: p=0.0000 (non-normal)
+2025-11-26 11:36:54,090 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:36:54,090 - INFO -     Mean difference: 74.82
+2025-11-26 11:36:54,092 - INFO -     95% CI difference: [46.78, 102.85]
+2025-11-26 11:36:54,092 - INFO -     p-value (uncorrected): 0.000088
+2025-11-26 11:36:54,093 - INFO -     Cohen's d: 1.6264
+2025-11-26 11:36:54,093 - INFO -     Effect size interpretation: large
+2025-11-26 11:36:54,093 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:36:54,093 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:36:54,093 - INFO -       Original p-value: 0.603351
+2025-11-26 11:36:54,093 - INFO -       Adjusted p-value: 0.797882
+2025-11-26 11:36:54,093 - INFO -       Significant (after correction): False
+2025-11-26 11:36:54,093 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:36:54,093 - INFO -       Original p-value: 0.265961
+2025-11-26 11:36:54,093 - INFO -       Adjusted p-value: 0.797882
+2025-11-26 11:36:54,093 - INFO -       Significant (after correction): False
+2025-11-26 11:36:54,093 - INFO -     CPU vs FullGPU:
+2025-11-26 11:36:54,093 - INFO -       Original p-value: 0.000059
+2025-11-26 11:36:54,093 - INFO -       Adjusted p-value: 0.000356
+2025-11-26 11:36:54,094 - INFO -       Significant (after correction): True
+2025-11-26 11:36:54,094 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:36:54,095 - INFO -       Original p-value: 0.380656
+2025-11-26 11:36:54,096 - INFO -       Adjusted p-value: 0.797882
+2025-11-26 11:36:54,096 - INFO -       Significant (after correction): False
+2025-11-26 11:36:54,098 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:36:54,098 - INFO -       Original p-value: 0.000088
+2025-11-26 11:36:54,098 - INFO -       Adjusted p-value: 0.000442
+2025-11-26 11:36:54,098 - INFO -       Significant (after correction): True
+2025-11-26 11:36:54,098 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:36:54,098 - INFO -       Original p-value: 0.000088
+2025-11-26 11:36:54,098 - INFO -       Adjusted p-value: 0.000442
+2025-11-26 11:36:54,098 - INFO -       Significant (after correction): True
+2025-11-26 11:36:54,098 - INFO - 
+Summary: kroA100 (optimal=21282.0)
+2025-11-26 11:36:54,098 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:36:54,098 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:36:54,098 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:36:54,100 - INFO - CPU                  21379.59        0.46         188.64       0.00         0.00        
+2025-11-26 11:36:54,101 - INFO - HybridNaive          21373.55        0.43         1.82         1.92         1.08        
+2025-11-26 11:36:54,102 - INFO - HybridOptimized      21359.73        0.37         0.30         1.12         1.10        
+2025-11-26 11:36:54,102 - INFO - FullGPU              21284.91        0.01         1.49         0.08         0.00        
+2025-11-26 11:36:54,102 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:36:54,102 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:36:54,102 - INFO -   HybridNaive: 103.54x vs CPU
+2025-11-26 11:36:54,102 - INFO -   HybridOptimized: 618.67x vs CPU
+2025-11-26 11:36:54,102 - INFO -   FullGPU: 127.01x vs CPU
+2025-11-26 11:36:54,102 - INFO - 
+2025-11-26 11:36:54,111 - INFO - ✓ Problem statistics saved: kroA100_stats.json
+
+2025-11-26 11:36:54,197 - INFO - 
+================================================================================
+2025-11-26 11:36:54,198 - INFO - PROBLEM 8/38: kroB100
+2025-11-26 11:36:54,199 - INFO - Size: 100 cities | Optimal: 22141.0
+2025-11-26 11:36:54,199 - INFO - ================================================================================
+2025-11-26 11:36:54,201 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:36:54,269 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:36:54,269 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:36:54,269 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending kroB100 from 20 to 22 runs
+2025-11-26 11:36:54,269 - INFO -     Backend: CPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:36:54,270 - INFO -     Run 21/22 (new #1/2, seed=1197248746)...
+2025-11-26 11:40:49,851 - INFO - Near-optimal solution reached at generation 11 (cost=22231.00, optimal=22141.00, gap=0.41%)
+2025-11-26 11:40:49,851 - INFO - GeneticAlgorithmCPU evolution complete: best=22231.00, improvement=84.66%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:40:49,851 - INFO -       → Completed in 235.58s | Cost: 22231 (gap: 0.41%) | Generations: 11/2000
+2025-11-26 11:40:49,852 - INFO -     Run 22/22 (new #2/2, seed=1328368301)...
+2025-11-26 11:44:54,621 - INFO - Near-optimal solution reached at generation 11 (cost=22233.00, optimal=22141.00, gap=0.42%)
+2025-11-26 11:44:54,621 - INFO - GeneticAlgorithmCPU evolution complete: best=22233.00, improvement=84.83%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:44:54,621 - INFO -       → Completed in 244.77s | Cost: 22233 (gap: 0.42%) | Generations: 11/2000
+2025-11-26 11:44:54,623 - INFO - 
+    ✓ CPU INCREMENTAL summary for kroB100 (22 total runs): Cost=22267±58.8 | Gap=0.57%±0.27% | Time=187.82s±24.19s
+2025-11-26 11:44:54,632 - INFO -     ✓ Checkpoint saved: kroB100_CPU.json
+2025-11-26 11:44:54,693 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:44:54,694 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:44:54,694 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:44:54,694 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending kroB100 from 20 to 22 runs
+2025-11-26 11:44:54,694 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:44:54,694 - INFO -     Run 21/22 (new #1/2, seed=417558865)...
+2025-11-26 11:44:57,254 - INFO - Near-optimal solution reached at generation 11 (cost=22280.00, optimal=22141.00, gap=0.63%)
+2025-11-26 11:44:57,254 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=22280.00, improvement=84.63%, H2D=2.01MB, D2H=1.13MB, kernels=28160, stopped=hit_optimal
+2025-11-26 11:44:57,254 - INFO -       → Completed in 2.56s | Cost: 22280 (gap: 0.63%) | Generations: 11/2000
+2025-11-26 11:44:57,254 - INFO -     Run 22/22 (new #2/2, seed=510001538)...
+2025-11-26 11:45:00,378 - INFO - Near-optimal solution reached at generation 11 (cost=22332.00, optimal=22141.00, gap=0.86%)
+2025-11-26 11:45:00,379 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=22332.00, improvement=84.77%, H2D=2.01MB, D2H=1.13MB, kernels=28160, stopped=hit_optimal
+2025-11-26 11:45:00,379 - INFO -       → Completed in 3.12s | Cost: 22332 (gap: 0.86%) | Generations: 11/2000
+2025-11-26 11:45:00,380 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for kroB100 (22 total runs): Cost=22278±61.2 | Gap=0.62%±0.28% | Time=1.92s±0.34s
+2025-11-26 11:45:00,392 - INFO -     ✓ Checkpoint saved: kroB100_HybridNaive.json
+2025-11-26 11:45:00,536 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:45:00,538 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:45:00,538 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:45:00,540 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending kroB100 from 20 to 22 runs
+2025-11-26 11:45:00,541 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:45:00,541 - INFO -     Run 21/22 (new #1/2, seed=736106137)...
+2025-11-26 11:45:01,184 - INFO - Near-optimal solution reached at generation 10 (cost=22290.00, optimal=22141.00, gap=0.67%)
+2025-11-26 11:45:01,185 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=22290.00, improvement=84.62%, H2D=1.10MB, D2H=1.04MB, kernels=110, stopped=hit_optimal
+2025-11-26 11:45:01,185 - INFO -       → Completed in 0.64s | Cost: 22290 (gap: 0.67%) | Generations: 10/2000
+2025-11-26 11:45:01,185 - INFO -     Run 22/22 (new #2/2, seed=1028760772)...
+2025-11-26 11:45:01,779 - INFO - Near-optimal solution reached at generation 11 (cost=22331.00, optimal=22141.00, gap=0.86%)
+2025-11-26 11:45:01,780 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=22331.00, improvement=84.53%, H2D=1.13MB, D2H=1.15MB, kernels=121, stopped=hit_optimal
+2025-11-26 11:45:01,780 - INFO -       → Completed in 0.59s | Cost: 22331 (gap: 0.86%) | Generations: 11/2000
+2025-11-26 11:45:01,781 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for kroB100 (22 total runs): Cost=22268±62.7 | Gap=0.57%±0.28% | Time=0.35s±0.09s
+2025-11-26 11:45:01,792 - INFO -     ✓ Checkpoint saved: kroB100_HybridOptimized.json
+2025-11-26 11:45:01,854 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:45:01,855 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:45:01,855 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:45:01,855 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending kroB100 from 20 to 22 runs
+2025-11-26 11:45:01,855 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:45:01,855 - INFO -     Run 21/22 (new #1/2, seed=854331008)...
+2025-11-26 11:45:01,856 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=22141.0, patience=20)
+2025-11-26 11:45:02,889 - INFO - FullGPUEarlyStop complete: best=22179.00, improvement=84.51%, gens=39/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 11:45:02,889 - INFO -       → Completed in 1.03s | Cost: 22179 (gap: 0.17%) | Generations: 39/2000
+2025-11-26 11:45:02,889 - INFO -     Run 22/22 (new #2/2, seed=329063577)...
+2025-11-26 11:45:02,890 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=22141.0, patience=20)
+2025-11-26 11:45:03,659 - INFO - FullGPUEarlyStop complete: best=22162.00, improvement=84.52%, gens=28/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 11:45:03,659 - INFO -       → Completed in 0.77s | Cost: 22162 (gap: 0.09%) | Generations: 28/2000
+2025-11-26 11:45:03,660 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for kroB100 (22 total runs): Cost=22189±47.4 | Gap=0.22%±0.21% | Time=1.92s±0.46s
+2025-11-26 11:45:03,661 - INFO -     ✓ Checkpoint saved: kroB100_FullGPU.json
+2025-11-26 11:45:03,729 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:45:03,729 - INFO - STATISTICS FOR kroB100
+2025-11-26 11:45:03,729 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:45:03,729 - INFO - 
+Statistical Analysis: kroB100
+2025-11-26 11:45:03,729 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:45:03,736 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:45:03,736 - INFO -   Statistic: 22.2639
+2025-11-26 11:45:03,736 - INFO -   p-value: 0.000057
+2025-11-26 11:45:03,736 - INFO -   Significant: True
+2025-11-26 11:45:03,746 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:45:03,759 - INFO -   Critical distance: 1.4142
+2025-11-26 11:45:03,759 - INFO -   Mean ranks:
+2025-11-26 11:45:03,759 - INFO -     CPU: 2.82
+2025-11-26 11:45:03,759 - INFO -     HybridNaive: 3.07
+2025-11-26 11:45:03,759 - INFO -     HybridOptimized: 2.70
+2025-11-26 11:45:03,759 - INFO -     FullGPU: 1.41
+2025-11-26 11:45:03,759 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:45:03,759 - INFO -     CPU vs FullGPU: rank_diff=1.41, p=0.0017
+2025-11-26 11:45:03,760 - INFO -     HybridNaive vs FullGPU: rank_diff=1.66, p=0.0001
+2025-11-26 11:45:03,760 - INFO -     HybridOptimized vs FullGPU: rank_diff=1.30, p=0.0048
+2025-11-26 11:45:03,760 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:45:03,760 - INFO - Following statistical methodology:
+2025-11-26 11:45:03,760 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:45:03,760 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:45:03,760 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:45:03,760 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:45:03,760 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:45:03,763 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:45:03,763 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:45:03,763 - INFO -       CPU: p=0.6985 (normal)
+2025-11-26 11:45:03,763 - INFO -       HybridNaive: p=0.1580 (normal)
+2025-11-26 11:45:03,763 - INFO -     Test selected: paired_t_test
+2025-11-26 11:45:03,763 - INFO -     Mean difference: -10.86
+2025-11-26 11:45:03,763 - INFO -     95% CI difference: [-53.54, 31.81]
+2025-11-26 11:45:03,763 - INFO -     p-value (uncorrected): 0.602098
+2025-11-26 11:45:03,763 - INFO -     Cohen's d: -0.1770
+2025-11-26 11:45:03,763 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:45:03,767 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:45:03,767 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:45:03,767 - INFO -       CPU: p=0.6985 (normal)
+2025-11-26 11:45:03,767 - INFO -       HybridOptimized: p=0.0313 (non-normal)
+2025-11-26 11:45:03,767 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:45:03,767 - INFO -     Mean difference: -0.68
+2025-11-26 11:45:03,767 - INFO -     95% CI difference: [-44.13, 42.77]
+2025-11-26 11:45:03,768 - INFO -     p-value (uncorrected): 0.974097
+2025-11-26 11:45:03,768 - INFO -     Cohen's d: -0.0110
+2025-11-26 11:45:03,768 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:45:03,771 - INFO -   CPU vs FullGPU:
+2025-11-26 11:45:03,771 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:45:03,771 - INFO -       CPU: p=0.6985 (normal)
+2025-11-26 11:45:03,771 - INFO -       FullGPU: p=0.0036 (non-normal)
+2025-11-26 11:45:03,771 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:45:03,771 - INFO -     Mean difference: 78.36
+2025-11-26 11:45:03,772 - INFO -     95% CI difference: [42.09, 114.64]
+2025-11-26 11:45:03,772 - INFO -     p-value (uncorrected): 0.001471
+2025-11-26 11:45:03,772 - INFO -     Cohen's d: 1.4347
+2025-11-26 11:45:03,772 - INFO -     Effect size interpretation: large
+2025-11-26 11:45:03,774 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:45:03,774 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:45:03,774 - INFO -       HybridNaive: p=0.1580 (normal)
+2025-11-26 11:45:03,775 - INFO -       HybridOptimized: p=0.0313 (non-normal)
+2025-11-26 11:45:03,775 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:45:03,775 - INFO -     Mean difference: 10.18
+2025-11-26 11:45:03,775 - INFO -     95% CI difference: [-28.94, 49.30]
+2025-11-26 11:45:03,775 - INFO -     p-value (uncorrected): 0.689346
+2025-11-26 11:45:03,775 - INFO -     Cohen's d: 0.1606
+2025-11-26 11:45:03,775 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:45:03,778 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:45:03,778 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:45:03,778 - INFO -       HybridNaive: p=0.1580 (normal)
+2025-11-26 11:45:03,778 - INFO -       FullGPU: p=0.0036 (non-normal)
+2025-11-26 11:45:03,778 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:45:03,778 - INFO -     Mean difference: 89.23
+2025-11-26 11:45:03,778 - INFO -     95% CI difference: [58.82, 119.63]
+2025-11-26 11:45:03,778 - INFO -     p-value (uncorrected): 0.000162
+2025-11-26 11:45:03,778 - INFO -     Cohen's d: 1.5937
+2025-11-26 11:45:03,778 - INFO -     Effect size interpretation: large
+2025-11-26 11:45:03,782 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:45:03,783 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:45:03,783 - INFO -       HybridOptimized: p=0.0313 (non-normal)
+2025-11-26 11:45:03,783 - INFO -       FullGPU: p=0.0036 (non-normal)
+2025-11-26 11:45:03,783 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:45:03,783 - INFO -     Mean difference: 79.05
+2025-11-26 11:45:03,783 - INFO -     95% CI difference: [38.78, 119.31]
+2025-11-26 11:45:03,783 - INFO -     p-value (uncorrected): 0.001455
+2025-11-26 11:45:03,784 - INFO -     Cohen's d: 1.3901
+2025-11-26 11:45:03,784 - INFO -     Effect size interpretation: large
+2025-11-26 11:45:03,784 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:45:03,784 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:45:03,784 - INFO -       Original p-value: 0.602098
+2025-11-26 11:45:03,784 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:45:03,784 - INFO -       Significant (after correction): False
+2025-11-26 11:45:03,784 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:45:03,784 - INFO -       Original p-value: 0.974097
+2025-11-26 11:45:03,784 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:45:03,784 - INFO -       Significant (after correction): False
+2025-11-26 11:45:03,784 - INFO -     CPU vs FullGPU:
+2025-11-26 11:45:03,784 - INFO -       Original p-value: 0.001471
+2025-11-26 11:45:03,784 - INFO -       Adjusted p-value: 0.007274
+2025-11-26 11:45:03,784 - INFO -       Significant (after correction): True
+2025-11-26 11:45:03,785 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:45:03,785 - INFO -       Original p-value: 0.689346
+2025-11-26 11:45:03,785 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:45:03,785 - INFO -       Significant (after correction): False
+2025-11-26 11:45:03,785 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:45:03,785 - INFO -       Original p-value: 0.000162
+2025-11-26 11:45:03,785 - INFO -       Adjusted p-value: 0.000970
+2025-11-26 11:45:03,785 - INFO -       Significant (after correction): True
+2025-11-26 11:45:03,785 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:45:03,785 - INFO -       Original p-value: 0.001455
+2025-11-26 11:45:03,785 - INFO -       Adjusted p-value: 0.007274
+2025-11-26 11:45:03,785 - INFO -       Significant (after correction): True
+2025-11-26 11:45:03,785 - INFO - 
+Summary: kroB100 (optimal=22141.0)
+2025-11-26 11:45:03,785 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:45:03,785 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:45:03,785 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:45:03,786 - INFO - CPU                  22267.41        0.57         187.82       0.00         0.00        
+2025-11-26 11:45:03,786 - INFO - HybridNaive          22278.27        0.62         1.92         2.01         1.13        
+2025-11-26 11:45:03,786 - INFO - HybridOptimized      22268.09        0.57         0.35         1.12         1.10        
+2025-11-26 11:45:03,786 - INFO - FullGPU              22189.05        0.22         1.92         0.08         0.00        
+2025-11-26 11:45:03,786 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:45:03,786 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:45:03,786 - INFO -   HybridNaive: 97.74x vs CPU
+2025-11-26 11:45:03,786 - INFO -   HybridOptimized: 541.72x vs CPU
+2025-11-26 11:45:03,786 - INFO -   FullGPU: 98.02x vs CPU
+2025-11-26 11:45:03,786 - INFO - 
+2025-11-26 11:45:03,791 - INFO - ✓ Problem statistics saved: kroB100_stats.json
+
+2025-11-26 11:45:03,856 - INFO - 
+================================================================================
+2025-11-26 11:45:03,857 - INFO - PROBLEM 9/38: kroC100
+2025-11-26 11:45:03,857 - INFO - Size: 100 cities | Optimal: 20749.0
+2025-11-26 11:45:03,857 - INFO - ================================================================================
+2025-11-26 11:45:03,857 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:45:03,904 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:45:03,905 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:45:03,905 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending kroC100 from 20 to 22 runs
+2025-11-26 11:45:03,905 - INFO -     Backend: CPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:45:03,905 - INFO -     Run 21/22 (new #1/2, seed=1195328113)...
+2025-11-26 11:48:22,525 - INFO - Near-optimal solution reached at generation 10 (cost=20943.00, optimal=20749.00, gap=0.93%)
+2025-11-26 11:48:22,525 - INFO - GeneticAlgorithmCPU evolution complete: best=20943.00, improvement=85.10%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:48:22,525 - INFO -       → Completed in 198.62s | Cost: 20943 (gap: 0.93%) | Generations: 10/2000
+2025-11-26 11:48:22,525 - INFO -     Run 22/22 (new #2/2, seed=161469424)...
+2025-11-26 11:51:47,229 - INFO - Near-optimal solution reached at generation 11 (cost=20802.00, optimal=20749.00, gap=0.26%)
+2025-11-26 11:51:47,229 - INFO - GeneticAlgorithmCPU evolution complete: best=20802.00, improvement=85.92%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:51:47,229 - INFO -       → Completed in 204.70s | Cost: 20802 (gap: 0.26%) | Generations: 11/2000
+2025-11-26 11:51:47,230 - INFO - 
+    ✓ CPU INCREMENTAL summary for kroC100 (22 total runs): Cost=20843±61.4 | Gap=0.46%±0.30% | Time=178.47s±15.91s
+2025-11-26 11:51:47,240 - INFO -     ✓ Checkpoint saved: kroC100_CPU.json
+2025-11-26 11:51:47,293 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:51:47,293 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:51:47,294 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:51:47,294 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending kroC100 from 20 to 22 runs
+2025-11-26 11:51:47,294 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:51:47,294 - INFO -     Run 21/22 (new #1/2, seed=1065228288)...
+2025-11-26 11:51:49,141 - INFO - Near-optimal solution reached at generation 10 (cost=20930.00, optimal=20749.00, gap=0.87%)
+2025-11-26 11:51:49,141 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=20930.00, improvement=85.10%, H2D=1.82MB, D2H=1.02MB, kernels=25600, stopped=hit_optimal
+2025-11-26 11:51:49,141 - INFO -       → Completed in 1.85s | Cost: 20930 (gap: 0.87%) | Generations: 10/2000
+2025-11-26 11:51:49,141 - INFO -     Run 22/22 (new #2/2, seed=461222707)...
+2025-11-26 11:51:51,050 - INFO - Near-optimal solution reached at generation 11 (cost=20906.00, optimal=20749.00, gap=0.76%)
+2025-11-26 11:51:51,050 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=20906.00, improvement=85.85%, H2D=2.01MB, D2H=1.13MB, kernels=28160, stopped=hit_optimal
+2025-11-26 11:51:51,050 - INFO -       → Completed in 1.91s | Cost: 20906 (gap: 0.76%) | Generations: 11/2000
+2025-11-26 11:51:51,051 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for kroC100 (22 total runs): Cost=20843±60.1 | Gap=0.45%±0.29% | Time=1.83s±0.29s
+2025-11-26 11:51:51,060 - INFO -     ✓ Checkpoint saved: kroC100_HybridNaive.json
+2025-11-26 11:51:51,103 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:51:51,104 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:51:51,104 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 11:51:51,104 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending kroC100 from 20 to 22 runs
+2025-11-26 11:51:51,104 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:51:51,105 - INFO -     Run 21/22 (new #1/2, seed=90677715)...
+2025-11-26 11:51:51,382 - INFO - Near-optimal solution reached at generation 10 (cost=20847.00, optimal=20749.00, gap=0.47%)
+2025-11-26 11:51:51,382 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=20847.00, improvement=85.16%, H2D=1.10MB, D2H=1.04MB, kernels=110, stopped=hit_optimal
+2025-11-26 11:51:51,382 - INFO -       → Completed in 0.28s | Cost: 20847 (gap: 0.47%) | Generations: 10/2000
+2025-11-26 11:51:51,382 - INFO -     Run 22/22 (new #2/2, seed=879297628)...
+2025-11-26 11:51:51,656 - INFO - Near-optimal solution reached at generation 11 (cost=20818.00, optimal=20749.00, gap=0.33%)
+2025-11-26 11:51:51,656 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=20818.00, improvement=85.90%, H2D=1.13MB, D2H=1.15MB, kernels=121, stopped=hit_optimal
+2025-11-26 11:51:51,656 - INFO -       → Completed in 0.27s | Cost: 20818 (gap: 0.33%) | Generations: 11/2000
+2025-11-26 11:51:51,657 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for kroC100 (22 total runs): Cost=20829±56.6 | Gap=0.38%±0.27% | Time=0.29s±0.06s
+2025-11-26 11:51:51,667 - INFO -     ✓ Checkpoint saved: kroC100_HybridOptimized.json
+2025-11-26 11:51:51,711 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:51:51,712 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:51:51,712 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 11:51:51,712 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending kroC100 from 20 to 22 runs
+2025-11-26 11:51:51,712 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:51:51,712 - INFO -     Run 21/22 (new #1/2, seed=614878985)...
+2025-11-26 11:51:51,713 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=20749.0, patience=20)
+2025-11-26 11:51:52,563 - INFO - FullGPUEarlyStop complete: best=20749.00, improvement=85.63%, gens=31/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 11:51:52,564 - INFO -       → Completed in 0.85s | Cost: 20749 (gap: 0.00%) | Generations: 31/2000
+2025-11-26 11:51:52,564 - INFO -     Run 22/22 (new #2/2, seed=1605549853)...
+2025-11-26 11:51:52,565 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=20749.0, patience=20)
+2025-11-26 11:51:53,313 - INFO - FullGPUEarlyStop complete: best=20749.00, improvement=85.63%, gens=28/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 11:51:53,313 - INFO -       → Completed in 0.75s | Cost: 20749 (gap: 0.00%) | Generations: 28/2000
+2025-11-26 11:51:53,314 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for kroC100 (22 total runs): Cost=20758±16.1 | Gap=0.04%±0.08% | Time=1.47s±0.22s
+2025-11-26 11:51:53,324 - INFO -     ✓ Checkpoint saved: kroC100_FullGPU.json
+2025-11-26 11:51:53,372 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:51:53,372 - INFO - STATISTICS FOR kroC100
+2025-11-26 11:51:53,372 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 11:51:53,372 - INFO - 
+Statistical Analysis: kroC100
+2025-11-26 11:51:53,372 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:51:53,377 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 11:51:53,377 - INFO -   Statistic: 29.1043
+2025-11-26 11:51:53,377 - INFO -   p-value: 0.000002
+2025-11-26 11:51:53,377 - INFO -   Significant: True
+2025-11-26 11:51:53,387 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 11:51:53,402 - INFO -   Critical distance: 1.4142
+2025-11-26 11:51:53,402 - INFO -   Mean ranks:
+2025-11-26 11:51:53,402 - INFO -     CPU: 2.91
+2025-11-26 11:51:53,402 - INFO -     HybridNaive: 3.05
+2025-11-26 11:51:53,402 - INFO -     HybridOptimized: 2.80
+2025-11-26 11:51:53,402 - INFO -     FullGPU: 1.25
+2025-11-26 11:51:53,402 - INFO - 
+  Significant pairwise differences:
+2025-11-26 11:51:53,402 - INFO -     CPU vs FullGPU: rank_diff=1.66, p=0.0001
+2025-11-26 11:51:53,402 - INFO -     HybridNaive vs FullGPU: rank_diff=1.80, p=0.0000
+2025-11-26 11:51:53,402 - INFO -     HybridOptimized vs FullGPU: rank_diff=1.55, p=0.0004
+2025-11-26 11:51:53,402 - INFO - 
+Pairwise Comparisons:
+2025-11-26 11:51:53,402 - INFO - Following statistical methodology:
+2025-11-26 11:51:53,403 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 11:51:53,403 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 11:51:53,403 - INFO -   - Effect size (Cohen's d)
+2025-11-26 11:51:53,403 - INFO -   - 95% Confidence Intervals
+2025-11-26 11:51:53,403 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 11:51:53,405 - INFO -   CPU vs HybridNaive:
+2025-11-26 11:51:53,405 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:51:53,405 - INFO -       CPU: p=0.3085 (normal)
+2025-11-26 11:51:53,405 - INFO -       HybridNaive: p=0.1014 (normal)
+2025-11-26 11:51:53,405 - INFO -     Test selected: paired_t_test
+2025-11-26 11:51:53,405 - INFO -     Mean difference: 0.73
+2025-11-26 11:51:53,405 - INFO -     95% CI difference: [-33.38, 34.83]
+2025-11-26 11:51:53,405 - INFO -     p-value (uncorrected): 0.965046
+2025-11-26 11:51:53,405 - INFO -     Cohen's d: 0.0117
+2025-11-26 11:51:53,405 - INFO -     Effect size interpretation: negligible
+2025-11-26 11:51:53,407 - INFO -   CPU vs HybridOptimized:
+2025-11-26 11:51:53,407 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:51:53,407 - INFO -       CPU: p=0.3085 (normal)
+2025-11-26 11:51:53,407 - INFO -       HybridOptimized: p=0.3806 (normal)
+2025-11-26 11:51:53,407 - INFO -     Test selected: paired_t_test
+2025-11-26 11:51:53,407 - INFO -     Mean difference: 14.82
+2025-11-26 11:51:53,407 - INFO -     95% CI difference: [-26.57, 56.21]
+2025-11-26 11:51:53,407 - INFO -     p-value (uncorrected): 0.464812
+2025-11-26 11:51:53,407 - INFO -     Cohen's d: 0.2451
+2025-11-26 11:51:53,407 - INFO -     Effect size interpretation: small
+2025-11-26 11:51:53,410 - INFO -   CPU vs FullGPU:
+2025-11-26 11:51:53,410 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:51:53,410 - INFO -       CPU: p=0.3085 (normal)
+2025-11-26 11:51:53,410 - INFO -       FullGPU: p=0.0000 (non-normal)
+2025-11-26 11:51:53,410 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:51:53,410 - INFO -     Mean difference: 85.55
+2025-11-26 11:51:53,410 - INFO -     95% CI difference: [56.77, 114.32]
+2025-11-26 11:51:53,410 - INFO -     p-value (uncorrected): 0.000103
+2025-11-26 11:51:53,410 - INFO -     Cohen's d: 1.8611
+2025-11-26 11:51:53,410 - INFO -     Effect size interpretation: large
+2025-11-26 11:51:53,412 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 11:51:53,412 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:51:53,412 - INFO -       HybridNaive: p=0.1014 (normal)
+2025-11-26 11:51:53,412 - INFO -       HybridOptimized: p=0.3806 (normal)
+2025-11-26 11:51:53,412 - INFO -     Test selected: paired_t_test
+2025-11-26 11:51:53,412 - INFO -     Mean difference: 14.09
+2025-11-26 11:51:53,412 - INFO -     95% CI difference: [-28.41, 56.59]
+2025-11-26 11:51:53,412 - INFO -     p-value (uncorrected): 0.498021
+2025-11-26 11:51:53,412 - INFO -     Cohen's d: 0.2358
+2025-11-26 11:51:53,412 - INFO -     Effect size interpretation: small
+2025-11-26 11:51:53,414 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 11:51:53,414 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:51:53,414 - INFO -       HybridNaive: p=0.1014 (normal)
+2025-11-26 11:51:53,414 - INFO -       FullGPU: p=0.0000 (non-normal)
+2025-11-26 11:51:53,414 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:51:53,414 - INFO -     Mean difference: 84.82
+2025-11-26 11:51:53,414 - INFO -     95% CI difference: [56.73, 112.91]
+2025-11-26 11:51:53,414 - INFO -     p-value (uncorrected): 0.000130
+2025-11-26 11:51:53,414 - INFO -     Cohen's d: 1.8829
+2025-11-26 11:51:53,414 - INFO -     Effect size interpretation: large
+2025-11-26 11:51:53,416 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 11:51:53,417 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 11:51:53,417 - INFO -       HybridOptimized: p=0.3806 (normal)
+2025-11-26 11:51:53,417 - INFO -       FullGPU: p=0.0000 (non-normal)
+2025-11-26 11:51:53,417 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 11:51:53,417 - INFO -     Mean difference: 70.73
+2025-11-26 11:51:53,417 - INFO -     95% CI difference: [44.76, 96.69]
+2025-11-26 11:51:53,417 - INFO -     p-value (uncorrected): 0.000123
+2025-11-26 11:51:53,417 - INFO -     Cohen's d: 1.6604
+2025-11-26 11:51:53,417 - INFO -     Effect size interpretation: large
+2025-11-26 11:51:53,417 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 11:51:53,417 - INFO -     CPU vs HybridNaive:
+2025-11-26 11:51:53,417 - INFO -       Original p-value: 0.965046
+2025-11-26 11:51:53,417 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:51:53,417 - INFO -       Significant (after correction): False
+2025-11-26 11:51:53,417 - INFO -     CPU vs HybridOptimized:
+2025-11-26 11:51:53,417 - INFO -       Original p-value: 0.464812
+2025-11-26 11:51:53,417 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:51:53,417 - INFO -       Significant (after correction): False
+2025-11-26 11:51:53,417 - INFO -     CPU vs FullGPU:
+2025-11-26 11:51:53,417 - INFO -       Original p-value: 0.000103
+2025-11-26 11:51:53,418 - INFO -       Adjusted p-value: 0.000619
+2025-11-26 11:51:53,418 - INFO -       Significant (after correction): True
+2025-11-26 11:51:53,418 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 11:51:53,418 - INFO -       Original p-value: 0.498021
+2025-11-26 11:51:53,418 - INFO -       Adjusted p-value: 1.000000
+2025-11-26 11:51:53,418 - INFO -       Significant (after correction): False
+2025-11-26 11:51:53,418 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 11:51:53,418 - INFO -       Original p-value: 0.000130
+2025-11-26 11:51:53,418 - INFO -       Adjusted p-value: 0.000619
+2025-11-26 11:51:53,418 - INFO -       Significant (after correction): True
+2025-11-26 11:51:53,418 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 11:51:53,418 - INFO -       Original p-value: 0.000123
+2025-11-26 11:51:53,418 - INFO -       Adjusted p-value: 0.000619
+2025-11-26 11:51:53,418 - INFO -       Significant (after correction): True
+2025-11-26 11:51:53,418 - INFO - 
+Summary: kroC100 (optimal=20749.0)
+2025-11-26 11:51:53,418 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:51:53,418 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 11:51:53,418 - INFO - --------------------------------------------------------------------------------
+2025-11-26 11:51:53,418 - INFO - CPU                  20843.41        0.46         178.47       0.00         0.00        
+2025-11-26 11:51:53,418 - INFO - HybridNaive          20842.68        0.45         1.83         1.92         1.08        
+2025-11-26 11:51:53,418 - INFO - HybridOptimized      20828.59        0.38         0.29         1.12         1.10        
+2025-11-26 11:51:53,419 - INFO - FullGPU              20757.86        0.04         1.47         0.08         0.00        
+2025-11-26 11:51:53,419 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 11:51:53,419 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 11:51:53,419 - INFO -   HybridNaive: 97.55x vs CPU
+2025-11-26 11:51:53,419 - INFO -   HybridOptimized: 608.75x vs CPU
+2025-11-26 11:51:53,419 - INFO -   FullGPU: 121.63x vs CPU
+2025-11-26 11:51:53,419 - INFO - 
+2025-11-26 11:51:53,423 - INFO - ✓ Problem statistics saved: kroC100_stats.json
+
+2025-11-26 11:51:53,467 - INFO - 
+================================================================================
+2025-11-26 11:51:53,467 - INFO - PROBLEM 10/38: kroD100
+2025-11-26 11:51:53,467 - INFO - Size: 100 cities | Optimal: 21294.0
+2025-11-26 11:51:53,467 - INFO - ================================================================================
+2025-11-26 11:51:53,467 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 11:51:53,495 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:51:53,495 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:51:53,496 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending kroD100 from 20 to 22 runs
+2025-11-26 11:51:53,496 - INFO -     Backend: CPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:51:53,496 - INFO -     Run 21/22 (new #1/2, seed=320949038)...
+2025-11-26 11:55:17,355 - INFO - Near-optimal solution reached at generation 10 (cost=21382.00, optimal=21294.00, gap=0.41%)
+2025-11-26 11:55:17,355 - INFO - GeneticAlgorithmCPU evolution complete: best=21382.00, improvement=84.85%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:55:17,355 - INFO -       → Completed in 203.86s | Cost: 21382 (gap: 0.41%) | Generations: 10/2000
+2025-11-26 11:55:17,356 - INFO -     Run 22/22 (new #2/2, seed=1252105575)...
+2025-11-26 11:59:56,365 - INFO - Near-optimal solution reached at generation 11 (cost=21374.00, optimal=21294.00, gap=0.38%)
+2025-11-26 11:59:56,365 - INFO - GeneticAlgorithmCPU evolution complete: best=21374.00, improvement=85.17%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-26 11:59:56,365 - INFO -       → Completed in 279.01s | Cost: 21374 (gap: 0.38%) | Generations: 11/2000
+2025-11-26 11:59:56,366 - INFO - 
+    ✓ CPU INCREMENTAL summary for kroD100 (22 total runs): Cost=21412±48.3 | Gap=0.55%±0.23% | Time=189.48s±27.98s
+2025-11-26 11:59:56,391 - INFO -     ✓ Checkpoint saved: kroD100_CPU.json
+2025-11-26 11:59:56,493 - INFO -   [2/4] HybridNaive (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 11:59:56,494 - INFO - GeneticAlgorithmHybridNaive initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 11:59:56,494 - INFO - Loaded two_opt_kernel for naive hybrid
+2025-11-26 11:59:56,495 - INFO - 
+  [HybridNaive] INCREMENTAL MODE: Extending kroD100 from 20 to 22 runs
+2025-11-26 11:59:56,495 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 11:59:56,495 - INFO -     Run 21/22 (new #1/2, seed=1869971004)...
+2025-11-26 11:59:58,676 - INFO - Near-optimal solution reached at generation 10 (cost=21439.00, optimal=21294.00, gap=0.68%)
+2025-11-26 11:59:58,676 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=21439.00, improvement=84.81%, H2D=1.82MB, D2H=1.02MB, kernels=25600, stopped=hit_optimal
+2025-11-26 11:59:58,676 - INFO -       → Completed in 2.18s | Cost: 21439 (gap: 0.68%) | Generations: 10/2000
+2025-11-26 11:59:58,676 - INFO -     Run 22/22 (new #2/2, seed=1013708287)...
+2025-11-26 12:00:00,812 - INFO - Near-optimal solution reached at generation 11 (cost=21472.00, optimal=21294.00, gap=0.84%)
+2025-11-26 12:00:00,812 - INFO - GeneticAlgorithmHybridNaive evolution complete: best=21472.00, improvement=85.10%, H2D=2.01MB, D2H=1.13MB, kernels=28160, stopped=hit_optimal
+2025-11-26 12:00:00,812 - INFO -       → Completed in 2.14s | Cost: 21472 (gap: 0.84%) | Generations: 11/2000
+2025-11-26 12:00:00,813 - INFO - 
+    ✓ HybridNaive INCREMENTAL summary for kroD100 (22 total runs): Cost=21441±49.9 | Gap=0.69%±0.23% | Time=1.83s±0.18s
+2025-11-26 12:00:00,823 - INFO -     ✓ Checkpoint saved: kroD100_HybridNaive.json
+2025-11-26 12:00:00,891 - INFO -   [3/4] HybridOptimized (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 12:00:00,892 - INFO - GeneticAlgorithmHybridOptimized initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 12:00:00,892 - INFO - Loaded batch kernels: two_opt_batch, cost_calculator
+2025-11-26 12:00:00,892 - INFO - 
+  [HybridOptimized] INCREMENTAL MODE: Extending kroD100 from 20 to 22 runs
+2025-11-26 12:00:00,892 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 12:00:00,892 - INFO -     Run 21/22 (new #1/2, seed=1879472250)...
+2025-11-26 12:00:01,291 - INFO - Near-optimal solution reached at generation 11 (cost=21411.00, optimal=21294.00, gap=0.55%)
+2025-11-26 12:00:01,291 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=21411.00, improvement=84.83%, H2D=1.21MB, D2H=1.15MB, kernels=121, stopped=hit_optimal
+2025-11-26 12:00:01,291 - INFO -       → Completed in 0.40s | Cost: 21411 (gap: 0.55%) | Generations: 11/2000
+2025-11-26 12:00:01,291 - INFO -     Run 22/22 (new #2/2, seed=1494886202)...
+2025-11-26 12:00:01,773 - INFO - Near-optimal solution reached at generation 12 (cost=21427.00, optimal=21294.00, gap=0.62%)
+2025-11-26 12:00:01,774 - INFO - GeneticAlgorithmHybridOptimized evolution complete: best=21427.00, improvement=84.72%, H2D=1.23MB, D2H=1.25MB, kernels=132, stopped=hit_optimal
+2025-11-26 12:00:01,774 - INFO -       → Completed in 0.48s | Cost: 21427 (gap: 0.62%) | Generations: 12/2000
+2025-11-26 12:00:01,776 - INFO - 
+    ✓ HybridOptimized INCREMENTAL summary for kroD100 (22 total runs): Cost=21416±39.2 | Gap=0.57%±0.18% | Time=0.32s±0.07s
+2025-11-26 12:00:01,779 - INFO -     ✓ Checkpoint saved: kroD100_HybridOptimized.json
+2025-11-26 12:00:01,898 - INFO -   [4/4] FullGPU (GPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 12:00:01,899 - INFO - GeneticAlgorithmFullGPUEarlyStop initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 12:00:01,899 - INFO - Loaded Fujimoto GA kernel with early stopping support
+2025-11-26 12:00:01,899 - INFO - 
+  [FullGPU] INCREMENTAL MODE: Extending kroD100 from 20 to 22 runs
+2025-11-26 12:00:01,899 - INFO -     Backend: GPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 12:00:01,900 - INFO -     Run 21/22 (new #1/2, seed=1059395599)...
+2025-11-26 12:00:01,901 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=21294.0, patience=20)
+2025-11-26 12:00:03,174 - INFO - FullGPUEarlyStop complete: best=21309.00, improvement=85.29%, gens=48/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 12:00:03,174 - INFO -       → Completed in 1.27s | Cost: 21309 (gap: 0.07%) | Generations: 48/2000
+2025-11-26 12:00:03,174 - INFO -     Run 22/22 (new #2/2, seed=413984817)...
+2025-11-26 12:00:03,175 - INFO - FullGPUEarlyStop: Launching kernel (max=2000 gens, optimal=21294.0, patience=20)
+2025-11-26 12:00:04,029 - INFO - FullGPUEarlyStop complete: best=21425.00, improvement=85.21%, gens=32/2000, stopped=hit_optimal, H2D=0.08MB, D2H=0.00MB, kernels=3
+2025-11-26 12:00:04,029 - INFO -       → Completed in 0.85s | Cost: 21425 (gap: 0.62%) | Generations: 32/2000
+2025-11-26 12:00:04,030 - INFO - 
+    ✓ FullGPU INCREMENTAL summary for kroD100 (22 total runs): Cost=21380±49.0 | Gap=0.41%±0.23% | Time=2.03s±0.58s
+2025-11-26 12:00:04,041 - INFO -     ✓ Checkpoint saved: kroD100_FullGPU.json
+2025-11-26 12:00:04,136 - INFO - 
+────────────────────────────────────────────────────────────────────────────────
+2025-11-26 12:00:04,136 - INFO - STATISTICS FOR kroD100
+2025-11-26 12:00:04,136 - INFO - ────────────────────────────────────────────────────────────────────────────────
+2025-11-26 12:00:04,136 - INFO - 
+Statistical Analysis: kroD100
+2025-11-26 12:00:04,136 - INFO - --------------------------------------------------------------------------------
+2025-11-26 12:00:04,145 - INFO - Friedman Test (k=4 algorithms):
+2025-11-26 12:00:04,146 - INFO -   Statistic: 20.7260
+2025-11-26 12:00:04,147 - INFO -   p-value: 0.000120
+2025-11-26 12:00:04,148 - INFO -   Significant: True
+2025-11-26 12:00:04,176 - INFO - 
+Nemenyi Post-Hoc Test:
+2025-11-26 12:00:04,199 - INFO -   Critical distance: 1.4142
+2025-11-26 12:00:04,200 - INFO -   Mean ranks:
+2025-11-26 12:00:04,201 - INFO -     CPU: 2.36
+2025-11-26 12:00:04,201 - INFO -     HybridNaive: 3.39
+2025-11-26 12:00:04,201 - INFO -     HybridOptimized: 2.61
+2025-11-26 12:00:04,201 - INFO -     FullGPU: 1.64
+2025-11-26 12:00:04,202 - INFO - 
+  Significant pairwise differences:
+2025-11-26 12:00:04,202 - INFO -     CPU vs HybridNaive: rank_diff=1.02, p=0.0427
+2025-11-26 12:00:04,202 - INFO -     HybridNaive vs FullGPU: rank_diff=1.75, p=0.0000
+2025-11-26 12:00:04,202 - INFO - 
+Pairwise Comparisons:
+2025-11-26 12:00:04,202 - INFO - Following statistical methodology:
+2025-11-26 12:00:04,202 - INFO -   - Normality testing (Shapiro-Wilk)
+2025-11-26 12:00:04,202 - INFO -   - Test selection (paired t-test vs Wilcoxon)
+2025-11-26 12:00:04,202 - INFO -   - Effect size (Cohen's d)
+2025-11-26 12:00:04,202 - INFO -   - 95% Confidence Intervals
+2025-11-26 12:00:04,202 - INFO -   - Holm-Bonferroni multiple comparison correction
+
+2025-11-26 12:00:04,209 - INFO -   CPU vs HybridNaive:
+2025-11-26 12:00:04,210 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 12:00:04,210 - INFO -       CPU: p=0.1228 (normal)
+2025-11-26 12:00:04,210 - INFO -       HybridNaive: p=0.0417 (non-normal)
+2025-11-26 12:00:04,210 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 12:00:04,210 - INFO -     Mean difference: -29.23
+2025-11-26 12:00:04,210 - INFO -     95% CI difference: [-61.49, 3.03]
+2025-11-26 12:00:04,210 - INFO -     p-value (uncorrected): 0.036232
+2025-11-26 12:00:04,211 - INFO -     Cohen's d: -0.5818
+2025-11-26 12:00:04,211 - INFO -     Effect size interpretation: medium
+2025-11-26 12:00:04,216 - INFO -   CPU vs HybridOptimized:
+2025-11-26 12:00:04,216 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 12:00:04,216 - INFO -       CPU: p=0.1228 (normal)
+2025-11-26 12:00:04,216 - INFO -       HybridOptimized: p=0.2055 (normal)
+2025-11-26 12:00:04,216 - INFO -     Test selected: paired_t_test
+2025-11-26 12:00:04,216 - INFO -     Mean difference: -3.73
+2025-11-26 12:00:04,216 - INFO -     95% CI difference: [-33.19, 25.74]
+2025-11-26 12:00:04,216 - INFO -     p-value (uncorrected): 0.795079
+2025-11-26 12:00:04,217 - INFO -     Cohen's d: -0.0828
+2025-11-26 12:00:04,217 - INFO -     Effect size interpretation: negligible
+2025-11-26 12:00:04,219 - INFO -   CPU vs FullGPU:
+2025-11-26 12:00:04,219 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 12:00:04,219 - INFO -       CPU: p=0.1228 (normal)
+2025-11-26 12:00:04,219 - INFO -       FullGPU: p=0.4582 (normal)
+2025-11-26 12:00:04,219 - INFO -     Test selected: paired_t_test
+2025-11-26 12:00:04,220 - INFO -     Mean difference: 31.50
+2025-11-26 12:00:04,220 - INFO -     95% CI difference: [-4.37, 67.37]
+2025-11-26 12:00:04,220 - INFO -     p-value (uncorrected): 0.082040
+2025-11-26 12:00:04,220 - INFO -     Cohen's d: 0.6327
+2025-11-26 12:00:04,220 - INFO -     Effect size interpretation: medium
+2025-11-26 12:00:04,225 - INFO -   HybridNaive vs HybridOptimized:
+2025-11-26 12:00:04,227 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 12:00:04,227 - INFO -       HybridNaive: p=0.0417 (non-normal)
+2025-11-26 12:00:04,228 - INFO -       HybridOptimized: p=0.2055 (normal)
+2025-11-26 12:00:04,228 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 12:00:04,231 - INFO -     Mean difference: 25.50
+2025-11-26 12:00:04,233 - INFO -     95% CI difference: [2.74, 48.26]
+2025-11-26 12:00:04,233 - INFO -     p-value (uncorrected): 0.032550
+2025-11-26 12:00:04,234 - INFO -     Cohen's d: 0.5553
+2025-11-26 12:00:04,234 - INFO -     Effect size interpretation: medium
+2025-11-26 12:00:04,240 - INFO -   HybridNaive vs FullGPU:
+2025-11-26 12:00:04,241 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 12:00:04,241 - INFO -       HybridNaive: p=0.0417 (non-normal)
+2025-11-26 12:00:04,241 - INFO -       FullGPU: p=0.4582 (normal)
+2025-11-26 12:00:04,241 - INFO -     Test selected: wilcoxon_signed_rank
+2025-11-26 12:00:04,241 - INFO -     Mean difference: 60.73
+2025-11-26 12:00:04,241 - INFO -     95% CI difference: [28.26, 93.20]
+2025-11-26 12:00:04,241 - INFO -     p-value (uncorrected): 0.000875
+2025-11-26 12:00:04,241 - INFO -     Cohen's d: 1.2000
+2025-11-26 12:00:04,241 - INFO -     Effect size interpretation: large
+2025-11-26 12:00:04,244 - INFO -   HybridOptimized vs FullGPU:
+2025-11-26 12:00:04,244 - INFO -     Normality (Shapiro-Wilk):
+2025-11-26 12:00:04,244 - INFO -       HybridOptimized: p=0.2055 (normal)
+2025-11-26 12:00:04,245 - INFO -       FullGPU: p=0.4582 (normal)
+2025-11-26 12:00:04,245 - INFO -     Test selected: paired_t_test
+2025-11-26 12:00:04,245 - INFO -     Mean difference: 35.23
+2025-11-26 12:00:04,245 - INFO -     95% CI difference: [11.43, 59.03]
+2025-11-26 12:00:04,245 - INFO -     p-value (uncorrected): 0.005703
+2025-11-26 12:00:04,245 - INFO -     Cohen's d: 0.7754
+2025-11-26 12:00:04,245 - INFO -     Effect size interpretation: medium
+2025-11-26 12:00:04,245 - INFO - 
+  Multiple Comparison Correction (Holm-Bonferroni, α=0.05):
+2025-11-26 12:00:04,245 - INFO -     CPU vs HybridNaive:
+2025-11-26 12:00:04,245 - INFO -       Original p-value: 0.036232
+2025-11-26 12:00:04,245 - INFO -       Adjusted p-value: 0.130198
+2025-11-26 12:00:04,245 - INFO -       Significant (after correction): False
+2025-11-26 12:00:04,245 - INFO -     CPU vs HybridOptimized:
+2025-11-26 12:00:04,245 - INFO -       Original p-value: 0.795079
+2025-11-26 12:00:04,245 - INFO -       Adjusted p-value: 0.795079
+2025-11-26 12:00:04,245 - INFO -       Significant (after correction): False
+2025-11-26 12:00:04,245 - INFO -     CPU vs FullGPU:
+2025-11-26 12:00:04,245 - INFO -       Original p-value: 0.082040
+2025-11-26 12:00:04,246 - INFO -       Adjusted p-value: 0.164081
+2025-11-26 12:00:04,246 - INFO -       Significant (after correction): False
+2025-11-26 12:00:04,247 - INFO -     HybridNaive vs HybridOptimized:
+2025-11-26 12:00:04,247 - INFO -       Original p-value: 0.032550
+2025-11-26 12:00:04,247 - INFO -       Adjusted p-value: 0.130198
+2025-11-26 12:00:04,247 - INFO -       Significant (after correction): False
+2025-11-26 12:00:04,248 - INFO -     HybridNaive vs FullGPU:
+2025-11-26 12:00:04,248 - INFO -       Original p-value: 0.000875
+2025-11-26 12:00:04,248 - INFO -       Adjusted p-value: 0.005249
+2025-11-26 12:00:04,249 - INFO -       Significant (after correction): True
+2025-11-26 12:00:04,249 - INFO -     HybridOptimized vs FullGPU:
+2025-11-26 12:00:04,249 - INFO -       Original p-value: 0.005703
+2025-11-26 12:00:04,249 - INFO -       Adjusted p-value: 0.028515
+2025-11-26 12:00:04,249 - INFO -       Significant (after correction): True
+2025-11-26 12:00:04,249 - INFO - 
+Summary: kroD100 (optimal=21294.0)
+2025-11-26 12:00:04,249 - INFO - --------------------------------------------------------------------------------
+2025-11-26 12:00:04,249 - INFO - Algorithm            Mean Cost       Gap (%)      Time (s)     H2D (MB)     D2H (MB)    
+2025-11-26 12:00:04,249 - INFO - --------------------------------------------------------------------------------
+2025-11-26 12:00:04,249 - INFO - CPU                  21411.95        0.55         189.48       0.00         0.00        
+2025-11-26 12:00:04,250 - INFO - HybridNaive          21441.18        0.69         1.83         1.92         1.08        
+2025-11-26 12:00:04,250 - INFO - HybridOptimized      21415.68        0.57         0.32         1.22         1.20        
+2025-11-26 12:00:04,250 - INFO - FullGPU              21380.45        0.41         2.03         0.08         0.00        
+2025-11-26 12:00:04,250 - INFO - 
+Speedups (relative to baseline):
+2025-11-26 12:00:04,250 - INFO -   CPU: 1.00x (baseline)
+2025-11-26 12:00:04,250 - INFO -   HybridNaive: 103.29x vs CPU
+2025-11-26 12:00:04,250 - INFO -   HybridOptimized: 584.75x vs CPU
+2025-11-26 12:00:04,250 - INFO -   FullGPU: 93.43x vs CPU
+2025-11-26 12:00:04,250 - INFO - 
+2025-11-26 12:00:04,258 - INFO - ✓ Problem statistics saved: kroD100_stats.json
+
+2025-11-26 12:00:04,355 - INFO - 
+================================================================================
+2025-11-26 12:00:04,357 - INFO - PROBLEM 11/38: kroE100
+2025-11-26 12:00:04,357 - INFO - Size: 100 cities | Optimal: 22068.0
+2025-11-26 12:00:04,358 - INFO - ================================================================================
+2025-11-26 12:00:04,358 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-26 12:00:04,429 - INFO -   [1/4] CPU (CPU): Resuming: 20/22 runs exist, completing remaining 2
+2025-11-26 12:00:04,430 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-26 12:00:04,431 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending kroE100 from 20 to 22 runs
+2025-11-26 12:00:04,431 - INFO -     Backend: CPU | Early stopping: patience=20 (adaptive: 2×√100) | New repetitions: 2
+2025-11-26 12:00:04,431 - INFO -     Run 21/22 (new #1/2, seed=1389846412)...

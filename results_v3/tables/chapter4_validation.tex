@@ -1,0 +1,82 @@
+% Chapter 4 Validation Results - Auto-generated
+% Generated: 2025-11-28 00:21:36
+% Compile with: pdflatex chapter4_validation.tex
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{booktabs}  % Professional tables
+\usepackage{multirow}  % Row spanning
+\usepackage{geometry}  % Page margins
+\usepackage{caption}   % Better captions
+\geometry{margin=1in}
+\captionsetup{font=small,labelfont=bf}
+
+\title{Chapter 4 Validation: GPU-Accelerated Genetic Algorithm Benchmark}
+\date{November 28, 2025}
+\author{Automated Benchmark Report}
+
+\begin{document}
+\maketitle
+
+\section{Summary Statistics by Problem}
+
+\begin{table}[htbp]
+\centering
+\caption{Summary Statistics by Problem. Speedup relative to baseline algorithm (HybridNaive when CPU not available).}
+\label{tab:chapter4_summary}
+\begin{tabular}{llrrrrr}
+\toprule
+Problem & Algorithm & Mean Cost & Std Dev & Gap (\%) & Time (s) & Speedup \\
+\midrule
+\multirow{4}{*}{berlin52} & CPU             &   7542.00 &    0.00 &    0.00 &    33.11 & 0.01$\times$ \\
+                     & FullGPU         &   7542.00 &    0.00 &    0.00 &     0.10 & 5.04$\times$ \\
+                     & HybridNaive     &   7550.00 &    8.00 &    0.11 &     0.50 &            — \\
+                     & HybridOptimized &   7542.00 &    0.00 &    0.00 &     0.13 & 3.95$\times$ \\
+\midrule
+\multirow{4}{*}{eil51} & CPU             &    429.00 &    1.00 &    0.70 &    32.21 & 0.02$\times$ \\
+                     & FullGPU         &    427.00 &    0.00 &    0.23 &     0.14 & 5.46$\times$ \\
+                     & HybridNaive     &    428.00 &    1.00 &    0.47 &     0.79 &            — \\
+                     & HybridOptimized &    429.00 &    0.00 &    0.70 &     0.27 & 2.97$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to HybridNaive. — indicates baseline algorithm.}
+\end{table}
+\clearpage
+
+\section{Algorithm Performance Comparison}
+
+\begin{table}[htbp]
+\centering
+\caption{Algorithm Performance Comparison Across All Problems (aggregated statistics)}
+\label{tab:chapter4_algorithm_comparison}
+\begin{tabular}{lrrrrr}
+\toprule
+Algorithm & Mean Gap (\%) & Std Gap & Mean Time (s) & Std Time & Avg Speedup \\
+\midrule
+CPU             &     0.35 &    0.35 &    32.66 &     0.45 &            — \\
+FullGPU         &     0.12 &    0.12 &     0.12 &     0.02 &            — \\
+HybridNaive     &     0.29 &    0.18 &     0.64 &     0.15 &            — \\
+HybridOptimized &     0.35 &    0.35 &     0.20 &     0.07 & 3.28$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to HybridNaive. — indicates baseline algorithm.}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Best Performing Algorithm by Problem Size Category}
+\label{tab:chapter4_size_categories}
+\begin{tabular}{lllrr}
+\toprule
+Size Category & Problems & Best Algorithm & Mean Gap (\%) & Mean Time (s) \\
+\midrule
+Small (n<100)        & eil51, berlin52                          & FullGPU         &     0.12 &     0.12 \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Best algorithm determined by lowest mean gap to known optimum.}
+\end{table}
+
+\end{document}

@@ -1,0 +1,85 @@
+{
+	"algorithm": "FullGPU",
+	"repetitions": 17,
+	"successful_runs": 17,
+	"mean_time": 0.2990376893530586,
+	"std_time": 0.006437387681851251,
+	"min_time": 0.29,
+	"max_time": 0.31,
+	"mean_cost": 7542.0,
+	"std_cost": 0.0,
+	"best_cost": 7542.0,
+	"worst_cost": 7542.0,
+	"mean_initial_cost": 24928.0,
+	"std_initial_cost": 0.0,
+	"mean_gap": 0.0,
+	"std_gap": 0.0,
+	"best_gap": 0.0,
+	"mean_improvement": 69.74486521181001,
+	"mean_generations": 51.64705882352941,
+	"std_generations": 0.7859680609374961,
+	"min_generations": 51,
+	"max_generations": 53,
+	"mean_h2d_mb": 0.021632,
+	"mean_d2h_mb": 0.000216,
+	"total_transfer_mb": 0.021848,
+	"mean_kernels": 3.0,
+	"raw_times": [
+		0.2968504070013296, 0.29679031200066675, 0.31, 0.31, 0.31, 0.3, 0.3,
+		0.3, 0.3, 0.3, 0.3, 0.29, 0.29, 0.29, 0.29, 0.3, 0.3
+	],
+	"raw_initial_costs": [
+		24928.0, 24928.0, 24928.0, 24928.0, 24928.0, 24928.0, 24928.0, 24928.0,
+		24928.0, 24928.0, 24928.0, 24928.0, 24928.0, 24928.0, 24928.0, 24928.0,
+		24928.0
+	],
+	"raw_costs": [
+		7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0,
+		7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0, 7542.0
+	],
+	"raw_gaps": [
+		0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 0.0
+	],
+	"raw_generations": [
+		52, 52, 53, 53, 53, 51, 51, 51, 51, 51, 51, 51, 51, 51, 52, 52, 52
+	],
+	"raw_stop_reasons": [
+		"optimal reached (gen 52)",
+		"optimal reached (gen 52)",
+		"optimal reached (gen 53)",
+		"optimal reached (gen 53)",
+		"optimal reached (gen 53)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 51)",
+		"optimal reached (gen 52)",
+		"optimal reached (gen 52)",
+		"optimal reached (gen 52)"
+	],
+	"problem_name": "berlin52",
+	"problem_size": 52,
+	"optimal_cost": 7542,
+	"max_generations_configured": 749,
+	"backend": "GPU",
+	"timestamp": "2025-11-21 02:05:59",
+	"algorithm_config": {
+		"population_size": 256,
+		"mutation_rate": 0.02,
+		"tournament_size": 5,
+		"two_opt_iterations": 10,
+		"seed": 42
+	},
+	"strategies": {
+		"selection": "TournamentSelection",
+		"crossover": "OrderCrossover",
+		"mutation": "SwapMutation"
+	},
+	"construction_heuristic": "random_initialization"
+}

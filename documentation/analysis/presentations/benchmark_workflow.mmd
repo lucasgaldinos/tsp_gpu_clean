@@ -1,0 +1,11 @@
+flowchart LR
+    A[Definir configuracoes e instancias] --> B[Executar benchmark v2]
+    B --> C[Gerar checkpoints por problema e algoritmo]
+    C --> D[Calcular estatisticas por problema]
+    D --> E[Calcular estatisticas agregadas]
+    E --> F[Gerar tabelas e relatorios]
+    F --> G[Aplicar testes estatisticos]
+    G --> H[Concluir trade-off velocidade vs qualidade]
+
+    B --> B1[CPU apenas para n <= 100]
+    B --> B2[GPU para todas as instancias]

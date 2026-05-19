@@ -1,0 +1,50 @@
+2025-11-28 00:24:41,859 - INFO - ================================================================================
+2025-11-28 00:24:41,860 - INFO - Chapter 4 Validation Benchmark V2 (Modular Architecture)
+2025-11-28 00:24:41,860 - INFO - ================================================================================
+2025-11-28 00:24:41,860 - INFO - 
+2025-11-28 00:24:41,860 - INFO - CLI Override: Incremental runs ENABLED
+2025-11-28 00:24:41,860 - INFO - 
+2025-11-28 00:24:41,860 - INFO - Environment validated successfully
+2025-11-28 00:24:41,860 - INFO - 
+2025-11-28 00:24:41,860 - INFO - Loading configurations...
+2025-11-28 00:24:41,861 - INFO - Applying CLI override: incremental_runs=True
+2025-11-28 00:24:41,861 - INFO - ================================================================================
+2025-11-28 00:24:41,861 - INFO - ⚠️  TEST MODE ENABLED
+2025-11-28 00:24:41,861 - INFO - ================================================================================
+2025-11-28 00:24:41,861 - INFO - Running on first 2 problems only (eil51, berlin52)
+2025-11-28 00:24:41,861 - INFO - Use without --test-mode for full benchmark
+2025-11-28 00:24:41,861 - INFO - ================================================================================
+2025-11-28 00:24:41,861 - INFO - 
+2025-11-28 00:24:41,861 - INFO - ================================================================================
+2025-11-28 00:24:41,861 - INFO - CHAPTER 4 VALIDATION: GPU-ACCELERATED GENETIC ALGORITHM BENCHMARK
+2025-11-28 00:24:41,861 - INFO - ================================================================================
+2025-11-28 00:24:41,861 - INFO - 
+2025-11-28 00:24:41,861 - INFO - Configuration:
+2025-11-28 00:24:41,862 - INFO -   Algorithms: CPU, HybridNaive, HybridOptimized, FullGPU
+2025-11-28 00:24:41,862 - INFO -   Problems: 2 TSP instances
+2025-11-28 00:24:41,862 - INFO -   Repetitions: 5
+2025-11-28 00:24:41,862 - INFO -   CPU threshold: n ≤ 100
+2025-11-28 00:24:41,862 - INFO - 
+2025-11-28 00:24:41,862 - INFO - GA Parameters:
+2025-11-28 00:24:41,862 - INFO -   Population size: 256
+2025-11-28 00:24:41,862 - INFO -   Mutation rate: 0.02
+2025-11-28 00:24:41,862 - INFO -   Tournament size: 5
+2025-11-28 00:24:41,862 - INFO -   Early stop patience: Adaptive (2×√n generations)
+2025-11-28 00:24:41,862 - INFO - 
+2025-11-28 00:24:41,863 - INFO - 
+================================================================================
+2025-11-28 00:24:41,864 - INFO - PROBLEM 1/2: eil51
+2025-11-28 00:24:41,864 - INFO - Size: 51 cities | Optimal: 426.0
+2025-11-28 00:24:41,864 - INFO - ================================================================================
+2025-11-28 00:24:41,864 - INFO - Running 4 algorithm(s) (n≤100)
+
+2025-11-28 00:24:41,910 - INFO -   [1/4] CPU (CPU): ✓ Resuming from checkpoint (2 runs) - adding 5 more runs → 7 total
+2025-11-28 00:24:41,914 - INFO - GeneticAlgorithmCPU initialized: pop_size=256, mutation_rate=0.02, tournament_k=5, 2opt_iters=10
+2025-11-28 00:24:41,914 - INFO - 
+  [CPU] INCREMENTAL MODE: Extending eil51 from 2 to 7 runs
+2025-11-28 00:24:41,914 - INFO -     Backend: CPU | Early stopping: patience=14 (adaptive: 2×√51) | New repetitions: 5
+2025-11-28 00:24:41,915 - INFO -     Run 3/7 (new #1/5, seed=1034010817)...
+2025-11-28 00:25:09,193 - INFO - Near-optimal solution reached at generation 5 (cost=430.00, optimal=426.00, gap=0.94%)
+2025-11-28 00:25:09,193 - INFO - GeneticAlgorithmCPU evolution complete: best=430.00, improvement=67.98%, H2D=0.00MB, D2H=0.00MB, kernels=0, stopped=hit_optimal
+2025-11-28 00:25:09,193 - INFO -       → Completed in 27.28s | Cost: 430 (gap: 0.94%) | Generations: 5/728
+2025-11-28 00:25:09,194 - INFO -     Run 4/7 (new #2/5, seed=651699030)...

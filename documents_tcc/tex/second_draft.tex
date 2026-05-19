@@ -1,0 +1,2674 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+]{abntex2}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\ifLuaTeX
+\usepackage[bidi=basic]{babel}
+\else
+\usepackage[bidi=default]{babel}
+\fi
+\babelprovide[main,import]{brazilian}
+% get rid of language-specific shorthands (see #6817):
+\let\LanguageShortHands\languageshorthands
+\def\languageshorthands#1{}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage[]{biblatex}
+\addbibresource{documents\_tcc/refs.bib}
+\newcommand{\standalonefiglabel}[1]{\refstepcounter{figure}\label{#1}}
+\setcounter{tocdepth}{4}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={GPU-Accelerated Isoalgorítmico GA+2-opt para TSP},
+  pdfauthor={Lucas Galdino},
+  pdflang={pt-BR},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{GPU-Accelerated Isoalgorítmico GA+\(2\)-opt para TSP}
+\author{Lucas Galdino}
+\date{2025-11-22}
+
+\begin{document}
+\maketitle
+
+\clearpage
+
+\section*{Resumo}\label{resumo}
+\addcontentsline{toc}{section}{Resumo}
+
+Este trabalho investiga o impacto de diferentes estratégias de
+paralelização em Unidades de Processamento Gráfico (GPUs) no desempenho
+de um algoritmo memético (Algoritmo Genético híbrido com busca local
+2-opt) para o Problema do Caixeiro Viajante (TSP). Foram implementadas e
+comparadas quatro variantes isoalgorítmicas: uma versão sequencial em
+CPU, uma versão híbrida ingênua (transferência indivíduo a indivíduo),
+uma versão híbrida otimizada (processamento em lote) e uma versão
+totalmente residente em GPU. Os experimentos, conduzidos em um conjunto
+de 38 instâncias da TSPLIB com até 1002 cidades, demonstram que a
+estratégia de paralelização influencia drasticamente o trade-off entre
+tempo de execução e qualidade da solução. A variante híbrida otimizada
+obteve os menores tempos de execução (ganho de performance mediano por
+instância de 5,69× sobre a híbrida ingênua), enquanto a variante
+totalmente em GPU alcançou a melhor qualidade de solução (gap médio de
+0,88\%). Os resultados evidenciam que a minimização da transferência de
+dados entre CPU e GPU é crítica para o desempenho, e que arquiteturas
+totalmente residentes favorecem o refinamento das soluções em problemas
+de otimização combinatória.
+
+\textbf{Palavras-chave:} Problema do Caixeiro Viajante, Algoritmos
+Genéticos, Computação em GPU, CUDA, Otimização Combinatória.
+
+\clearpage
+
+\section*{Abstract}\label{abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+This work investigates the impact of different parallelization
+strategies on Graphics Processing Units (GPUs) on the performance of a
+memetic algorithm (Genetic Algorithm hybridized with 2-opt local search)
+for the Traveling Salesman Problem (TSP). Four iso-algorithmic variants
+were implemented and compared: a sequential CPU version, a naive hybrid
+version (individual-by-individual transfer), an optimized hybrid version
+(batch processing), and a fully GPU-resident version. Experiments
+conducted on a set of 38 TSPLIB instances with up to 1002 cities
+demonstrate that the parallelization strategy drastically influences the
+trade-off between execution time and solution quality. The optimized
+hybrid variant achieved the lowest execution times (median per-instance
+Ganho de Performance of 5.69× over the naive hybrid), while the fully
+GPU-resident variant achieved the best solution quality (average gap of
+0.88\%). The results highlight that minimizing data transfer between CPU
+and GPU is critical for performance, and that fully resident
+architectures favor solution refinement in combinatorial optimization
+problems.
+
+\textbf{Keywords:} Traveling Salesman Problem, Genetic Algorithms, GPU
+Computing, CUDA, Combinatorial Optimization.
+
+\clearpage
+
+\clearpage
+\csname tableofcontents\endcsname
+\clearpage
+
+\section*{Glossário de termos}\label{glossario}
+\addcontentsline{toc}{section}{Glossário de termos}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Termo em inglês
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Forma adotada no texto
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Observação
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\emph{batch} & lote & Usado para processamento de vários indivíduos em
+uma única chamada. \\
+\emph{benchmark} & benchmark / avaliação experimental & Mantém-se
+``benchmark'' quando o foco é o protocolo comparativo. \\
+\emph{crossover} & cruzamento & Preferência por ``cruzamento'', mantendo
+a sigla OX quando necessário. \\
+\emph{fitness} & aptidão & Quando útil, escreve-se ``aptidão
+(\emph{fitness})'' na primeira ocorrência. \\
+\emph{full GPU} / \emph{GPU-resident} & totalmente em GPU / residente na
+GPU & Expressões usadas para a variante com dados mantidos em VRAM. \\
+\emph{gap} & gap / desvio percentual em relação ao ótimo & O termo
+``gap'' é preservado por ser consagrado na literatura. \\
+\emph{host} & hospedeiro (CPU) & Contraposto a \emph{device} (GPU). \\
+\emph{kernel launch} & lançamento de \emph{kernel} & O termo
+\emph{kernel} é mantido por ser técnico e específico de CUDA. \\
+\emph{offspring} & descendentes & Refere-se aos indivíduos gerados após
+cruzamento e mutação. \\
+\emph{overhead} & sobrecarga & Usado para custos adicionais de
+comunicação, sincronização ou inicialização. \\
+\emph{speedup} & ganho de performance & Preferência por esta expressão
+no texto analítico. \\
+\emph{swap mutation} & mutação por troca & Operador que troca a posição
+de duas cidades na permutação. \\
+\emph{throughput} & vazão & Preferência por ``vazão'', mantendo o inglês
+quando a literatura exigir. \\
+\emph{warp} & \emph{warp} (grupo de 32 \emph{threads}) & O termo inglês
+é mantido, com explicação curta na primeira ocorrência. \\
+\end{longtable}
+
+\clearpage
+
+\section*{Lista de Símbolos}\label{lista-de-simbolos}
+\addcontentsline{toc}{section}{Lista de Símbolos}
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Símbolo
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Descrição
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Ver seção
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\(n_{coords}\) & Número de cidades (coordenadas) da instância &
+\hyperref[sec-33-selecao-instancias]{3.3} \\
+\(n_{pop}\) & Tamanho da população do Algoritmo Genético &
+\hyperref[sec-321-ga-base]{3.2.1} \\
+\(n_{reps}\) & Número de repetições independentes por experimento &
+\hyperref[sec-33-selecao-instancias]{3.3} \\
+\(p_{\text{mut}}\) & Taxa de mutação &
+\hyperref[sec-23-algoritmos-geneticos]{2.3} \\
+\(p_c\) & Taxa de cruzamento &
+\hyperref[sec-23-algoritmos-geneticos]{2.3} \\
+\(k_{\text{trnmt}}\) & Tamanho do torneio na seleção &
+\hyperref[sec-251-ga-2opt]{2.5.1} \\
+\(n_{2\text{-opt}}\) & Número máximo de iterações da busca local 2-opt &
+\hyperref[sec-251-ga-2opt]{2.5.1} \\
+\(B_{\mathrm{H2D}}\) & Volume de dados transferidos Host-to-Device &
+\hyperref[cap3-materiais-metodos]{Cap. 3} \\
+\(B_{\mathrm{D2H}}\) & Volume de dados transferidos Device-to-Host &
+\hyperref[cap3-materiais-metodos]{Cap. 3} \\
+\(T\) & Tempo de execução &
+\hyperref[sec-41-resultados-experimentais]{4.1} \\
+\(\Delta C\) & Variação de custo em um movimento local &
+\hyperref[sec-221-2opt]{2.2.1} \\
+\(G = (V, E)\) & Grafo composto por vértices \(V\) e arestas \(E\) &
+\hyperref[sec-21-otimizacao-tsp]{2.1} \\
+\(c_{ij}\) & Custo (distância) entre as cidades \(i\) e \(j\) &
+\hyperref[sec-21-otimizacao-tsp]{2.1} \\
+\(f(x)\) & Função de aptidão (\emph{fitness}) de uma solução \(x\) &
+\hyperref[sec-23-algoritmos-geneticos]{2.3} \\
+\(P(t)\) & População de soluções na geração \(t\) &
+\hyperref[sec-23-algoritmos-geneticos]{2.3} \\
+\(\kappa\) & Limite de iterações para busca local &
+\hyperref[sec-221-2opt]{2.2.1} e \hyperref[sec-251-ga-2opt]{2.5.1} \\
+\end{longtable}
+
+\clearpage
+
+\listoffigures
+
+\clearpage
+
+\listoftables
+
+\section{Capítulo 1 -- Introdução}\label{cap1-introducao}
+
+\subsection{1.1 Contexto e motivação}\label{sec-11-contexto-e-motivacao}
+
+O Problema do Caixeiro Viajante (Traveling Salesman Problem -- TSP) é um
+dos problemas mais estudados em otimização combinatória
+\autocite{cook2012pursuit}. Tem esse nome devido à sua história
+clássica: um vendedor precisa visitar um conjunto de cidades, passando
+por cada uma exatamente uma vez, e deseja minimizar a distância total
+percorrida.
+
+O objetivo é encontrar um ciclo hamiltoniano (ciclo no qual se deve
+passar por todos os vértices uma vez e retornar ao vértice original).
+Apesar de sua formulação simples, o TSP é NP-difícil (classe de
+problemas para os quais não se conhece algoritmo polinomial eficiente)
+e, na sua formulação de decisão: ``existe um tour com custo menor ou
+igual a \(B\)?'', é NP-completo: não se conhece algoritmo em tempo
+polinomial que o resolva em geral, embora seja fácil verificar o custo
+de uma solução candidata. \textcite{cook2012pursuit} argumenta que essa
+combinação de simplicidade, dificuldade teórica e rica estrutura
+geométrica faz do TSP um estudo de caso central tanto para a teoria da
+complexidade quanto para desenvolvimento de métodos exatos e
+heurísticos.
+
+Na prática, variantes do TSP aparecem em domínios como roteirização de
+veículos, planejamento de inspeções, manufatura e testes de circuitos,
+genômica e astronomia, entre outros \autocite{cook2012pursuit}. Exemplos
+clássicos incluem o posicionamento e ordenamento de furos em placas de
+circuito impresso, logística e problemas de mapeamento genético. Mesmo
+quando modelos reais são mais complexos (com janelas de tempo, múltiplos
+veículos ou restrições de capacidade), é comum validar ideias de projeto
+e análise de algoritmos primeiro em instâncias clássicas do TSP,
+justamente pela ampla disponibilidade de referências, testes
+padronizados e de soluções ótimas conhecidas.
+
+Paralelamente, a evolução do hardware trouxe processadores gráficos
+(GPUs) como plataforma acessível para computação de alto desempenho
+(HPC) \autocite{nvidia2024cuda} e com a popularização e acessibilidade,
+pesquisas nestas áreas cresceram rapidamente. Modelos de Inteligência
+Artificial Generativa, por exemplo, dependem fortemente desse tipo de
+hardware.
+
+GPUs oferecem milhares de núcleos relativamente simples, organizados em
+um modelo de execução massivamente paralelo normalmente descrito, em
+CUDA, como SIMT (\emph{Single Instruction, Multiple Threads})
+\autocite{flynn1972taxonomy,nvidia2024cuda}. Isso não significa que CPUs
+sejam arquiteturas ``SIMD por natureza'': CPUs modernas continuam sendo
+predominantemente MIMD (\emph{Multiple Instruction, Multiple Data}) no
+nível de núcleos e \emph{threads}, embora cada núcleo possa explorar
+extensões vetoriais SIMD (como SSE e AVX) para acelerar operações sobre
+vários dados por instrução. Em troca de um controle mais restrito nos
+fluxos de processo e memória, as GPUs entregam grande largura de banda
+de memória e alta taxa de operações aritméticas por segundo (FLOPs),
+desde que o problema ofereça operações semelhantes que possam ser
+executadas em paralelo. Isso torna GPUs particularmente atrativas para
+tarefas como o cálculo de matrizes, a avaliação de grandes populações de
+soluções e a aplicação de movimentos de vizinhança independentes em
+heurísticas de melhoria.
+
+Do ponto de vista das meta-heurísticas, \textcite{crainic2003parallel}
+propõem uma taxonomia de paralelização que distingue estratégias
+baseadas em decomposição de dados, decomposição de domínio e múltiplas
+trajetórias cooperativas. A discussão detalhada dessas categorias e sua
+adequação a arquiteturas de GPU é apresentada na
+\hyperref[sec-261-taxonomia-paralelizacao]{Seção 2.6.1}.
+
+O projeto desta monografia foca principalmente em algoritmos do tipo 1,
+explorando paralelismo de dados em vizinhanças de \(2\)-opt e na
+avaliação de populações em algoritmos genéticos, em linha com estudos
+recentes sobre heurísticas para TSP em GPU
+\autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}.
+
+Ainda assim, nem todo algoritmo se beneficia automaticamente de uma
+migração para GPU. Inicializações de kernels, movimentação de dados
+entre CPU e GPU podem anular ganhos de paralelismo, especialmente em
+problemas de porte pequeno ou em implementações que realizam pouco
+trabalho por inicializações de kernel
+\autocite{van2013gpu,luong2013gpu}. Limitações de memória (VRAM) devem
+ser cuidadosamente calculadas para que a memória total ocupada não passe
+do limite do hardware. Nesses cenários, uma comparação direta entre
+versões em CPU e GPU exige, ainda, cuidados extras: deve-se isolar o
+impacto da plataforma de execução sem confundir o efeito com mudanças na
+lógica do algoritmo. Ao longo deste trabalho, esses desafios são
+documentados explicitamente em estudos de caso, onde kernels são
+chamados de forma não cautelosa e versões otimizadas (Capítulos
+\hyperref[cap3-materiais-metodos]{3} e \hyperref[cap4-resultados]{4}),
+bem como em notas técnicas específicas sobre \emph{overhead} de
+lançamentos de kernel e padrões de redução em GPU.
+
+Este trabalho insere-se nesse contexto, investigando como acelerar,
+utilizando GPU, um Algoritmo Genético (Genetic Algorithm -- GA) híbrido
+com \(2\)-opt para o TSP, de forma controlada e estatisticamente
+fundamentada, usando instâncias clássicas da biblioteca TSPLIB
+\autocite{reinelt1991tsplib} e um protocolo experimental com um número
+adequado de repetições \(n_{reps}\) e testes estatísticos apropriados
+(detalhado no \hyperref[cap3-materiais-metodos]{Capítulo 3}). A
+combinação entre GA e busca local é um exemplo de algoritmo memético
+amplamente estudado na literatura
+\autocite{larranaga1999genetic,goldberg1989genetic}, em que operadores
+evolutivos globais são complementados por heurísticas de melhoria como
+\(2\)-opt \autocite{croes1958method} ou Lin--Kernighan
+\autocite{lin1973efficient}. Neste Trabalho de Conclusão de Curso, será
+utilizada a nomenclatura em inglês para alguns termos técnicos como
+``\(2\)-opt'', ``TSPLIB'', ``GPU'', ``CPU'' e ``GA''.
+
+\subsection{1.2 Problema de pesquisa}\label{sec-12-problema-de-pesquisa}
+
+Muitos estudos em computação de alto desempenho comparam algoritmos em
+CPU e GPU utilizando implementações que diferem não apenas na plataforma
+de execução, mas também em detalhes relevantes da lógica do algoritmo
+(por exemplo, operadores distintos, parâmetros diferentes ou vizinhanças
+não equivalentes)
+\autocite{schulz2013gpu,van2013gpu,benaini2018genetic}. Isso torna
+difícil atribuir ganhos de desempenho exclusivamente ao uso da GPU, uma
+vez que alterações no desenho algorítmico ou na parametrização podem,
+por si só, explicar diferenças observadas. Neste trabalho, os parâmetros
+e operadores são mantidos fixos entre as variantes, e as diferenças de
+desempenho observadas são discutidas à luz do protocolo experimental
+apresentado no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+Neste trabalho, busquei implementar as variantes do algoritmo sob as
+mesmas condições. A estrutura dos algoritmos é projetada para ser
+idêntica e otimizada tanto para CPU quanto para GPU, de forma justa,
+para todos os Algoritmos Genéticos e para o algoritmo de busca local
+\(2\)-opt, variando apenas a forma como cada ``módulo'' estrutural do
+algoritmo é executado (em CPU ou em GPU) e o grau de paralelismo
+utilizado. A pergunta central pode ser formulada da seguinte forma:
+
+\begin{quote}
+\textbf{Como comparar, de forma fiel, o impacto de diferentes
+estratégias de paralelização utilizando GPU no desempenho de um
+algoritmo memético (GA+\(2\)-opt) para o Problema do Caixeiro Viajante?}
+\end{quote}
+
+Responder a essa pergunta exige, ao mesmo tempo, um desenho experimental
+cuidadoso de hiperparâmetros e validade estatística (número
+significativo de instâncias de problema, número adequado de repetições,
+métricas de qualidade e tempo). Os parâmetros básicos do GA --- como
+tamanho de população \(n_{pop}\), taxa de mutação \(p_{\text{mut}}\),
+tamanho do torneio \(k_{\text{trnmt}}\), número de iterações de
+\(2\)-opt por indivíduo \(n_{2\text{-opt}}\) e número de repetições por
+combinação algoritmo--instância \(n_{reps}\) --- são escolhidos com base
+em recomendações da literatura de algoritmos evolutivos
+\autocite{eiben2015introduction,goldberg1989genetic} e em análises
+específicas documentadas nos relatórios técnicos do projeto. Esses
+valores e sua motivação são apresentados em detalhe no
+\hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+\subsection{1.3 Objetivo geral}\label{sec-13-objetivo-geral}
+
+O objetivo geral deste trabalho é investigar e quantificar o impacto de
+diferentes estratégias de paralelização em processadores gráficos, com
+foco em:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Tempo de execução}: medir e comparar o tempo requerido para
+  cada variante do algoritmo memético GA+\(2\)-opt;
+\item
+  \textbf{Qualidade das soluções}: avaliar o custo final das rotas
+  obtidas e o \emph{gap} relativo ao ótimo conhecido, validando a
+  viabilidade da solução;
+\item
+  \textbf{Manutenção de equivalência funcional}: garantir que as quatro
+  variantes (GA-CPU, GA-Híbrido-Ingênuo, GA-Híbrido-Otimizado,
+  GA-FullGPU) implementem exatamente a mesma lógica algorítmica,
+  diferindo apenas na plataforma de execução e no grau de paralelismo;
+\item
+  \textbf{Metodologia estatística padronizada}: aplicar testes de
+  hipótese apropriados (testes de normalidade, pareados e rankings)
+  conforme recomendado por \textcite{demsar2006statistical};
+\item
+  \textbf{Alinhamento com taxonomia de paralelização}: situar as
+  estratégias adotadas no contexto da taxonomia proposta por
+  \textcite{crainic2003parallel} e aprofundada em
+  \textcite{crainic2010parallel}.
+\end{itemize}
+
+\subsection{1.4 Objetivos
+específicos}\label{sec-14-objetivos-especificos}
+
+Para viabilizar o objetivo geral, definem-se os seguintes objetivos
+específicos:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Implementar quatro variações
+  ``isoalgorítmicas''}{[}\^{}isoalgorithm-disambiguation{]} de um
+  Algoritmo Genético híbrido com \(2\)-opt para o TSP, que diferem
+  apenas na forma e no local de execução (CPU ou GPU):
+  {[}\^{}isoalgorithm-disambiguation{]}: O termo isoalgorítmico será
+  utilizado neste trabalho para refletir variantes estruturalmente
+  similares em sua composição.
+
+  \begin{itemize}
+  \tightlist
+  \item
+    uma versão executada puramente na CPU (\textbf{GA-CPU}), em que
+    todas as operações (seleção, cruzamento, mutação, \(2\)-opt e
+    cálculo de custo) são executadas com NumPy, servindo como base em
+    CPU para as comparações. Na prática, essa versão é utilizada como
+    base principalmente para instâncias de menor porte (por exemplo, com
+    \(n_{coords} \leq 100\)); para instâncias maiores, a comparação de
+    tempo passa a considerar como referência a versão híbrida, conforme
+    discutido no Capítulo 3.
+  \item
+    uma versão híbrida com \(2\)-opt executada na GPU e avaliação em CPU
+    (\textbf{GA-Híbrido-Ingênuo{[}\^{}ingenuity-disambiguation{]}}), que
+    inicia kernels \textbf{individualmente} para cada rota e transfere
+    as soluções (ou circuitos) completos entre CPU e GPU a cada
+    iteração;
+  \item
+    uma versão híbrida otimizada (\textbf{GA-Híbrido-Otimizado}), em que
+    \(2\)-opt e o cálculo de custos são executados em GPU em lote
+    (\emph{batch}), reduzindo o número de lançamentos de kernel e o
+    volume de dados transferidos;
+  \item
+    uma versão totalmente em GPU (\textbf{GA-FullGPU}), na qual
+    população, operadores genéticos, busca local e avaliação permanecem
+    residentes na GPU durante toda a evolução.
+  \end{itemize}
+
+  Os nomes utilizados aqui seguem as implementações
+  \texttt{GeneticAlgorithmCPU}, \texttt{GeneticAlgorithmHybridNaive},
+  \texttt{GeneticAlgorithmHybridOptimized} e
+  \texttt{GeneticAlgorithmFullGPU} do framework experimental, cujos
+  detalhes arquiteturais são apresentados no
+  \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+  {[}\^{}ingenuity-disambiguation{]}: Na literatura, o termo ``naive''
+  (ingênuo) é frequentemente utilizado para descrever implementações
+  simples que não exploram otimizações avançadas.
+\item
+  \textbf{Selecionar um conjunto de instâncias da TSPLIB} com diferentes
+  faixas de tamanho (pequenas \(n_{coords} \leq 100\), médias
+  \(100 < n_{coords} \leq 400\) e grandes \(n_{coords} > 400\)). Essa
+  seleção visa demonstrar os ganhos de desempenho que podem ser
+  atingidos e garantir diversidade suficiente para analisar ganhos em
+  escala. A divisão de faixas adotada é inspirada em estudos prévios com
+  a TSPLIB \autocite{reinelt1991tsplib}, mas levemente ajustada para
+  refletir o foco deste trabalho nas instâncias pequenas, médias e
+  grandes selecionadas. O ajuste consiste em adotar explicitamente o
+  número de coordenadas \(n_{coords} = 100\) e \(n_{coords} = 400\) como
+  limites entre as faixas, em linha com o limiar prático utilizado para
+  a comparação CPU/GPU e com a distribuição de tamanhos das instâncias
+  efetivamente utilizadas nos experimentos.
+\item
+  \textbf{Definir um protocolo experimental reprodutível}, incluindo
+  número de repetições por instância e algoritmo, critérios de parada,
+  parâmetros do GA e limites práticos impostos pela capacidade de
+  memória da GPU. O desenho desse protocolo segue recomendações da
+  literatura de comparação de algoritmos e de testes estatísticos
+  \autocite{demsar2006statistical} e é detalhado no
+  \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+\item
+  \textbf{Aplicar um conjunto de testes estatísticos apropriados} para
+  comparação de algoritmos, incluindo testes de normalidade
+  (Shapiro--Wilk), testes pareados paramétricos (teste \emph{t-pareado})
+  e não paramétricos (Wilcoxon), análise de rankings em múltiplas
+  instâncias (teste de Friedman com pós-teste de Nemenyi) e medidas de
+  tamanho de efeito (Cohen \(d\)), conforme recomendado por
+  \textcite{demsar2006statistical} e literatura correlata de teste de
+  hipóteses. A metodologia estatística completa é apresentada no
+  \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+\item
+  \textbf{Analisar os resultados obtidos}, discutindo as possíveis
+  condições em que cada variante algorítmica é vantajosa --- como por
+  exemplo, tamanho da instância \(n_{coords}\), relação entre custos de
+  comunicação e custo computacional, acesso à memória e volume de dados
+  transferidos entre CPU e GPU nas direções host-to-device (H2D ou CPU
+  \(\to\) GPU) e device-to-host (D2H GPU \(\to\) CPU)
+  \autocite{nvidia2024cuda} ---, limites práticos do uso de GPUs para o
+  contexto de recursos limitados (paralelismo em uma placa gráfica já
+  defasada e limitada) e as implicações para o projeto de algoritmos de
+  roteamento em cenários reais, seguindo as taxonomias de paralelização
+  de meta-heurísticas propostas por \textcite{crainic2003parallel} e
+  complementadas por \textcite{alba2005parallel}, além de estudos de
+  caso em problemas de roteamento utilizando GPUs
+  \autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}.
+\end{enumerate}
+
+\subsection{1.5 Justificativa}\label{sec-15-justificativa}
+
+Do ponto de vista científico, o TSP continua sendo um problema de
+referência para avaliar novas ideias em heurísticas e meta-heurísticas
+\autocite{cook2012pursuit}. A vasta disponibilidade de estudos,
+instâncias utilizadas em larga escala e muitas soluções ótimas
+conhecidas, em particular as fornecidas pela TSPLIB
+\autocite{reinelt1991tsplib}, na qual o projeto se baseia, permite medir
+o desempenho de diferentes algoritmos tanto em termos de qualidade
+quanto em tempo de execução. Ao longo deste trabalho, será utilizada a
+notação \(n_{coords}\) para o número de coordenadas (cidades) de cada
+instância, \(n_{pop}\) para o tamanho da população do GA, \(n_{reps}\)
+para o número de repetições por combinação algoritmo--instância, \(T\)
+para tempos de execução médios e \(B_{\mathrm{H2D}}\),
+\(B_{\mathrm{D2H}}\) para os volumes totais de dados transferidos entre
+CPU e GPU nas direções host-to-device e device-to-host, respectivamente.
+Os detalhes de como esses elementos se relacionam com os limites de
+memória de cada variante são discutidos no
+\hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+No campo da computação de alto desempenho, diferentes trabalhos relatam
+ganhos relevantes ao portar heurísticas de melhoria e algoritmos
+evolutivos para GPU, inclusive em variantes do TSP
+\autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}. Esses resultados
+indicam que GPUs são um hardware promissor para esse tipo de algoritmo,
+mas também evidenciam um problema recorrente: em muitas comparações, as
+versões em CPU e GPU diferem não apenas na plataforma de execução, mas
+também em detalhes de implementação e parametrização, o que dificulta
+isolar o efeito específico da paralelização.
+
+Além disso, para que conclusões sobre desempenho sejam confiáveis, não
+basta observar poucos experimentos isolados. É necessário adotar um
+desenho experimental com múltiplas repetições, tanto para instâncias
+quanto para, medidas de dispersão e testes de hipótese adequados, como
+discutido na literatura de comparação de algoritmos
+\autocite{demsar2006statistical}. Neste trabalho, esses cuidados são
+incorporados ao experimento, de modo que as diferenças observadas entre
+variantes em CPU e GPU possam ser atribuídas, com maior segurança, às
+estratégias de paralelização avaliadas.
+
+Este trabalho justifica-se por combinar três elementos que, em conjunto,
+fortalecem a contribuição científica:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Implementação de heurísticas clássicas em GPU}
+  (particularmente \(2\)-opt e operadores do AG), explorando o
+  paralelismo de forma explícita.
+\item
+  \textbf{Comparação entre variantes funcionalmente equivalentes do
+  algoritmo em CPU e GPU}, mantendo fixos operadores, parâmetros e
+  critérios de parada, de modo a isolar o efeito da plataforma de
+  execução. {[}\^{}small-variations{]} {[}\^{}small-variations{]}:
+  Algumas variações dentro deste contexto são esperadas, mas de modo
+  geral, o algoritmo segue a mesma estrutura. Sempre há a possibilidade
+  de haver pequenas variações, mas o autor busca manter, ao máximo, a
+  consistência entre as variantes.
+\item
+  \textbf{Aplicação de metodologia estatística rigorosa}, com múltiplas
+  repetições por instância, testes de hipótese adequados e medidas de
+  tamanho de efeito.
+\end{enumerate}
+
+Os capítulos seguintes discutem em que condições cada variante é
+vantajosa, quais os limites práticos do uso de GPUs e recursos limitados
+e como os resultados dialogam com estudos prévios de heurísticas em GPU.
+
+\subsection{1.6 Organização do trabalho}\label{sec-16-organizacao}
+
+Este texto está organizado da seguinte forma:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Capítulo 2 -- Fundamentação Teórica / Revisão Bibliográfica}:
+  apresenta os conceitos básicos de otimização combinatória e do TSP,
+  revisa heurísticas de construção e melhoria (com ênfase em \(2\)-opt),
+  discute algoritmos genéticos e meta-heurísticas híbridas, introduz
+  princípios de computação em GPU e paralelização de meta-heurísticas, e
+  resume abordagens estatísticas para comparação de algoritmos.
+\item
+  \textbf{Capítulo 3 -- Materiais e Métodos}: descreve o ambiente
+  computacional, a arquitetura do framework desenvolvido (incluindo
+  abstrações de backend e estratégias isoalgorítmicas), os detalhes do
+  Algoritmo Genético híbrido com \(2\)-opt nas quatro variantes
+  consideradas, o conjunto de instâncias TSPLIB utilizado, os parâmetros
+  experimentais e o protocolo estatístico adotado.
+\item
+  \textbf{Capítulo 4 -- Resultados}: apresenta os resultados numéricos
+  dos experimentos, incluindo estatísticas por instância, análises
+  agregadas por faixa de tamanho, medidas de ganho de performance e
+  qualidade das soluções, além da interpretação dos testes estatísticos
+  aplicados.
+\item
+  \textbf{Capítulo 5 -- Discussão}: interpreta criticamente os
+  resultados à luz da literatura, discute as implicações dos achados
+  para o projeto de algoritmos de roteamento em GPU e analisa limitações
+  do estudo.
+\item
+  \textbf{Capítulo 6 -- Conclusões e Trabalhos Futuros}: sintetiza as
+  principais contribuições do trabalho, responde explicitamente aos
+  objetivos propostos e indica possíveis extensões, como a aplicação do
+  framework a problemas de roteirização mais complexos.
+\item
+  Elementos pós-textuais, como referências, glossário, apêndices
+  técnicos e anexos com tabelas completas de resultados, são
+  apresentados ao final do documento, conforme normas da instituição.
+\end{itemize}
+
+\section{Capítulo 2 - Revisão
+bibliográfica}\label{cap2-revisao-bibliografica}
+
+\subsection{2. Fundamentação teórica e revisão
+bibliográfica}\label{sec-2-fundamentacao-e-revisao}
+
+Este capítulo apresenta conceitos teóricos e a bibliografia utilizada
+para contextualizar o problema estudado e as escolhas metodológicas
+adotadas. São discutidos o Problema do Caixeiro Viajante (TSP) no
+contexto da otimização combinatória
+\autocite{cook2012pursuit,rosenkrantz1977analysis}, sua importância
+geral e exemplos de utilização. Também são apresentadas generalizações
+do problema e sua relação com problemas de roteamento de veículos e
+variantes correlatas
+\autocite{raff1983routing,bodin1981state,tan2021vehicle}, heurísticas e
+meta-heurísticas clássicas para o TSP
+\autocite{croes1958method,lin1973efficient,voudouris1999tsp},
+aprofundando-se então no tópico de algoritmos genéticos e algoritmos
+meméticos \autocite{larranaga1999genetic,goldberg1989genetic},
+princípios de computação em GPU
+\autocite{nvidia2024cuda,schulz2013gpu,tsp_gpu}, taxonomias de
+paralelização de meta-heurísticas
+\autocite{crainic2003parallel,crainic2010parallel,alba2005parallel} e de
+comparação estatística de algoritmos de otimização
+\autocite{demsar2006statistical}.
+
+\subsubsection{2.1 Otimização combinatória e o Problema do Caixeiro
+Viajante}\label{sec-21-otimizacao-tsp}
+
+O TSP pode ser formulado, na versão simétrica\footnote{Na versão
+  assimétrica do TSP, os custos de viagem entre pares de cidades podem
+  diferir dependendo da direção (ou seja, \(c_{ij} \neq c_{ji}\)). Em
+  TSPs simétricos, o custo do cálculo de distâncias pode ser
+  representado por uma matriz triangular que armazena apenas uma das
+  metades (superior ou inferior) sem a diagonal, o que reduz o número de
+  entradas únicas de \(n^2\) para \(n(n-1)/2\).}, como um problema de
+encontrar um ciclo hamiltoniano de custo mínimo --- podendo este ser a
+distância percorrida, combustível gasto, ou mesmo uma combinação de
+fatores. Para fins deste trabalho, o custo será também chamado de
+distância --- em um grafo completo não direcionado \(G = (V, E)\), no
+qual cada vértice em \(V\) representa uma cidade e cada aresta
+\((i, j) \in E\) possui um custo \(c_{ij} \geq 0\) entre as cidades
+\(i\) e \(j\) \autocite{cook2012pursuit}. O objetivo é determinar uma
+combinação das cidades que minimize a soma total dos custos, retornando
+à cidade de origem. Geralmente em aplicações práticas assume-se que a
+matriz de custos é métrica e euclidiana, isto é, os custos derivam de
+distâncias euclidianas entre coordenadas no plano.
+
+Do ponto de vista da complexidade, o TSP é um problema NP-difícil em sua
+forma de otimização e NP-completo em sua forma de decisão
+\autocite{cook2012pursuit}. Isso significa que, em geral, não se conhece
+um algoritmo em tempo polinomial que resolva instâncias arbitrárias em
+grande escala. Mesmo que seja relativamente fácil verificar o custo de
+uma ou várias soluções candidatas, não podemos afirmar que esta é a
+solução exata em tempo polinomial. Algoritmos modernos como
+\texttt{Held-Karp} \autocite{held1962dynamic} com uma complexidade
+temporal \(O(n^2 2^n)\) e o algoritmo \texttt{Concorde}
+\autocite{cook2012pursuit} com uma complexidade temporal indefinida,
+conseguem resolver instâncias com milhares de cidades, mas seu tempo de
+execução cresce exponencialmente (\(O(n^2 2^n)\)), o que, embora
+assintoticamente muito superior à força bruta (\(O(n!)\)), ainda o torna
+impraticável para instâncias muito grandes \footnote{O algoritmo
+  Held-Karp ``troca'' a complexidade temporal da força bruta \(O(n!)\)
+  por uma complexidade espacial \(O(n 2^n)\), tornando sua viabilidade
+  limitada a instâncias com \(n_{coords} \approx 40\) cidades. Já o
+  algoritmo Concorde, baseado em técnicas de ramificação e corte, é
+  capaz de resolver instâncias com até 85.900 cidades, mas seu
+  desempenho depende fortemente da estrutura específica da instância
+  \autocite{cook2012pursuit}.}.
+
+Ao longo das últimas décadas, o TSP consolidou-se também como um padrão
+de avaliação empírica de algoritmos, graças à disponibilidade de
+coleções de instâncias padronizadas, como a TSPLIB
+\autocite{reinelt1991tsplib}. Essas coleções incluem instâncias com
+diferentes tamanhos, estruturas e origens (geográficas, sintéticas,
+industriais), a maioria delas com soluções ótimas conhecidas e obtidas
+por métodos exatos. No presente trabalho, são utilizadas algumas dessas
+instâncias como base para avaliar e comparar heurísticas e variantes
+paralelas de um algoritmo memético (combinações de algoritmos evolutivos
+com busca local) \autocite{larranaga1999genetic,fujimoto2011highly}.
+
+\subsubsection{2.2 Heurísticas para o TSP}\label{sec-22-heuristicas-tsp}
+
+Devido à dificuldade de resolver instâncias grandes do TSP exatamente,
+uma vasta literatura de heurísticas tem sido desenvolvida para produzir
+boas soluções em tempos de computação aceitáveis
+\autocite{cook2012pursuit}. De forma geral, heurísticas podem ser
+agrupadas em dois grandes tipos: heurísticas de construção e heurísticas
+de melhoria.
+
+Heurísticas de construção produzem uma solução viável ``do zero'',
+frequentemente seguindo regras simples, também conhecidas como
+algoritmos gulosos, como escolher iterativamente o vizinho mais próximo
+ou inserir cidades em posições que causem o menor aumento de custo.
+Exemplos incluem a heurística do vizinho mais próximo (nearest neighbor
+--- NN), heurísticas de inserção (insertion heuristics) e variantes
+baseadas em árvores de extensão mínimas (Minimum Spanning Trees ---
+MSTs), como o Algoritmo de Christofides. Embora rápidas e fáceis de
+implementar, essas estratégias tendem a gerar soluções de qualidade
+moderada, servindo sobretudo como ponto de partida para métodos mais
+sofisticados. Resultados clássicos da literatura mostram que, em
+instâncias métricas, heurísticas baseadas em \texttt{MST} e em
+\texttt{Christofides} podem oferecer garantias de aproximação sobre o
+custo ótimo de \(\frac{3}{2}B^*\), aspecto discutido em textos de
+referência em logística e roteamento \autocite{simchi2005logic}.
+
+Heurísticas de melhoria partem de uma solução inicial e aplicam
+sucessivos movimentos locais que procuram reduzir seu custo. Entre
+essas, as chamadas \(k\)-opt são particularmente influentes: um
+movimento \(2\)-opt consiste em remover duas arestas de um circuito e
+reconectar os segmentos resultantes, escolhendo a reconexão que produz
+um circuito ainda viável e de menor comprimento
+\autocite{croes1958method}. Em instâncias euclidianas é comum
+interpretar o \(2\)-opt como um mecanismo para eliminar cruzamentos,
+mas, genericamente, ele também pode melhorar circuitos que não
+apresentam interseções evidentes, ao substituir pares de arestas por
+combinações de menor custo \autocite{croes1958method}. Movimentos
+\(3\)-opt e extensões mais complexas, como o algoritmo de
+Lin--Kernighan, generalizam essa ideia \autocite{lin1973efficient}.
+Estas e outras heurísticas de melhoria desempenham papel central em
+muitos algoritmos modernos para TSP, tanto como procedimentos isolados
+quanto como componentes de meta-heurísticas, sendo utilizadas como
+procedimentos de busca local.
+
+Neste trabalho, a heurística \(2\)-opt é utilizada como busca local
+básica acoplada ao Algoritmo Genético, em linha com estudos que combinam
+heurísticas de construção simples com procedimentos de melhoria mais
+complexos para obter soluções de alta qualidade em tempo razoável
+\autocite{voudouris1999tsp,larranaga1999genetic,fujimoto2011highly}.
+
+\paragraph{\texorpdfstring{2.2.1 Entendendo o algoritmo
+\(2\)-opt}{2.2.1 Entendendo o algoritmo 2-opt}}\label{sec-221-2opt}
+
+A formulação básica de um movimento \(2\)-opt pode ser descrita da
+seguinte forma \autocite{croes1958method}: dado um circuito
+\(C = (v_0, v_1, \dots, v_{n-1}, v_0)\) e dois índices \(i\) e \(j\)
+tais que \(0 \leq i < n-1\) e \(i+2 \leq j < n\), considera-se a remoção
+das arestas \((v_i, v_{i+1})\) e \((v_j, v_{j+1})\), adotando-se a
+convenção circular de que, quando \(j = n-1\), o sucessor de \(v_j\) é
+novamente \(v_0\). Em seguida, inserem-se as arestas \((v_i, v_j)\) e
+\((v_{i+1}, v_{j+1})\). Essa reconexão implica reverter a ordem do
+segmento intermediário \((v_{i+1}, \dots, v_j)\) do circuito: em outras
+palavras, o \(2\)-opt não apenas troca duas conexões, mas inverte o
+subcaminho entre elas. Essa operação é natural no TSP simétrico
+clássico, pois a rota continua viável mesmo após a reversão. Em
+variantes assimétricas ou em problemas com restrições adicionais, uma
+reversão ingênua pode alterar o significado das arestas ou a viabilidade
+da solução, exigindo vizinhanças adaptadas. A variação de custo
+associada ao movimento é dada por
+
+\[
+\Delta C = \bigl(c_{i,j} + c_{i+1,j+1}\bigr)
+         - \bigl(c_{i,i+1} + c_{j,j+1}\bigr)
+\]
+
+onde \(c_{i,j}\) denota o custo (ou distância) entre as cidades \(i\) e
+\(j\). Um movimento \(2\)-opt é aceitável quando \(\Delta C < 0\), isto
+é, quando a substituição das arestas reduz o comprimento total do
+circuito \autocite{croes1958method}.
+
+De forma geral, a vizinhança \(2\)-opt de um circuito é formada por
+todos os pares admissíveis \((i,j)\) que definem duas arestas a serem
+removidas e um segmento intermediário a ser invertido. Uma iteração do
+método corresponde a uma varredura dessa vizinhança. Dependendo da
+variante adotada, o algoritmo pode aplicar o primeiro movimento
+melhorador encontrado (\emph{first-improvement}) ou examinar toda a
+passagem e aplicar apenas o melhor (\emph{best-improvement}).
+
+Assim, quando se determina ``\(\kappa = 10\) iterações em \(2\)-opt'',
+significa permitir até 10 varreduras sucessivas da vizinhança da rota
+corrente. Isso não significa ``varrer 10 vezes os 10 primeiros nós'': os
+índices percorrem a rota inteira em cada passagem, e a utilidade de
+múltiplas iterações está no fato de que, após cada reversão, surgem
+novas arestas e novas oportunidades de melhoria. Sem esse teto, o
+algoritmo continuaria até atingir um ótimo local --- o que pode ser
+custoso computacionalmente em circuitos grandes
+\autocite{lin1973efficient}. A forma específica como esta monografia usa
+essas 10 varreduras dentro do algoritmo memético é detalhada na
+\hyperref[sec-25-algoritmos-memeticos]{Seção 2.5}.
+
+De forma mais detalhada, o algoritmo \(2\)-opt clássico pode ser
+descrito como um procedimento iterativo de busca local aplicada a um
+único circuito. Em linhas gerais, o algoritmo segue os passos:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Começar com um circuito viável inicial \(C\) (obtido por uma
+  heurística de construção qualquer).
+\item
+  Definir uma ordem de varredura para pares de índices \((i,j)\) com
+  \(0 \leq i < n-1\) e \(i+2 \leq j < n\). No presente trabalho,
+  utiliza-se a ordem lexicográfica padrão, em que para cada \(i\),
+  varia-se \(j = i+2\) até \(n-1\) (a restrição \(j \geq i+2\) evita
+  movimentos triviais{[}\^{}trivial{]} e garante que o segmento a ser
+  revertido tenha comprimento mínimo \autocite{croes1958method}). Quando
+  \(j = n-1\), considera-se novamente o vértice inicial \(v_0\) como
+  sucessor da última cidade. Cada passagem completa por essa ordem conta
+  como \textbf{uma iteração} da busca local. {[}\^{}trivial{]}:
+  Movimentos triviais são aqueles que não alteram efetivamente o
+  circuito, como tentar reverter um segmento de \(i\) a \(i+1\), pois
+  \(c_{i, i+1}=c_{i+1, i}\) é uma aresta única e sua reversão não muda o
+  circuito, no caso do TSP clássico explorado neste documento. O mesmo
+  não se aplica para o ATSP.
+\item
+  Para cada par possível \((i,j)\), calcular \(\Delta C\) conforme a
+  expressão acima.
+\item
+  Selecionar um critério de atualização: aplicar o primeiro melhor
+  movimento encontrado (\emph{first-improvement}) ou, alternativamente,
+  concluir a passagem e aplicar apenas o melhor movimento da iteração
+  (\emph{best-improvement}).
+\item
+  Repetir a varredura sobre o circuito atualizado até que nenhum
+  movimento com \(\Delta C < 0\) exista ou até alcançar o limite máximo
+  de iterações \(\kappa\).
+\end{enumerate}
+
+Em uma implementação ingênua, a vizinhança \(2\)-opt de um circuito com
+\(n\) cidades possui ordem \(O(n^2)\) movimentos possíveis, o que
+implica um custo potencialmente elevado quando todos os pares \((i,j)\)
+são examinados de forma exaustiva. Diversas otimizações são discutidas
+na literatura, como o uso de listas de vizinhança, estruturas de dados
+para poda de movimentos claramente não promissores e estratégias de
+parada antecipada \autocite{lin1973efficient,larranaga1999genetic}. No
+contexto desta monografia, o foco recai principalmente na forma como
+esse procedimento é paralelizado e acoplado ao Algoritmo Genético, mais
+do que em otimizações finas da vizinhança em CPU.
+
+A Figura\textasciitilde{}\ref{fig:2opt-flowchart} ilustra uma variante
+clássica do algoritmo \(2\)-opt baseada em \emph{best-improvement}: o
+laço externo continua enquanto houver melhorias e o número de varreduras
+completas não exceder o limite \(\kappa\). Em cada iteração, todos os
+pares admissíveis \((i,j)\) são examinados, o melhor movimento da
+passagem é armazenado e apenas esse melhor movimento é aplicado ao final
+da varredura.
+
+\phantomsection\label{fig:2opt-flowchart}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{flowchart TD}
+\NormalTok{    Start(["Início: Circuito C"]) {-}{-}\textgreater{} Init["varredura ← 0"]}
+\NormalTok{    Init {-}{-}\textgreater{} CheckIter\{"varredura \textless{} κ?"\}}
+\NormalTok{    CheckIter {-}{-}\textgreater{}|Não| End(["Fim: Retorna C"])}
+\NormalTok{    CheckIter {-}{-}\textgreater{}|Sim| ResetBest["melhor\_Δ ← 0\textless{}br/\textgreater{}melhor\_i ← {-}1\textless{}br/\textgreater{}melhor\_j ← {-}1"]}
+\NormalTok{    ResetBest {-}{-}\textgreater{} LoopI["Para i = 0 até n{-}2"]}
+\NormalTok{    LoopI {-}{-}\textgreater{} LoopJ["Para j = i+2 até n{-}1"]}
+\NormalTok{    LoopJ {-}{-}\textgreater{} CalcDelta["Calcular ΔC = (c\_ij + c\_i+1,j+1)\textless{}br/\textgreater{}{-} (c\_i,i+1 + c\_j,j+1)"]}
+\NormalTok{    CalcDelta {-}{-}\textgreater{} CheckDelta\{"ΔC \textless{} melhor Δ?"\}}
+\NormalTok{    CheckDelta {-}{-}\textgreater{}|Sim| StoreBest["Guardar melhor par\textless{}br/\textgreater{}(i,j) e melhor\_Δ"]}
+\NormalTok{    CheckDelta {-}{-}\textgreater{}|Não| NextJ}
+\NormalTok{    StoreBest {-}{-}\textgreater{} NextJ["Próximo j"]}
+\NormalTok{    NextJ {-}{-}\textgreater{}|Mais j| LoopJ}
+\NormalTok{    NextJ {-}{-}\textgreater{}|Fim j| NextI["Próximo i"]}
+\NormalTok{    NextI {-}{-}\textgreater{}|Mais i| LoopI}
+\NormalTok{    NextI {-}{-}\textgreater{}|Fim i| ApplyBest\{"melhor\_Δ \textless{} 0?"\}}
+\NormalTok{    ApplyBest {-}{-}\textgreater{}|Sim| Apply["Reverter segmento\textless{}br/\textgreater{}(melhor\_i+1..melhor\_j)\textless{}br/\textgreater{}varredura ← varredura + 1"]}
+\NormalTok{    ApplyBest {-}{-}\textgreater{}|Não| End}
+\NormalTok{    Apply {-}{-}\textgreater{} CheckIter}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:2opt-flowchart}
+
+Figura\textasciitilde{}\ref{fig:2opt-flowchart}: Fluxograma do algoritmo
+\(2\)-opt.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Entrada: circuito inicial C, limite κ}
+\NormalTok{Saída: circuito melhorado C}
+
+\NormalTok{varredura = 0}
+
+\NormalTok{enquanto varredura \textless{} κ faça}
+\NormalTok{    melhor\_delta = 0}
+\NormalTok{    melhor\_i = {-}1}
+\NormalTok{    melhor\_j = {-}1}
+
+\NormalTok{    para i = 0 até n{-}2 faça}
+\NormalTok{        para j = i+2 até n{-}1 faça}
+\NormalTok{            delta = dist(i, j) + dist(i+1, j+1) {-} (dist(i, i+1) + dist(j, j+1))}
+
+\NormalTok{            se delta \textless{} melhor\_delta então}
+\NormalTok{                melhor\_delta = delta}
+\NormalTok{                melhor\_i = i}
+\NormalTok{                melhor\_j = j}
+\NormalTok{            fim se}
+\NormalTok{        fim para}
+\NormalTok{    fim para}
+
+\NormalTok{    se melhor\_delta \textless{} 0 então}
+\NormalTok{        Reverter segmento C[melhor\_i+1...melhor\_j]}
+\NormalTok{        varredura = varredura + 1}
+\NormalTok{    senão}
+\NormalTok{        interromper}
+\NormalTok{    fim se}
+\NormalTok{fim enquanto}
+
+\NormalTok{retornar C}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{2.3 Algoritmos
+genéticos}\label{sec-23-algoritmos-geneticos}
+
+Algoritmos Genéticos (Genetic Algorithms -- GAs) são meta-heurísticas
+inspiradas em princípios de evolução biológica, nas quais uma população
+de soluções candidatas é iterativamente modificada por operadores
+análogos à seleção natural, recombinação e mutação
+\autocite{goldberg1989genetic,eiben2015introduction}. Na sua forma mais
+simples, um AG mantém uma população de indivíduos representando soluções
+para o problema; em cada geração, indivíduos são selecionados com base
+em uma função de aptidão (fitness), recombinados por operadores de
+cruzamento e perturbados por operadores de mutação. A nova população
+resultante substitui total ou parcialmente a anterior, e o processo se
+repete até que um critério de parada seja satisfeito.
+
+No contexto do TSP, é comum representar cada solução como uma permutação
+das cidades, utilizar operadores de cruzamento especializados para rotas
+--- como Order Crossover (OX), Partially Mapped Crossover (PMX), entre
+outros --- e empregar mutações que preservem a viabilidade da
+permutação, como trocas de posição entre duas cidades
+\autocite{larranaga1999genetic}. Estudos clássicos mostram que GAs podem
+produzir soluções competitivas para o TSP quando combinados com
+operadores e parâmetros adequados \autocite{goldberg1989genetic}.
+
+Do ponto de vista formal, um GA opera sobre uma população
+\(P(t) = \{x_1^{(t)}, x_2^{(t)}, \dots, x_{n_{pop}}^{(t)}\}\) de
+indivíduos (soluções candidatas) na geração \(t\). Cada indivíduo
+\(x_i\) possui um valor de aptidão (\emph{fitness}) \(f(x_i)\) que mede
+a qualidade da solução; no caso do TSP, \(f(x_i)\) corresponde ao custo
+do circuito representado por \(x_i\), e busca-se minimizar esse valor. A
+cada geração, o GA aplica três operadores principais
+\autocite{goldberg1989genetic,eiben2015introduction}:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Seleção}: escolhe indivíduos de \(P(t)\) com probabilidade
+  proporcional (ou baseada em ranking/torneio) à sua aptidão,
+  favorecendo soluções de melhor qualidade. Formalmente, a probabilidade
+  de selecionar \(x_i\) pode ser dada por
+  \(p_i = f(x_i) / \sum_{j=1}^{n_{pop}} f(x_j)\) (seleção proporcional)
+  ou por esquemas de torneio, nos quais um subconjunto aleatório de
+  indivíduos compete e o melhor é escolhido.
+\item
+  \textbf{Cruzamento (recombinação)}: combina pares de indivíduos
+  selecionados (``pais'') para produzir descendentes. No TSP, operadores
+  como OX e PMX preservam a viabilidade das permutações, herdando
+  subsequências de um dos pais e preenchendo as posições restantes com a
+  ordem do outro \autocite{larranaga1999genetic}. A taxa de cruzamento
+  \(p_c\) controla a fração de pares submetidos a esse operador.
+\item
+  \textbf{Mutação}: introduz pequenas perturbações aleatórias em
+  indivíduos, mantendo diversidade na população. No TSP, mutações
+  típicas incluem troca de duas cidades ou reversão de segmentos. A taxa
+  de mutação \(p_{\text{mut}}\) controla a probabilidade de cada
+  indivíduo sofrer mutação.
+\end{enumerate}
+
+Após aplicar esses operadores, forma-se a nova população \(P(t+1)\) por
+meio de um esquema de substituição (geracional, com elitismo,
+steady-state, etc.). A Figura\textasciitilde{}\ref{fig:ga-flowchart}
+ilustra o fluxo geral de um GA
+\autocite{goldberg1989genetic,eiben2015introduction}: a população evolui
+iterativamente por meio de seleção (escolha de pais com base em
+aptidão), cruzamento (combinação de pares de pais gerando descendentes),
+e mutação (perturbações para diversidade), até que um critério de parada
+seja atingido.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{INÍCIO AG}
+\NormalTok{    Gerar população inicial aleatoriamente.}
+\NormalTok{    ENQUANTO critério\_de\_parada não satisfeito FAÇA}
+\NormalTok{        INÍCIO}
+\NormalTok{            Selecionar pais da população.}
+\NormalTok{            Produzir descendentes a partir dos pais selecionados.}
+\NormalTok{            Mutar os indivíduos.}
+\NormalTok{            Expandir a população adicionando os descendentes.}
+\NormalTok{            Reduzir a população expandida.}
+\NormalTok{        FIM}
+\NormalTok{    Retornar o melhor indivíduo encontrado.}
+\NormalTok{FIM AG}
+\end{Highlighting}
+\end{Shaded}
+
+\phantomsection\label{fig:ga-flowchart}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{flowchart TD}
+\NormalTok{    Start(["Início"]) {-}{-}\textgreater{} InitPop["Gerar população inicial P(0)\textless{}br/\textgreater{}aleatória ou heurística"]}
+\NormalTok{    InitPop {-}{-}\textgreater{} Eval0["Avaliar aptidão f(x\_i)\textless{}br/\textgreater{}para cada indivíduo"]}
+\NormalTok{    Eval0 {-}{-}\textgreater{} SetT["t ← 0"]}
+\NormalTok{    SetT {-}{-}\textgreater{} CheckStop\{"Critério de\textless{}br/\textgreater{}parada\textless{}br/\textgreater{}satisfeito?"\}}
+\NormalTok{    CheckStop {-}{-}\textgreater{}|Sim| Output(["Fim: Retorna\textless{}br/\textgreater{}melhor solução"])}
+\NormalTok{    CheckStop {-}{-}\textgreater{}|Não| Selection["Seleção: escolher pais\textless{}br/\textgreater{}de P(t) com base em f(x\_i)"]}
+\NormalTok{    Selection {-}{-}\textgreater{} Crossover["Cruzamento: combinar pares\textless{}br/\textgreater{}de pais (taxa p\_c) gerando\textless{}br/\textgreater{}descendentes"]}
+\NormalTok{    Crossover {-}{-}\textgreater{} Mutation["Mutação: perturbar indivíduos\textless{}br/\textgreater{}(taxa p\_mut) para diversidade"]}
+\NormalTok{    Mutation {-}{-}\textgreater{} EvalNew["Avaliar aptidão dos\textless{}br/\textgreater{}novos indivíduos"]}
+\NormalTok{    EvalNew {-}{-}\textgreater{} Replace["Substituição: formar P(t+1)\textless{}br/\textgreater{}combinando P(t) e descendentes\textless{}br/\textgreater{}(com ou sem elitismo)"]}
+\NormalTok{    Replace {-}{-}\textgreater{} IncT["t ← t + 1"]}
+\NormalTok{    IncT {-}{-}\textgreater{} CheckStop}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:ga-flowchart}
+
+Figura\textasciitilde{}\ref{fig:ga-flowchart}: Fluxograma de Algoritmo
+Genético.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Input: Population size N, mutation rate p\_mut, crossover rate p\_cross}
+\NormalTok{Output: Best solution found}
+
+\NormalTok{Initialize population P(0) randomly}
+\NormalTok{Evaluate fitness of all individuals in P(0)}
+\NormalTok{t = 0}
+
+\NormalTok{while not stop\_condition do}
+\NormalTok{    P\_new = \{\}}
+
+\NormalTok{    // Elitism: keep best individuals}
+\NormalTok{    Add best of P(t) to P\_new}
+
+\NormalTok{    while size(P\_new) \textless{} N do}
+\NormalTok{        // Selection}
+\NormalTok{        parent1 = TournamentSelection(P(t))}
+\NormalTok{        parent2 = TournamentSelection(P(t))}
+
+\NormalTok{        // Crossover}
+\NormalTok{        if random() \textless{} p\_cross then}
+\NormalTok{            child = OrderCrossover(parent1, parent2)}
+\NormalTok{        else}
+\NormalTok{            child = parent1}
+\NormalTok{        end if}
+
+\NormalTok{        // Mutation}
+\NormalTok{        if random() \textless{} p\_mut then}
+\NormalTok{            SwapMutation(child)}
+\NormalTok{        end if}
+
+\NormalTok{        Add child to P\_new}
+\NormalTok{    end while}
+
+\NormalTok{    P(t+1) = P\_new}
+\NormalTok{    Evaluate fitness of P(t+1)}
+\NormalTok{    t = t + 1}
+\NormalTok{end while}
+
+\NormalTok{return Best of P(t)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{2.4 Heurísticas
+híbridas}\label{sec-24-heuristicas-hibridas}
+
+De forma ampla, heurísticas híbridas combinam duas ou mais estratégias
+de busca, procurando explorar sinergias entre métodos com forças
+complementares. No contexto de problemas de roteamento e, em particular,
+do TSP, é comum combinar heurísticas de construção (como vizinho mais
+próximo, inserções ou heurísticas baseadas em MST) com heurísticas de
+melhoria (como movimentos \(k\)-opt) ou com meta-heurísticas
+populacionais (como GAs), de modo que uma componente forneça boas
+soluções iniciais e outra detalhe a exploração de vizinhanças
+\autocite{voudouris1999tsp}.
+
+Diversos autores classificam heurísticas híbridas em categorias como:
+(i) \textbf{hibridização em nível de solução}, na qual uma
+meta-heurística utiliza sistematicamente uma busca local (ou outro
+procedimento) para melhorar indivíduos candidatos; (ii)
+\textbf{hibridização em nível de algoritmo}, em que diferentes técnicas
+(por exemplo, um método exato e um heurístico) são combinadas em fases
+distintas ou em esquemas de cooperação; e (iii) \textbf{hibridizações
+multiestágio}, nas quais diferentes heurísticas atuam em momentos
+distintos do processo de resolução (inicialização, intensificação,
+diversificação, etc.) \autocite{larranaga1999genetic,voudouris1999tsp}.
+Essas categorias ajudam a organizar o espectro de abordagens híbridas
+reportadas na literatura, embora nem sempre haja consenso absoluto sobre
+as fronteiras entre elas.
+
+Uma extensão importante dessa ideia é o conceito de algoritmos
+meméticos, nos quais operadores evolutivos (seleção, cruzamento,
+mutação) são combinados com heurísticas de busca local aplicadas a
+indivíduos da população, de forma sistemática
+\autocite{larranaga1999genetic}. Em problemas de roteamento, isso
+resulta em esquemas GA+LS, nos quais um GA guia a exploração global do
+espaço de soluções e um procedimento de melhoria, como \(2\)-opt ou
+Lin--Kernighan, refina soluções promissoras. Esses algoritmos tendem a
+oferecer melhor equilíbrio entre exploração e intensificação do que GAs
+``puros'', ao custo de maior tempo computacional por iteração.
+
+Trabalhos como o de \textcite{fujimoto2011highly} exploram justamente
+essa combinação GA+busca local para o TSP em ambientes de computação
+paralela, motivando a adoção de uma abordagem semelhante neste estudo. A
+\hyperref[sec-25-algoritmos-memeticos]{próxima seção} aprofunda o
+conceito de algoritmos meméticos e a \hyperref[sec-251-ga-2opt]{subseção
+2.5.1} descreve, em linhas gerais, o esquema GA+\(2\)-opt adotado nesta
+monografia.
+
+\subsubsection{2.5 Algoritmos
+meméticos}\label{sec-25-algoritmos-memeticos}
+
+Algoritmos meméticos podem ser vistos como uma família de
+meta-heurísticas evolutivas que incorporam, explicitamente, operadores
+de busca local ao ciclo de evolução populacional
+\autocite{larranaga1999genetic}. A metáfora usual associa o termo
+``meme'' a unidades de informação que se propagam e se transformam, de
+modo análogo a genes, mas em um nível mais alto de organização: além da
+recombinação e mutação de indivíduos, há um processo de ``aprendizado''
+local que modifica soluções de forma dirigida.
+
+Em um algoritmo memético típico, a cada geração, parte dos indivíduos
+(por exemplo, os mais aptos ou uma amostra da população) é submetida a
+uma busca local, que pode ser uma heurística de melhoria como \(2\)-opt,
+\(3\)-opt ou Lin--Kernighan no caso do TSP. Esse procedimento permite
+refinar soluções já boas, acelerando a convergência em direção a ótimos
+locais de alta qualidade. O GA fornece a diversidade global por meio de
+operadores de cruzamento e mutação, enquanto a busca local intensifica a
+exploração em torno de regiões promissoras do espaço de soluções.
+
+O desenho de um algoritmo memético envolve decisões importantes, como:
+(i) \textbf{quais indivíduos} serão submetidos à busca local (apenas a
+elite, um subconjunto aleatório, toda a população); (ii) \textbf{com que
+frequência} a busca local será aplicada (toda geração, gerações
+alternadas, fases específicas do processo); e (iii) \textbf{com que
+intensidade} cada chamada de busca local será executada (por exemplo,
+número máximo de iterações de \(2\)-opt). Essas escolhas impactam o
+balanço entre qualidade das soluções e custo computacional, bem como a
+diversidade mantida na população.
+
+Estudos fundamentais, como o de Larrañaga et al., indicam que os
+algoritmos meméticos são extremamente eficientes para o Problema do
+Caixeiro Viajante (TSP). Estes métodos funcionam melhor quando combinam
+o cruzamento de rotas com técnicas de melhoria intensiva. Neste
+trabalho, utilizamos um \textbf{Algoritmo Genético adaptado para rotas},
+que possui as seguintes características:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Representação Numérica:} Cada solução é um circuito \(C\)
+  denotando uma sequência de números inteiros representando a ordem das
+  cidades.
+\item
+  \textbf{Seleção por Torneio:} Os ``pais'' são escolhidos através de
+  competições diretas entre pequenos grupos de indivíduos.
+\item
+  \textbf{Cruzamento Ordenado (OX):} Um operador que preserva a ordem
+  relativa das cidades herdadas dos pais.
+\item
+  \textbf{Mutação por Troca:} Pequenas alterações feitas trocando duas
+  cidades de posição na rota.
+\item
+  \textbf{Substituição com Elitismo:} A nova geração substitui a antiga,
+  mas preserva obrigatoriamente as melhores soluções encontradas até o
+  momento.
+\item
+  \textbf{Hibridização:} Após essas etapas, aplica-se uma rotina de
+  busca local (\(2\)-opt) para refinar os resultados.
+\end{enumerate}
+
+A viabilidade de acelerar esse processo usando placas de vídeo (GPU) é
+reforçada por \textcite{fujimoto2011highly}. Nesse estudo, os autores
+implementaram esse algoritmo em uma GPU (modelo GTX285) utilizando
+técnicas eficientes de soma paralela para gerenciar os dados. Ao
+comparar o desempenho contra um processador tradicional operando com
+\textbf{apenas um núcleo} (\emph{single-core}), observaram que a GPU foi
+até \textbf{24,2 vezes mais rápida} na instância \texttt{ts225}. Embora
+a comparação tenha sido feita contra um processador mais antigo, o
+resultado mostra que problemas de tamanho médio (200-300 cidades)
+conseguem tirar proveito do paralelismo massivo da GPU.
+
+O processo formal de refinamento segue a lógica abaixo:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Considere uma população inicial \(P(t)\).
+\item
+  Aplique os operadores genéticos (cruzamento e mutação) para criar
+  descendentes.
+\item
+  Execute a função de \textbf{Busca Local Truncada}, denotada por
+  \(\mathcal{L}(x, \kappa)\), sobre cada descendente selecionado para
+  refinamento.
+\item
+  Nesta monografia, \(\mathcal{L}(x, \kappa)\) significa aplicar
+  sucessivas \textbf{varreduras completas} da vizinhança \(2\)-opt da
+  rota \(x\): em cada varredura, os índices \((i,j)\) percorrem toda a
+  rota admissível, calcula-se \(\Delta C\) para cada par e registra-se
+  apenas o melhor movimento encontrado naquela passagem.
+\item
+  Ao final de cada varredura, aplica-se no máximo \textbf{uma} reversão
+  de segmento --- a melhor da passagem ---, desde que o melhor
+  \(\Delta C\) seja negativo. Em outras palavras, a implementação da
+  monografia usa a variante \emph{best-improvement} do \(2\)-opt, e é
+  aqui, no contexto memético, que a escolha específica da varredura
+  passa a importar metodologicamente.
+\item
+  O processo continua até que:
+
+  \begin{itemize}
+  \tightlist
+  \item
+    a rota não possa mais ser melhorada (ótimo local); \textbf{OU}
+  \item
+    o número máximo de varreduras (\(\kappa\)) seja atingido.
+  \end{itemize}
+\item
+  Nos experimentos deste trabalho, usa-se
+  \(\kappa = n_{2\text{-opt}} = 10\). Portanto, cada descendente recebe
+  no máximo \textbf{10 varreduras completas de \(2\)-opt} sobre toda a
+  sua vizinhança admissível, e não ``10 nós'' ou ``10 trocas locais''
+  arbitrárias.
+\item
+  O parâmetro \(\kappa\) funciona como um ``freio'': ele limita o tempo
+  gasto refinando cada solução para evitar que o algoritmo fique lento
+  demais, garantindo um equilíbrio entre qualidade e velocidade.
+\end{enumerate}
+
+\begin{quote}
+{[}!warning{]} not what I wanted \textbf{Exemplo ilustrativo.} Considere
+uma rota com 6 cidades. Em uma única varredura \emph{best-improvement},
+o algoritmo examina os 10 pares admissíveis \((0,2)\), \((0,3)\),
+\((0,4)\), \((0,5)\), \((1,3)\), \((1,4)\), \((1,5)\), \((2,4)\),
+\((2,5)\) e \((3,5)\). Suponha que o melhor movimento da primeira
+passagem seja \((1,4)\); então o segmento interno dessa rota é invertido
+uma vez. Na segunda varredura, os mesmos pares de índices voltam a ser
+analisados, mas agora sobre \textbf{outra rota}, pois as arestas mudaram
+após a reversão. É justamente por isso que faz sentido permitir até 10
+varreduras: cada nova passagem reavalia uma configuração diferente do
+circuito. Se, por exemplo, na terceira passagem nenhum \(\Delta C < 0\)
+for encontrado, a busca local para esse indivíduo termina antes de
+chegar ao limite de 10.
+\end{quote}
+
+\paragraph{\texorpdfstring{2.5.1 Algoritmo Genético +
+\(2\)-opt}{2.5.1 Algoritmo Genético + 2-opt}}\label{sec-251-ga-2opt}
+
+O esquema GA+\(2\)-opt adotado neste trabalho segue a linha de
+algoritmos meméticos padrões para o TSP \autocite{larranaga1999genetic},
+nos quais um Algoritmo Genético opera sobre uma população de permutações
+de cidades e, em momentos específicos do ciclo evolutivo, aplica-se uma
+rotina de busca local \(2\)-opt a alguns indivíduos. Em alto nível, cada
+iteração (geração) do algoritmo pode ser descrita pelos seguintes
+passos:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Inicialização (\(t=0\))}: gerar uma população inicial \(P(0)\)
+  de rotas, por exemplo, a partir de permutações aleatórias ou de
+  heurísticas de construção simples (vizinho mais próximo, inserções).
+\item
+  \textbf{Avaliação (\emph{fitness})}: calcular o custo (comprimento)
+  \(f(x_i)\) de cada rota \(x_i \in P(t)\), que servirá como medida de
+  aptidão.
+\item
+  \textbf{Seleção}: escolher indivíduos para reprodução com base em seus
+  valores de aptidão, utilizando seleção por torneio de tamanho
+  \(k_{\text{trnmt}}\), favorecendo soluções de menor custo.
+\item
+  \textbf{Cruzamento}: combinar pares de indivíduos selecionados por
+  meio de Order Crossover (OX), produzindo descendentes que preservam a
+  estrutura de permutação e herdam subsequências de ambos os pais.
+\item
+  \textbf{Mutação}: aplicar perturbações leves às rotas (trocas de
+  posição de cidades, com taxa \(p_{\text{mut}}\)) para manter
+  diversidade genética.
+\item
+  \textbf{Busca local \(2\)-opt}: para cada descendente (ou um
+  subconjunto, conforme a estratégia), aplicar
+  \(\mathcal{L}(x, n_{2\text{-opt}})\) --- isto é, executar até
+  \(n_{2\text{-opt}}\) varreduras completas de \(2\)-opt, cada uma
+  examinando toda a vizinhança admissível e aplicando apenas o melhor
+  movimento encontrado --- de modo a refinar localmente as rotas
+  resultantes. Esta etapa é o que transforma o GA em um algoritmo
+  memético, introduzindo intensificação explícita da busca.
+\item
+  \textbf{Substituição}: formar a nova população \(P(t+1)\) combinando
+  os melhores indivíduos de \(P(t)\) (elitismo) com os descendentes
+  refinados, garantindo que as melhores soluções sejam preservadas ao
+  longo das gerações.
+\end{enumerate}
+
+O processo repete-se até que um critério de parada seja satisfeito
+(número máximo de gerações, estagnação da aptidão ou atingimento do
+custo ótimo conhecido). A
+Figura\textasciitilde{}\ref{fig:ga2opt-flowchart} ilustra o fluxo
+completo do GA+\(2\)-opt memético \autocite{larranaga1999genetic}: a
+busca local de \(2\)-opt (etapa destacada) é aplicada após os operadores
+genéticos (seleção por torneio, cruzamento OX, mutação swap), refinando
+cada descendente com até \(n_{2\text{-opt}}\) varreduras completas de
+\(2\)-opt (\(\mathcal{L}(x, n_{2\text{-opt}})\)), cada uma delas
+escolhendo o melhor movimento da passagem, antes da formação da nova
+população. Esse acoplamento caracteriza o algoritmo como memético,
+combinando exploração global (GA) e intensificação local (\(2\)-opt).
+
+\phantomsection\label{fig:ga2opt-flowchart}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{flowchart TD}
+\NormalTok{    Start(["Início"]) {-}{-}\textgreater{} Init["Gerar população inicial P(0)\textless{}br/\textgreater{}(qualquer tipo de heurística construtica)"]}
+\NormalTok{    Init {-}{-}\textgreater{} Eval0["Avaliar f(x\_i) para cada\textless{}br/\textgreater{}indivíduo em P(0)"]}
+\NormalTok{    Eval0 {-}{-}\textgreater{} SetT["gen ← 0"]}
+\NormalTok{    SetT {-}{-}\textgreater{} CheckStop\{"Critério de\textless{}br/\textgreater{}parada?"\}}
+\NormalTok{    CheckStop {-}{-}\textgreater{}|Sim| Output(["Fim: Retorna melhor solução"])}
+\NormalTok{    CheckStop {-}{-}\textgreater{}|Não| Selection["Seleção por torneio\textless{}br/\textgreater{}(k\_trnmt) de pais"]}
+\NormalTok{    Selection {-}{-}\textgreater{} Crossover["Cruzamento (OX)\textless{}br/\textgreater{}gerar descendentes"]}
+\NormalTok{    Crossover {-}{-}\textgreater{} Mutation["Mutação (swap)\textless{}br/\textgreater{}taxa p\_mut"]}
+\NormalTok{    Mutation {-}{-}\textgreater{} LocalSearch["Busca Local: aplicar\textless{}br/\textgreater{}n\_2opt varreduras best{-}improvement\textless{}br/\textgreater{}de 2{-}opt a cada descendente\textless{}br/\textgreater{}(ℒ(x, n\_2opt))"]}
+\NormalTok{    LocalSearch {-}{-}\textgreater{} EvalNew["Avaliar f(x\_i) dos\textless{}br/\textgreater{}descendentes refinados"]}
+\NormalTok{    EvalNew {-}{-}\textgreater{} Replace["Substituição: formar P(gen+1)\textless{}br/\textgreater{}com elitismo (melhores de P(gen)\textless{}br/\textgreater{}+ descendentes)"]}
+\NormalTok{    Replace {-}{-}\textgreater{} IncT["gen ← gen + 1"]}
+\NormalTok{    IncT {-}{-}\textgreater{} CheckStop}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:ga2opt-flowchart}
+
+Figura\textasciitilde{}\ref{fig:ga2opt-flowchart}: Fluxograma do
+algoritmo GA+\(2\)-opt.
+
+No contexto deste trabalho, essa etapa de busca local será
+posteriormente mapeada para diferentes implementações em CPU e GPU
+(GA-CPU, GA-Híbrido-Ingênuo, GA-Híbrido-Otimizado, GA-FullGPU), mantendo
+a mesma lógica de aplicação de \(2\)-opt (mesma vizinhança, mesmos
+limites de iterações \(n_{2\text{-opt}}\)), de forma a preservar o
+caráter estruturalmente equivalente das variantes. Os detalhes
+operacionais, incluindo a forma precisa de parametrizar
+\(n_{2\text{-opt}}\), \(n_{pop}\), \(p_{\text{mut}}\) e os critérios de
+parada do GA, são apresentados no
+\hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+\subsubsection{2.6 Computação em GPU e paralelização de
+meta-heurísticas}\label{sec-26-gpu-metaheuristicas}
+
+Processadores gráficos (GPUs) evoluíram, nas últimas décadas, de
+dispositivos voltados principalmente para renderização gráfica para
+plataformas de computação de uso geral (GPGPU - General-purpose
+computing on GPUs), amplamente utilizadas em aplicações científicas e de
+inteligência artificial \autocite{nvidia2024cuda}. O modelo de
+programação CUDA, por exemplo, organiza o trabalho em grades
+(\emph{grids}) de blocos de threads, seguindo um paradigma de execução
+massivamente paralelo denominado SIMT (Single Instruction, Multiple
+Threads) \autocite{nvidia2024cuda}. Ao passo que as GPUs possuem raízes
+na premissa SIMD da clássica taxonomia de Flynn \autocite{flynn1972taxonomy},
+a NVIDIA estruturou este novo modelo lógico para unir eficiência
+vetorial à abstração de programação escalar % TODO (Orientador): Corrigido anacronismo conceitual que associava SIMT diretamente à década de 60 na taxonomia de Flynn.
+. Nessa configuração, milhares de threads
+executam o mesmo kernel sobre dados distintos, o que é adequado a
+tarefas com alto grau de paralelismo em dados.
+
+Internamente, as threads em uma GPU são agrupadas em \emph{warps}
+(tipicamente 32 threads em arquiteturas NVIDIA), que executam uma mesma
+instrução de forma coordenada segundo o modelo SIMT (\emph{Single
+Instruction, Multiple Threads}) \autocite{nvidia2024cuda}. Antes de
+comparar isso com CPUs, convém fixar a nomenclatura: CPUs modernas
+\textbf{não} são classificadas como SIMD; arquiteturalmente, elas
+continuam sendo MIMD (\emph{Multiple Instruction, Multiple Data}), pois
+diferentes núcleos e \emph{threads} podem seguir fluxos independentes.
+Quando se fala em ``SIMD de CPU'', fala-se apenas de extensões vetoriais
+dentro de um núcleo. Já em SIMT, cada \emph{thread} possui seu próprio
+estado lógico, mas o hardware agenda grupos de \emph{threads} em passo
+coordenado enquanto não há divergência. Segundo a taxonomia de Flynn
+\autocite{flynn1972taxonomy}, conforme introduzido na
+\hyperref[sec-11-contexto-e-motivacao]{Seção 1.1}, CPUs modernas
+continuam sendo predominantemente MIMD com extensões SIMD \footnote{A
+  classificação arquitetural mais comum para CPUs multicore é MIMD, pois
+  diferentes núcleos ou \emph{threads} podem executar fluxos de
+  instruções independentes. Instruções vetoriais como SSE e AVX
+  adicionam paralelismo SIMD dentro de cada núcleo, acelerando operações
+  sobre vetores de dados sem alterar a classificação geral da CPU.},
+enquanto GPUs maximizam o \emph{throughput} com execução massivamente
+paralela orientada a dados, sendo ideais para cargas em que a mesma
+computação é aplicada a grandes volumes de dados independentes.
+
+\paragraph{2.6.1 Taxonomia de paralelização segundo Crainic e
+Toulouse}\label{sec-261-taxonomia-paralelizacao}
+
+A taxonomia proposta por \textcite{crainic2003parallel} e aprofundada em
+\textcite{crainic2010parallel} classifica as estratégias de
+paralelização de meta-heurísticas em três categorias principais, cada
+uma com adequação distinta a arquiteturas de hardware:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Tipo 1: Paralelismo de Baixo Nível (Decomposição de Dados)}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Descrição:} O foco é na paralelização de tarefas
+    computacionalmente intensivas dentro de uma iteração da
+    meta-heurística, como a avaliação da função objetivo ou a exploração
+    de vizinhança. O fluxo de controle do algoritmo permanece
+    centralizado.
+  \item
+    \textbf{Adequação:} Ideal para arquiteturas \textbf{SIMD/SIMT
+    (GPUs)}. Como a mesma operação (ex: cálculo de distância) é aplicada
+    a muitos dados (ex: rotas, cálculos de matrizes), o \emph{overhead}
+    de inicializações de kernels e transferência é mínimo e o
+    \emph{throughput} é maximizado.
+  \item
+    \textbf{Exemplo Real:} \textcite{tsp_gpu} utilizam paralelismo Tipo
+    1 para avaliar movimentos \(2\)-opt em paralelo na GPU. Cada thread
+    calcula o ganho de uma troca de arestas, permitindo explorar
+    vizinhanças massivas em tempo reduzido.
+  \end{itemize}
+\item
+  \textbf{Tipo 2: Decomposição do Domínio}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Descrição:} O espaço de busca ou as variáveis de decisão são
+    particionados em subconjuntos (técnica comum em VRPs no geral), e a
+    meta-heurística opera em paralelo sobre essas partições.
+  \item
+    \textbf{Adequação:} Mais apropriado para arquiteturas \textbf{MIMD
+    (Clusters ou CPUs Multicore)}. Subproblemas distintos podem ter
+    tempos de convergência variados, o que causa divergência de execução
+    em uma GPU (onde as 32 threads de cada warp devem ser
+    sincronizadas).
+  \item
+    \textbf{Exemplo Real:} Em problemas de Roteamento de Veículos com
+    Múltiplos Depósitos (MDVRP), diversos autores
+    \autocite[@simchi2005logic]{crainic2010parallel} descrevem
+    estratégias onde cada ``depósito'' é otimizado por um processo
+    independente em uma CPU, com trocas ocasionais de clientes entre
+    depósitos.
+  \end{itemize}
+\item
+  \textbf{Tipo 3: Múltiplas Trajetórias (Buscas Independentes ou
+  Cooperativas)}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Descrição:} Múltiplas instâncias da meta-heurística (ou
+    meta-heurísticas diferentes) exploram o espaço de soluções
+    simultaneamente. Podem ser independentes (\emph{multi-start}) ou
+    cooperativas (troca de informações).
+  \item
+    \textbf{Adequação:} Versátil. Funciona bem em:
+
+    \begin{itemize}
+    \tightlist
+    \item
+      \textbf{Clusters/CPUs} para algoritmos complexos e heterogêneos,
+      através de técnicas de \texttt{multithreading} e
+      \texttt{multiprocessing}, por exemplo.
+    \item
+      \textbf{GPUs} para muitas execuções de algoritmos leves e
+      idênticos, como \emph{Island Models}. - \textbf{Combinados}:
+      Processamento massivamente paralelo, conforme revisado por
+      \textcite{schulz2013gpu}.
+
+      \begin{itemize}
+      \tightlist
+      \item
+        \textbf{Exemplo Real:} \textcite{luong2013gpu} implementam um
+        modelo de ilhas em GPU, onde milhares de pequenas populações
+        evoluem em paralelo (cada uma em um bloco de threads), trocando
+        periodicamente seus melhores indivíduos via memória
+        compartilhada.
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+\end{enumerate}
+
+De forma resumida, a Figura\textasciitilde{}\ref{fig:crainic-taxonomy}
+coloca lado a lado esses três tipos: a partir de uma meta-heurística
+sequencial, pode-se paralelizar apenas a avaliação de
+vizinhança/população (Tipo 1), decompor o conjunto de variáveis em
+subproblemas (Tipo 2) ou rodar várias buscas completas em paralelo,
+independentes ou cooperativas (Tipo 3).
+
+\phantomsection\label{fig:crainic-taxonomy}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{flowchart TB}
+\NormalTok{    MH["Meta{-}heurística sequencial"] {-}{-}\textgreater{} T1["Tipo 1\textless{}br/\textgreater{}(paralelismo em dados)\textless{}br/\textgreater{}Avaliar vizinhança/população em paralelo"]}
+\NormalTok{    MH {-}{-}\textgreater{} T2["Tipo 2\textless{}br/\textgreater{}(decomposição do domínio)\textless{}br/\textgreater{}Subproblemas com subconjuntos de variáveis"]}
+\NormalTok{    MH {-}{-}\textgreater{} T3["Tipo 3\textless{}br/\textgreater{}(múltiplas trajetórias)\textless{}br/\textgreater{}Buscas completas em paralelo\textless{}br/\textgreater{}independentes ou cooperativas"]}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:crainic-taxonomy}
+
+Figura\textasciitilde{}\ref{fig:crainic-taxonomy}: Resumo dos três tipos
+de paralelização de Crainic e Toulouse.
+
+No contexto deste trabalho, as variantes desenvolvidas enquadram-se
+predominantemente no \textbf{Tipo 1}, focando na aceleração da avaliação
+de vizinhança \(2\)-opt e operadores genéticos via paralelismo de dados
+massivo na GPU.
+
+\paragraph{2.6.2 Aplicações de GPU a meta-heurísticas para o
+TSP}\label{sec-262-gpu-aplicacoes-tsp}
+
+Aplicações de GPU a meta-heurísticas para o TSP exploram principalmente
+paralelismo em dados, seja na avaliação em massa de rotas em algoritmos
+genéticos (por exemplo, via cálculos de redução em GPU), seja aplicando
+paralelismo a movimentos de vizinhança em heurísticas de melhoria
+\autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}. Outros trabalhos
+investigam paralelização de Recozimento Simulado, Colônias de Formigas
+(ACO) e outras meta-heurísticas em GPU, geralmente aproveitando o grande
+número de threads para explorar múltiplas soluções ou vizinhanças em
+cada passo da busca
+\autocite{binjubier2024gpu,rey2018cpu,abdelatti2020improvedgpuheuristic}.
+Esses estudos motivam o uso de GPUs como plataforma para acelerar
+algoritmos meméticos, mas também evidenciam desafios relacionados à
+movimentação de dados entre CPU e GPU, à escolha de granularidade
+adequada de kernels, à ocupação dos multiprocessadores e às limitações
+de memória (VRAM). Esses aspectos são retomados no
+\hyperref[cap3-materiais-metodos]{Capítulo 3}, ao descrever o desenho
+dos kernels de \(2\)-opt e as estratégias de controle de memória
+adotadas neste trabalho.
+
+\paragraph{2.6.3 Contraste arquitetural: CPU vs
+GPU}\label{sec-263-cpu-vs-gpu}
+
+As figuras \ref{fig:cpu-gpu-contrast}, \ref{fig:cpu-gpu-detail} e
+\ref{fig:gpu-internal} ajudam a visualizar, de forma simples, como CPUs
+e GPUs foram pensadas para resolver problemas diferentes. De maneira
+geral, CPUs têm poucos núcleos mais complexos e flexíveis. Uma parte
+grande da área do chip é usada para controle de fluxo, previsão de
+desvios e vários níveis de cache, o que favorece programas sequenciais,
+com muitas decisões e acesso irregular à memória. Nas GPUs acontece o
+contrário: a maior parte da área é ocupada por muitas unidades
+aritméticas simples (ALUs), organizadas em centenas ou milhares de
+núcleos em paralelo. Elas abrem mão de um controle sofisticado para
+ganhar vazão (\emph{throughput}) quando muitas threads executam a mesma
+sequência de instruções sobre dados diferentes. Essa diferença é o
+motivo pelo qual GPUs funcionam bem para tarefas com muito paralelismo
+em dados, como avaliar muitas rotas de uma vez ou aplicar \(2\)-opt em
+vários indivíduos em paralelo.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth,height=\textheight,keepaspectratio]{../assets/image-1.png}
+\caption{Comparação simplificada entre arquitetura de CPU e GPU. Fonte:
+\textcite{layerstack2023cpugpu}.}\label{fig:cpu-gpu-contrast}
+\end{figure}
+
+A Figura\textasciitilde{}\ref{fig:cpu-gpu-detail} mostra esse contraste
+na divisão da área do chip. Em uma CPU típica, poucos núcleos complexos
+dividem espaço com grandes caches e lógica de controle. Em uma GPU, o
+desenho é o inverso: a maior parte da área é dedicada a conjuntos de
+núcleos de processamento paralelos (por exemplo, \emph{CUDA cores} em
+GPUs NVIDIA ou \emph{stream processors} em GPUs AMD) e à memória de alta
+largura de banda. O controle é mais simples, mas o número de operações
+por segundo é muito maior quando o problema é bem mapeado para esse tipo
+de arquitetura \autocite{paz2011gpucpuimage}.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth,height=\textheight,keepaspectratio]{../assets/image-2.png}
+\caption{Alocação de silício em CPU e GPU. Adaptado de
+\textcite{paz2011gpucpuimage}.}\label{fig:cpu-gpu-detail}
+\end{figure}
+
+A Figura\textasciitilde{}\ref{fig:gpu-internal} resume como esses
+recursos aparecem na organização interna de uma GPU moderna. A memória
+global (DRAM) oferece grande largura de banda, mas latência alta; cada
+\emph{streaming multiprocessor} (SM) possui memórias compartilhadas
+menores e registradores, usados pelas threads de um mesmo bloco. As
+threads são agrupadas em \emph{warps} (tipicamente 32 threads nas GPUs
+NVIDIA) que executam a mesma instrução ao mesmo tempo, seguindo o modelo
+SIMT \autocite{shah2023gpuarchitectureimage}. Quando as threads de um
+warp seguem caminhos de controle diferentes ou acessam a memória de
+forma muito irregular, parte dessa paralelização é perdida; quando o
+acesso é organizado e o fluxo de controle é parecido, o ganho de
+desempenho é grande.
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth,height=\textheight,keepaspectratio]{../assets/image-3.png}
+\caption{Organização interna de GPU moderna e modelo de programação
+CUDA. Adaptado de
+\textcite{shah2023gpuarchitectureimage}.}\label{fig:gpu-internal}
+\end{figure}
+
+Essas três figuras servem como pano de fundo para as decisões de projeto
+dos kernels CUDA apresentados no Capítulo 3: explorar paralelismo em
+dados (tipo 1) mapeando threads para indivíduos ou movimentos \(2\)-opt,
+evitar ao máximo divergência dentro de um mesmo warp e organizar as
+leituras e gravações de memória global para aproveitar melhor a largura
+de banda disponível.
+
+É fundamental distinguir, portanto, três níveis de paralelismo que
+aparecem neste trabalho. No nível da máquina, a CPU é tratada como uma
+arquitetura MIMD: diferentes núcleos podem executar tarefas distintas ou
+\emph{threads} independentes. Dentro de cada núcleo, porém, a CPU pode
+explorar SIMD por meio de instruções vetoriais, o que acelera trechos
+específicos do cálculo de custos e de manipulação de vetores. Já a GPU,
+no contexto de CUDA, é programada no modelo SIMT: o programador escreve
+milhares de \emph{threads} lógicas, mas o hardware as executa em grupos
+(\emph{warps}) que avançam de forma coordenada enquanto compartilham o
+mesmo fluxo de instruções. Quando há divergência de controle dentro de
+um \emph{warp}, os caminhos precisam ser serializados temporariamente,
+reduzindo a eficiência. Essa distinção explica por que a CPU pode ser
+descrita, sem contradição, como MIMD com extensões SIMD, enquanto a GPU
+é mais adequadamente descrita como SIMT.
+
+\subsubsection{2.7 Comparação estatística de algoritmos de
+otimização}\label{sec-27-comparacao-estatistica}
+
+Meta-heurísticas estocásticas, como GAs e algoritmos meméticos, produzem
+resultados que variam de execução para execução devido ao uso de
+aleatoriedade em diversos pontos (inicialização, seleção, mutação, entre
+outros). Por esse motivo, a comparação de algoritmos de otimização não
+pode se basear em uma única execução por instância, tampouco apenas em
+médias simples sem análise de variabilidade. A literatura de comparação
+de algoritmos enfatiza a importância de utilizar múltiplas instâncias de
+teste, múltiplas repetições por combinação algoritmo--instância e
+métricas que considerem tanto qualidade da solução quanto tempo de
+execução \autocite{demsar2006statistical}.
+
+\textcite{demsar2006statistical} discute procedimentos estatísticos
+apropriados para comparar algoritmos em vários problemas, recomendando o
+uso de testes de hipótese pareados (como o teste \emph{t-pareado} ou o
+teste de Wilcoxon) quando se deseja comparar dois algoritmos em uma
+coleção de instâncias, e testes baseados em rankings, como o teste de
+Friedman seguido de pós-testes de Nemenyi, quando mais de dois
+algoritmos são avaliados simultaneamente. Medidas de tamanho de efeito,
+como o \emph{d} de Cohen, complementam a análise ao quantificar a
+magnitude prática das diferenças observadas.
+
+Neste trabalho, esses princípios gerais orientam o desenho experimental
+e a análise dos resultados apresentados nos capítulos seguintes,
+garantindo que as comparações entre variantes em CPU e GPU sejam
+realizadas de forma estatisticamente fundamentada. De maneira mais
+concreta, para cada combinação algoritmo--instância (4 algoritmos vs 38
+instâncias), são executadas múltiplas repetições independentes,
+registrando-se, no mínimo, medidas de qualidade da solução (custo final
+ou \emph{gap} em relação ao melhor valor conhecido) e de tempo de
+execução.
+
+\paragraph{2.7.1 Comparações
+pareadas}\label{sec-271-comparacoes-pareadas}
+
+Para comparações \textbf{par a par} entre duas variantes (por exemplo,
+GA-CPU versus uma versão em GPU) ao longo de várias instâncias, adota-se
+uma rotina em duas etapas: (i) verificação de normalidade das
+distribuições de interesse por meio do teste de Shapiro--Wilk
+\autocite{shapiro1965analysis} e (ii) aplicação de um teste pareado
+apropriado. Quando a hipótese de normalidade é considerada aceitável,
+utiliza-se o teste \emph{t-pareado} de Student
+\autocite{student1908probable}; caso contrário, recorre-se ao teste não
+paramétrico de Wilcoxon para amostras pareadas
+\autocite{wilcoxon1945individual}. Em ambos os casos, medidas de tamanho
+de efeito, como o \emph{d} de Cohen \autocite{cohen1988statistical}, são
+utilizadas para qualificar a relevância prática das diferenças
+detectadas. Valores típicos de \emph{d} de Cohen são interpretados como:
+\(|d| < 0.2\) (efeito negligenciável), \(0.2 \le |d| < 0.5\) (efeito
+pequeno), \(0.5 \le |d| < 0.8\) (efeito médio), e \(|d| \ge 0.8\)
+(efeito grande). Estas comparações seguem as diretrizes de testes de
+``Statistical Comparisons of Classifiers over Multiple Data Sets''
+\autocite{demsar2006statistical}, e as fórmulas são de fácil
+implementação utilizando bibliotecas em \texttt{python}.
+
+\paragraph{2.7.2 Comparações
+múltiplas}\label{sec-272-comparacoes-multiplas}
+
+Quando três ou mais algoritmos são comparados simultaneamente em um
+conjunto de instâncias (como ocorre com as quatro variantes
+isoalgorítmicas GA-CPU, GA-Híbrido-Ingênuo, GA-Híbrido-Otimizado e
+GA-FullGPU), emprega-se o teste de Friedman \autocite{friedman1937use}
+sobre os rankings médios dos algoritmos em cada problema, seguido de
+pós-testes de Nemenyi \autocite{nemenyi1963distribution} quando
+apropriado, conforme recomendado por \textcite{demsar2006statistical}.
+Esse procedimento permite identificar, com controle de erro tipo I,
+quais pares de algoritmos apresentam diferenças estatisticamente
+significativas em termos de desempenho médio. O teste de Friedman
+verifica a hipótese nula de que todos os algoritmos têm desempenho
+equivalente, enquanto o pós-teste de Nemenyi ajusta os valores-p para
+múltiplas comparações, reduzindo o risco de falsos positivos.
+
+Os detalhes específicos de parametrização desses testes, bem como o
+conjunto exato de métricas analisadas (tempo, qualidade, ganho de
+performance, entre outras), são apresentados no
+\hyperref[cap3-materiais-metodos]{Capítulo 3} ao descrever o protocolo
+experimental, e retomados no \hyperref[cap4-resultados]{Capítulo 4} ao
+discutir os resultados obtidos.
+
+\section{Capítulo 3 -- Materiais e
+Métodos}\label{cap3-materiais-metodos}
+
+Este capítulo descreve o ambiente computacional, o \emph{framework}
+experimental e o protocolo de execução utilizados para comparar as
+quatro variantes do algoritmo memético GA+\(2\)-opt apresentadas na
+\hyperref[sec-14-objetivos-especificos]{Seção 1.4}. O objetivo é
+permitir que outros pesquisadores reproduzam, com o máximo de precisão
+possível, os experimentos discutidos no
+\hyperref[cap4-resultados]{Capítulo 4}, respeitando as limitações de
+hardware disponíveis.
+
+\subsection{3.1 Ambiente computacional e framework
+experimental}\label{sec-31-ambiente-framework}
+
+Esta seção detalha as características do hardware e do software
+utilizados, bem como a arquitetura do framework experimental
+desenvolvido para garantir a integridade e a reprodutibilidade das
+comparações.
+
+\subsubsection{3.1.1 Hardware e sistema
+operacional}\label{sec-311-hardware-software}
+
+Os experimentos foram conduzidos em um \emph{notebook} equipado com
+processador \textbf{Intel Core i7-7700HQ} e uma GPU \textbf{NVIDIA
+GeForce GTX 1050 Mobile}. Embora o uso deste hardware tenha sido
+motivado inicialmente pela indisponibilidade de recursos mais robustos,
+ele se mostrou vantajoso metodologicamente: por se tratar de uma
+arquitetura de entrada (Pascal) com limitações estritas de memória e
+potência, as diferenças de eficiência entre as variantes algorítmicas
+tornam-se mais evidentes do que em aceleradores de alto desempenho, onde
+a força bruta computacional poderia mascarar ineficiências de
+implementação. Além disso, o contraste entre uma CPU relativamente capaz
+(i7 quad-core) e uma GPU de entrada acentua os desafios de
+\emph{offloading}, exigindo otimizações reais para obter ganhos de
+performance. Ainda, há uma maior necessidade no controle de execução e
+limitações. Devido ao alto custo computacional para cálculos de
+algoritmos genéticos, instâncias maiores não foram testadas. Mas módulos
+e \emph{safeguards} tiveram que ser implementados no teste de outras
+variações algorítmicas mais rápidas como no recozimento simulado
+\autocite{wu2013performance} não discutidas neste trabalho, devido ao
+baixo grau de paralelismo do algoritmo para \textbf{variações do tipo 1}
+\autocite{crainic2003parallel}, obtidas experimentalmente.
+
+As especificações relevantes da GPU para este estudo são:
+
+O desempenho computacional é estritamente limitado pelas fronteiras
+físicas do dispositivo (\emph{device}). Detalha-se a seguir o impacto
+matemático destas restrições no processamento:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{Memória de vídeo (VRAM) e o tamanho da instância:} A unidade
+  de processamento gráfico dispõe de \(4\text{GB}\) de memória global.
+  Para maximizar a capacidade de leitura, exige-se que os dados sejam
+  pré-alocados, o que obriga a utilização da matriz de distâncias
+  completa \((n_{coords}^2)\), em detrimento de estruturas triangulares
+  otimizadas \autocite{harris2007optimizing}. Ao adotar precisão dupla
+  (\texttt{double} ou \texttt{float64}, 8 bytes) para mitigar erros
+  numéricos, o consumo de memória da matriz de distâncias (\(M_{dist}\))
+  cresce quadraticamente:
+  \[Mem(M_{dist}) = n_{coords}^2 \times 8 \text{ bytes}\] Para uma
+  instância de \(n_{coords}=15.112\) cidades, a matriz ocupa
+  isoladamente \(\approx 1,83 \text{GB}\). Somando-se as estruturas
+  auxiliares, atinge-se o teto operacional com aproximadamente
+  \(n_{coords} \approx 13.000\) cidades. A utilização de precisão
+  simples (\texttt{float32}) reduziria esta ocupação pela metade,
+  permitindo a resolução de instâncias de maior porte.
+\item
+  \textbf{Gargalo de Transferência (\emph{PCIe Transfer Bottlenecks}):}
+  A comunicação entre o \emph{host} (CPU) e o \emph{device} (GPU) ocorre
+  através de um barramento com largura de banda de
+  \(\approx 16 \text{GB/s}\), significativamente inferior à largura de
+  banda interna da memória do dispositivo (\(\approx 112 \text{GB/s}\)).
+  Transferências excessivas de dados penalizam o tempo total de execução
+  (\(T_{total}\)), podendo anular o ganho de aceleração computacional
+  (\(T_{ganho}\)), conforme a relação: \[
+   T_{total} = T_{cpu} + T_{gpu} + T_{transf}
+   \] Na variante \textbf{Híbrida-Otimizada}, este efeito é mitigado
+  através do encadeamento de \emph{kernels}, realizando as etapas
+  intensivas (busca local e cálculo de aptidão) inteiramente no
+  dispositivo e retornando ao hospedeiro apenas o vetor de custos,
+  minimizando o termo \(T_{transf}\).
+\item
+  \textbf{Ocupação e Mascaramento de Latência:} A arquitetura é composta
+  por 5 Multiprocessadores de Streaming (\emph{Streaming Multiprocessors
+  - SMs}), cada um com 128 cores, totalizando 640 núcleos de execução.
+  Para evitar a ociosidade destes núcleos durante os ciclos de latência
+  de memória (centenas de ciclos de \emph{clock}), emprega-se a técnica
+  de \emph{Latency Hiding}, mantendo múltiplas \emph{threads} residentes
+  prontas para execução \autocite{kirk2010programming}.
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Restrição Matemática:} Cada SM suporta um máximo de 2048
+    \emph{threads}. Algoritmos com alta complexidade de registradores
+    reduzem a capacidade de manter \emph{threads} em espera, resultando
+    em subutilização dos núcleos e perda de eficiência computacional,
+    desperdiçando o potencial de processamento massivo da placa.
+  \end{itemize}
+\end{enumerate}
+
+\subsubsection{3.1.2 Ambiente de
+software}\label{sec-312-ambiente-software}
+
+O framework foi desenvolvido em \textbf{python 3.10}, utilizando um
+conjunto de bibliotecas selecionadas para garantir a equivalência
+funcional entre as implementações em CPU e GPU:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{NumPy}: Utilizado para a implementação de referência em CPU
+  (GA-CPU).
+\item
+  \textbf{CuPy}: Utilizado para as implementações aceleradas (Híbridas e
+  FullGPU). A compatibilidade de API entre CuPy e NumPy foi fundamental
+  para assegurar que a lógica dos algoritmos permanecesse idêntica
+  (``isoalgorítmica''), alterando apenas o \emph{backend} de execução.
+\item
+  \textbf{SciPy e scikit-posthocs}: Empregados para a análise
+  estatística dos resultados, incluindo testes de normalidade
+  (Shapiro-Wilk) e testes não-paramétricos de comparação múltipla
+  (Friedman e Nemenyi).
+\end{itemize}
+
+Apesar da compatibilidade da API oferecida pelo CuPy (frequentemente
+referenciada como \texttt{xp} em códigos agnósticos de backend), a
+implementação de operações críticas exigiu o desenvolvimento de
+\textbf{kernels CUDA customizados} (\texttt{RawKernel}). Abstrações de
+alto nível do CuPy, embora conveniente, introduzem \emph{overheads} de
+lançamento de kernel que se tornam proibitivos quando realizados
+repetidamente para cada indivíduo da população (como na busca local
+2-opt). A implementação manual de kernels permite:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Fusão de operações}: Realizar múltiplas etapas do 2-opt em uma
+  única chamada de kernel, reduzindo a latência de comunicação CPU-GPU.
+\item
+  \textbf{Gerenciamento fino de memória}: Otimizar o uso da memória
+  compartilhada (\emph{shared memory}) e dos registradores, maximizando
+  a ocupação dos \emph{SMs}.
+\item
+  \textbf{Paralelismo em lote}: Processar populações inteiras
+  simultaneamente, explorando o paralelismo massivo da GPU. A API padrão
+  do CuPy é excelente para operações ``primitivas'' de álgebra linear
+  --- como multiplicar grandes matrizes de números reais ---, onde todos
+  os elementos sofrem a mesma operação. Porém, o \(2\)-opt trabalha com
+  uma matriz de permutações (índices inteiros) e exige que cada linha
+  (indivíduo) siga um fluxo de execução próprio, em sua thread, com
+  laços \texttt{while} e condições \texttt{if} independentes. Fazer isso
+  via API padrão seria inviável; por isso, foi necessário desenvolver
+  kernels CUDA customizados que possibilitam que cada thread da GPU
+  gerencie sua própria lógica de busca local.
+\end{enumerate}
+
+Além disso, todas as operações de ponto flutuante foram padronizadas em
+\textbf{precisão dupla (\texttt{float64})}. Embora GPUs de consumo (como
+a GTX 1050 utilizada) tenham desempenho superior em precisão simples
+(\texttt{float32}), a precisão dupla foi mandatória para garantir a
+estabilidade numérica no cálculo de distâncias acumuladas em rotas
+longas (instâncias com milhares de cidades), onde erros de
+arredondamento poderiam levar a avaliações incorretas de melhoria
+(\texttt{delta\ \textless{}\ 0}) e divergência entre as implementações
+de CPU e GPU.
+
+\subsubsection{3.1.3 Arquitetura do framework
+experimental}\label{sec-313-arquitetura-framework}
+
+Para garantir comparações justas, o código foi estruturado em uma
+arquitetura modular que separa a lógica dos algoritmos da orquestração
+dos experimentos. O framework opera em três camadas distintas:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Camada de Algoritmos:} Contém as implementações das quatro
+  variantes do algoritmo memético. Todas compartilham a mesma estrutura
+  de classes e os mesmos operadores genéticos, diferindo apenas na
+  estratégia de gerenciamento de memória e paralelismo.
+\item
+  \textbf{Camada de Orquestração (Benchmark):} Responsável por carregar
+  as configurações experimentais (parâmetros, instâncias), gerenciar a
+  execução das repetições independentes e garantir o isolamento entre
+  testes. Esta camada implementa mecanismos de \emph{checkpoint} para
+  salvar o estado de cada execução, permitindo a recuperação em caso de
+  falhas e a auditoria posterior dos dados.
+\item
+  \textbf{Camada de Análise:} Scripts dedicados ao processamento dos
+  arquivos de \emph{checkpoint}, consolidação dos dados em banco de
+  dados (DuckDB) e geração automática de tabelas e relatórios
+  estatísticos.
+\end{enumerate}
+
+\phantomsection\label{fig:class-diagram}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{classDiagram}
+\NormalTok{    direction TB}
+
+\NormalTok{    class Orchestration \{}
+\NormalTok{        +run\_benchmark()}
+\NormalTok{        +manage\_checkpoints()}
+\NormalTok{    \}}
+
+\NormalTok{    class GeneticAlgorithmBase \{}
+\NormalTok{        \textless{}\textless{}Abstract\textgreater{}\textgreater{}}
+\NormalTok{        \#population\_size: int}
+\NormalTok{        \#mutation\_rate: float}
+\NormalTok{        \#tournament\_size: int}
+\NormalTok{        \#two\_opt\_iterations: int}
+\NormalTok{        +evolve()}
+\NormalTok{        \#\_initialize\_population()}
+\NormalTok{        \#\_select\_parents()}
+\NormalTok{        \#\_create\_offspring()}
+\NormalTok{        \#\_survival\_selection()}
+\NormalTok{        \#\_improve\_population()*}
+\NormalTok{        \#\_evaluate\_population()*}
+\NormalTok{    \}}
+
+\NormalTok{    class GeneticAlgorithmCPU \{}
+\NormalTok{        \#\_improve\_population()}
+\NormalTok{        \#\_evaluate\_population()}
+\NormalTok{    \}}
+
+\NormalTok{    class GeneticAlgorithmHybridNaive \{}
+\NormalTok{        \#\_improve\_population()}
+\NormalTok{        \#\_evaluate\_population()}
+\NormalTok{    \}}
+
+\NormalTok{    class GeneticAlgorithmHybridOptimized \{}
+\NormalTok{        \#\_improve\_population()}
+\NormalTok{        \#\_evaluate\_population()}
+\NormalTok{    \}}
+
+\NormalTok{    class GeneticAlgorithmFullGPU \{}
+\NormalTok{        \#\_improve\_population()}
+\NormalTok{        \#\_evaluate\_population()}
+\NormalTok{    \}}
+
+\NormalTok{    Orchestration {-}{-}\textgreater{} GeneticAlgorithmBase : Instantiates \& Runs}
+
+\NormalTok{    GeneticAlgorithmBase \textless{}|{-}{-} GeneticAlgorithmCPU}
+\NormalTok{    GeneticAlgorithmBase \textless{}|{-}{-} GeneticAlgorithmHybridNaive}
+\NormalTok{    GeneticAlgorithmBase \textless{}|{-}{-} GeneticAlgorithmHybridOptimized}
+\NormalTok{    GeneticAlgorithmBase \textless{}|{-}{-} GeneticAlgorithmFullGPU}
+
+\NormalTok{    note for GeneticAlgorithmBase "Padrão Template Method:\textless{}br\textgreater{}Define fluxo fixo (evolve),\textless{}br\textgreater{}subclasses implementam backends\textless{}br\textgreater{}de execução específicos (*)"}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:class-diagram}
+
+Figura\textasciitilde{}\ref{fig:class-diagram}: Diagrama de classes do
+framework experimental.
+
+Esta separação assegura que as métricas de tempo e qualidade sejam
+coletadas de forma consistente para todas as variantes, eliminando
+vieses que poderiam surgir de implementações \emph{ad hoc} para cada
+plataforma.
+
+\subsection{3.2 Arquitetura do framework e variantes
+algorítmicas}\label{sec-32-arquitetura-variantes}
+
+A premissa central deste trabalho é a comparação
+\textbf{isoalgorítmica}\footnote{A equivalência isoalgorítmica neste estudo refere-se estritamente à estrutura, hiperparâmetros globais e ordem dos operadores. Divergências na associatividade de reduções de ponto flutuante e condições de contorno de hardware impedem um determinismo perfeito entre os dispositivos.}: todas as variantes implementam estruturalmente a
+mesma meta-heurística. As
+diferenças residem primariamente em \emph{onde} (CPU ou GPU) e
+\emph{como} (sequencial, paralelo por indivíduo ou paralelo em lote) as
+operações computacionalmente intensivas são executadas. Contudo, é crucial notar que, devido às restrições de arquitetura e mitigação de \emph{timeouts} na GPU, um teto rígido (\emph{cap}) de 50 iterações foi imposto ao laço de convergência do operador de busca local \(2\)-opt nas variantes CUDA. Esta assimetria nas condições de parada rompe a equivalência determinística com a CPU, impactando diretamente no refinamento das trajetórias de busca.
+
+\subsubsection{3.2.1 O Algoritmo Genético Base (GA +
+2-opt)}\label{sec-321-ga-base}
+
+O algoritmo base é um Algoritmo Genético (GA) geracional com elitismo,
+hibridizado com uma busca local \(2\)-opt truncada. Esta combinação,
+frequentemente denominada Algoritmo Memético, equilibra a exploração
+global do espaço de busca (via operadores genéticos) com a exploração
+local intensiva (via \(2\)-opt).
+
+Os componentes e parâmetros fundamentais, mantidos constantes em todas
+as variantes, são:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Representação:} Permutação de inteiros representando a
+  sequência de cidades visitadas.
+\item
+  \textbf{População Inicial:} Gerada aleatoriamente. O tamanho da
+  população (\(n_{pop}\)) é adaptativo, definido como
+  \(2 \times n_{coords}\), onde \(n_{coords}\) é o número de cidades da
+  instância.
+\item
+  \textbf{Seleção:} Torneio (\emph{Tournament Selection}), favorecendo
+  indivíduos com menor custo (distância total).
+\item
+  \textbf{Cruzamento (Crossover):} \emph{Order Crossover} (OX),
+  escolhido por preservar a ordem relativa das cidades e gerar
+  permutações válidas.
+\item
+  \textbf{Mutação:} \emph{Swap Mutation}, que troca a posição de duas
+  cidades aleatórias no cromossomo.
+\item
+  \textbf{Busca Local (2-opt):} Aplicada a cada indivíduo da população
+  ao final de cada geração. Para controlar o custo computacional, a
+  busca local é \textbf{truncada}: limita-se a um número fixo de
+  iterações de melhoria, entendido aqui como \textbf{10 varreduras
+  completas da vizinhança por indivíduo}, em vez de buscar o ótimo local
+  completo (2-opt).
+\item
+  \textbf{Critérios de Parada:} O algoritmo encerra sua execução se
+  atingir o ótimo conhecido (com tolerância de 1\%), se não houver
+  melhoria na melhor solução por um número de gerações definido pela
+  ``paciência'' (\(2 \times \sqrt{n_{coords}}\)), ou se atingir o limite
+  máximo de gerações (\(2 \times n_{coords} \times \sqrt{n_{coords}}\)).
+\end{itemize}
+
+\subsubsection{3.2.2 Estratégias de Paralelização (As 4
+Variantes)}\label{sec-322-variantes}
+
+Para investigar o impacto da GPU, o algoritmo base foi instanciado em
+quatro variantes distintas, representando diferentes níveis de
+utilização do hardware:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\item
+  \textbf{GeneticAlgorithmCPU (Baseline):} Execução inteiramente na CPU
+  utilizando NumPy. No nível arquitetural, a CPU permanece sendo a
+  plataforma MIMD de referência; o que ocorre aqui é o aproveitamento
+  pontual de vetorização SIMD dentro dos núcleos para acelerar partes da
+  avaliação dos movimentos 2-opt. Já o processamento dos indivíduos, no
+  nível do algoritmo, ocorre essencialmente de forma sequencial. Esta
+  variante serve como linha de base para medir o ganho de performance
+  absoluto.
+\item
+  \textbf{GeneticAlgorithmHybridNaive (Híbrido Ingênuo):} Mantém a
+  população e os operadores genéticos na CPU, mas transfere cada
+  indivíduo para a GPU para executar a busca local 2-opt. Esta abordagem
+  é considerada ``ingênua'' pois realiza transferências de memória
+  (Host-to-Device e Device-to-Host) para \emph{cada indivíduo} em
+  \emph{cada geração}, expondo o gargalo da largura de banda do
+  barramento PCIe.
+\item
+  \textbf{GeneticAlgorithmHybridOptimized (Híbrido Otimizado):} Também
+  mantém a lógica genética na CPU, mas otimiza a comunicação enviando a
+  população inteira (ou grandes lotes) para a GPU de uma única vez. O
+  kernel 2-opt processa todos os indivíduos em paralelo na GPU, e os
+  resultados são retornados em lote. Esta estratégia visa amortizar o
+  custo de latência das transferências de memória.
+\item
+  \textbf{GeneticAlgorithmFullGPU (Totalmente em GPU):} Implementa a
+  estratégia de ``GPU residente''. A população é inicializada na VRAM e
+  permanece lá durante todo o processo evolutivo. Todos os operadores
+  (seleção, cruzamento, mutação e 2-opt) são executados via kernels CUDA
+  (através do CuPy), eliminando quase completamente a necessidade de
+  comunicação com a CPU, exceto para coleta de estatísticas e
+  verificação de critérios de parada.
+\end{enumerate}
+
+\subsection{3.3 Seleção de instâncias e protocolo
+experimental}\label{sec-33-selecao-instancias}
+
+Para garantir a relevância estatística dos resultados, foram
+selecionadas 38 instâncias da biblioteca \textbf{TSPLIB}
+\autocite{reinelt1991tsplib}, variando de 51 a 1002 cidades. O conjunto
+inclui problemas com diferentes características geométricas, permitindo
+avaliar a robustez dos algoritmos em diversos cenários. As instâncias
+selecionadas estão listadas na
+Tabela\textasciitilde{}\ref{tbl:selected-instances}, categorizadas por
+faixa de tamanho.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3077}}
+  >{\centering\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3846}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3077}}@{}}
+\caption{Instâncias da TSPLIB selecionadas para o estudo
+\label{tbl:selected-instances}}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Categoria
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Faixa de Tamanho (\(n_{coords}\))
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Instâncias Selecionadas
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Categoria
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Faixa de Tamanho (\(n_{coords}\))
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Instâncias Selecionadas
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Pequenas} & \(n_{coords} \le 100\) & eil51, berlin52, st70,
+eil76, pr76, rat99, kroA100, kroB100, kroC100, kroD100, kroE100,
+rd100 \\
+\textbf{Médias} & \(100 < n_{coords} \le 400\) & eil101, lin105, pr107,
+pr124, bier127, ch130, pr136, pr144, ch150, kroA150, kroB150, pr152,
+u159, rat195, d198, kroA200, ts225, pr264, pr299, lin318, rd400 \\
+\textbf{Grandes} & \(n_{coords} > 400\) & fl417, pr439, pcb442, rat783,
+pr1002 \\
+\end{longtable}
+
+O protocolo de execução seguiu as diretrizes para comparação de
+algoritmos estocásticos:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Repetições:} Cada par (algoritmo, instância) foi executado
+  \textbf{26 vezes} independentemente.
+\item
+  \textbf{Sementes Aleatórias:} As sementes foram fixadas e registradas
+  para garantir a reprodutibilidade, mas variaram entre as 26 repetições
+  para amostrar adequadamente o comportamento estocástico.
+\item
+  \textbf{Limitação da CPU:} Devido ao tempo proibitivo de execução, a
+  variante \textbf{GeneticAlgorithmCPU} foi executada apenas para
+  instâncias com \(N \le 100\). Para instâncias maiores, as comparações
+  de ganho de performance tomam como base a variante híbrida mais
+  simples ou comparam as variantes GPU entre si.
+\end{itemize}
+
+\subsection{3.4 Protocolo de análise
+estatística}\label{sec-34-protocolo-estatistico}
+
+A análise dos resultados adota a metodologia recomendada por
+\textcite{demsar2006statistical} para comparação de múltiplos
+classificadores/algoritmos em múltiplos datasets:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Verificação de Normalidade:} Aplicação do teste de
+  \textbf{Shapiro-Wilk} nas distribuições de tempo e qualidade das
+  soluções.
+\item
+  \textbf{Testes Pareados:} Para comparações diretas entre duas
+  variantes (ex: HybridNaive vs.~FullGPU), utiliza-se o \textbf{Teste t
+  pareado} (se a distribuição for normal) ou o teste de \textbf{Wilcoxon
+  Signed-Rank} (se não normal).
+\item
+  \textbf{Comparação Múltipla:} Para comparar as quatro variantes
+  simultaneamente, aplica-se o teste de \textbf{Friedman}
+  (não-paramétrico) para detectar se há diferenças significativas nos
+  rankings dos algoritmos.
+\item
+  \textbf{Análise Post-Hoc:} Em caso de rejeição da hipótese nula no
+  teste de Friedman, utiliza-se o teste de \textbf{Nemenyi} para
+  identificar quais pares de algoritmos diferem significativamente entre
+  si.
+\item
+  \textbf{Tamanho de Efeito:} O \textbf{d de Cohen} é calculado para
+  quantificar a magnitude da diferença de desempenho, permitindo
+  distinguir entre melhorias estatisticamente significativas mas
+  irrelevantes na prática, e melhorias com impacto real no tempo de
+  execução.
+\end{enumerate}
+
+\phantomsection\label{fig:stat-flowchart}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{flowchart TD}
+\NormalTok{    Start[("Início: Escolher Teste Estatístico")] {-}{-}\textgreater{} DataType\{Tipo de Dado?\}}
+
+\NormalTok{    DataType {-}{-}\textgreater{}|Contínuo| SampleSize\{Tamanho da Amostra?\}}
+\NormalTok{    DataType {-}{-}\textgreater{}|Ordinal/Rankeado| NonParam[Testes Não{-}Paramétricos]:::nonparametric}
+\NormalTok{    DataType {-}{-}\textgreater{}|Categórico| ChiSquare[Testes Qui{-}Quadrado]:::other}
+
+\NormalTok{    SampleSize {-}{-}\textgreater{}|n \textless{} 20\textless{}br/\textgreater{}Amostra Pequena| SmallN[Obrigatório\textless{}br/\textgreater{}Teste de Normalidade]:::warning}
+\NormalTok{    SampleSize {-}{-}\textgreater{}|20 \textless{}= n \textless{} 30\textless{}br/\textgreater{}Zona Cinzenta| MediumN[Recomendado\textless{}br/\textgreater{}Teste de Normalidade]:::decision}
+\NormalTok{    SampleSize {-}{-}\textgreater{}|n \textgreater{}= 30\textless{}br/\textgreater{}Amostra Grande| LargeN[TCL Aplica{-}se\textless{}br/\textgreater{}Teste Recomendado]:::decision}
+
+\NormalTok{    SmallN {-}{-}\textgreater{} Normality\{Shapiro{-}Wilk\textless{}br/\textgreater{}p \textgreater{}= 0.05?\}:::decision}
+\NormalTok{    MediumN {-}{-}\textgreater{} Normality}
+\NormalTok{    LargeN {-}{-}\textgreater{} Normality}
+
+\NormalTok{    Normality {-}{-}\textgreater{}|Normal| Parametric[Testes Paramétricos]:::parametric}
+\NormalTok{    Normality {-}{-}\textgreater{}|Não{-}Normal| NonParam}
+
+\NormalTok{    Parametric {-}{-}\textgreater{} Groups\{Número de Grupos?\}:::decision}
+\NormalTok{    Groups {-}{-}\textgreater{}|1 grupo| OneSample[Teste t de uma amostra]:::parametric}
+\NormalTok{    Groups {-}{-}\textgreater{}|2 grupos| TwoSample[Pareado ou Independente?]:::decision}
+\NormalTok{    Groups {-}{-}\textgreater{}|\textgreater{}=3 grupos| ANOVA[ANOVA / Kruskal{-}Wallis]:::parametric}
+
+\NormalTok{    NonParam {-}{-}\textgreater{} GroupsNP\{Número de Grupos?\}:::decision}
+\NormalTok{    GroupsNP {-}{-}\textgreater{}|2 pareados| Wilcoxon[Wilcoxon Signed{-}Rank]:::nonparametric}
+\NormalTok{    GroupsNP {-}{-}\textgreater{}|2 independentes| MannWhitney[Mann{-}Whitney U]:::nonparametric}
+\NormalTok{    GroupsNP {-}{-}\textgreater{}|\textgreater{}=3 grupos| Friedman[Friedman / Kruskal{-}Wallis]:::nonparametric}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:stat-flowchart}
+
+Figura\textasciitilde{}\ref{fig:stat-flowchart}: Fluxograma de decisão
+para testes estatísticos.
+
+\phantomsection\label{fig:results-flowchart}%
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{flowchart TD}
+\NormalTok{    \%\% Nodes}
+\NormalTok{    Start([Início: Análise de Resultados])}
+
+\NormalTok{    subgraph S1 ["Estrato 1: Pequenos (n\_coords \textless{} 100)"]}
+\NormalTok{        S1\_Test[Friedman Test]}
+\NormalTok{        S1\_Result\{p = 0.086\}}
+\NormalTok{        S1\_Conc[Inconclusivo\textless{}br/\textgreater{}Poder Estatístico Baixo]}
+\NormalTok{    end}
+
+\NormalTok{    subgraph S2 ["Estrato 2: Todos GPU{-}Only"]}
+\NormalTok{        S2\_Test[Friedman Test]}
+\NormalTok{        S2\_Result\{p \textless{} 0.001\}}
+\NormalTok{        S2\_Nemenyi[Nemenyi Post{-}Hoc]}
+\NormalTok{        S2\_Conc["FullGPU \textgreater{} Híbridos\textless{}br/\textgreater{}(Diferença Significativa)"]}
+\NormalTok{    end}
+
+\NormalTok{    subgraph Perf [Performance \& Speedup]}
+\NormalTok{        Speedup\_HO[HybridOptimized: \textasciitilde{}5.69×]}
+\NormalTok{        Speedup\_FG[FullGPU: \textasciitilde{}1.2x]}
+\NormalTok{        Tradeoff[Trade{-}off: HybridOptimized = Velocidade\textless{}br/\textgreater{}FullGPU = Qualidade]}
+\NormalTok{    end}
+
+\NormalTok{    \%\% Flow}
+\NormalTok{    Start {-}{-}\textgreater{} S1}
+\NormalTok{    S1\_Test {-}{-}\textgreater{} S1\_Result {-}{-}\textgreater{}|Não Sig.| S1\_Conc}
+
+\NormalTok{    Start {-}{-}\textgreater{} S2}
+\NormalTok{    S2\_Test {-}{-}\textgreater{} S2\_Result {-}{-}\textgreater{}|Sig.| S2\_Nemenyi {-}{-}\textgreater{} S2\_Conc}
+
+\NormalTok{    S2\_Conc {-}.{-}\textgreater{} Tradeoff}
+\NormalTok{    Speedup\_HO {-}{-}\textgreater{} Tradeoff}
+\NormalTok{    Speedup\_FG {-}{-}\textgreater{} Tradeoff}
+\end{Highlighting}
+\end{Shaded}
+
+\refstepcounter{figure}\label{fig:results-flowchart}
+
+Figura\textasciitilde{}\ref{fig:results-flowchart}: Fluxo de análise dos
+resultados.
+
+\section{Capítulo 4 -- Resultados}\label{cap4-resultados}
+
+Este capítulo apresenta os resultados experimentais obtidos a partir da
+execução das quatro variantes do algoritmo memético GA+\(2\)-opt (CPU,
+Híbrido-Ingênuo, Híbrido-Otimizado e FullGPU) sobre o conjunto de 38
+instâncias da TSPLIB. A análise é dividida em três partes principais:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  uma avaliação detalhada por instância, destacando o comportamento para
+  diferentes tamanhos de problema;
+\item
+  uma análise agregada, focada nas métricas de ganho de performance e
+  qualidade média das soluções; e
+\item
+  a aplicação dos testes estatísticos descritos no Capítulo 3 para
+  validar as diferenças de desempenho observadas.
+\end{enumerate}
+
+\subsection{4.1 Resultados
+Experimentais}\label{sec-41-resultados-experimentais}
+
+Os experimentos foram conduzidos conforme o protocolo definido na Seção
+3.3, com 26 repetições independentes para cada par algoritmo-instância.
+Para as instâncias pequenas (\(n_{coords} \le 100\)), todas as quatro
+variantes foram executadas. Para instâncias médias e grandes
+(\(n_{coords} > 100\)), a variante puramente em CPU foi omitida devido
+ao tempo de execução proibitivo, mantendo-se a comparação entre as três
+variantes aceleradas por GPU.
+
+As métricas primárias coletadas foram:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Tempo Médio de Execução (s):} Tempo total para completar a
+  execução por repetição.
+\item
+  \textbf{Gap Médio (\%):} Desvio percentual do custo da melhor solução
+  encontrada em relação ao ótimo conhecido da instância.
+\item
+  \textbf{Ganho de Performance:} Razão entre o tempo de execução da
+  variante de referência (CPU ou Híbrido-Ingênuo) e a variante avaliada.
+\end{itemize}
+
+\subsection{4.2 Análise por
+Instância}\label{sec-42-analise-por-instancia}
+
+A Tabela\textasciitilde{}\ref{tbl:results-detailed} apresenta os
+resultados detalhados para uma seleção representativa de instâncias,
+cobrindo as três faixas de tamanho definidas.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1212}}
+  >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1515}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1212}}
+  >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1515}}
+  >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1515}}
+  >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1515}}
+  >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.1515}}@{}}
+\caption{Resultados detalhados por instância (Seleção)
+\label{tbl:results-detailed}}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Instância
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Tamanho (\(n_{coords}\))
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Algoritmo
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Custo Médio (\(\pm \sigma\))
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Gap Médio (\%)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Tempo Médio (s)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Ganho de Perf.
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Instância
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Tamanho (\(n_{coords}\))
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Algoritmo
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Custo Médio (\(\pm \sigma\))
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Gap Médio (\%)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Tempo Médio (s)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Ganho de Perf.
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{berlin52} & 52 & CPU & $7554,65 \pm 22,93$ & 0,17 & 25,82 & 1,00x \\
+& & HybridNaive & $7547,31 \pm 14,45$ & 0,07 & 0,57 & 45,3x \\
+& & HybridOptimized & $7557,85 \pm 23,91$ & 0,21 & 0,11 & 234,7x \\
+& & FullGPU & $7542,00 \pm 0,00$ & 0,00 & 0,25 & 103,3x \\
+\textbf{kroA100} & 100 & CPU & $21382,88 \pm 62,04$ & 0,47 & 185,08 &
+1,00x \\
+& & HybridNaive & $21382,38 \pm 63,30$ & 0,47 & 1,81 & 102,3x \\
+& & HybridOptimized & $21364,23 \pm 65,23$ & 0,39 & 0,30 & 616,9x \\
+& & FullGPU & $21285,23 \pm 4,90$ & 0,02 & 1,37 & 135,1x \\
+\textbf{pr1002} & 1002 & HybridNaive & $279875,50 \pm 3210,15$ & 8,04 &
+696,05 & 1,00x \\
+& & HybridOptimized & $279184,62 \pm 2789,63$ & 7,77 & 374,50 & 1,86x \\
+& & FullGPU & $269776,77 \pm 743,93$ & \textbf{4,14} & 758,40 & 0,92x \\
+\end{longtable}
+
+Para instâncias pequenas como \texttt{berlin52} e \texttt{kroA100},
+observa-se um ganho de performance massivo da variante
+\textbf{HybridOptimized} em relação à CPU (chegando a mais de 600x no
+caso de \texttt{kroA100}). Isso demonstra a eficiência da paralelização
+em lote do \(2\)-opt, que amortiza o custo de lançamento de kernels. A
+variante \textbf{FullGPU}, embora muito mais rápida que a CPU, apresenta
+um \emph{overhead} inicial maior que a HybridOptimized para problemas
+muito pequenos, devido à gestão de memória residente.
+
+Para instâncias grandes como \texttt{pr1002}, o cenário muda. A variante
+\textbf{HybridOptimized} mantém a liderança em tempo de execução (1.86x
+mais rápida que a Naive), mas a variante \textbf{FullGPU} destaca-se na
+\textbf{qualidade da solução}, obtendo um gap médio de 4,14\% contra
+7,77\% da otimizada. Curiosamente, o tempo da FullGPU em instâncias
+muito grandes aproxima-se ou até excede o da variante Naive em alguns
+casos. Na ausência de dados empíricos extraídos por ferramentas de \emph{profiling}
+de \emph{hardware}, as causas exatas dessa degradação de velocidade em instâncias
+grandes permanecem em aberto. Os fatores podem estar relacionados tanto à
+natureza do algoritmo genético escolhido quanto a limitações arquiteturais da
+GPU, e a investigação detalhada dessas hipóteses constitui trabalho futuro
+(ver Seção~\ref{sec-61-trabalhos-futuros}). Ainda assim, a permanência dos
+dados no dispositivo evita as barreiras de latência do barramento PCIe,
+favorecendo uma exploração ininterrupta que converge estatisticamente para
+melhores ótimos locais.
+
+\subsection{4.3 Análise Agregada e
+Trade-offs}\label{sec-43-analise-agregada}
+
+Ao agregar os resultados de todas as 38 instâncias, emergem padrões
+claros de desempenho que caracterizam o \emph{trade-off} entre
+velocidade e qualidade.
+
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2105}}
+  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}
+  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}
+  >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2632}}@{}}
+\caption{Médias Agregadas (Todas as Instâncias)
+\label{tbl:results-aggregated}}\tabularnewline
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Algoritmo
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Tempo Médio (s)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Gap Médio ($\pm \sigma$\%)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Ganho de Perf. Mediano
+\end{minipage} \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Algoritmo
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Tempo Médio (s)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Gap Médio ($\pm \sigma$\%)
+\end{minipage} & \begin{minipage}[b]{\linewidth}\centering
+Ganho de Perf. Mediano
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{HybridNaive} & 47,08 & $1,28 \pm 1,68$ & 1,00x \\
+\textbf{HybridOptimized} & 18,94 & $1,30 \pm 1,78$ &
+\textbf{5,69x} \\
+\textbf{FullGPU} & 43,51 & $\mathbf{0,88 \pm 1,14}$ & 1,21x \\
+\end{longtable}
+
+% TODO (Ação 1.1): TABELAS INVALIDADAS — Os dados acima foram coletados com aritmética
+% float32 (imprecisa) e assimetria paramétrica (FullGPU: 50 iterações de 2-opt vs 10
+% para as demais). Os valores de gap e σ devem ser recalculados após a conversão para
+% int32 (Ação 3.1, concluída) e a normalização do parâmetro two_opt_iterations.
+% Re-execução pendente.
+
+A análise da Tabela\textasciitilde{}\ref{tbl:results-aggregated} revela
+duas conclusões fundamentais:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{HybridOptimized é a campeã de velocidade:} Com um ganho de
+  performance mediano por instância de \textbf{5,69x} sobre a versão
+  ingênua, esta variante comprova que a estratégia de processamento em
+  lote (\emph{batch processing}) é a mais eficaz para reduzir o tempo
+  total de execução. Ao enviar a população inteira para a GPU de uma só
+  vez, minimiza-se a latência de comunicação PCIe, gargalo crítico em
+  arquiteturas híbridas.
+\item
+  \textbf{FullGPU é a campeã de qualidade:} Com um gap médio de
+  $\mathbf{0,88\% \pm 1,14}$, a versão totalmente residente em GPU supera
+  as variantes híbridas (1,28\% e 1,30\%, respectivamente). Uma explicação
+  direta é que a variante FullGPU foi executada nos \emph{benchmarks}
+  originais com 50 iterações de busca $2$-opt por indivíduo, contra apenas
+  10 nas variantes híbridas e CPU (ver TODOs Pendentes). Essa assimetria
+  favorece a convergência para melhores ótimos locais. O fato
+  de que a variante Híbrida Otimizada — que também elimina transferências
+  repetidas via processamento em lote — não atinja a mesma qualidade
+  corrobora a hipótese de que o número superior de iterações é o fator
+  determinante, e não apenas a permanência dos dados na GPU.
+\end{enumerate}
+
+Para validar estatisticamente as diferenças de qualidade (Gap) entre as
+variantes implementadas em GPU (para todas as 38 instâncias), aplicou-se
+o teste não-paramétrico de Friedman. O teste rejeitou a hipótese nula
+com alta confiança (\(p \approx 6,9 \times 10^{-5}\)), confirmando que
+há diferença global significativa no ranqueamento de desempenho. Em
+seguida, o pós-teste de Nemenyi determinou pareadamente quais diferenças
+são reais: a variante FullGPU mostrou-se estatisticamente superior à
+HybridNaive (\(p \approx 0,00028\)) e à HybridOptimized
+(\(p \approx 0,00071\)). Contudo, não houve diferença estatística
+significativa entre as duas versões híbridas (\(p \approx 0,97\)). Isso
+atesta que o incremento de qualidade da abordagem puramente residente
+não é estocástico, mas sim estrutural.
+
+\subsection{4.4 Melhor Algoritmo por Categoria de
+Tamanho}\label{sec-44-melhor-algoritmo}
+
+A Tabela\textasciitilde{}\ref{tbl:best-algorithm} segmenta o desempenho
+``vencedor'' por faixa de tamanho da instância, considerando o critério
+de menor \emph{gap} (qualidade).
+
+\begin{longtable}[]{@{}llc@{}}
+\caption{Melhor Algoritmo (Menor Gap) por Tamanho
+\label{tbl:best-algorithm}}\tabularnewline
+\toprule\noalign{}
+Categoria & Melhor Algoritmo & Gap Médio \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+Categoria & Melhor Algoritmo & Gap Médio \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Pequeno (\(n_{coords} \le 100\))} & \textbf{FullGPU} & 0,23\% \\
+\textbf{Médio (\(100 < n_{coords} \le 400\))} & \textbf{FullGPU} &
+0,79\% \\
+\textbf{Grande (\(n_{coords} > 400\))} & \textbf{FullGPU} & 2,83\% \\
+\end{longtable}
+
+A dominância da variante \textbf{FullGPU} em todas as categorias de
+tamanho reforça a observação de que a arquitetura residente é superior
+para a qualidade da solução final. Mesmo que a variante
+\textbf{HybridOptimized} seja mais rápida, ela tende a ficar presa em
+ótimos locais ligeiramente piores com mais frequência. Isso sugere que,
+para aplicações onde a qualidade da rota é crítica e o tempo de resposta
+é secundário (mas ainda deve ser razoável), a abordagem FullGPU é a
+recomendada. Para cenários de tempo real ou onde o \emph{throughput} é
+prioritário, a HybridOptimized é a escolha ideal.
+
+% TODO (Ação 1.1): CONCLUSÃO INVALIDADA — A "dominância da FullGPU em todas as
+% categorias" pode ser artefato direto da assimetria paramétrica (50 vs 10 iterações
+% de 2-opt). Após re-execução com parâmetros normalizados (Ação 3.1), esta seção
+% deve ser reavaliada. A superioridade pode se manter, diminuir ou inverter.
+
+\chapter{Discussão}\label{sec:discussao}
+
+Os resultados validados no Capítulo 4 confirmam a hipótese de que o uso de GPUs acelera significativamente meta-heurísticas para o TSP. Contudo, demonstram que "usar GPU" não é uma solução trivial ou monolítica: a forma como a paralelização e o tráfego de dados são arquitetados define o perfil de desempenho de maneira categórica.
+
+A abordagem \textbf{Híbrida Ingênua (Naive)}, embora funcional, sofre severamente com o gargalo de comunicação PCIe, servindo essencialmente como um modelo base metodológico. A abordagem \textbf{Híbrida Otimizada (Batch)}, ao processar avaliações em lotes, minimizou o custo de transferência e entregou a maior velocidade bruta, sendo ideal para aplicações práticas que exijam resposta rápida. Por sua vez, a abordagem \textbf{Totalmente Residente (FullGPU)} obteve o melhor refinamento médio das soluções (menor \emph{gap}), indicando que a eliminação total do \emph{overhead} de comunicação permite que a GPU concentre seus recursos na efetiva exploração do espaço de busca. A inviabilidade da execução da CPU para instâncias $n_{coords} > 100$ no desenho experimental atual reforça a utilidade da aceleração em hardware para a resolução de problemas de roteamento de médio e grande porte.
+
+\section{Limitações da Análise de Desempenho}\label{sec-51-limitacoes-profiling}
+
+A presente análise de desempenho baseia-se exclusivamente em medições macroscópicas de tempo total de execução, sem utilizar ferramentas de \emph{profiling} de hardware como o \emph{NVIDIA Nsight Compute}. Tais ferramentas, embora capazes de fornecer contadores detalhados por kernel (ocupação, pressão de registradores, divergência de \emph{warps}), serializam a execução dos kernels e exigem múltiplos passes de repetição, o que distorce substancialmente o tempo real em algoritmos iterativos de longa duração como o GA aqui implementado \autocite{nvidia2024cuda}.
+
+Consequentemente, as hipóteses levantadas sobre causas arquiteturais no Capítulo~4 permanecem como conjecturas a serem validadas. Uma abordagem menos intrusiva, como o uso de temporizadores via primitivas CUDA na camada Python/CuPy, será avaliada como alternativa prática de instrumentação.
+
+\section{Comparação com o Estado da Arte}\label{sec-52-comparacao-estado-arte}
+
+Embora as abordagens paralelas desenvolvidas tenham alcançado alta velocidade de execução, é importante situar as limitações do GA+$2$-opt implementado frente ao estado da arte contemporâneo no TSP. Algoritmos dedicados e altamente especializados, notadamente o algoritmo LKH-3 \autocite{helsgaun2000effective} e o algoritmo genético baseado em Edge Assembly Crossover (EAX) \autocite{nagata2013powerful}, rotineiramente atingem $0\%$ de \emph{gap} (garantindo a solução ótima) na esmagadora maioria das instâncias padrão da TSPLIB. 
+
+O GA+$2$-opt aqui explorado adota operadores canônicos e uma arquitetura base focada na investigação didática das relações de custo-benefício da programação paralela. Consequentemente, este trabalho foca na comparação entre as variantes do mesmo algoritmo (analisando os ganhos estruturais de cada estratégia de implantação), e não na competição isolada por poder de refinamento contra as meta-heurísticas de última geração que utilizam buscas como $5$-opt ou estratégias dinâmicas complexas de vizinhança. Uma investigação futura poderia avaliar a integração de operadores mais sofisticados (como o LK-move) às implementações em GPU, visando estreitar essa lacuna de qualidade.
+
+\section*{TODOs Pendentes}
+
+\begin{itemize}
+    \item \textbf{Injustiça Paramétrica (Limite de Iterações no 2-opt):} Foi identificado que a variante \texttt{FULLGPU} foi executada nos experimentos originais com 50 passos rígidos na busca local, contra apenas 10 iterações na versão base da CPU e das abordagens híbridas. O parâmetro \texttt{two\_opt\_iterations} já foi ajustado no código (\texttt{ga\_fujimoto.cu}), sendo agora imprescindível a re-execução dos experimentos para obter um ranqueamento de lacunas (ìndice \emph{gap}) estritamente iso-algorítmico.
+    \item \textbf{Análise Gráfica da Variância:} Investigar graficamente a distribuição da variância e dos valores atípicos da lacuna reportados na Tabela 2, com enfoque especial na assimetria e desvios padrão que se apresentaram matematicamente anômalos.
+    \item \textbf{Instrumentação via Eventos CUDA:} Implementar temporizadores não-intrusivos via primitivas de eventos CUDA na camada Python/CuPy para medir a duração individual de cada núcleo de execução sem a distorção causada pelo \emph{Nsight Compute} \autocite{nvidia2024cuda}. Esta é uma etapa prioritária para identificar os gargalos reais na GPU antes de qualquer outra investigação arquitetural.
+    \item \textbf{Investigação de Pressão de Registradores:} Validar, via \emph{NVIDIA Nsight Compute}, se a alta demanda de registradores pelos núcleos de execução do algoritmo memético (especialmente o cruzamento OX e a busca $2$-opt) reduz a ocupação dos Multiprocessadores de Fluxo (SMs) e contribui para a degradação de velocidade em instâncias grandes.
+    \item \textbf{Investigação de Divergência de Grupos de Execução:} Avaliar empiricamente se a natureza sequencial do operador de cruzamento OX --- com laços condicionais dependentes de dados --- causa serialização excessiva dentro dos grupos de 32 linhas de execução (\emph{warps}), impactando a vazão efetiva.
+    \item \textbf{Análise de Complexidade Algorítmica vs.\ Arquitetural:} Separar formalmente a contribuição de limitações do algoritmo memético escolhido --- incluindo todas as suas fases: geração da população inicial, seleção, cruzamento (OX), mutação e busca local ($2$-opt) --- do impacto de limitações de \emph{hardware} da GPU. Considerar também a exploração de variantes algorítmicas alternativas (outros operadores de cruzamento, mutação adaptativa, buscas locais mais agressivas) que possam ser intrinsecamente mais adequadas à arquitetura paralela massiva.
+\end{itemize}
+
+\chapter{Conclusões e Trabalhos Futuros}\label{cap6-conclusoes}
+
+O presente relatório documenta o progresso na investigação e quantificação dos benefícios de portar um Algoritmo Memético (GA+2-opt) para GPU visando resolver o Problema do Caixeiro Viajante. O desenvolvimento sistemático de quatro variantes (CPU, Híbrida Ingênua, Híbrida Otimizada em lotes e Totalmente Residente na GPU) confirmou que a placa de vídeo acelera o processo decisivamente, contanto que o gargalo de comunicação com a placa mãe seja evitado. Os resultados atuais refletem as escolhas específicas de cada fase do algoritmo memético --- geração da população, seleção, cruzamento (OX), mutação e busca local ($2$-opt) --- e a investigação de variantes alternativas para cada uma dessas fases constitui trabalho futuro relevante.
+
+Os resultados empíricos validados sobre as 38 instâncias da biblioteca TSPLIB demonstraram que a minimização da transferência de dados é o fator primordial de sucesso. A variante \textbf{GA-Híbrido-Otimizado} destacou-se pela velocidade (ganho mediano de até 5,69$\times$ e milhares de vezes mais rápida que a execução sequencial), sendo a abordagem recomendada quando a urgência da resposta e a vazão de processamento são prioritárias. Por outro lado, a versão \textbf{GA-FullGPU} garantiu o melhor refinamento médio de rotas ($0,88\%$ de gap), comprovando que alocar todos os dados na VRAM da placa de vídeo evita interrupções disruptivas causadas pelo barramento PCIe. 
+
+\section{Trabalhos Futuros}\label{sec-61-trabalhos-futuros}
+
+O aprofundamento das investigações da arquitetura CUDA para problemas de roteamento apresenta caminhos lógicos imediatos. Como extensões práticas deste trabalho, sugerem-se:
+
+\begin{itemize}
+    \item \textbf{Implementação de Ferramentas de Perfilação Adequadas:} Como o monitoramento com o \emph{NVIDIA Nsight Compute} pode ser excessivamente intrusivo \autocite{nvidia2024cuda}, propõe-se avaliar contornos práticos de instrumentação de \emph{software} (como temporizadores via eventos CUDA na camada Python) para cronometrar a nível de núcleo de execução e isolar falhas de ocupação sem distorcer o tempo real de execução \autocite{kirk2010programming}.
+    \item \textbf{Aprimoramento via Primitivas de Comunicação Intra-grupo:} Refatorar o operador de cruzamento ordenado (OX), que lida de forma imperativa com a construção vetorial, para aplicar as chamadas de comunicação direta entre linhas de execução ($\operatorname{__shfl\_sync}$) \autocite{nvidia2024cuda}. Essa abordagem tem o potencial de reduzir a divergência de execução dentro do grupo, pois compartilharia o dado via registradores diretamente entre as linhas de execução \autocite{harris2007optimizing}.
+    \item \textbf{Padronização para Aritmética de Inteiros Discretos:} Substituir todos os cálculos geométricos euclidianos que dependem de ponto flutuante contínuo (\emph{float64}) por rotinas de cálculo com inteiros (\emph{int64}), alinhando estritamente a matemática das distâncias à função de arredondamento (\texttt{nint}) definida na documentação canônica da TSPLIB \autocite{reinelt1991tsplib}. Isso extinguirá pequenas flutuações e erros de aproximação causados pela aceleração vetorial em GPU.
+    \item \textbf{Exploração de Variantes Algorítmicas:} Investigar operadores alternativos para cada fase do algoritmo memético --- cruzamento (PMX, CX), mutação adaptativa, buscas locais mais agressivas (Or-opt, $3$-opt) --- visando identificar combinações intrinsecamente mais adequadas à arquitetura paralela massiva da GPU \autocite{larranaga1999genetic, fujimoto2011highly}.
+\end{itemize}
+
+\printbibliography
+
+\end{document}

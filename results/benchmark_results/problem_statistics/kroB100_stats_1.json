@@ -1,0 +1,245 @@
+{
+  "problem_info": {
+    "name": "kroB100",
+    "size": 100,
+    "optimal_cost": 22141
+  },
+  "algorithms": {
+    "CPU": {
+      "mean_time": 283.6717699151333,
+      "std_time": 133.61009562674084,
+      "mean_initial_cost": 145496.06666666668,
+      "std_initial_cost": 3747.2860306567945,
+      "mean_cost": 22156.466666666667,
+      "std_cost": 25.64856504541509,
+      "mean_gap": 0.06985532119898229,
+      "std_gap": 0.11584194501339187,
+      "mean_generations": 30.0,
+      "std_generations": 22.271057451320086,
+      "success_rate": 1.0,
+      "backend": "CPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "HybridNaive": {
+      "mean_time": 3.132805906266731,
+      "std_time": 2.69656655814741,
+      "mean_initial_cost": 145125.66666666666,
+      "std_initial_cost": 3904.7492905719596,
+      "mean_cost": 22148.733333333334,
+      "std_cost": 19.716208785892103,
+      "mean_gap": 0.034927660599491143,
+      "std_gap": 0.0890484114804756,
+      "mean_generations": 19.8,
+      "std_generations": 16.994901196143115,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "HybridOptimized": {
+      "mean_time": 0.6401677523999145,
+      "std_time": 0.5358828194212103,
+      "mean_initial_cost": 145502.33333333334,
+      "std_initial_cost": 2040.589348420914,
+      "mean_cost": 22152.6,
+      "std_cost": 23.2,
+      "mean_gap": 0.05239149089923671,
+      "std_gap": 0.10478298179847344,
+      "mean_generations": 23.866666666666667,
+      "std_generations": 20.155616807453175,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "FullGPU": {
+      "mean_time": 1.9982001911994303,
+      "std_time": 0.42715494326495146,
+      "mean_initial_cost": 138109.0,
+      "std_initial_cost": 0.0,
+      "mean_cost": 22196.133333333335,
+      "std_cost": 33.99973856108635,
+      "mean_gap": 0.24901013203257913,
+      "std_gap": 0.15356008563789508,
+      "mean_generations": 0.0,
+      "std_generations": 0.0,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "kroB100",
+    "optimal_cost": 22141,
+    "baseline_algorithm": "CPU",
+    "friedman_test": {
+      "statistic": 21.000000000000025,
+      "p_value": 0.00010527618177149643,
+      "significant": true,
+      "post_hoc_required": true
+    },
+    "nemenyi_posthoc": {
+      "critical_distance": 1.7126878483643215,
+      "mean_ranks": {
+        "CPU": 2.2666666666666666,
+        "HybridNaive": 2.066666666666667,
+        "HybridOptimized": 2.1,
+        "FullGPU": 3.566666666666667
+      },
+      "algorithm_names": [
+        "CPU",
+        "HybridNaive",
+        "HybridOptimized",
+        "FullGPU"
+      ],
+      "significant_pairs": [
+        {
+          "algorithm_i": "CPU",
+          "algorithm_j": "FullGPU",
+          "p_value": 0.029698861675532706,
+          "rank_difference": 1.3000000000000003
+        },
+        {
+          "algorithm_i": "HybridNaive",
+          "algorithm_j": "FullGPU",
+          "p_value": 0.00797513830642127,
+          "rank_difference": 1.5
+        },
+        {
+          "algorithm_i": "HybridOptimized",
+          "algorithm_j": "FullGPU",
+          "p_value": 0.010064652949643649,
+          "rank_difference": 1.4666666666666668
+        }
+      ]
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "CPU vs HybridNaive",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.31731050786291415,
+        "mean_difference": 7.733333333333333,
+        "ci_95_lower": -8.853017053224235,
+        "ci_95_upper": 24.319683719890904,
+        "cohens_d": 0.3265986323711006,
+        "normality_p_value_a": 1.1387801358115803e-05,
+        "normality_p_value_b": 7.525470283025256e-07,
+        "p_value_corrected": 0.9519315235887424,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "CPU vs HybridOptimized",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.5637028616507731,
+        "mean_difference": 3.8666666666666667,
+        "ci_95_lower": -10.8355615672786,
+        "ci_95_upper": 18.568894900611934,
+        "cohens_d": 0.15275252316527133,
+        "normality_p_value_a": 1.1387801358115803e-05,
+        "normality_p_value_b": 3.48098581494472e-06,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "CPU vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.002816952498092646,
+        "mean_difference": -39.666666666666664,
+        "ci_95_lower": -64.15918680626069,
+        "ci_95_upper": -15.17414652707263,
+        "cohens_d": -1.2725084340052084,
+        "normality_p_value_a": 1.1387801358115803e-05,
+        "normality_p_value_b": 0.11903450539251659,
+        "p_value_corrected": 0.011267809992370583,
+        "significant_after_correction": true,
+        "effect_interpretation": "large"
+      },
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.5637028616507731,
+        "mean_difference": -3.8666666666666667,
+        "ci_95_lower": -18.568894900611934,
+        "ci_95_upper": 10.835561567278601,
+        "cohens_d": -0.17351520648546626,
+        "normality_p_value_a": 7.525470283025256e-07,
+        "normality_p_value_b": 3.48098581494472e-06,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.0018531690755884,
+        "mean_difference": -47.4,
+        "ci_95_lower": -71.25837346970852,
+        "ci_95_upper": -23.541626530291474,
+        "cohens_d": -1.6477377538233375,
+        "normality_p_value_a": 7.525470283025256e-07,
+        "normality_p_value_b": 0.11903450539251659,
+        "p_value_corrected": 0.009265845377941999,
+        "significant_after_correction": true,
+        "effect_interpretation": "large"
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.001490753058685896,
+        "mean_difference": -43.53333333333333,
+        "ci_95_lower": -64.70971549741463,
+        "ci_95_upper": -22.356951169252035,
+        "cohens_d": -1.4450075672933707,
+        "normality_p_value_a": 3.48098581494472e-06,
+        "normality_p_value_b": 0.11903450539251659,
+        "p_value_corrected": 0.008944518352115377,
+        "significant_after_correction": true,
+        "effect_interpretation": "large"
+      }
+    ]
+  }
+}

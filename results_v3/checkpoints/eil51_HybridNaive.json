@@ -1,0 +1,74 @@
+{
+  "algorithm": "HybridNaive",
+  "repetitions": 2,
+  "successful_runs": 2,
+  "mean_time": 0.7904096319980454,
+  "std_time": 0.1605502339953091,
+  "min_time": 0.6298593980027363,
+  "max_time": 0.9509598659933545,
+  "mean_cost": 428.0,
+  "std_cost": 1.0,
+  "best_cost": 427.0,
+  "worst_cost": 429.0,
+  "mean_initial_cost": 1376.5,
+  "std_initial_cost": 33.5,
+  "mean_gap": 0.4694835680751174,
+  "std_gap": 0.23474178403755872,
+  "best_gap": 0.2347417840375587,
+  "mean_improvement": 68.88645089061748,
+  "mean_generations": 5.5,
+  "std_generations": 0.5,
+  "min_generations": 5.0,
+  "max_generations": 6.0,
+  "mean_h2d_mb": 0.344454,
+  "mean_d2h_mb": 0.287232,
+  "total_transfer_mb": 0.631686,
+  "mean_kernels": 14080.0,
+  "raw_times": [
+    0.9509598659933545,
+    0.6298593980027363
+  ],
+  "raw_initial_costs": [
+    1343.0,
+    1410.0
+  ],
+  "raw_costs": [
+    429.0,
+    427.0
+  ],
+  "raw_gaps": [
+    0.7042253521126761,
+    0.2347417840375587
+  ],
+  "raw_generations": [
+    5,
+    6
+  ],
+  "raw_stop_reasons": [
+    "hit_optimal",
+    "hit_optimal"
+  ],
+  "raw_seeds": [
+    957733790,
+    1568156499
+  ],
+  "problem_name": "eil51",
+  "problem_size": 51,
+  "optimal_cost": 426.0,
+  "max_generations_configured": 728,
+  "backend": "GPU",
+  "timestamp": "2025-11-28T00:20:27.614222",
+  "algorithm_config": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "tournament_size": 5,
+    "two_opt_iterations": 10,
+    "seed": 42
+  },
+  "strategies": {
+    "selection": "TournamentSelection",
+    "crossover": "OrderCrossover",
+    "mutation": "SwapMutation"
+  },
+  "construction_heuristic": "random_initialization"
+}

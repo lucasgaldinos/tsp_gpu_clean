@@ -1,0 +1,234 @@
+\documentclass[
+    openany,
+    12pt,
+    a4paper,
+    twoside,
+    english,
+    brazil, sumario=tradicional
+]{/home/lucas_galdino/Desktop/TCC/planning/abntex2/abntex2}
+
+\usepackage{lmodern}			% Usa a fonte Latin Modern			
+\usepackage[T1]{fontenc}		% Selecao de codigos de fonte.
+\usepackage[utf8]{inputenc}		% Codificacao do documento (conversão automática dos acentos)
+\usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
+\usepackage{color}				% Controle das cores
+\usepackage{graphicx}			% Inclusão de gráficos
+\usepackage{microtype} 			% para melhorias de justificação
+
+\usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
+\usepackage[alf]{/home/lucas_galdino/Desktop/TCC/planning/abntex2/abntex2cite}	% Citações padrão ABNT
+
+% my own changes
+\usepackage{/home/lucas_galdino/Desktop/TCC/planning/abntex2/my_changes}
+
+\usepackage{pgfgantt}
+\usepackage{lscape}
+\usepackage{rotating}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+\titulo{Avaliação de Meta-heurística para solução do TSP utilizando técnicas de Computação de Alto Desempenho}
+% \titlehead{{\centering\includegraphics[width=6cm]{../assets/ufsc-logo.png}}}
+\autor{Lucas Eduardo Galdino Silva}
+\local{Brasil}
+\data{Outubro, 2024}
+\instituicao{%
+  Universidade Federal de Santa Catarina -- UFSC
+  \par
+  Engenharia Mecânica
+}
+\tipotrabalho{Avaliação N2}
+% O preambulo deve conter o tipo do trabalho, o objetivo, 
+% o nome da instituição e a área de concentração 
+\preambulo{Avaliação N2 para conclusão da matéria Planejamento de Trabalho de Curso\\
+}%  \imprimirorientadorRotulo~\imprimirorientador}
+
+
+% informações do PDF
+\makeatletter
+\hypersetup{
+    %pagebackref=true,
+		pdftitle={\@title}, 
+		pdfauthor={\@author},
+    pdfsubject={\imprimirpreambulo},
+	  pdfcreator={\@author},
+		pdfkeywords={abnt}{latex}{abntex}{abntex2}{trabalho acadêmico}, 
+		bookmarksdepth=4
+}
+% let chapter start in any page
+% \@openrightfalse
+\makeatother
+
+% \renewcommand{\cleardoublepage}{}
+
+% Makes abntex2 number the chapters with roman numbers
+% \AtBeginDocument{\aliaspagestyle{chapter}{plain}}
+
+% Makes abntex2 do not start a new page before each chapter
+% \let\oldchapter\chapter
+% \renewcommand{\chapter}{\clearpage\oldchapter}
+
+% \usepackage{titlesec}
+
+% % Redefine the \chapter command to not start on a new page
+% \titleformat{\chapter}[hang]
+%   {\normalfont\huge\bfseries} % Format for chapter title
+%   {\thechapter} % Chapter number
+%   {20pt} % Space between number and title
+%   {\huge} % Format for chapter title text
+
+% \titlespacing*{\chapter}{0pt}{0pt}{20pt} % Adjust spacing before and after
+
+\makeindex
+
+\begin{document}
+
+\selectlanguage{brazil}
+
+% \imprimircapa
+
+\imprimirfolhaderosto*
+
+\pdfbookmark[0]{\contentsname}{toc}
+\tableofcontents
+\cleardoublepage
+
+\cleardoublepage
+\textual
+
+
+
+\chapter{Introdução}
+
+O Problema de Roteamento de Veículos (VRP) é um problema de otimização combinatória que envolve a determinação de rotas eficientes para um conjunto de veículos, com o objetivo de minimizar a distância total percorrida ou o tempo total gasto\@. Esse problema é amplamente estudado na literatura de pesquisa operacional e ciência da computação, e tem aplicações em diversas áreas, como logística, transporte, entrega de mercadorias, coleta de lixo, serviços de emergência e muito mais.
+
+É um problema NP-difícil, o que significa não haver uma solução eficiente conhecida para encontrar a solução ótima em tempo polinomial. 
+
+É um braço de pesquisa do Problema do Caixeiro Viajante (TSP-Traveling Salesman Problem), problema clássico de análise combinatória e otimização, que teve suas primeiras pesquisas com esse nome em 1930, mas que foi formalizado e popularizado em 1956 por George Dantzig, Richard Bellman e Fulkerson. 
+
+Durante seu livro, COOK (In Pursuit Of The Travelling Salesman, \citeyear{pursuit_travelling_salesman}) relata que o TSP é ainda um braço da teoria dos grafos, que é um ramo da matemática responsável por estudar estruturas abstratas chamadas grafos, que consistem em um conjunto de vértices e um conjunto de arestas que conectam esses vértices. O TSP vem do estudo de ciclos hamiltonianos. Eles possuem este nome devido ao matemático irlandês William Rowan Hamilton, que inventou o jogo icosiano, que consiste em buscar uma maneira de visitar todos os vértices de um grafo, sem repetir nenhum e retornar ao vértice de origem.
+
+O projeto consiste em desenvolver e avaliar algumas soluções computacionais para otimização de problemas, comparando métodos tradicionais com métodos de aceleração por GPU (Unidade de processamento gráfico). Tais modificações serão testadas em problemas já explorados na literatura. Uma boa fonte de testes é a TSPLIB~\cite{tsplib_ref}\footnote{Problemas disponíveis em \url{http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/}}, sendo a seção Capacitated vehicle routing problem (CVRP)\footnote{\url{http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/vrp/}} de especial interesse. Além disso, um problema customizado, baseado e aproximado a um problema real também será desenvolvido, de forma simplificada.
+
+O objetivo principal é explorar a eficiência de algoritmos de roteamento de veículos, envolvendo múltiplos fatores que tornam o problema mais realista e aplicável ao mundo real. A solução busca resolver uma variante do Problema de Roteamento de Veículos (VRP), chamada Problema de Roteamento de Veículos com frota variada, com entrega e retirada ou HFVRP (Heterogeneous Fleet Vehicle Routing Problem), que apresenta restrições adicionais, como a diversidade das frotas. Este problema é explorado largamente na literatura, porém análises comparativas para diversas soluções, semelhante ao trabalho de~\citeauthor{voudouris_tsp_comparison} ainda são escassas.
+
+Essa versão específica do problema do VRP exige uma abordagem robusta para minimizar a distância total percorrida pela frota e, simultaneamente, maximizar o número de pedidos entregues. Em um cenário de transporte logístico, o uso de frota heterogênea implica que cada veículo tem características e capacidades distintas, demandando um algoritmo que possa determinar não apenas quais rotas são mais curtas, mas também quais veículos devem ser alocados para cada trajeto, considerando a capacidade de carga dos mesmos e minimizando possíveis custos adicionais.
+
+A escolha pelo uso de softwares de código aberto (utilizando software livres sempre que possível) é outro aspecto importante do projeto. Além de contribuir para a democratização das tecnologias, permitindo que outros pesquisadores e desenvolvedores repliquem e ampliem os resultados, essa abordagem promove a inovação e a colaboração, possibilitando o acesso e a modificação do código para adaptação a diferentes cenários e necessidades específicas.
+
+\chapter{Motivação (Por quê?)}
+
+% Fazer um for loop para uma função latex que gere lista de siglas automaticamente
+A relevância do problema reside em sua aplicabilidade prática em diversos setores, como transporte, logística e distribuição de mercadorias e serviços, podendo, a depender do setor, nível competitivo e tecnológico de uma empresa, a automatização da escolha de rotas representar ganhos significativos, desde que a solução seja escalável. Além disso, tanto o problema proposto — múltiplas restrições e variáveis, além de extensa literatura e soluções propostas —, quanto os presentes em TSPLIB\footnote{\url{http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95}} são desafios computacionais significativos.
+
+Sua ampla aplicabilidade prática em diversos setores, como transporte, logística, distribuição de mercadorias e prestação de serviços, setores pilares de operação para inúmeras empresas, e a otimização de rotas de entrega pode trazer melhorias significativas em termos de custos, tempo de entrega e sustentabilidade ambiental. Por exemplo, em uma cadeia de suprimentos moderna, onde as empresas competem para reduzir prazos de entrega e minimizar despesas, uma solução de roteamento eficiente pode reduzir o número de veículos necessários, otimizar o consumo de combustível e, consequentemente, diminuir as emissões de carbono.
+
+Este problema pertence à classe dos problemas NP-difíceis, o que significa que o tempo de cálculo aumenta exponencialmente com o número de locais e veículos envolvidos. Temos também inúmeras variáveis em um cenário real: capacidades os veículos, diferentes categorias de carga e até fatores externos, como o tráfego e condições climáticas, que precisam ser considerados para uma solução geral realmente eficaz. Assim, o desenvolvimento e estudo de algoritmos e técnicas de otimização se faz necessário do ponto de vista de diversos aspectos econômicos, ecológicos e possivelmente teóricos.
+
+A escolha do VRP como objeto deste trabalho vai além de uma mera curiosidade pelo tema. Observando os ambientes em que já trabalhei, percebi a falta de uma solução mais eficiente e escalável para essa categoria de problemas, sendo uma limitação para muitas empresas, tanto em aspectos de custo quanto de eficiência operacional. Este projeto representa uma oportunidade de colocar em prática os conhecimentos adquiridos durante e fora da graduação, especialmente nas áreas de computação de alto desempenho (HPC), pesquisa operacional e algoritmos de otimização, programação paralela e utilização de ferramentas utilizadas no mercado. O projeto me permitirá aprofundar habilidades nestas áreas, além de outras não citadas, com foco na aplicação prática e no uso de tecnologias de código aberto, sempre que possível. A escolha por ferramentas de código aberto reforça o compromisso com a acessibilidade e a democratização do conhecimento, permitindo que outros pesquisadores e profissionais possam beneficiar-se dos possíveis avanços realizados e aplicá-los em seus próprios contextos.
+
+A experimentação com GPUs e CPUs também me permitirá uma compreensão mais aprofundada sobre a escolha de ferramentas adequadas para diferentes categorias de problemas de análise combinatória, contribuindo para meu crescimento acadêmico e profissional, sendo um diferencial de mercado o uso de técnicas de paralelismo e concorrência.
+
+\chapter{Quem?}
+
+O trabalho será orientado pelo professor Sérgio Fernando Mayerle, professor do Departamento de Engenharia de Produção (EPS). Como relatado no N1 — onde havia citado o interesse no mesmo e também pela sugestão do professor Jonny Carlos da Silva —, o professor Sérgio Mayerle possui extensa pesquisa na área de pesquisa operacional e análise combinatória, tendo sido de extremo auxílio e recomendando possíveis literaturas para melhor definição do tema.
+
+\section{Revisão Bibliográfica}
+
+A revisão bibliográfica foi iniciada, com foco em artigos que abordem o problema de roteamento de veículos e algoritmos que solucionem esse problema de forma eficiente\@. \citeonline{voudouris1999tsp} desenvolveu um trabalho onde avaliava diversos algoritmos, comparando-os em diversas aplicações para problemas VRP propostos na TSPLIB\@. Nele, são exploradas as possíveis melhoras para algoritmos de otimização já utilizados com possíveis implementações utilizando o método de Busca Local Guiada (GLS — Guided Local Search) e Busca Local Rápida (FLS — Fast Local Search) e depois comparando-os\@. \citeonline{mayerle2022longhaul} trabalharam em um problema de roteamento e agendamento para caminhões utilizando heurísticas do tipo \verb|A*|, onde o modelo visava aplicar diferentes implementações desta heurística mudando algumas restrições no algoritmo para o problema que considerava o tempo de serviço máximo permitido pela lei para caminhoneiros\@. \citeonline{benaini2015gpu} discutiram possíveis implementações para um problema de roteamento com múltiplos depósitos utilizando GPUs\@. Ainda, \citeonline{benaini2018genetic} implementaram um algoritmo genético que utilizam GPUs para possíveis soluções de um VRP dinâmico, inserindo novas requisições em rotas já planejadas\@. \citeonline{wang2015parallel} trabalharam em um método de arrefecimento simulado paralelo para resolver uma variação contendo entrega, retirada e janelas de tempo\@. \citeonline{tan2021vehicle} fizeram a revisão de trabalhos publicados entre 2019 a 2021, dividindo os modelos entre três categorias e classificando os algoritmos de cada modelo entre \textbf{exatos, heurísticos e meta-heurísticos}\@. \citeonline{hornstra2020simultaneous} descreveram os processo de retirada e entrega permitindo que a retirada e a entrega possam ser realizados simultaneamente.
+
+Para a solução do problema com múltiplos veículos na frota, \citeonline{gendreau1993tabu} descrevem um algoritmo de busca tabu para uma frota heterogênea (HVRP — Heterogeneous Fleet Vehicle Routing Problem)\@. \citeonline{choi2007columngeneration} apresentam um método de geração de colunas para uma solução do HVRP\@. 
+
+\citeonline{fujimoto2011highly} considera o TSP como sendo o padrão de testes para implementações de novos algoritmos, também trabalhando com técnicas utilizando GPUs para fins de computação não gráfica (General-purpose computing on GPUs). Ele explora a implementação da tradicional heurística da busca local 2-opt somada a meta-heurística algoritmo genético.
+
+\citeonline{simchi2005logic} em seu livro, propõem diversas técnicas de implementação, avaliação, modelagens para problemas de análise combinatória já existentes, sendo atualizado com novas técnicas e cenários em cada nova edição.
+
+\citeonline{rey2018cpu} apresenta uma solução para um VRP capacitado, utilizando uma aproximação híbrida para o algoritmo de colônia de formigas (ACO — Ant Colony Optimization) paralelizado por uma combinação de CPU e GPU\@.
+
+Apesar dos métodos citados anteriormente também serem classificados como inteligência artificial, \citeonline{nazari2018reinforcement} implementa a utilização do aprendizado por reforço — mais semelhante às aplicações de inteligência artificial modernas, mas possivelmente nào a melhor solução atualmente para VRPs — para a solução de um VRP Capacitado (CVRP — Capacitated VRP), permitindo possivelmente a utilização para outros problemas de análise combinatória.
+
+\section{Next revisions}
+
+\citeonline{koczy2018enhanced} explored a novel approach based on an evolutionary algorithm called DBMEA results in 
+
+\chapter{Onde?}
+
+O trabalho será desenvolvido com foco em uma solução de baixo custo, possibilitando ser replicada e testada por outros interessados, de modo a promover o avanço colaborativo e acessível na área de pesquisa operacional. O projeto será realizado em meu computador pessoal, aproveitando-se de uma imagem em \verb|Docker|, que facilitará a configuração do ambiente de desenvolvimento e permitirá a criação de um ambiente controlado e portátil. Esta abordagem tem a vantagem de garantir que o projeto possa ser executado em diferentes máquinas sem a necessidade de ajustes complexos, permitindo que outras pessoas reproduzam e validem os resultados de forma simples.
+
+Os recursos utilizados serão do próprio discente. Uma possível implementação do programa em nuvem, a depender de custos, poderá ser estudada.
+
+\chapter{Metodologia (Como?)}
+
+Para explorar as vantagens da aceleração por GPU, a linguagem principal será \verb|Python|, utilizando bibliotecas como \verb|Numba| e \verb|PyCUDA|, que facilitam a execução de operações intensivas em paralelo na GPU\@. O projeto também pretende integrar implementações em \verb|CUDA c/c++|, de modo a comparar o desempenho e a escalabilidade das soluções desenvolvidas em diferentes linguagens e abordagens de programação paralela. O uso dessas tecnologias permite que o projeto lide com a elevada demanda computacional imposta por grandes volumes de dados e múltiplas variáveis envolvidas na roteirização de veículos.
+
+O processamento de dados poderão ser suportados por bancos de dados como \verb|SQLite3|, por ser facilmente implementado e tendo boa performance para problemas de tamanho médio. Esses bancos de dados também poderão fornecer suporte para Sistemas de Informação Geográfica (GIS), essenciais para processar as coordenadas geoespaciais dos pontos de entrega e coleta, bem como para construir mapas e rotas que permitam uma visualização clara dos resultados.
+
+O objetivo principal deste trabalho é testar e comparar o desempenho das soluções para o problema de roteamento de veículos, utilizando diferentes algoritmos de otimização implementados para cálculo paralelo. Em particular, serão utilizadas plataformas de computação paralela como processadores gráficos (GPUs) e processadores de múltiplos núcleos (CPUs) para explorar e avaliar a eficiência dos métodos propostos. O uso de GPUs permite que cálculos intensivos sejam distribuídos entre milhares de núcleos de processamento, acelerando operações complexas que seriam inviáveis núcleos limitados, principalmente operações envolvendo matrizes. Da mesma forma, a utilização de CPUs com múltiplos núcleos permite o processamento simultâneo de diferentes tarefas e processos, o que é vantajoso para algoritmos que necessitam manipular grandes volumes de dados. A comparação permitirá avaliar a escalabilidade e a adaptabilidade das soluções propostas, além de identificar as vantagens e os desafios associados a cada tipo de implementações de cálculo paralelo. A análise dessas variáveis também permitirá uma compreensão mais profunda sobre que tipo de hardware melhor se adapta a problemas complexos de roteamento de veículos.
+
+Os trabalhos de \citeonline{tan2021vehicle,rey2018cpu,simchi2005logic,mayerle2022longhaul,voudouris1999tsp} serão de fundamental importância para desenvolvimento do trabalho.
+
+Os algoritmos a serem comparados serão separados entre heurísticas e meta-heurísticas, e duas combinações entre estas, ainda não exploradas para este propósito, escolhidas.
+
+\chapter{Data esperada para desenvolvimento (Quando?)}
+
+\begin{figure}[h!]
+  \begin{center} 
+    % \begin{sideways}
+      \begin{ganttchart}[
+      x unit = 0.5cm,
+      y unit chart=1cm,
+      vgrid={*3{draw=none}, {red}},
+      hgrid,
+      title/.style={draw=none, fill=none},
+      title label font=\bfseries\footnotesize,
+      title label anchor/.style={below=-1.6ex},
+      include title in canvas=false,
+      bar/.style={fill=blue!50},
+      bar height=0.6,
+      group/.style={fill=blue!30},
+      milestone/.style={fill=red!50},
+      link/.style={-latex, thick}
+      ]{1}{24} % 6 meses dividido em semanas (aproximadamente 4 semanas por mês)
+  
+      % Titulos das semanas
+      \gantttitle{Dezembro}{4}
+      \gantttitle{Janeiro}{4}
+      \gantttitle{Fevereiro}{4}
+      \gantttitle{Março}{4}
+      \gantttitle{Abril}{4}
+      \gantttitle{Maio}{4} \\
+
+      % Tarefas
+      \ganttgroup[progress=70]{\parbox{4cm}{Planejamento e Revisão Bibliográfica}}{1}{4} \\
+      \ganttbar{\parbox{4cm}{Definição do problema e objetivos}}{1}{2} \\
+      \ganttbar{\parbox{4cm}{Leitura de referências}}{3}{4} \\
+      
+      \ganttgroup{\parbox{4cm}{Definição Metodológica e Design}}{5}{8} \\
+      \ganttbar{\parbox{4cm}{Definição dos problemas a serem testados}}{5}{6} \\
+      \ganttbar{\parbox{4cm}{Definição final dos algoritmos utilizados}}{7}{8} \\
+      
+      \ganttgroup{\parbox{4cm}{Implementação}}{9}{17} \\
+      \ganttbar{\parbox{4cm}{Criação do banco de dados}}{9}{9} \\
+      \ganttbar{\parbox{4cm}{Algoritmos em Python: análise exploratória}}{10}{10} \\
+      \ganttbar{\parbox{4cm}{Adaptação para paralelismo}}{11}{13} \\
+      \ganttbar{\parbox{4cm}{Integração em CUDA C++}}{14}{17} \\
+      
+      \ganttgroup{\parbox{4cm}{Testes e Validação}}{13}{20} \\
+      \ganttbar{\parbox{4cm}{Testes com conjuntos de dados}}{13}{18} \\
+      \ganttbar{\parbox{4cm}{Análise de resultados}}{17}{20} \\
+      
+      \ganttgroup{\parbox{4cm}{Redação Final}}{21}{24} \\
+      \ganttbar{\parbox{4cm}{Redação dos capítulos finais}}{21}{23} \\
+      \ganttbar{\parbox{4cm}{Preparação para a defesa}}{24}{24} \\
+    
+      \end{ganttchart}
+    % \end{sideways}
+  \end{center}
+\end{figure}
+
+
+\bibliography{/home/lucas_galdino/Desktop/TCC/references/references_citations/refs.bib}
+
+
+\end{document}

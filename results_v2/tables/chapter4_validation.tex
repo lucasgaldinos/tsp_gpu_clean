@@ -1,0 +1,238 @@
+% Chapter 4 Validation Results - Auto-generated
+% Generated: 2025-11-26 21:15:30
+% Compile with: pdflatex chapter4_validation.tex
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{booktabs}  % Professional tables
+\usepackage{multirow}  % Row spanning
+\usepackage{geometry}  % Page margins
+\usepackage{caption}   % Better captions
+\geometry{margin=1in}
+\captionsetup{font=small,labelfont=bf}
+
+\title{Chapter 4 Validation: GPU-Accelerated Genetic Algorithm Benchmark}
+\date{November 26, 2025}
+\author{Automated Benchmark Report}
+
+\begin{document}
+\maketitle
+
+\section{Summary Statistics by Problem}
+
+\begin{table}[htbp]
+\centering
+\caption{Summary Statistics by Problem. Speedup relative to baseline algorithm (HybridNaive when CPU not available).}
+\label{tab:chapter4_summary}
+\begin{tabular}{llrrrrr}
+\toprule
+Problem & Algorithm & Mean Cost & Std Dev & Gap (\%) & Time (s) & Speedup \\
+\midrule
+\multirow{4}{*}{berlin52} & CPU             &   7554.65 &   22.93 &    0.17 &    25.82 & 0.02$\times$ \\
+                     & FullGPU         &   7542.00 &    0.00 &    0.00 &     0.25 & 2.27$\times$ \\
+                     & HybridNaive     &   7547.31 &   14.45 &    0.07 &     0.57 &            — \\
+                     & HybridOptimized &   7557.85 &   23.91 &    0.21 &     0.11 & 5.15$\times$ \\
+\midrule
+\multirow{3}{*}{bier127} & FullGPU         & 118789.88 &  164.01 &    0.43 &     3.30 & 0.92$\times$ \\
+                     & HybridNaive     & 119075.19 &  239.82 &    0.67 &     3.03 &            — \\
+                     & HybridOptimized & 119148.58 &  232.98 &    0.73 &     0.56 & 5.43$\times$ \\
+\midrule
+\multirow{3}{*}{ch130} & FullGPU         &   6162.92 &   19.18 &    0.87 &     4.39 & 0.76$\times$ \\
+                     & HybridNaive     &   6154.23 &   12.07 &    0.72 &     3.35 &            — \\
+                     & HybridOptimized &   6148.58 &   14.57 &    0.63 &     0.59 & 5.67$\times$ \\
+\midrule
+\multirow{3}{*}{ch150} & FullGPU         &   6556.54 &   23.62 &    0.44 &     5.04 & 0.94$\times$ \\
+                     & HybridNaive     &   6580.15 &   13.91 &    0.80 &     4.75 &            — \\
+                     & HybridOptimized &   6576.19 &   10.44 &    0.74 &     0.79 & 6.00$\times$ \\
+\midrule
+\multirow{3}{*}{d198} & FullGPU         &  15916.50 &   26.37 &    0.87 &    12.38 & 0.65$\times$ \\
+                     & HybridNaive     &  15913.46 &   17.17 &    0.85 &     8.07 &            — \\
+                     & HybridOptimized &  15914.19 &   23.91 &    0.85 &     1.52 & 5.31$\times$ \\
+\midrule
+\multirow{3}{*}{eil101} & FullGPU         &    633.77 &    2.34 &    0.76 &     1.74 & 1.37$\times$ \\
+                     & HybridNaive     &    633.50 &    1.65 &    0.72 &     2.38 &            — \\
+                     & HybridOptimized &    633.81 &    1.30 &    0.76 &     0.39 & 6.05$\times$ \\
+\midrule
+\multirow{4}{*}{eil51} & CPU             &    428.65 &    1.11 &    0.62 &    22.53 & 0.03$\times$ \\
+                     & FullGPU         &    428.04 &    0.71 &    0.48 &     0.41 & 1.50$\times$ \\
+                     & HybridNaive     &    428.69 &    1.03 &    0.63 &     0.61 &            — \\
+                     & HybridOptimized &    428.77 &    1.01 &    0.65 &     0.11 & 5.42$\times$ \\
+\midrule
+\multirow{4}{*}{eil76} & CPU             &    541.46 &    1.74 &    0.64 &    84.61 & 0.02$\times$ \\
+                     & FullGPU         &    541.81 &    1.96 &    0.71 &     0.89 & 1.52$\times$ \\
+                     & HybridNaive     &    541.35 &    1.82 &    0.62 &     1.36 &            — \\
+                     & HybridOptimized &    541.31 &    1.61 &    0.61 &     0.21 & 6.59$\times$ \\
+\midrule
+\multirow{3}{*}{fl417} & FullGPU         &  11986.38 &   13.01 &    1.06 &    87.88 & 1.05$\times$ \\
+                     & HybridNaive     &  12048.73 &   70.08 &    1.58 &    92.55 &            — \\
+                     & HybridOptimized &  12089.50 &  126.28 &    1.93 &    18.92 & 4.89$\times$ \\
+\midrule
+\multirow{4}{*}{kroA100} & CPU             &  21382.88 &   62.04 &    0.47 &   185.08 & 0.01$\times$ \\
+                     & FullGPU         &  21285.23 &    4.90 &    0.02 &     1.37 & 1.32$\times$ \\
+                     & HybridNaive     &  21382.38 &   63.30 &    0.47 &     1.81 &            — \\
+                     & HybridOptimized &  21364.23 &   65.23 &    0.39 &     0.30 & 6.07$\times$ \\
+\midrule
+\multirow{3}{*}{kroA150} & FullGPU         &  26687.96 &   83.81 &    0.62 &     5.56 & 0.86$\times$ \\
+                     & HybridNaive     &  26712.92 &   54.62 &    0.71 &     4.79 &            — \\
+                     & HybridOptimized &  26711.04 &   55.94 &    0.71 &     0.81 & 5.88$\times$ \\
+\midrule
+\multirow{3}{*}{kroA200} & FullGPU         &  29678.08 &   88.06 &    1.06 &    11.60 & 1.09$\times$ \\
+                     & HybridNaive     &  29642.38 &   91.19 &    0.93 &    12.58 &            — \\
+                     & HybridOptimized &  29630.19 &   91.54 &    0.89 &     2.02 & 6.23$\times$ \\
+\midrule
+\multirow{4}{*}{kroB100} & CPU             &  22270.42 &   55.22 &    0.58 &   185.46 & 0.01$\times$ \\
+                     & FullGPU         &  22186.96 &   44.63 &    0.21 &     1.77 & 1.08$\times$ \\
+                     & HybridNaive     &  22272.27 &   59.98 &    0.59 &     1.91 &            — \\
+                     & HybridOptimized &  22262.00 &   65.37 &    0.55 &     0.34 & 5.69$\times$ \\
+\midrule
+\multirow{3}{*}{kroB150} & FullGPU         &  26283.65 &   72.01 &    0.59 &     6.97 & 0.63$\times$ \\
+                     & HybridNaive     &  26325.77 &   46.80 &    0.75 &     4.42 &            — \\
+                     & HybridOptimized &  26326.81 &   47.01 &    0.75 &     0.73 & 6.07$\times$ \\
+\midrule
+\multirow{4}{*}{kroC100} & CPU             &  20845.58 &   59.12 &    0.47 &   175.80 & 0.01$\times$ \\
+                     & FullGPU         &  20760.69 &   16.97 &    0.06 &     1.35 & 1.34$\times$ \\
+                     & HybridNaive     &  20851.04 &   62.37 &    0.49 &     1.81 &            — \\
+                     & HybridOptimized &  20832.08 &   55.32 &    0.40 &     0.29 & 6.14$\times$ \\
+\midrule
+\multirow{4}{*}{kroD100} & CPU             &  21414.77 &   48.30 &    0.57 &   185.51 & 0.01$\times$ \\
+                     & FullGPU         &  21381.08 &   45.97 &    0.41 &     1.97 & 0.93$\times$ \\
+                     & HybridNaive     &  21431.46 &   51.86 &    0.65 &     1.84 &            — \\
+                     & HybridOptimized &  21416.42 &   40.40 &    0.57 &     0.31 & 5.83$\times$ \\
+\midrule
+\multirow{4}{*}{kroE100} & CPU             &  22202.31 &   56.02 &    0.61 &   189.61 & 0.01$\times$ \\
+                     & FullGPU         &  22169.62 &   37.47 &    0.46 &     1.81 & 1.02$\times$ \\
+                     & HybridNaive     &  22211.23 &   42.17 &    0.65 &     1.85 &            — \\
+                     & HybridOptimized &  22189.00 &   61.97 &    0.55 &     0.30 & 6.20$\times$ \\
+\midrule
+\multirow{3}{*}{lin105} & FullGPU         &  14381.27 &    8.13 &    0.02 &     1.50 & 1.28$\times$ \\
+                     & HybridNaive     &  14448.77 &   39.15 &    0.49 &     1.93 &            — \\
+                     & HybridOptimized &  14445.62 &   42.91 &    0.46 &     0.32 & 6.00$\times$ \\
+\midrule
+\multirow{3}{*}{lin318} & FullGPU         &  42970.62 &  136.48 &    2.24 &    36.59 & 1.46$\times$ \\
+                     & HybridNaive     &  42847.58 &  389.56 &    1.95 &    53.48 &            — \\
+                     & HybridOptimized &  42941.15 &  434.66 &    2.17 &    10.02 & 5.34$\times$ \\
+\midrule
+\multirow{3}{*}{pcb442} & FullGPU         &  52418.15 &  190.62 &    3.23 &    79.60 & 1.63$\times$ \\
+                     & HybridNaive     &  52526.88 & 1051.61 &    3.44 &   129.46 &            — \\
+                     & HybridOptimized &  52090.73 &  641.93 &    2.59 &    31.24 & 4.14$\times$ \\
+\midrule
+\multirow{3}{*}{pr1002} & FullGPU         & 269776.77 &  743.93 &    4.14 &   758.40 & 0.92$\times$ \\
+                     & HybridNaive     & 279875.50 & 3210.15 &    8.04 &   696.05 &            — \\
+                     & HybridOptimized & 279184.62 & 2789.63 &    7.77 &   374.50 & 1.86$\times$ \\
+\midrule
+\multirow{3}{*}{pr107} & FullGPU         &  44474.96 &   92.11 &    0.39 &     2.41 & 0.85$\times$ \\
+                     & HybridNaive     &  44559.50 &  116.68 &    0.58 &     2.05 &            — \\
+                     & HybridOptimized &  44580.19 &  103.38 &    0.63 &     0.36 & 5.77$\times$ \\
+\midrule
+\multirow{3}{*}{pr124} & FullGPU         &  59031.77 &    8.85 &    0.00 &     1.85 & 1.70$\times$ \\
+                     & HybridNaive     &  59272.69 &  235.68 &    0.41 &     3.14 &            — \\
+                     & HybridOptimized &  59274.31 &  193.02 &    0.41 &     0.47 & 6.66$\times$ \\
+\midrule
+\multirow{3}{*}{pr136} & FullGPU         &  97253.12 &  160.17 &    0.50 &     4.18 & 0.92$\times$ \\
+                     & HybridNaive     &  97503.31 &  180.84 &    0.76 &     3.86 &            — \\
+                     & HybridOptimized &  97509.38 &  183.14 &    0.76 &     0.67 & 5.75$\times$ \\
+\midrule
+\multirow{3}{*}{pr144} & FullGPU         &  58537.00 &    0.00 &    0.00 &     2.87 & 1.32$\times$ \\
+                     & HybridNaive     &  58801.08 &  156.84 &    0.45 &     3.79 &            — \\
+                     & HybridOptimized &  58778.38 &  140.01 &    0.41 &     0.66 & 5.79$\times$ \\
+\midrule
+\multirow{3}{*}{pr152} & FullGPU         &  73936.85 &  142.85 &    0.35 &     4.45 & 1.00$\times$ \\
+                     & HybridNaive     &  74144.27 &  136.40 &    0.63 &     4.46 &            — \\
+                     & HybridOptimized &  74143.15 &  181.90 &    0.63 &     0.75 & 5.95$\times$ \\
+\midrule
+\multirow{3}{*}{pr264} & FullGPU         &  49307.08 &   99.94 &    0.35 &    21.48 & 0.94$\times$ \\
+                     & HybridNaive     &  49604.46 &  388.32 &    0.96 &    20.09 &            — \\
+                     & HybridOptimized &  49692.77 &  315.70 &    1.14 &     3.90 & 5.15$\times$ \\
+\midrule
+\multirow{3}{*}{pr299} & FullGPU         &  49112.73 &  120.67 &    1.91 &    30.14 & 1.22$\times$ \\
+                     & HybridNaive     &  48865.96 &  390.18 &    1.40 &    36.75 &            — \\
+                     & HybridOptimized &  48891.54 &  343.61 &    1.45 &     6.70 & 5.48$\times$ \\
+\midrule
+\multirow{3}{*}{pr439} & FullGPU         & 108506.50 &  200.93 &    1.20 &    85.94 & 1.29$\times$ \\
+                     & HybridNaive     & 110157.54 & 1528.18 &    2.74 &   111.28 &            — \\
+                     & HybridOptimized & 110099.23 & 1485.16 &    2.69 &    23.47 & 4.74$\times$ \\
+\midrule
+\multirow{4}{*}{pr76} & CPU             & 108749.54 &  296.53 &    0.55 &    73.84 & 0.01$\times$ \\
+                     & FullGPU         & 108206.15 &   63.08 &    0.04 &     0.72 & 1.49$\times$ \\
+                     & HybridNaive     & 108610.50 &  325.63 &    0.42 &     1.08 &            — \\
+                     & HybridOptimized & 108676.46 &  334.86 &    0.48 &     0.19 & 5.78$\times$ \\
+\midrule
+\multirow{3}{*}{rat195} & FullGPU         &   2373.50 &    9.03 &    2.17 &    11.59 & 1.26$\times$ \\
+                     & HybridNaive     &   2347.31 &    7.10 &    1.05 &    14.56 &            — \\
+                     & HybridOptimized &   2348.88 &    8.95 &    1.11 &     2.89 & 5.05$\times$ \\
+\midrule
+\multirow{3}{*}{rat783} & FullGPU         &   9201.73 &   24.61 &    4.49 &   370.21 & 1.18$\times$ \\
+                     & HybridNaive     &   9452.96 &  215.29 &    7.35 &   436.79 &            — \\
+                     & HybridOptimized &   9579.92 &  165.35 &    8.79 &   207.28 & 2.11$\times$ \\
+\midrule
+\multirow{4}{*}{rat99} & CPU             &   1219.58 &    3.03 &    0.71 &   188.04 & 0.01$\times$ \\
+                     & FullGPU         &   1215.27 &    3.14 &    0.35 &     1.65 & 1.19$\times$ \\
+                     & HybridNaive     &   1218.62 &    3.21 &    0.63 &     1.96 &            — \\
+                     & HybridOptimized &   1217.38 &    3.95 &    0.53 &     0.35 & 5.67$\times$ \\
+\midrule
+\multirow{4}{*}{rd100} & CPU             &   7960.62 &   22.90 &    0.64 &   186.60 & 0.01$\times$ \\
+                     & FullGPU         &   7915.12 &    8.05 &    0.06 &     1.57 & 1.17$\times$ \\
+                     & HybridNaive     &   7949.88 &   22.47 &    0.50 &     1.84 &            — \\
+                     & HybridOptimized &   7959.12 &   19.36 &    0.62 &     0.29 & 6.24$\times$ \\
+\midrule
+\multirow{3}{*}{rd400} & FullGPU         &  15727.65 &   50.48 &    2.92 &    73.33 & 1.40$\times$ \\
+                     & HybridNaive     &  15771.62 &  178.42 &    3.21 &   102.60 &            — \\
+                     & HybridOptimized &  15759.31 &  237.53 &    3.13 &    24.57 & 4.18$\times$ \\
+\midrule
+\multirow{4}{*}{st70} & CPU             &    677.62 &    1.94 &    0.39 &    56.53 & 0.02$\times$ \\
+                     & FullGPU         &    675.00 &    0.00 &    0.00 &     0.55 & 1.70$\times$ \\
+                     & HybridNaive     &    677.23 &    2.17 &    0.33 &     0.94 &            — \\
+                     & HybridOptimized &    677.38 &    1.78 &    0.35 &     0.17 & 5.49$\times$ \\
+\midrule
+\multirow{3}{*}{ts225} & FullGPU         & 126643.00 &    0.00 &    0.00 &    11.80 & 0.86$\times$ \\
+                     & HybridNaive     & 127625.96 &  160.45 &    0.78 &    10.14 &            — \\
+                     & HybridOptimized & 127542.81 &  174.99 &    0.71 &     1.87 & 5.41$\times$ \\
+\midrule
+\multirow{3}{*}{u159} & FullGPU         &  42094.15 &   44.05 &    0.03 &     3.99 & 1.32$\times$ \\
+                     & HybridNaive     &  42399.77 &  117.13 &    0.76 &     5.26 &            — \\
+                     & HybridOptimized &  42358.77 &  132.74 &    0.66 &     0.88 & 6.00$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to HybridNaive. — indicates baseline algorithm.}
+\end{table}
+\clearpage
+
+\section{Algorithm Performance Comparison}
+
+\begin{table}[htbp]
+\centering
+\caption{Algorithm Performance Comparison Across All Problems (aggregated statistics)}
+\label{tab:chapter4_algorithm_comparison}
+\begin{tabular}{lrrrrr}
+\toprule
+Algorithm & Mean Gap (\%) & Std Gap & Mean Time (s) & Std Time & Avg Speedup \\
+\midrule
+CPU             &     0.53 &    0.14 &   129.95 &    67.35 &            — \\
+FullGPU         &     0.88 &    1.14 &    43.51 &   132.84 &            — \\
+HybridNaive     &     1.28 &    1.68 &    47.08 &   130.25 &            — \\
+HybridOptimized &     1.30 &    1.78 &    18.94 &    67.33 & 2.49$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to HybridNaive. — indicates baseline algorithm.}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Best Performing Algorithm by Problem Size Category}
+\label{tab:chapter4_size_categories}
+\begin{tabular}{lllrr}
+\toprule
+Size Category & Problems & Best Algorithm & Mean Gap (\%) & Mean Time (s) \\
+\midrule
+Small (n<100)        & eil51, berlin52, st70, eil76, pr76, rat99 & FullGPU         &     0.26 &     0.75 \\
+Medium (100≤n<300)   & kroA100, kroB100, kroC100, kroD100, kroE100, rd100, eil10... & FullGPU         &     0.50 &     6.28 \\
+Large (n≥300)        & lin318, rd400, fl417, pr439, pcb442, rat783, pr1002 & FullGPU         &     2.76 &   213.13 \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Best algorithm determined by lowest mean gap to known optimum.}
+\end{table}
+
+\end{document}

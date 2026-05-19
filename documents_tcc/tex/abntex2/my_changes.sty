@@ -1,0 +1,138 @@
+\RequirePackage{listings, listingsutf8}
+
+% avoid error with foreign title
+\ifthenelse{\equal{\ABNTEXisarticle}{true}}{
+	\renewcommand{\maketitlehookb}{}
+}{}
+
+% Creation of index
+% \makeindex
+% commented off because no need when article
+
+% set margins size
+\setlrmarginsandblock{3cm}{3cm}{*}
+\setulmarginsandblock{3cm}{3cm}{*}
+\checkandfixthelayout
+
+% set paragraph and line size
+% paragraph size:
+\setlength{\parindent}{1.3cm}
+
+% Paragraph skip size:
+\setlength{\parskip}{0.2cm}  % tente também \onelineskip
+
+% simple spacing settings
+\SingleSpacing
+
+% Change enumerate configurations
+\setlist[enumerate]{
+	align=left,
+	leftmargin=2cm,
+	labelindent=1.5cm,
+	labelwidth=0.2cm,
+	before=\small}
+
+
+% Configuração do pacote backref
+% Usado sem a opção hyperpageref de backref
+\renewcommand{\backrefpagesname}{Citado na(s) página(s):~}
+% Texto padrão antes do número das páginas
+\renewcommand{\backref}{}
+% Define os textos da citação
+\renewcommand*{\backrefalt}[4]{
+	\ifcase #1 %
+		Nenhuma citação no texto.%
+	\or
+		Citado na página #2.%
+	\else
+		Citado #1 vezes nas páginas #2.%
+	\fi}%
+
+% Set \thanks to use numbers instead of symbols
+\renewcommand{\thefootnote}{\arabic{footnote}}
+
+% change bibsection to be a section, instead of a random chapter 
+\renewcommand{\bibsection}{%
+	\chapter*{\bibname}
+	\bibmark
+	% add bibname to table of contents
+	\ifnobibintoc\else
+    %   \phantomsection
+    	\addcontentsline{toc}{chapter}{\texorpdfstring{\bibname}{\bibname}}
+    \fi
+	\prebibhook
+}
+
+% Change in the cover configuration 
+\renewcommand{\imprimircapa}{%
+	\begin{capa}%contra capa
+
+		\begin{center}
+			\includegraphics[width=3cm]{../assets/ufsc-logo-4.png}\\
+			\vspace{0.5cm}
+			\abntex@ifnotempty{\imprimirinstituicao}{\imprimirinstituicao\vspace*{\fill}}
+		\end{center}
+
+		\center
+		\ABNTEXchapterfont\large\imprimirautor
+
+
+		\vfill
+		\begin{center}
+			\ABNTEXchapterfont\bfseries\LARGE\imprimirtitulo
+		\end{center}
+		\vfill
+
+		\large\imprimirlocal
+
+		\large\imprimirdata
+
+		\vspace*{1cm}
+	\end{capa}
+}
+
+
+% Changes in title page
+\makeatletter
+\renewcommand{\folhaderostocontent}{
+	\begin{center}
+
+		%\vspace*{1cm}
+		{\ABNTEXchapterfont\large\imprimirautor}
+
+		\vspace*{\fill}\vspace*{\fill}
+		\begin{center}
+			\ABNTEXchapterfont\bfseries\Large\imprimirtitulo
+		\end{center}
+		\vspace*{\fill}
+
+		\abntex@ifnotempty{\imprimirpreambulo}{%
+			\hspace{.45\textwidth}
+			\begin{minipage}{.5\textwidth}
+				\SingleSpacing
+				\imprimirpreambulo
+			\end{minipage}%
+			\vspace*{\fill}
+		}%
+
+		% {\abntex@ifnotempty{\imprimirinstituicao}{\imprimirinstituicao\vspace*{\fill}}}
+
+		% {\large\imprimirorientadorRotulo~\imprimirorientador\par}
+		% \abntex@ifnotempty{\imprimircoorientador}{%
+		%   {\large\imprimircoorientadorRotulo~\imprimircoorientador}%
+		% }%
+		\vspace*{\fill}
+
+		{\large\imprimirlocal}
+		\par
+		{\large\imprimirdata}
+		\vspace*{1cm}
+
+	\end{center}
+}
+\makeatother
+
+
+% Change page header to show page number
+\makeoddhead{abntchapfirst}{}{}{\ABNTEXfontereduzida\thepage}
+\makeevenhead{abntchapfirst}{}{}{\ABNTEXfontereduzida\thepage}
