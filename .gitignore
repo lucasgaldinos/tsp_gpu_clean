@@ -26,3 +26,8 @@ my_notes/*
 .rtk/
 .agents/
 .vscode/
+
+# Large binary/data files
+*.pdf
+*.duckdb
+*.db
