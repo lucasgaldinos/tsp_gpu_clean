@@ -31,6 +31,7 @@ dependencies = [
     "scipy>=1.15.3",
     "scikit-posthocs>=0.11.4",
     "pandoc-mermaid-filter>=0.1.0",
+    "numba>=0.65.1",
 ]
 
 [tool.uv.workspace]

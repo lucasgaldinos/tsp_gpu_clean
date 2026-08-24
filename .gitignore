@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+.mcp*
 
 # Virtual environments
 .venv
@@ -14,6 +15,7 @@ wheels/
 **/PROJECT_COMPLETION_SUMMARY.md
 **/implementation_summary.md
 
+# folders
 .github/.knowledge_base
 knowledge_base/
 arxiv-messy-files/
@@ -26,6 +28,8 @@ my_notes/*
 .rtk/
 .agents/
 .vscode/
+tmp/
+.obsidian/
 
 # Large binary/data files
 *.pdf

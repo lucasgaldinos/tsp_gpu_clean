@@ -1,6 +1,6 @@
 # Hardware & Software Specifications
 
-**Benchmark System Configuration**  
+**Benchmark System Configuration**
 **Date**: 2025-11-20
 
 ## Hardware Specifications
@@ -28,8 +28,8 @@
 
 - **System RAM**: TBD - document with `free -h`
 - **VRAM Constraint**: 65% utilization limit (2.6GB usable)
-  - Reason: Stability on mobile GPU with shared system resources
-  - Impact: Maximum problem size ~18,000 cities (double precision distance matrix)
+  + Reason: Stability on mobile GPU with shared system resources
+  + Impact: Maximum problem size ~18,000 cities (double precision distance matrix)
 
 ### Storage
 
@@ -44,20 +44,20 @@
 - **Distribution**: TBD (check with `lsb_release -a`)
 - **Kernel**: TBD (check with `uname -r`)
 
-### Python Environment
+### python Environment
 
-- **Python Version**: 3.10.16
+- **python Version**: 3.10.16
 - **Environment Manager**: pyenv
 - **Virtual Environment**: .venv (project-local)
 
 ### GPU Computing Stack
 
 - **CUDA Toolkit**: TBD (check with `nvcc --version`)
-  - Recommended: CUDA 11.x or 12.x
+  + Recommended: CUDA 11.x or 12.x
 - **NVIDIA Driver**: TBD (check with `nvidia-smi`)
-  - Must support CUDA Toolkit version
+  + Must support CUDA Toolkit version
 - **CuPy Version**: TBD (check with `python -c "import cupy; print(cupy.__version__)"`)
-  - Must match CUDA version (cupy-cuda11x or cupy-cuda12x)
+  + Must match CUDA version (cupy-cuda11x or cupy-cuda12x)
 
 ### Core Dependencies
 
@@ -150,7 +150,7 @@ To reproduce these results, ensure:
 1. ✅ **GPU**: NVIDIA GPU with CUDA support (Compute Capability ≥ 3.5)
 2. ✅ **VRAM**: ≥4GB for full problem set (≥8GB recommended for n > 1000)
 3. ✅ **CUDA**: Toolkit matching CuPy version
-4. ✅ **Python**: 3.10+ with dependencies from pyproject.toml
+4. ✅ **python**: 3.10+ with dependencies from pyproject.toml
 5. ✅ **Dataset**: routing.duckdb with 38 TSPLIB instances
 6. ✅ **Seed**: seed=42 (reproducible random initialization)
 
@@ -174,7 +174,7 @@ free -h
 lsb_release -a
 uname -r
 
-# Python environment
+# python environment
 python --version
 python -c "import cupy; print(f'CuPy: {cupy.__version__}')"
 python -c "import numpy; print(f'NumPy: {numpy.__version__}')"
@@ -189,12 +189,12 @@ python -c "import cupy; print(f'CUDA: {cupy.cuda.runtime.runtimeGetVersion()}')"
 When citing this work, include:
 
 - GPU model: NVIDIA GeForce GTX 1050 Mobile (4GB VRAM)
-- Software: Python 3.10, CuPy, NumPy
+- Software: python 3.10, CuPy, NumPy
 - Dataset: 38 TSPLIB instances (51-1002 cities)
 - Methodology: 30 repetitions, early stopping (patience=50)
 
 **Example Citation Format**:
-> Experiments conducted on NVIDIA GeForce GTX 1050 Mobile (4GB VRAM) using Python 3.10 with CuPy for GPU acceleration. Benchmarks performed on 38 TSPLIB instances (n=51 to n=1002) with 30 repetitions per algorithm and early stopping after 50 generations without improvement.
+> Experiments conducted on NVIDIA GeForce GTX 1050 Mobile (4GB VRAM) using python 3.10 with CuPy for GPU acceleration. Benchmarks performed on 38 TSPLIB instances (n=51 to n=1002) with 30 repetitions per algorithm and early stopping after 50 generations without improvement.
 
 ## Performance Disclaimers
 
@@ -215,5 +215,5 @@ For extended experiments (beyond thesis scope):
 
 ---
 
-**Last Updated**: 2025-11-20  
+**Last Updated**: 2025-11-20
 **Status**: Hardware specs partially documented - complete after benchmark setup
