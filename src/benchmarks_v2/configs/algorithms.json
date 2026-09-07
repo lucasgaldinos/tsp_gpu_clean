@@ -1,0 +1,35 @@
+{
+  "ga_params": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "tournament_size": 5,
+    "two_opt_iterations": 10,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "CPU": {
+      "class_module": "src.algorithms.metaheuristics.genetic_algorithm_cpu",
+      "class_name": "GeneticAlgorithmCPU",
+      "use_gpu": false,
+      "description": "Pure NumPy CPU baseline"
+    },
+    "HybridNaive": {
+      "class_module": "src.algorithms.metaheuristics.genetic_algorithm_hybrid_naive",
+      "class_name": "GeneticAlgorithmHybridNaive",
+      "use_gpu": true,
+      "description": "GPU operators with naive memory transfers"
+    },
+    "HybridOptimized": {
+      "class_module": "src.algorithms.metaheuristics.genetic_algorithm_hybrid_optimized",
+      "class_name": "GeneticAlgorithmHybridOptimized",
+      "use_gpu": true,
+      "description": "GPU operators with optimized memory transfers"
+    },
+    "FullGPU": {
+      "class_module": "src.algorithms.metaheuristics.genetic_algorithm_full_gpu_early_stop",
+      "class_name": "GeneticAlgorithmFullGPUEarlyStop",
+      "use_gpu": true,
+      "description": "Fujimoto's full-GPU kernel with early stopping"
+    }
+  }
+}

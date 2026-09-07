@@ -35,3 +35,6 @@ tmp/
 *.pdf
 *.duckdb
 *.db
+
+# Agent hook audit logs
+.github/hooks/logs/

@@ -1,0 +1,10 @@
+{
+	"repetitions": 15,
+	"patience": null,
+	"cpu_size_threshold": 100,
+	"skip_cpu_default": false,
+	"incremental_runs": false,
+	"display": {
+		"line_width": 80
+	}
+}

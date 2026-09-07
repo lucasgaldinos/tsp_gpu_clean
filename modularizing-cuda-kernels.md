@@ -73,7 +73,7 @@ class GeneticAlgorithm:
 
 **How the Strategy loads the kernel:**
 
-```
+```python
 # strategies/local_search/two_opt.py
 import cupy as cp
 from ..base import LocalSearchStrategy
