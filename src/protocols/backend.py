@@ -1,67 +1,162 @@
 """Backend type protocol for NumPy/CuPy compatibility."""
 
-from typing import Protocol, Any
+from typing import Any, Protocol
+
+import numpy as np
+from numpy.typing import NDArray
+
+#: Array type shared by the numpy and cupy backends. numpy is the typed side of
+#: the pair (cupy ships no `py.typed`), so it is what callers are annotated
+#: against and what they receive.
+type Array = NDArray[Any]
+
+#: A CuPy array. Deliberately `Any`: CuPy has no usable type information, so the
+#: only honest spelling is "unchecked". Naming it keeps `-> np.ndarray` out of
+#: the GPU accessors (a false claim) and gives one place to change when CuPy is
+#: typed.
+type CupyArray = Any
 
 
 class BackendModule(Protocol):
-    """Protocol for array backend modules (numpy or cupy).
+  """Protocol for array backend modules (numpy or cupy).
 
-    This allows type-safe backend switching between NumPy (CPU)
-    and CuPy (GPU) without runtime overhead.
-    """
+  Defines the common array operations across NumPy and CuPy used by
+  the modular solver without generic type parameter explosion::
 
-    def array(self, *args: Any, **kwargs: Any) -> Any:
-        """Create an array."""
-        ...
+      def build(xp: BackendModule = np) -> Array: ...
 
-    def asarray(self, *args: Any, **kwargs: Any) -> Any:
-        """Convert to array."""
-        ...
+  Only members that exist on both backends are declared. Reductions that may
+  return either an array or a scalar (`sum`, `min`, `max`, `argmin`, `argmax`)
+  stay `Any` on purpose: their true return type depends on the arguments.
+  """
 
-    def zeros(self, *args: Any, **kwargs: Any) -> Any:
-        """Create array of zeros."""
-        ...
+  # --- constants and dtype aliases -----------------------------------------
+  # Declared as read-only properties: a plain attribute declaration in a
+  # protocol is writable, and a module attribute cannot satisfy that.
+  @property
+  def newaxis(self) -> None:
+    """Axis-insertion constant."""
+    ...
 
-    def ones(self, *args: Any, **kwargs: Any) -> Any:
-        """Create array of ones."""
-        ...
+  @property
+  def ndarray(self) -> type[Array]:
+    """Array class of the backend."""
+    ...
 
-    def empty(self, *args: Any, **kwargs: Any) -> Any:
-        """Create empty array."""
-        ...
+  @property
+  def int32(self) -> type[np.int32]:
+    """32-bit integer dtype (numpy's, re-exported by cupy)."""
+    ...
 
-    def arange(self, *args: Any, **kwargs: Any) -> Any:
-        """Create range array."""
-        ...
+  @property
+  def int64(self) -> type[np.int64]:
+    """64-bit integer dtype (numpy's, re-exported by cupy)."""
+    ...
 
-    def sum(self, *args: Any, **kwargs: Any) -> Any:
-        """Sum array elements."""
-        ...
+  @property
+  def random(self) -> Any:
+    """Random number generation module."""
+    ...
 
-    def min(self, *args: Any, **kwargs: Any) -> Any:
-        """Find minimum."""
-        ...
+  # --- constructors --------------------------------------------------------
+  def array(self, *args: Any, **kwargs: Any) -> Array:
+    """Create an array."""
+    ...
 
-    def max(self, *args: Any, **kwargs: Any) -> Any:
-        """Find maximum."""
-        ...
+  def asarray(self, *args: Any, **kwargs: Any) -> Array:
+    """Convert to array."""
+    ...
 
-    def argmin(self, *args: Any, **kwargs: Any) -> Any:
-        """Find index of minimum."""
-        ...
+  def zeros(self, *args: Any, **kwargs: Any) -> Array:
+    """Create array of zeros."""
+    ...
 
-    def argmax(self, *args: Any, **kwargs: Any) -> Any:
-        """Find index of maximum."""
-        ...
+  def ones(self, *args: Any, **kwargs: Any) -> Array:
+    """Create array of ones."""
+    ...
 
-    def sqrt(self, *args: Any, **kwargs: Any) -> Any:
-        """Square root."""
-        ...
+  def empty(self, *args: Any, **kwargs: Any) -> Array:
+    """Create empty array."""
+    ...
 
-    def exp(self, *args: Any, **kwargs: Any) -> Any:
-        """Exponential."""
-        ...
+  def arange(self, *args: Any, **kwargs: Any) -> Array:
+    """Create range array."""
+    ...
 
-    def random(self) -> Any:
-        """Random number generation module."""
-        ...
+  def vstack(self, *args: Any, **kwargs: Any) -> Array:
+    """Stack arrays vertically."""
+    ...
+
+  def concatenate(self, *args: Any, **kwargs: Any) -> Array:
+    """Join arrays along an existing axis."""
+    ...
+
+  def where(self, *args: Any, **kwargs: Any) -> Array:
+    """Return elements chosen from two arrays by a condition."""
+    ...
+
+  def clip(self, *args: Any, **kwargs: Any) -> Array:
+    """Limit values to an interval."""
+    ...
+
+  def argsort(self, *args: Any, **kwargs: Any) -> Array:
+    """Return indices that would sort an array."""
+    ...
+
+  # --- element-wise math ---------------------------------------------------
+  def abs(self, *args: Any, **kwargs: Any) -> Array:
+    """Absolute value."""
+    ...
+
+  def ceil(self, *args: Any, **kwargs: Any) -> Array:
+    """Ceiling."""
+    ...
+
+  def cos(self, *args: Any, **kwargs: Any) -> Array:
+    """Cosine."""
+    ...
+
+  def sin(self, *args: Any, **kwargs: Any) -> Array:
+    """Sine."""
+    ...
+
+  def arccos(self, *args: Any, **kwargs: Any) -> Array:
+    """Inverse cosine."""
+    ...
+
+  def exp(self, *args: Any, **kwargs: Any) -> Array:
+    """Exponential."""
+    ...
+
+  def sqrt(self, *args: Any, **kwargs: Any) -> Array:
+    """Square root."""
+    ...
+
+  def trunc(self, *args: Any, **kwargs: Any) -> Array:
+    """Truncate toward zero."""
+    ...
+
+  # --- in-place / scalar-returning -----------------------------------------
+  def fill_diagonal(self, *args: Any, **kwargs: Any) -> None:
+    """Fill the main diagonal of a 2-D array in place."""
+    ...
+
+  def sum(self, *args: Any, **kwargs: Any) -> Any:
+    """Sum array elements (scalar or array depending on arguments)."""
+    ...
+
+  def min(self, *args: Any, **kwargs: Any) -> Any:
+    """Find minimum."""
+    ...
+
+  def max(self, *args: Any, **kwargs: Any) -> Any:
+    """Find maximum."""
+    ...
+
+  def argmin(self, *args: Any, **kwargs: Any) -> Any:
+    """Find index of minimum."""
+    ...
+
+  def argmax(self, *args: Any, **kwargs: Any) -> Any:
+    """Find index of maximum."""
+    ...

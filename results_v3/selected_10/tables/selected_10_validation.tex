@@ -1,0 +1,122 @@
+% Chapter 4 Validation Results - Auto-generated
+% Generated: 2026-10-26 19:21:10
+% Compile with: pdflatex chapter4_validation.tex
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{booktabs}  % Professional tables
+\usepackage{multirow}  % Row spanning
+\usepackage{geometry}  % Page margins
+\usepackage{caption}   % Better captions
+\geometry{margin=1in}
+\captionsetup{font=small,labelfont=bf}
+
+\title{Chapter 4 Validation: GPU-Accelerated Genetic Algorithm Benchmark}
+\date{October 26, 2026}
+\author{Automated Benchmark Report}
+
+\begin{document}
+\maketitle
+
+\section{Summary Statistics by Problem}
+
+\begin{table}[htbp]
+\centering
+\caption{Summary Statistics by Problem. Speedup relative to baseline algorithm (HybridNaive when CPU not available).}
+\label{tab:chapter4_summary}
+\begin{tabular}{llrrrrr}
+\toprule
+Problem & Algorithm & Mean Cost & Std Dev & Gap (\%) & Time (s) & Speedup \\
+\midrule
+\multirow{4}{*}{att48} & CPU             &  10631.33 &    4.71 &    0.03 &    21.39 & 0.02$\times$ \\
+                     & FullGPU         &  10659.67 &    4.71 &    0.30 &     0.01 & 32.10$\times$ \\
+                     & HybridNaive     &  10628.00 &    0.00 &    0.00 &     0.45 &            — \\
+                     & HybridOptimized &  10628.00 &    0.00 &    0.00 &     0.06 & 7.71$\times$ \\
+\midrule
+\multirow{4}{*}{bayg29} & CPU             &   1611.67 &    2.36 &    0.10 &     3.22 & 0.04$\times$ \\
+                     & FullGPU         &   1610.00 &    0.00 &    0.00 &     0.00 & 37.51$\times$ \\
+                     & HybridNaive     &   1611.67 &    2.36 &    0.10 &     0.13 &            — \\
+                     & HybridOptimized &   1611.67 &    2.36 &    0.10 &     0.01 & 9.61$\times$ \\
+\midrule
+\multirow{4}{*}{bays29} & CPU             &   2024.67 &    1.89 &    0.23 &     3.23 & 0.04$\times$ \\
+                     & FullGPU         &   2020.00 &    0.00 &    0.00 &     0.00 & 43.55$\times$ \\
+                     & HybridNaive     &   2024.67 &    1.89 &    0.23 &     0.12 &            — \\
+                     & HybridOptimized &   2024.67 &    1.89 &    0.23 &     0.01 & 8.42$\times$ \\
+\midrule
+\multirow{4}{*}{berlin52} & CPU             &   7542.00 &    0.00 &    0.00 &    23.43 & 0.02$\times$ \\
+                     & FullGPU         &   7562.67 &   29.23 &    0.27 &     0.01 & 34.54$\times$ \\
+                     & HybridNaive     &   7542.00 &    0.00 &    0.00 &     0.40 &            — \\
+                     & HybridOptimized &   7542.00 &    0.00 &    0.00 &     0.05 & 8.01$\times$ \\
+\midrule
+\multirow{3}{*}{brg180} & FullGPU         &   1960.00 &    0.00 &    0.51 &     1.20 & 4.87$\times$ \\
+                     & HybridNaive     &   1956.67 &    4.71 &    0.34 &     5.85 &            — \\
+                     & HybridOptimized &   1956.67 &    4.71 &    0.34 &     1.18 & 4.96$\times$ \\
+\midrule
+\multirow{4}{*}{gr17} & CPU             &   2085.00 &    0.00 &    0.00 &     0.73 & 0.14$\times$ \\
+                     & FullGPU         &   2085.00 &    0.00 &    0.00 &     0.00 & 89.25$\times$ \\
+                     & HybridNaive     &   2085.00 &    0.00 &    0.00 &     0.10 &            — \\
+                     & HybridOptimized &   2085.00 &    0.00 &    0.00 &     0.01 & 8.33$\times$ \\
+\midrule
+\multirow{4}{*}{gr21} & CPU             &   2707.00 &    0.00 &    0.00 &     1.25 & 0.09$\times$ \\
+                     & FullGPU         &   2707.00 &    0.00 &    0.00 &     0.00 & 63.63$\times$ \\
+                     & HybridNaive     &   2707.00 &    0.00 &    0.00 &     0.11 &            — \\
+                     & HybridOptimized &   2707.00 &    0.00 &    0.00 &     0.02 & 7.36$\times$ \\
+\midrule
+\multirow{4}{*}{gr24} & CPU             &   1272.00 &    0.00 &    0.00 &     1.87 & 0.06$\times$ \\
+                     & FullGPU         &   1272.00 &    0.00 &    0.00 &     0.00 & 54.14$\times$ \\
+                     & HybridNaive     &   1272.00 &    0.00 &    0.00 &     0.11 &            — \\
+                     & HybridOptimized &   1272.00 &    0.00 &    0.00 &     0.01 & 9.59$\times$ \\
+\midrule
+\multirow{4}{*}{gr48} & CPU             &   5054.67 &    6.94 &    0.17 &    17.96 & 0.02$\times$ \\
+                     & FullGPU         &   5063.00 &   19.80 &    0.34 &     0.01 & 40.78$\times$ \\
+                     & HybridNaive     &   5054.67 &    6.94 &    0.17 &     0.32 &            — \\
+                     & HybridOptimized &   5054.67 &    6.94 &    0.17 &     0.04 & 7.14$\times$ \\
+\midrule
+\multirow{4}{*}{gr96} & CPU             &  55597.67 &   85.80 &    0.70 &   163.45 & 0.01$\times$ \\
+                     & FullGPU         &  55559.00 &   38.27 &    0.63 &     0.08 & 13.91$\times$ \\
+                     & HybridNaive     &  55644.33 &   86.45 &    0.79 &     1.16 &            — \\
+                     & HybridOptimized &  55644.33 &   86.45 &    0.79 &     0.22 & 5.27$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to HybridNaive. — indicates baseline algorithm.}
+\end{table}
+\clearpage
+
+\section{Algorithm Performance Comparison}
+
+\begin{table}[htbp]
+\centering
+\caption{Algorithm Performance Comparison Across All Problems (aggregated statistics)}
+\label{tab:chapter4_algorithm_comparison}
+\begin{tabular}{lrrrrr}
+\toprule
+Algorithm & Mean Gap (\%) & Std Gap & Mean Time (s) & Std Time & Avg Speedup \\
+\midrule
+CPU             &     0.14 &    0.22 &    26.28 &    49.28 & 0.03$\times$ \\
+FullGPU         &     0.21 &    0.23 &     0.13 &     0.36 & 6.58$\times$ \\
+HybridNaive     &     0.16 &    0.24 &     0.88 &     1.69 &            — \\
+HybridOptimized &     0.16 &    0.24 &     0.16 &     0.34 & 5.41$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to HybridNaive. — indicates baseline algorithm.}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Best Performing Algorithm by Problem Size Category}
+\label{tab:chapter4_size_categories}
+\begin{tabular}{lllrr}
+\toprule
+Size Category & Problems & Best Algorithm & Mean Gap (\%) & Mean Time (s) \\
+\midrule
+Small (n<100)        & att48, bayg29, bays29, berlin52, gr17, gr21, gr24, gr48, ... & CPU             &     0.14 &    26.28 \\
+Medium (100≤n<300)   & brg180                                   & HybridNaive     &     0.34 &     5.85 \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Best algorithm determined by lowest mean gap to known optimum.}
+\end{table}
+
+\end{document}

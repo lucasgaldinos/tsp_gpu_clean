@@ -1,0 +1,81 @@
+{
+  "algorithm": "FullGPU",
+  "repetitions": 3,
+  "successful_runs": 3,
+  "mean_time": 0.0077862690001590336,
+  "std_time": 0.00018569844315118576,
+  "min_time": 0.007624145000590943,
+  "max_time": 0.008046251999985543,
+  "mean_cost": 5063.0,
+  "std_cost": 19.79898987322333,
+  "best_cost": 5049.0,
+  "worst_cost": 5091.0,
+  "mean_initial_cost": 16927.333333333332,
+  "std_initial_cost": 206.4579591318506,
+  "mean_gap": 0.33690051525961157,
+  "std_gap": 0.3923699935240454,
+  "best_gap": 0.05945303210463733,
+  "mean_improvement": 70.08421509982168,
+  "mean_generations": 1.0,
+  "std_generations": 0.0,
+  "min_generations": 1.0,
+  "max_generations": 1.0,
+  "mean_h2d_mb": 0.018432,
+  "mean_d2h_mb": 0.0002,
+  "total_transfer_mb": 0.018632,
+  "mean_kernels": 3.0,
+  "raw_times": [
+    0.007688409999900614,
+    0.008046251999985543,
+    0.007624145000590943
+  ],
+  "raw_initial_costs": [
+    17196.0,
+    16694.0,
+    16892.0
+  ],
+  "raw_costs": [
+    5049.0,
+    5091.0,
+    5049.0
+  ],
+  "raw_gaps": [
+    0.05945303210463733,
+    0.89179548156956,
+    0.05945303210463733
+  ],
+  "raw_generations": [
+    1,
+    1,
+    1
+  ],
+  "raw_stop_reasons": [
+    "hit_optimal",
+    "hit_optimal",
+    "hit_optimal"
+  ],
+  "raw_seeds": [
+    787846414,
+    996406378,
+    1201263687
+  ],
+  "problem_name": "gr48",
+  "problem_size": 48,
+  "optimal_cost": 5046.0,
+  "max_generations_configured": 665,
+  "backend": "GPU",
+  "timestamp": "2026-10-26T19:12:55.404007",
+  "algorithm_config": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "tournament_size": 5,
+    "two_opt_iterations": 10,
+    "seed": 42
+  },
+  "strategies": {
+    "selection": "TournamentSelection",
+    "crossover": "OrderCrossover",
+    "mutation": "SwapMutation"
+  },
+  "construction_heuristic": "random_initialization"
+}

@@ -1,0 +1,47 @@
+{
+  "ga_params": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "tournament_size": 5,
+    "two_opt_iterations": 10,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "CPU": {
+      "class_module": "algorithms.presets",
+      "class_name": "GeneticAlgorithmCPU",
+      "use_gpu": false,
+      "description": "Pure NumPy CPU baseline"
+    },
+    "HybridNaive": {
+      "class_module": "algorithms.presets",
+      "class_name": "GeneticAlgorithmHybridNaive",
+      "use_gpu": true,
+      "description": "GPU operators with naive memory transfers"
+    },
+    "HybridOptimized": {
+      "class_module": "algorithms.presets",
+      "class_name": "GeneticAlgorithmHybridOptimized",
+      "use_gpu": true,
+      "description": "GPU operators with optimized memory transfers"
+    },
+    "FullGPUModular": {
+      "class_module": "algorithms.presets",
+      "class_name": "GeneticAlgorithmFullGPUModular",
+      "use_gpu": true,
+      "description": "Modular Full-GPU pipeline with per-phase CUDA kernels"
+    },
+    "FullGPU": {
+      "class_module": "algorithms.monolithic.full_gpu_monolithic",
+      "class_name": "GeneticAlgorithmFullGPUMonolithic",
+      "use_gpu": true,
+      "description": "Fujimoto monolithic full-GPU kernel with early stopping"
+    },
+    "FullGPUMonolithic": {
+      "class_module": "algorithms.monolithic.full_gpu_monolithic",
+      "class_name": "GeneticAlgorithmFullGPUMonolithic",
+      "use_gpu": true,
+      "description": "Fujimoto monolithic full-GPU kernel"
+    }
+  }
+}

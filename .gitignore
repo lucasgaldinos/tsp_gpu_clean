@@ -6,6 +6,8 @@ dist/
 wheels/
 *.egg-info
 .mcp*
+.mypy_*
+.ruff_*
 
 # Virtual environments
 .venv
@@ -20,16 +22,17 @@ wheels/
 knowledge_base/
 arxiv-messy-files/
 tcc_context/
-.github/
+# .github/
 tsplib95_gpu_comparator/
 my_notes/*
 !my_notes/notebooks/
 .tmp/
 .rtk/
-.agents/
+# .agents/
 .vscode/
 tmp/
 .obsidian/
+datasets/
 
 # Large binary/data files
 *.pdf

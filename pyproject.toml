@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "gpu-accelerated"
 version = "0.1.0"
@@ -12,30 +16,109 @@ dependencies = [
     "marimo>=0.16.1",
     "matplotlib>=3.10.6",
     "nbformat>=5.10.4",
-    "networkx>=3.4.2",
     "numpy>=2.2.6",
     "pandas>=2.3.2",
     "pymupdf4llm>=0.0.27",
-    "ruff>=0.13.1",
-    "routing-data",
     "ipywidgets>=8.1.7",
     "pillow>=11.3.0",
     "plotly>=6.3.1",
     "jupyter>=1.1.1",
     "duckdb>=1.4.1",
-    "pytest>=8.4.2",
     "cupy-cuda12x>=13.6.0",
-    "mypy>=1.18.2",
     "tabulate>=0.9.0",
     "scipy>=1.15.3",
     "scikit-posthocs>=0.11.4",
     "pandoc-mermaid-filter>=0.1.0",
     "numba>=0.65.1",
+    "tsplib95>=0.6.1",
 ]
 
+[project.optional-dependencies]
+# Mirror of `[dependency-groups].dev` below, kept for `pip install -e ".[dev]"` users.
+# The uv group is canonical (`uv sync` installs it by default); change both lists together.
+dev = ["mypy>=2.4.0", "pandas-stubs>=3.0.5.260914", "pytest>=8.4.2", "ruff>=0.17.3", "scipy-stubs>=1.18.1.1"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+# `src/` is the import root: tests import `algorithms.x`, `protocols.y`, never `src.algorithms.x`.
+pythonpath = ["src"]
 
-[tool.setuptools]
-packages = ["code"]
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+follow_imports = "normal"
+strict = true
+# Legacy pre-modularisation kernels; excluded from ruff below for the same reason.
+exclude = ["^src/algorithms/archive/"]
+
+# Third-party packages shipping no `py.typed` marker (verified in this venv, 2026-10-27);
+# skipped so real `src` errors are not drowned under import-untyped noise.
+# `pandas` and `scipy` are typed through `pandas-stubs` / `scipy-stubs` in the dev
+# group; `duckdb`, `numba`, `numpy` and `matplotlib` ship the marker themselves.
+[[tool.mypy.overrides]]
+module = [
+    "cupy",
+    "cupy.*",
+    "scikit_posthocs",
+    "tsplib95",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+indent-width = 2
+src = ["src", "tests"]
+exclude = ["src/algorithms/archive"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ANN", "S", "RUF", "TCH"]
+ignore = ["ANN401"]                                                # Any is the explicit JSON / data-model boundary
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",
+] # assert is idiomatic in pytest; tests need no annotation mandate
+
+# S608 (hardcoded SQL expression) is a false positive here: the only value ever
+# interpolated is `TABLE_RUNS`, a constant defined in `schema.py`. Every piece
+# of data is bound with a `?` placeholder, so there is no injection surface --
+# and keeping the table name in one place is what stops the 19 literals from
+# drifting apart.
+"src/benchmarking/database/*.py" = [
+    "S608",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "algorithms",
+    "benchmarking",
+    "benchmark_scripts",
+    "data_models",
+    "distances",
+    "loaders",
+    "protocols",
+    "utils",
+]
+
+[tool.ruff.lint.flake8-annotations]
+mypy-init-return = false          # Enforce return type annotation for __init__ (-> None)
+suppress-dummy-args = false        # Require type annotations even for unused variables (e.g., _arg)
+suppress-none-returning = false   # Force you to explicitly write -> None for functions
+
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "double"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pandas-stubs>=3.0.5.260914",
+    "pytest>=8.4.2",
+    "ruff>=0.17.3",
+    "scipy-stubs>=1.18.1.1",
+]

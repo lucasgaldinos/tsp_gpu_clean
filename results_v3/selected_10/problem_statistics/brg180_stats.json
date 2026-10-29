@@ -1,0 +1,142 @@
+{
+  "problem_info": {
+    "name": "brg180",
+    "size": 180,
+    "optimal_cost": 1950.0
+  },
+  "algorithms": {
+    "HybridNaive": {
+      "mean_time": 5.852187532000244,
+      "std_time": 0.1830449119638321,
+      "mean_initial_cost": 589990.0,
+      "std_initial_cost": 16505.39507756984,
+      "mean_cost": 1956.6666666666667,
+      "std_cost": 4.714045207910316,
+      "mean_gap": 0.34188034188034183,
+      "std_gap": 0.24174590809796495,
+      "mean_generations": 29.0,
+      "std_generations": 0.816496580927726,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "HybridOptimized": {
+      "mean_time": 1.179202593667166,
+      "std_time": 0.02201429047776115,
+      "mean_initial_cost": 589990.0,
+      "std_initial_cost": 16505.39507756984,
+      "mean_cost": 1956.6666666666667,
+      "std_cost": 4.714045207910316,
+      "mean_gap": 0.34188034188034183,
+      "std_gap": 0.24174590809796495,
+      "mean_generations": 29.0,
+      "std_generations": 0.816496580927726,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    },
+    "FullGPU": {
+      "mean_time": 1.2018134086665668,
+      "std_time": 0.4630174064449726,
+      "mean_initial_cost": 792686.6666666666,
+      "std_initial_cost": 3389.044440874481,
+      "mean_cost": 1960.0,
+      "std_cost": 0.0,
+      "mean_gap": 0.5128205128205128,
+      "std_gap": 0.0,
+      "mean_generations": 13.0,
+      "std_generations": 5.887840577551898,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "tournament_size": 5,
+        "two_opt_iterations": 10,
+        "seed": 42
+      },
+      "strategies": {
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "brg180",
+    "optimal_cost": 1950.0,
+    "baseline_algorithm": "HybridNaive",
+    "friedman_test": {
+      "statistic": 2.0,
+      "p_value": 0.36787944117144245,
+      "significant": false,
+      "post_hoc_required": false
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "no_test_needed",
+        "p_value": 1.0,
+        "mean_difference": 0.0,
+        "ci_95_lower": 0.0,
+        "ci_95_upper": 0.0,
+        "cohens_d": 0.0,
+        "normality_p_value_a": 1.0,
+        "normality_p_value_b": 1.0,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 1.0,
+        "mean_difference": -3.3333333333333335,
+        "ci_95_lower": -17.675509099164874,
+        "ci_95_upper": 11.008842432498206,
+        "cohens_d": -0.8164965809277076,
+        "normality_p_value_a": 0.0,
+        "normality_p_value_b": 1.0,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "large"
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPU",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 1.0,
+        "mean_difference": -3.3333333333333335,
+        "ci_95_lower": -17.675509099164874,
+        "ci_95_upper": 11.008842432498206,
+        "cohens_d": -0.8164965809277076,
+        "normality_p_value_a": 0.0,
+        "normality_p_value_b": 1.0,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "large"
+      }
+    ]
+  }
+}

@@ -328,3 +328,62 @@ Este plano detalha as adições e modificações necessárias diretamente no doc
     - `fujimoto2011highly` — implementação base do 2-opt em GPU usada neste trabalho
     - `tsutsui2011fast` — ACO + 2-opt em GPU (abordagem híbrida)
   + **DoD (Definition of Done):** Tabela comparativa das buscas locais (complexidade, qualidade típica, adequação GPU) documentada no relatório ou como TODO de trabalho futuro. Indicação clara de qual alternativa investigar prioritariamente.
+
+---
+
+### Tarefa 6: Refatoração Modular da Arquitetura de Algoritmos e Ingestão TSPLIB95
+
+- [x] **Ação 6.1: Modularização Efetiva dos Operadores Evolutivos, Separação Monolítica e Ingestão via `tsplib95`**
+  + **What (O quê):** Refatorar a estrutura de `src/algorithms/` em uma arquitetura genuinamente modular baseada em injeção de estratégias (*Strategy Pattern*) com contrato padronizado de rotas/lotes de rotas (`RouteOrRoutes`), separar o kernel monolítico (`ga_fujimoto_early_stop.cu`) dos kernels modulares por fase, preservar os objetos de estudo legados (`HybridNaive` e demais variantes originais) em `src/algorithms/archive/`, e criar o módulo de leitura/ingestão de instâncias `.tsp` via `tsplib95`.
+  + **Why (Por quê):** A implementação anterior instanciava operadores de maneira acoplada na classe base, possuía assinaturas inconsistentes entre seleção/cruzamento/mutação e busca local/avaliação, e acoplava o kernel monolítico à mesma hierarquia de herança das variantes modulares. Além disso, a ausência temporária do banco `routing.duckdb` exigia um carregador e script de ingestão compatível baseado em `tsplib95`.
+  + **Who (Quem):** Agente (IA) + Autor.
+  + **Where (Onde):** `src/protocols/`, `src/loaders/`, `src/algorithms/`, `src/utils/`, `tests/`.
+  + **When (Quando):** Concluído.
+  + **How (Como):** Padronizar os contratos de tipos (`Route`, `Routes`, `RouteOrRoutes`, `Fitness`) em `src/protocols/algorithm_strategies.py`; implementar estratégias modulares em `src/algorithms/strategies/{initialization,selection,crossover,mutation,local_search,evaluation}/` com kernels CUDA dedicados; criar o orquestrador composicional `GeneticAlgorithm` com suporte a posicionamento flexível do 2-opt (`post_crossover`, `post_mutation`, `post_evaluation`, `post_evolution`, `none`); isolar o kernel monolítico em `src/algorithms/monolithic/`; e implementar `TsplibLoader` e ingestão DuckDB em `src/loaders/tsplib_loader.py`.
+  + **How much (Quanto):** Esforço Médio-Alto.
+  + **DoD (Definition of Done):** Todos os módulos tipados, verificados pelo `ruff` sem erros e validados por suíte `pytest` cobrindo CPU, GPU (`HybridNaive`, `HybridOptimized`, `FullGPUModular`, `FullGPUMonolithic`), estágios intercambiáveis de 2-opt e ingestão `tsplib95`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:**
+      - [algorithm_strategies.py](../../src/protocols/algorithm_strategies.py#L34-L98) e [algorithm_strategies.py](../../src/protocols/algorithm_strategies.py#L645-L783)
+      - [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L1-L395) e [database_loader.py](../../src/loaders/database_loader.py#L76-L185)
+      - [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L1-L520)
+      - [local_search_strategies.py](../../src/algorithms/strategies/local_search/local_search_strategies.py#L1-L360)
+      - [evaluation_strategies.py](../../src/algorithms/strategies/evaluation/evaluation_strategies.py#L1-L180)
+      - [selection_strategies.py](../../src/algorithms/strategies/selection/selection_strategies.py#L1-L260)
+      - [crossover_strategies.py](../../src/algorithms/strategies/crossover/crossover_strategies.py#L1-L280)
+      - [mutation_strategies.py](../../src/algorithms/strategies/mutation/mutation_strategies.py#L1-L235)
+      - [full_gpu_monolithic.py](../../src/algorithms/monolithic/full_gpu_monolithic.py#L1-L235)
+      - [phase_timer.py](../../src/utils/phase_timer.py#L1-L140) e [gpu_helpers.py](../../src/utils/gpu_helpers.py#L1-L55)
+      - [test_modular_architecture.py](../../tests/test_modular_architecture.py#L1-L295)
+    - **Resumo:** Foi implementada a arquitetura modular completa em `src/algorithms/`, onde cada fase evolutiva (`initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation`) opera sobre o contrato tipado `RouteOrRoutes` (`(n_cities,)` ou `(N, n_cities)`), permitindo reposicionar o 2-opt após o OX (`post_crossover`), após a mutação (`post_mutation`), após a avaliação de fitness (`post_evaluation`) ou apenas ao final do GA (`post_evolution`). O kernel monolítico de Fujimoto foi separado em `src/algorithms/monolithic/`, os kernels por fase foram organizados em `src/algorithms/strategies/<fase>/kernels/`, as implementações originais foram preservadas em `src/algorithms/archive/`, e o carregador/ingestor `tsplib95` foi criado em `src/loaders/tsplib_loader.py`.
+    - **Atendimento ao DoD:** Validado com 13 testes automatizados passando no `pytest` (incluindo execução real em GPU CUDA das variantes `HybridNaive`, `HybridOptimized`, `FullGPUModular` e `FullGPUMonolithic`, além da validação de 111 instâncias `.tsp` via `tsplib95`) e 0 avisos/erros no `ruff check`.
+
+- [x] **Ação 6.2: Ajuste da API de Benchmark V2 e Execução nas 10 Instâncias Selecionadas da TSPLIB**
+  + **What (O quê):** Completar e corrigir a API de benchmark (`src/benchmarking_v2/` e `src/benchmarks_v2/`), corrigir o cálculo de distância geográfica (`GEO`) para coordenadas negativas, e criar o script `src/benchmarks_v2/run_selected_problems.py` para executar e validar as 10 instâncias TSPLIB selecionadas (`att48`, `bayg29`, `bays29`, `berlin52`, `brg180`, `gr17`, `gr21`, `gr24`, `gr48`, `gr96`).
+  + **Why (Por quê):** A API de benchmark estava incompleta (faltavam `__init__.py`, suporte a `patience=null` na validação, resolução dinâmica de arquivos `.tsp` fora do `problems.json`, tratamento estatístico para empates/amostras pequenas, cálculo de *speedup* para algoritmos alfabeticamente anteriores ao *baseline* na Tabela 2, e truncamento correto em vez de `floor` para coordenadas `GEO` negativas como em `gr96.tsp`).
+  + **Who (Quem):** Agente (IA) + Autor.
+  + **Where (Onde):** `src/benchmarking_v2/`, `src/benchmarks_v2/`, `src/distances/`, `tests/`.
+  + **When (Quando):** Concluído.
+  + **How (Como):** Adicionar `KNOWN_TSPLIB_OPTIMALS` e `build_problem_configs_from_tsp_files` em `config_loader.py`; parametrizar `run_comprehensive_benchmark` em `orchestration.py` para aceitar listas de `.tsp`, algoritmos e diretório de saída; corrigir `deg = xp.trunc(coord_array)` e diagonal zero para `GEO` em `matrix.py`; corrigir `report_generator.py` e `statistics.py`; e criar `run_selected_problems.py`.
+  + **How much (Quanto):** Esforço Médio.
+  + **DoD (Definition of Done):** Script `run_selected_problems.py` executado com sucesso nas 10 instâncias com geração de *checkpoints*, estatísticas por instância, análise estratificada entre problemas e tabelas Markdown/LaTeX, além de suíte `pytest` e `ruff check` sem erros.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:**
+      - [run_selected_problems.py](../../src/benchmarks_v2/run_selected_problems.py#L1-L150) e [run_chapter4_benchmark.py](../../src/benchmarks_v2/run_chapter4_benchmark.py#L114-L148)
+      - [config_loader.py](../../src/benchmarking_v2/config_loader.py#L31-L185) e [config_loader.py](../../src/benchmarking_v2/config_loader.py#L460-L549)
+      - [orchestration.py](../../src/benchmarking_v2/orchestration.py#L204-L410) e [orchestration.py](../../src/benchmarking_v2/orchestration.py#L589-L610)
+      - [statistics.py](../../src/benchmarking_v2/statistics.py#L153-L295) e [statistics.py](../../src/benchmarking_v2/statistics.py#L508-L625)
+      - [report_generator.py](../../src/benchmarking_v2/report_generator.py#L302-L405) e [report_generator.py](../../src/benchmarking_v2/report_generator.py#L619-L626)
+      - [aggregate_statistics.py](../../src/benchmarking_v2/aggregate_statistics.py#L163-L176)
+      - [matrix.py](../../src/distances/matrix.py#L179-L209) e [pairwise.py](../../src/distances/pairwise.py#L254-L258)
+      - [test_benchmark_selected_problems.py](../../tests/test_benchmark_selected_problems.py#L1-L168)
+    - **Resumo:** A API `benchmarking_v2` foi completada com suporte direto a arquivos `.tsp` via `tsplib95` (`build_problem_configs_from_tsp_files`), correção da conversão de graus/minutos em distâncias `GEO` (`xp.trunc` em vez de `xp.floor`, fazendo `gr96.tsp` bater exatamente com o ótimo canônico `55209`), proteção estatística para variância zero/amostras reduzidas e fallback Nemenyi em SciPy puro, além de pré-cálculo do tempo de *baseline* na Tabela 2. O script `run_selected_problems.py` foi criado e executado nas 10 instâncias solicitadas (`att48`, `bayg29`, `bays29`, `berlin52`, `brg180`, `gr17`, `gr21`, `gr24`, `gr48`, `gr96`).
+    - **Atendimento ao DoD:** Todas as 10 instâncias foram executadas fim a fim com geração de *checkpoints*, estatísticas JSON e tabelas em `results_v3/selected_10/tables/selected_10_validation.{md,tex}` (gaps médios de `0.00%` a `0.79%` e *speedups* de até `89.25x` sobre `HybridNaive` e `>2000x` sobre `CPU` em `gr96`), com 18 testes passando no `pytest` e 0 erros no `ruff check`.
+
+---
+
+### Tarefa 7: Reorganização Arquitetural, Tipagem PEP 695/698 e Benchmark Modular
+
+As ações desta tarefa estão detalhadas no plano dedicado:
+👉 [plan-reorganization-and-typing.md](file:///home/lucas_galdino/chimera/gpu_accelerated_clean/documents_tcc/plan/plan-reorganization-and-typing.md)
+

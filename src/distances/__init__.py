@@ -30,7 +30,7 @@ Usage:
     5
 
     >>> from distances import get_distance_function
-    >>> dist_func = get_distance_function('EUC_2D')
+    >>> dist_func = get_distance_function("EUC_2D")
     >>> dist_func((0.0, 0.0), (3.0, 4.0))
     5
 
@@ -40,29 +40,29 @@ References:
 """
 
 from .pairwise import (
-    compute_euclidean_2d,
-    compute_euclidean_3d,
-    compute_manhattan_2d,
-    compute_manhattan_3d,
-    compute_maximum_2d,
-    compute_maximum_3d,
-    compute_ceiling_2d,
-    compute_geographical,
-    compute_att,
-    compute_xray1,
-    get_distance_function,
+  compute_att,
+  compute_ceiling_2d,
+  compute_euclidean_2d,
+  compute_euclidean_3d,
+  compute_geographical,
+  compute_manhattan_2d,
+  compute_manhattan_3d,
+  compute_maximum_2d,
+  compute_maximum_3d,
+  compute_xray1,
+  get_distance_function,
 )
 
 __all__ = [
-    "compute_euclidean_2d",
-    "compute_euclidean_3d",
-    "compute_manhattan_2d",
-    "compute_manhattan_3d",
-    "compute_maximum_2d",
-    "compute_maximum_3d",
-    "compute_ceiling_2d",
-    "compute_geographical",
-    "compute_att",
-    "compute_xray1",
-    "get_distance_function",
+  "compute_att",
+  "compute_ceiling_2d",
+  "compute_euclidean_2d",
+  "compute_euclidean_3d",
+  "compute_geographical",
+  "compute_manhattan_2d",
+  "compute_manhattan_3d",
+  "compute_maximum_2d",
+  "compute_maximum_3d",
+  "compute_xray1",
+  "get_distance_function",
 ]
