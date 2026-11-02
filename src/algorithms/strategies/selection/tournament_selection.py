@@ -1,9 +1,7 @@
 """
-Selection strategies for evolutionary routing algorithms.
+Tournament Selection strategies for routing algorithms.
 
-All selection strategies support both:
-- `select(population, fitness, context=None) -> Route` (single 1D route `(n_cities,)`)
-- `select_batch(routes, fitness, num_parents=None, context=None) -> Routes` (2D batch `(N, n_cities)`)
+Provides pure CPU NumPy and accelerated GPU CUDA implementations of Tournament Selection.
 """
 
 from __future__ import annotations
@@ -12,9 +10,10 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from protocols.algorithm_strategies import Fitness, Route, Routes, ensure_routes_batch
 from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
+from utils.rng import make_rng, resolve_rng
+from utils.route_helpers import ensure_routes_batch
 
 try:
   import cupy as cp
@@ -25,7 +24,10 @@ except ImportError:
   cp = None
 
 if TYPE_CHECKING:
+  from numpy.random import Generator
+
   from protocols.problem_context import ProblemContext
+  from protocols.types import Fitness, Route, Routes, SeedLike
 
 
 class TournamentSelection:
@@ -36,18 +38,19 @@ class TournamentSelection:
   competitors per tournament.
   """
 
-  def __init__(self, k: int = 3, seed: int | None = None) -> None:
+  def __init__(self, k: int = 3, seed: SeedLike = None) -> None:
     """
     Initialize tournament selection.
 
     Args:
         k: Tournament size (number of competing routes per selection).
-        seed: Optional RNG seed.
+        seed: Optional RNG seed (int, Generator, callable, or None).
     """
     if k < 1:
       raise ValueError(f"Tournament size k must be >= 1, got {k}")
-    self.k = k
-    self.rng = np.random.default_rng(seed)
+    self.k: int = k
+    self.seed: SeedLike = seed
+    self.rng: Generator = make_rng(seed)
     self.h2d_bytes: int = 0
     self.d2h_bytes: int = 0
     self.kernel_launches: int = 0
@@ -80,10 +83,7 @@ class TournamentSelection:
     pop_size = len(pop_batch)
     k_eff = min(self.k, pop_size)
 
-    rng = self.rng
-    if context is not None and hasattr(context, "rng") and isinstance(context.rng, np.random.Generator):
-      rng = context.rng
-
+    rng: Generator = resolve_rng(context, self.rng)
     indices = rng.choice(pop_size, size=k_eff, replace=False)
     winner_local = int(np.argmin(fit_arr[indices]))
     winner_idx = int(indices[winner_local])
@@ -110,10 +110,10 @@ class TournamentSelection:
         2D array of selected parent routes `(num_parents, n_cities)`.
     """
     pop_batch, _ = ensure_routes_batch(routes)
-    pop_size = len(pop_batch)
-    n_select = pop_size if num_parents is None else num_parents
+    pop_size: int = len(pop_batch)
+    n_select: int = pop_size if num_parents is None else num_parents
 
-    is_gpu = CUPY_AVAILABLE and cp is not None and isinstance(pop_batch, cp.ndarray)
+    is_gpu: bool = CUPY_AVAILABLE and cp is not None and isinstance(pop_batch, cp.ndarray)
     xp: Any = cp if is_gpu else np
 
     fit_arr = xp.asarray(fitness, dtype=xp.float64)
@@ -124,79 +124,13 @@ class TournamentSelection:
       winners = candidates[cp.arange(n_select), best_cols]
       return cast("Routes", pop_batch[winners].copy())
 
-    rng = self.rng
-    if context is not None and hasattr(context, "rng") and isinstance(context.rng, np.random.Generator):
-      rng = context.rng
+    rng: Generator = resolve_rng(context, self.rng)
 
     candidates_np = rng.integers(0, pop_size, size=(n_select, self.k))
     cand_fitness_np = fit_arr[candidates_np]
     best_cols_np = np.argmin(cand_fitness_np, axis=1)
     winners_np = candidates_np[np.arange(n_select), best_cols_np]
     return pop_batch[winners_np].copy()
-
-
-class RouletteWheelSelection:
-  """
-  Fitness-proportionate (roulette wheel) selection for route minimization.
-
-  Converts route costs `c_i` into selection weights `w_i = 1 / (c_i + eps)` so
-  shorter tours receive higher selection probability.
-  """
-
-  def __init__(self, seed: int | None = None) -> None:
-    """Initialize roulette wheel selection."""
-    self.rng = np.random.default_rng(seed)
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
-
-  def _compute_probabilities(self, fitness: Fitness) -> np.ndarray:
-    """Compute inverse-cost selection probabilities."""
-    fit_np = np.asarray(fitness, dtype=np.float64)
-    inv_fitness = 1.0 / (np.maximum(fit_np, 0.0) + 1e-6)
-    total = float(np.sum(inv_fitness))
-    if total <= 0.0 or not np.isfinite(total):
-      return np.full(len(fit_np), 1.0 / len(fit_np), dtype=np.float64)
-    return inv_fitness / total
-
-  def select(
-    self,
-    population: Routes,
-    fitness: Fitness,
-    context: ProblemContext | None = None,
-  ) -> Route:
-    """Select a single parent route `(n_cities,)` using roulette wheel probabilities."""
-    pop_batch, _ = ensure_routes_batch(population)
-    probs = self._compute_probabilities(fitness)
-    rng = self.rng
-    if context is not None and hasattr(context, "rng") and isinstance(context.rng, np.random.Generator):
-      rng = context.rng
-    idx = int(rng.choice(len(pop_batch), p=probs))
-    return cast("Route", pop_batch[idx].copy())
-
-  @time_strategy
-  def select_batch(
-    self,
-    routes: Routes,
-    fitness: Fitness,
-    num_parents: int | None = None,
-    context: ProblemContext | None = None,
-  ) -> Routes:
-    """Select a 2D batch of parent routes `(num_parents, n_cities)` via roulette wheel."""
-    pop_batch, _ = ensure_routes_batch(routes)
-    n_select = len(pop_batch) if num_parents is None else num_parents
-    probs = self._compute_probabilities(fitness)
-    rng = self.rng
-    if context is not None and hasattr(context, "rng") and isinstance(context.rng, np.random.Generator):
-      rng = context.rng
-    indices = rng.choice(len(pop_batch), size=n_select, replace=True, p=probs)
-    return pop_batch[indices].copy()
 
 
 class GPUTournamentSelection:
@@ -206,19 +140,19 @@ class GPUTournamentSelection:
   Executes parent selection directly in GPU VRAM using a dedicated CUDA kernel.
   """
 
-  def __init__(self, k: int = 5, seed: int | None = None) -> None:
+  def __init__(self, k: int = 5, seed: SeedLike = None) -> None:
     """
     Initialize GPU tournament selection.
 
     Args:
         k: Tournament size.
-        seed: Optional RNG seed.
+        seed: Optional RNG seed (int, Generator, callable, or None).
     """
     if k < 1:
       raise ValueError(f"Tournament size k must be >= 1, got {k}")
-    self.k = k
-    self.seed = seed
-    self.rng = np.random.default_rng(seed)
+    self.k: int = k
+    self.seed: SeedLike = seed
+    self.rng: Generator = make_rng(seed)
     self._kernel: Any = None
     self.h2d_bytes: int = 0
     self.d2h_bytes: int = 0
@@ -269,7 +203,7 @@ class GPUTournamentSelection:
     pop_size, n_cities = pop_batch.shape
     n_select = pop_size if num_parents is None else num_parents
 
-    input_on_gpu = isinstance(pop_batch, cp.ndarray)
+    input_on_gpu: bool = isinstance(pop_batch, cp.ndarray)
     if input_on_gpu:
       d_pop = cp.ascontiguousarray(pop_batch, dtype=cp.int32)
     else:
@@ -282,9 +216,7 @@ class GPUTournamentSelection:
       d_fit = cp.asarray(fitness, dtype=cp.float64)
       self.h2d_bytes += int(d_fit.nbytes)
 
-    rng = self.rng
-    if context is not None and hasattr(context, "rng") and isinstance(context.rng, np.random.Generator):
-      rng = context.rng
+    rng: Generator = resolve_rng(context, self.rng)
     candidates_np = rng.integers(0, pop_size, size=(n_select, self.k), dtype=np.int32)
     d_candidates = cp.asarray(candidates_np, dtype=cp.int32)
     self.h2d_bytes += int(d_candidates.nbytes)
@@ -315,3 +247,7 @@ class GPUTournamentSelection:
       return cast("Routes", d_parents)
     self.d2h_bytes += int(d_parents.nbytes)
     return cast("Routes", cp.asnumpy(d_parents))
+
+
+__all__: list[str] = ["GPUTournamentSelection", "TournamentSelection"]
+

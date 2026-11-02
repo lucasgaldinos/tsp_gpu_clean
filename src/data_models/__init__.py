@@ -6,6 +6,7 @@ and CVRP problem instances.
 """
 
 from .exceptions import (
+  GPUUnavailableError,
   InstanceNotFoundError,
   InvalidEdgeTypeError,
   MissingCoordinatesError,
@@ -14,6 +15,7 @@ from .exceptions import (
 from .problem import Problem
 
 __all__ = [
+  "GPUUnavailableError",
   "InstanceNotFoundError",
   "InvalidEdgeTypeError",
   "MissingCoordinatesError",

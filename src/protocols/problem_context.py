@@ -31,7 +31,7 @@ Example:
     >>> import numpy as np
     >>>
     >>> # Load problem
-    >>> with DatabaseLoader() as loader:
+    >>> with DatabaseLoader("path/to/tsp.duckdb") as loader:
     ...   problem = loader.load("berlin52")
     >>>
     >>> # Create context (NO allocation yet - fully lazy)
@@ -51,26 +51,11 @@ References:
     - Phase 5 Cleanup: Removed eager @property accessors (distances, demands, coordinates)
 """
 
-import os
-import tempfile
-
 import numpy as np
 
 from data_models.problem import Problem
 from distances.matrix import compute_distance_matrix
-from protocols.backend import BackendModule, CupyArray
-
-if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"), os.W_OK):
-  os.environ["CUPY_CACHE_DIR"] = os.path.join(tempfile.gettempdir(), "cupy_cache")
-
-# CuPy availability check
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  cp = None
-  CUPY_AVAILABLE = False
+from protocols.backend import BackendModule, CupyArray, require_gpu
 
 
 class ProblemContext:
@@ -138,7 +123,7 @@ class ProblemContext:
               See NumPy docs on "Parallel random number generation".
 
     Raises:
-        ImportError: If xp is CuPy but CuPy is not installed/available
+        GPUUnavailableError: If xp is CuPy but CuPy is not installed or CUDA device is unavailable.
 
     Note:
         The xp parameter indicates the PREFERRED backend but does not
@@ -163,17 +148,11 @@ class ProblemContext:
         >>> random_value = context.rng.random()
 
         >>> # CuPy not available - clear error
-        >>> context = ProblemContext(problem, xp=cp)  # Raises ImportError
+        >>> context = ProblemContext(problem, xp=cp)  # Raises GPUUnavailableError
     """
     # Validate GPU backend availability
-    if xp != np and not CUPY_AVAILABLE:
-      raise ImportError(
-        "GPU backend requested but CuPy is not installed.\n"
-        "To use GPU acceleration, install CuPy:\n"
-        "  pip install cupy-cuda12x  # For CUDA 12.x\n"
-        "  pip install cupy-cuda11x  # For CUDA 11.x\n"
-        "Or use CPU backend with xp=np (NumPy)."
-      )
+    if xp != np:
+      require_gpu()
 
     self.xp = xp
     self.problem = problem

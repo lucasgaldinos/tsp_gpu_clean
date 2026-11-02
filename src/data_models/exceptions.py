@@ -23,7 +23,7 @@ Design Philosophy:
 Example Usage:
     >>> # Problem loading errors
     >>> try:
-    ...   with DatabaseLoader() as loader:
+    ...   with DatabaseLoader("path/to/tsp.duckdb") as loader:
     ...     problem = loader.load("nonexistent")
     ... except InstanceNotFoundError as e:
     ...   print(f"Instance not found: {e.instance_name}")
@@ -196,6 +196,17 @@ class InvalidProblemDataError(ProblemLoaderError):
 # ═══════════════════════════════════════════════════════════════════
 
 
+class GPUUnavailableError(RuntimeError):
+  """
+  Raised when a GPU operation is requested but CUDA or CuPy is unavailable.
+
+  Covers both missing CuPy package installation and missing or inaccessible
+  CUDA-capable hardware / driver runtime errors.
+  """
+
+  pass
+
+
 class VRAMInsufficientError(RuntimeError):
   """
   Raised when GPU operation requires more VRAM than available.
@@ -304,3 +315,38 @@ class VRAMInsufficientError(RuntimeError):
       f"required_bytes={self.required_bytes}, "
       f"available_bytes={self.available_bytes})"
     )
+
+
+class DatabaseNotEmptyError(ProblemLoaderError):
+  """
+  Raised when attempting to ingest into a database that already contains records without explicit overwrite permission.
+
+  Attributes:
+      db_path: Path to the target DuckDB database.
+      table_name: Table that contains existing records.
+  """
+
+  def __init__(self, db_path: str, table_name: str = "problems") -> None:
+    self.db_path = db_path
+    self.table_name = table_name
+    super().__init__(
+      f"Target database '{db_path}' already contains records in '{table_name}'. "
+      "Pass overwrite=True or use CLI flag --overwrite to clear existing records."
+    )
+
+
+class UnsupportedProblemTypeError(ProblemLoaderError):
+  """
+  Raised when an unsupported or unrecognized problem formulation type is encountered.
+
+  Attributes:
+      problem_type: The unrecognized problem type string.
+      instance_name: Optional instance name.
+  """
+
+  def __init__(self, problem_type: str, instance_name: str | None = None) -> None:
+    self.problem_type = problem_type
+    self.instance_name = instance_name
+    target = f" for instance '{instance_name}'" if instance_name else ""
+    super().__init__(f"Unsupported problem formulation type '{problem_type}'{target}.")
+

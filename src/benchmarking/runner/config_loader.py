@@ -8,9 +8,10 @@ This module provides type-safe configuration loading with dataclasses,
 replacing the hardcoded constants from the monolithic chapter4_validation.py.
 
 Usage:
-    from benchmarking.runner.config_loader import default_config_dir, load_all_configs
+    from pathlib import Path
+    from benchmarking.runner.config_loader import load_all_configs
 
-    configs = load_all_configs(default_config_dir())
+    configs = load_all_configs(Path("configs"))
     ga_params = configs["ga_params"]
     algorithms = configs["algorithms"]
     problems = configs["problems"]
@@ -22,40 +23,18 @@ Date: 2025-01-28
 
 import importlib
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from loaders.tsplib_loader import parse_tsp_file_with_tsplib95
+from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsp_file_with_tsplib95
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+if TYPE_CHECKING:
+  from inspect import Signature
 
-DEFAULT_SELECTED_TSP_FILES: tuple[Path, ...] = (
-  PROJECT_ROOT / "datasets" / "tsp" / "att48.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "bayg29.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "bays29.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "berlin52.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "brg180.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "gr17.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "gr21.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "gr24.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "gr48.tsp",
-  PROJECT_ROOT / "datasets" / "tsp" / "gr96.tsp",
-)
-
-
-def default_config_dir() -> Path:
-  """Directory holding `benchmark.json`, `algorithms.json` and `problems.json`.
-
-  `configs/` sits beside `src/` at the repository root: these files are run
-  parameters you edit, not code, so they live outside the package tree.
-
-  Returns:
-      Path to the configuration directory (`<repo root>/configs`).
-  """
-  return PROJECT_ROOT / "configs"
-
+  from protocols.types import LocalSearchStage
 
 # Canonical TSPLIB95 optimal tour costs (from Reinelt 1991 / TSPLIB95 FAQ)
 KNOWN_TSPLIB_OPTIMALS: dict[str, float] = {
@@ -164,61 +143,187 @@ KNOWN_TSPLIB_OPTIMALS: dict[str, float] = {
 
 @dataclass
 class GAParams:
-  """Genetic Algorithm parameters (ISO-algorithmic across all variants)."""
+  """Default Genetic Algorithm parameters."""
 
-  population_size: int
-  mutation_rate: float
-  tournament_size: int
-  two_opt_iterations: int
-  seed: int
+  population_size: int = 256
+  mutation_rate: float = 0.02
+  seed: int = 42
 
   def to_dict(self) -> dict[str, Any]:
     """Convert to dictionary for passing to algorithm constructors."""
     return {
       "population_size": self.population_size,
       "mutation_rate": self.mutation_rate,
-      "tournament_size": self.tournament_size,
-      "two_opt_iterations": self.two_opt_iterations,
       "seed": self.seed,
     }
 
 
 @dataclass
 class AlgorithmConfig:
-  """Configuration for a single algorithm variant."""
+  """
+  Configuration for a single algorithm variant.
+
+  Supports both declarative strategy composition for modular `GeneticAlgorithm`
+  and direct dynamic class loading for monolithic algorithms.
+  """
 
   name: str
-  class_module: str
-  class_name: str
   use_gpu: bool
   description: str
+  metaheuristic: str = "GeneticAlgorithm"
+  class_module: str | None = None
+  class_name: str | None = None
+  params: dict[str, Any] = dc_field(default_factory=dict)
+  strategies: dict[str, Any] = dc_field(default_factory=dict)
+
+  def __post_init__(self) -> None:
+    if self.params is None:
+      self.params = {}
+    if self.strategies is None:
+      self.strategies = {}
 
   def get_class(self) -> type:
-    """Dynamically import and return the algorithm class."""
+    """Dynamically import and return the algorithm class for monolithic configs."""
+    if not self.class_module or not self.class_name:
+      from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
+
+      return GeneticAlgorithm
     module = importlib.import_module(self.class_module)
     return cast("type", getattr(module, self.class_name))
 
   def instantiate(
     self,
-    ga_params: GAParams,
+    default_params: GAParams,
+    seed: int | None = None,
     local_search_stage: str | None = None,
+    param_overrides: Mapping[str, Any] | None = None,
+    strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
   ) -> Any:
-    """Instantiate the algorithm, applying optional local_search_stage override."""
-    algo_class = self.get_class()
-    kwargs: dict[str, Any] = ga_params.to_dict()
-    if local_search_stage is not None:
-      # Pass local_search_stage if accepted by constructor
-      try:
-        import inspect
+    """Instantiate the algorithm, applying optional seed, parameter, and strategy overrides."""
+    valid_slots = {"initialization", "selection", "crossover", "mutation", "evaluation", "local_search"}
+    if strategy_overrides:
+      for slot in strategy_overrides:
+        if slot not in valid_slots:
+          raise ValueError(
+            f"Unknown strategy slot '{slot}'. Valid slots: {sorted(valid_slots)}"
+          )
 
-        sig = inspect.signature(algo_class)
-        if "local_search_stage" in sig.parameters or any(
-          p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-        ):
-          kwargs["local_search_stage"] = local_search_stage
-      except Exception:
+    # 1. Monolithic / class-based instantiation
+    if self.class_module and self.class_name:
+      cls = self.get_class()
+      kwargs: dict[str, Any] = {
+        "population_size": default_params.population_size,
+        "mutation_rate": default_params.mutation_rate,
+        "seed": seed if seed is not None else default_params.seed,
+      }
+      kwargs.update(self.params)
+      if param_overrides:
+        kwargs.update(param_overrides)
+      if seed is not None:
+        kwargs["seed"] = seed
+      if local_search_stage is not None:
         kwargs["local_search_stage"] = local_search_stage
-    return algo_class(**kwargs)
+
+      if strategy_overrides:
+        if "local_search" in strategy_overrides and "max_iterations" in strategy_overrides["local_search"]:
+          kwargs["two_opt_iterations"] = strategy_overrides["local_search"]["max_iterations"]
+        if "selection" in strategy_overrides and "k" in strategy_overrides["selection"]:
+          kwargs["tournament_size"] = strategy_overrides["selection"]["k"]
+
+      import inspect
+
+      sig: Signature = inspect.signature(cls)
+      has_var_kw: bool = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+      if not has_var_kw:
+        kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+      return cls(**kwargs)
+
+    # 2. Declarative GeneticAlgorithm strategy composition
+    from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
+    from algorithms.strategies import STRATEGY_REGISTRY
+
+    resolved_seed: int | Any
+    if seed is not None:
+      resolved_seed = seed
+    elif param_overrides and "seed" in param_overrides:
+      resolved_seed = param_overrides["seed"]
+    else:
+      resolved_seed = self.params.get("seed", default_params.seed)
+
+    valid_slots = {"initialization", "selection", "crossover", "mutation", "evaluation", "local_search"}
+    if strategy_overrides:
+      for slot_name in strategy_overrides:
+        if slot_name not in valid_slots:
+          raise ValueError(
+            f"Unknown strategy slot '{slot_name}'. Valid slots are: {sorted(valid_slots)}"
+          )
+
+    def _build_strategy(slot: str) -> Any:
+      strat_spec = self.strategies.get(slot)
+      if not strat_spec:
+        return None
+      class_name = strat_spec.get("class")
+      if not class_name:
+        return None
+      if class_name not in STRATEGY_REGISTRY:
+        raise ValueError(
+          f"Unknown strategy class '{class_name}' in slot '{slot}'. Available: {list(STRATEGY_REGISTRY.keys())}"
+        )
+      strat_cls: type = STRATEGY_REGISTRY[class_name]
+      strat_params = dict(strat_spec.get("params", {}))
+
+      import inspect
+
+      sig: Signature = inspect.signature(strat_cls)
+      has_var_kw: bool = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
+      if strategy_overrides and slot in strategy_overrides:
+        for k, v in strategy_overrides[slot].items():
+          if not has_var_kw and k not in sig.parameters:
+            raise ValueError(
+              f"Strategy class '{class_name}' in slot '{slot}' does not accept parameter '{k}'. "
+              f"Accepted parameters: {list(sig.parameters.keys())}"
+            )
+          strat_params[k] = v
+
+      if "seed" in sig.parameters and "seed" not in strat_params:
+        strat_params["seed"] = resolved_seed
+      return strat_cls(**strat_params)
+
+    init_strat = _build_strategy("initialization")
+    sel_strat = _build_strategy("selection")
+    cx_strat = _build_strategy("crossover")
+    mut_strat = _build_strategy("mutation")
+    eval_strat = _build_strategy("evaluation")
+    ls_strat = _build_strategy("local_search")
+
+    effective_ls_stage = cast(
+      "LocalSearchStage",
+      local_search_stage
+      or (param_overrides.get("local_search_stage") if param_overrides else None)
+      or self.params.get("local_search_stage", "post_mutation"),
+    )
+
+    pop_size = self.params.get("population_size", default_params.population_size)
+    if param_overrides and "population_size" in param_overrides:
+      pop_size = param_overrides["population_size"]
+
+    mut_rate = self.params.get("mutation_rate", default_params.mutation_rate)
+    if param_overrides and "mutation_rate" in param_overrides:
+      mut_rate = param_overrides["mutation_rate"]
+
+    return GeneticAlgorithm(
+      population_size=int(pop_size),
+      mutation_rate=float(mut_rate),
+      seed=resolved_seed,
+      initialization=init_strat,
+      selection=sel_strat,
+      crossover=cx_strat,
+      mutation=mut_strat,
+      evaluation=eval_strat,
+      local_search=ls_strat,
+      local_search_stage=effective_ls_stage,
+    )
 
 
 @dataclass
@@ -261,7 +366,7 @@ def load_algorithms_config(
   config_dir: Path,
 ) -> tuple[GAParams, dict[str, AlgorithmConfig]]:
   """
-  Load algorithms.json containing GA parameters and algorithm configurations.
+  Load algorithms.json containing default parameters and algorithm configurations.
 
   Args:
       config_dir: Path to configuration directory
@@ -269,7 +374,7 @@ def load_algorithms_config(
   Returns:
       Tuple of (GAParams, dict of algorithm_name -> AlgorithmConfig)
   """
-  config_path = config_dir / "algorithms.json"
+  config_path: Path = config_dir / "algorithms.json"
 
   if not config_path.exists():
     raise FileNotFoundError(f"Algorithms config not found: {config_path}")
@@ -277,44 +382,27 @@ def load_algorithms_config(
   with open(config_path) as f:
     data = json.load(f)
 
-  if "ga_params" not in data:
-    raise ValueError("algorithms.json missing 'ga_params' section")
+  params_dict = data.get("default_params") or data.get("ga_params", {})
+  ga_params = GAParams(
+    population_size=int(params_dict.get("population_size", 256)),
+    mutation_rate=float(params_dict.get("mutation_rate", 0.02)),
+    seed=int(params_dict.get("seed", 42)),
+  )
+
   if "algorithm_configs" not in data:
     raise ValueError("algorithms.json missing 'algorithm_configs' section")
 
-  ga_params_dict = data["ga_params"]
-  required_ga_fields = [
-    "population_size",
-    "mutation_rate",
-    "tournament_size",
-    "two_opt_iterations",
-    "seed",
-  ]
-  for field in required_ga_fields:
-    if field not in ga_params_dict:
-      raise ValueError(f"ga_params missing required field: {field}")
-
-  ga_params = GAParams(
-    population_size=ga_params_dict["population_size"],
-    mutation_rate=ga_params_dict["mutation_rate"],
-    tournament_size=ga_params_dict["tournament_size"],
-    two_opt_iterations=ga_params_dict["two_opt_iterations"],
-    seed=ga_params_dict["seed"],
-  )
-
   algorithms = {}
   for name, config_dict in data["algorithm_configs"].items():
-    required_algo_fields = ["class_module", "class_name", "use_gpu", "description"]
-    for field in required_algo_fields:
-      if field not in config_dict:
-        raise ValueError(f"Algorithm '{name}' missing required field: {field}")
-
     algorithms[name] = AlgorithmConfig(
       name=name,
-      class_module=config_dict["class_module"],
-      class_name=config_dict["class_name"],
-      use_gpu=config_dict["use_gpu"],
-      description=config_dict["description"],
+      metaheuristic=config_dict.get("metaheuristic", "GeneticAlgorithm"),
+      class_module=config_dict.get("class_module"),
+      class_name=config_dict.get("class_name"),
+      use_gpu=bool(config_dict.get("use_gpu", False)),
+      description=config_dict.get("description", ""),
+      params=config_dict.get("params", {}),
+      strategies=config_dict.get("strategies", {}),
     )
 
   return ga_params, algorithms
@@ -330,7 +418,7 @@ def load_benchmark_config(config_dir: Path) -> BenchmarkConfig:
   Returns:
       BenchmarkConfig instance
   """
-  config_path = config_dir / "benchmark.json"
+  config_path: Path = config_dir / "benchmark.json"
 
   if not config_path.exists():
     raise FileNotFoundError(f"Benchmark config not found: {config_path}")
@@ -338,7 +426,7 @@ def load_benchmark_config(config_dir: Path) -> BenchmarkConfig:
   with open(config_path) as f:
     data = json.load(f)
 
-  required_fields = [
+  required_fields: list[str] = [
     "repetitions",
     "patience",
     "cpu_size_threshold",
@@ -370,7 +458,7 @@ def load_problems_config(config_dir: Path) -> list[ProblemConfig]:
   Returns:
       List of ProblemConfig instances
   """
-  config_path = config_dir / "problems.json"
+  config_path: Path = config_dir / "problems.json"
 
   if not config_path.exists():
     raise FileNotFoundError(f"Problems config not found: {config_path}")
@@ -382,7 +470,7 @@ def load_problems_config(config_dir: Path) -> list[ProblemConfig]:
     raise ValueError("problems.json must contain a JSON array")
 
   problems = []
-  required_fields = ["name", "optimal", "size"]
+  required_fields: list[str] = ["name", "optimal", "size"]
 
   for idx, problem_dict in enumerate(data):
     for field in required_fields:
@@ -419,8 +507,8 @@ def load_all_configs(config_dir: str | Path) -> dict[str, Any]:
     raise ValueError(f"Config path must be a directory: {config_path}")
 
   ga_params, algorithms = load_algorithms_config(config_path)
-  benchmark = load_benchmark_config(config_path)
-  problems = load_problems_config(config_path)
+  benchmark: BenchmarkConfig = load_benchmark_config(config_path)
+  problems: list[ProblemConfig] = load_problems_config(config_path)
 
   return {
     "ga_params": ga_params,
@@ -458,11 +546,15 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   if not (0.0 <= ga_params.mutation_rate <= 1.0):
     warnings.append(f"Invalid mutation_rate: {ga_params.mutation_rate} (must be in [0, 1])")
 
-  if ga_params.tournament_size <= 0:
-    warnings.append(f"Invalid tournament_size: {ga_params.tournament_size} (must be > 0)")
-
-  if ga_params.two_opt_iterations <= 0:
-    warnings.append(f"Invalid two_opt_iterations: {ga_params.two_opt_iterations} (must be > 0)")
+  for algo_name, algo_cfg in algorithms.items():
+    sel_params = algo_cfg.strategies.get("selection", {}).get("params", {})
+    tourn_size = sel_params.get("tournament_size")
+    if tourn_size is not None and tourn_size <= 0:
+      warnings.append(f"Invalid tournament_size in {algo_name}: {tourn_size} (must be > 0)")
+    ls_params = algo_cfg.strategies.get("local_search", {}).get("params", {})
+    two_opt_iters = ls_params.get("two_opt_iterations")
+    if two_opt_iters is not None and two_opt_iters <= 0:
+      warnings.append(f"Invalid two_opt_iterations in {algo_name}: {two_opt_iters} (must be > 0)")
 
   if benchmark.repetitions <= 0:
     warnings.append(f"Invalid repetitions: {benchmark.repetitions} (must be > 0)")
@@ -499,19 +591,21 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
 def build_problem_configs_from_tsp_files(
   tsp_files: Sequence[str | Path],
   existing_configs: Sequence[ProblemConfig] | None = None,
+  tsp_dir: str | Path | None = None,
 ) -> tuple[list[ProblemConfig], dict[str, Path]]:
   """
   Build ProblemConfig instances directly from .tsp file paths using tsplib95.
 
   Args:
-      tsp_files: Sequence of paths to .tsp files (or problem names in datasets/tsp).
+      tsp_files: Sequence of paths to .tsp files (or problem names when `tsp_dir` is supplied).
       existing_configs: Optional list of already loaded ProblemConfig instances.
+      tsp_dir: Optional base directory to resolve bare problem names against.
 
   Returns:
       Tuple of ProblemConfig list and path map dictionary.
   """
   existing_map: dict[str, ProblemConfig] = {cfg.name: cfg for cfg in (existing_configs or [])}
-  default_tsp_dir: Path = PROJECT_ROOT / "datasets" / "tsp"
+  base_dir: Path | None = Path(tsp_dir) if tsp_dir is not None else None
 
   resolved_configs: list[ProblemConfig] = []
   tsp_path_map: dict[str, Path] = {}
@@ -519,14 +613,17 @@ def build_problem_configs_from_tsp_files(
   for item in tsp_files:
     candidate = Path(item)
     if not candidate.exists():
-      stem: str = candidate.stem if candidate.suffix == ".tsp" else str(item)
-      alt = default_tsp_dir / f"{stem}.tsp"
-      if alt.exists():
-        candidate = alt
+      if base_dir is not None:
+        stem: str = candidate.stem if candidate.suffix == ".tsp" else str(item)
+        alt: Path = base_dir / f"{stem}.tsp"
+        if alt.exists():
+          candidate = alt
+        else:
+          raise FileNotFoundError(f"TSPLIB file not found: {item}")
       else:
         raise FileNotFoundError(f"TSPLIB file not found: {item}")
 
-    bundle = parse_tsp_file_with_tsplib95(candidate)
+    bundle: TsplibIngestionBundle = parse_tsp_file_with_tsplib95(candidate)
     name = str(bundle.problem.name)
     dimension = int(bundle.problem.dimension)
     tsp_path_map[name] = candidate.resolve()
@@ -546,3 +643,88 @@ def build_problem_configs_from_tsp_files(
     resolved_configs.append(ProblemConfig(name=name, optimal=float(optimal), size=dimension))
 
   return resolved_configs, tsp_path_map
+
+
+def build_problem_configs_from_duckdb(
+  db_path: str | Path,
+  problem_names: Sequence[str] | None = None,
+  existing_configs: Sequence[ProblemConfig] | None = None,
+) -> list[ProblemConfig]:
+  """
+  Build ProblemConfig instances by querying DuckDB for dimension and optimal solution cost.
+
+  Queries the normalized DuckDB schema:
+  - `problems` joined with `tsp_problems` for dimension and name
+  - `solutions` for optimal cost, falling back to `existing_configs` or `KNOWN_TSPLIB_OPTIMALS`.
+
+  Args:
+      db_path: Path to DuckDB database file.
+      problem_names: Optional sequence of problem names to filter by. If None,
+          all TSP problems in the database are returned.
+      existing_configs: Optional list of already loaded ProblemConfig instances.
+
+  Returns:
+      List of ProblemConfig instances. Preserves `problem_names` order if supplied.
+  """
+  import duckdb
+
+  db_file = Path(db_path)
+  if not db_file.exists():
+    raise FileNotFoundError(f"Database file not found: {db_file}")
+
+  existing_map: dict[str, ProblemConfig] = {cfg.name: cfg for cfg in (existing_configs or [])}
+  conn = duckdb.connect(str(db_file), read_only=True)
+  try:
+    if problem_names is not None:
+      names_list = list(problem_names)
+      placeholders = ", ".join("?" for _ in names_list)
+      query = f"""
+        SELECT p.id, p.name, t.dimension,
+               (SELECT s.cost FROM solutions s
+                WHERE s.problem_id = p.id AND (s.kind = 'optimal' OR s.quality = 'optimal')
+                LIMIT 1) as solution_cost
+        FROM problems p
+        JOIN tsp_problems t ON p.id = t.problem_id
+        WHERE p.name IN ({placeholders})
+        ORDER BY t.dimension ASC, p.name ASC
+      """  # noqa: S608
+      rows = conn.execute(query, names_list).fetchall()
+    else:
+      query = """
+        SELECT p.id, p.name, t.dimension,
+               (SELECT s.cost FROM solutions s
+                WHERE s.problem_id = p.id AND (s.kind = 'optimal' OR s.quality = 'optimal')
+                LIMIT 1) as solution_cost
+        FROM problems p
+        JOIN tsp_problems t ON p.id = t.problem_id
+        ORDER BY t.dimension ASC, p.name ASC
+      """
+      rows = conn.execute(query).fetchall()
+
+    resolved_configs: list[ProblemConfig] = []
+    found_names: set[str] = set()
+
+    for _prob_id, name, dimension, solution_cost in rows:
+      found_names.add(name)
+      if solution_cost is not None:
+        optimal = float(solution_cost)
+      elif name in existing_map:
+        optimal = existing_map[name].optimal
+      elif name in KNOWN_TSPLIB_OPTIMALS:
+        optimal = KNOWN_TSPLIB_OPTIMALS[name]
+      else:
+        raise KeyError(
+          f"Optimal tour cost not found for '{name}' in solutions table, existing_configs, or KNOWN_TSPLIB_OPTIMALS."
+        )
+      resolved_configs.append(ProblemConfig(name=name, optimal=optimal, size=dimension))
+
+    if problem_names is not None:
+      missing: list[str] = [n for n in problem_names if n not in found_names]
+      if missing:
+        raise KeyError(f"Problem(s) not found in DuckDB database: {missing}")
+      name_to_config = {cfg.name: cfg for cfg in resolved_configs}
+      return [name_to_config[n] for n in problem_names]
+
+    return resolved_configs
+  finally:
+    conn.close()

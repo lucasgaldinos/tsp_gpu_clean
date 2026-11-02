@@ -12,7 +12,7 @@ This module parses `.tsp` files using `tsplib95` into:
 
 from __future__ import annotations
 
-import argparse
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +23,7 @@ import numpy as np
 import tsplib95
 
 from data_models.exceptions import (
+  DatabaseNotEmptyError,
   InstanceNotFoundError,
   InvalidEdgeTypeError,
   InvalidProblemDataError,
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class ProblemRowRecord:
-  """Row schema for the `problems` table in DuckDB."""
+  """Row schema for problem records in DuckDB."""
 
   problem_id: int
   name: str
@@ -46,6 +47,10 @@ class ProblemRowRecord:
   edge_weight_type: str
   capacity: int | None
   comment: str | None
+  edge_weight_format: str | None = None
+  tsplib_name: str | None = None
+  source_file: str | None = None
+  file_checksum: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,7 +73,8 @@ class MatrixRowRecord:
   dimension: int
   matrix_format: str
   is_symmetric: bool
-  matrix_json: str
+  matrix_json: str = ""
+  matrix: list[list[int]] | list[list[float]] | None = None
 
 
 @dataclass(frozen=True)
@@ -125,6 +131,16 @@ def parse_tsp_file_with_tsplib95(
   capacity: int | None = int(capacity_raw) if capacity_raw is not None else None
   comment_raw: Any | None = getattr(raw_problem, "comment", None)
   comment: str | None = str(comment_raw) if comment_raw is not None else None
+  edge_format_raw: Any | None = getattr(raw_problem, "edge_weight_format", None)
+  edge_weight_format: str | None = str(edge_format_raw).strip() if edge_format_raw else None
+  tsplib_name: str | None = str(getattr(raw_problem, "name", "") or instance_name)
+
+  checksum: str | None = None
+  try:
+    checksum = hashlib.sha256(path.read_bytes()).hexdigest()
+  except Exception:
+    checksum = None
+  source_file: str = str(path.resolve())
 
   if edge_type not in VALID_EDGE_TYPES:
     raise InvalidEdgeTypeError(edge_type)
@@ -160,12 +176,14 @@ def parse_tsp_file_with_tsplib95(
 
     matrix_format = str(getattr(raw_problem, "edge_weight_format", None) or "FULL_MATRIX")
     is_symmetric: bool = problem_type != "ATSP"
+    int_matrix: list[list[int]] = [[round(w) for w in row] for row in matrix_rows]
     matrix_record = MatrixRowRecord(
       problem_id=problem_id,
       dimension=dimension,
       matrix_format=matrix_format,
       is_symmetric=is_symmetric,
       matrix_json=json.dumps(matrix_rows),
+      matrix=int_matrix,
     )
 
     display_data: dict[Any, Any] = getattr(raw_problem, "display_data", None) or {}
@@ -223,6 +241,10 @@ def parse_tsp_file_with_tsplib95(
     edge_weight_type=edge_type,
     capacity=capacity,
     comment=comment,
+    edge_weight_format=edge_weight_format,
+    tsplib_name=tsplib_name,
+    source_file=source_file,
+    file_checksum=checksum,
   )
 
   return TsplibIngestionBundle(
@@ -256,14 +278,34 @@ def bundle_to_problem(
   demands: np.ndarray | None = None
   distances: np.ndarray | None = None
 
+  display_coords: np.ndarray | None = None
+  display_list: list[list[float]] = []
+  depots_list: list[int] = []
+
   if meta.edge_weight_type == "EXPLICIT":
     if bundle.edge_matrix is None:
       raise InvalidProblemDataError(
         meta.name,
         "EXPLICIT edge_type but no matrix in edge_matrix record",
       )
-    matrix_list = json.loads(bundle.edge_matrix.matrix_json)
-    distances = np.array(matrix_list, dtype=np.float64)
+    if bundle.edge_matrix.matrix is not None:
+      distances = np.array(bundle.edge_matrix.matrix, dtype=np.float64)
+    elif bundle.edge_matrix.matrix_json:
+      matrix_list = json.loads(bundle.edge_matrix.matrix_json)
+      distances = np.array(matrix_list, dtype=np.float64)
+    else:
+      raise InvalidProblemDataError(
+        meta.name,
+        "EXPLICIT edge_type but no matrix data in edge_matrix record",
+      )
+
+    for node in bundle.nodes:
+      if node.x is not None and node.y is not None:
+        display_list.append([node.x, node.y])
+      if node.is_depot:
+        depots_list.append(node.node_id)
+    if len(display_list) == meta.dimension:
+      display_coords = np.array(display_list, dtype=np.float64)
   else:
     coords_list: list[list[float]] = []
     demands_list: list[int] = []
@@ -272,6 +314,8 @@ def bundle_to_problem(
         raise MissingCoordinatesError(meta.name, meta.edge_weight_type)
       coords_list.append([node.x, node.y])
       demands_list.append(node.demand)
+      if node.is_depot:
+        depots_list.append(node.node_id)
 
     coordinates = np.array(coords_list, dtype=np.float64)
     if meta.dimension <= max_eager_matrix_dimension:
@@ -290,6 +334,14 @@ def bundle_to_problem(
       distances=distances,
       capacity=meta.capacity,
       demands=demands,
+      problem_id=meta.problem_id,
+      comment=meta.comment,
+      edge_weight_format=meta.edge_weight_format,
+      tsplib_name=meta.tsplib_name or meta.name,
+      display_coords=display_coords,
+      depots=np.array(depots_list, dtype=np.int32) if depots_list else None,
+      source_file=meta.source_file,
+      file_checksum=meta.file_checksum,
     )
   except ValueError as exc:
     raise InvalidProblemDataError(meta.name, str(exc)) from exc
@@ -303,7 +355,7 @@ class TsplibLoader:
   database is not yet built.
   """
 
-  def __init__(self, tsp_dir: str | Path = "datasets/tsp") -> None:
+  def __init__(self, tsp_dir: str | Path) -> None:
     """
     Initialize the TSPLIB directory loader.
 
@@ -364,23 +416,32 @@ class TsplibLoader:
 
 
 def ingest_tsplib_directory_to_duckdb(
-  tsp_dir: str | Path = "datasets/tsp",
-  db_path: str | Path = "datasets/routing.duckdb",
+  tsp_dir: str | Path,
+  db_path: str | Path,
+  *,
+  overwrite: bool = False,
 ) -> int:
   """
   Parse all supported `.tsp` files in `tsp_dir` with `tsplib95` and ingest into DuckDB.
 
-  Creates the `problems`, `nodes`, and `edge_weight_matrices` tables matching
-  the schema expected by `DatabaseLoader`.
+  Creates the normalized schema tables matching the DuckDB target schema:
+  `problems`, `tsp_problems`, `atsp_problems`, `cvrp_problems`, `edge_weight_matrices`,
+  `file_tracking`, and `solutions`.
 
   Args:
       tsp_dir: Directory containing `.tsp` files.
       db_path: Output DuckDB file path.
+      overwrite: Whether to overwrite/clear existing database tables if not empty.
 
   Returns:
       Number of successfully ingested problem instances.
+
+  Raises:
+      DatabaseNotEmptyError: If database already contains records and `overwrite` is False.
   """
   source_dir = Path(tsp_dir)
+  if not source_dir.exists() or not source_dir.is_dir():
+    raise FileNotFoundError(f"TSPLIB source directory not found: {tsp_dir}")
   target_db = Path(db_path)
   target_db.parent.mkdir(parents=True, exist_ok=True)
 
@@ -392,22 +453,49 @@ def ingest_tsplib_directory_to_duckdb(
         id INTEGER PRIMARY KEY,
         name VARCHAR UNIQUE NOT NULL,
         type VARCHAR NOT NULL,
-        dimension INTEGER NOT NULL,
-        edge_weight_type VARCHAR NOT NULL,
-        capacity INTEGER,
-        comment VARCHAR
+        has_solution BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
       """
     )
     conn.execute(
       """
-      CREATE TABLE IF NOT EXISTS nodes (
-        problem_id INTEGER NOT NULL,
-        node_id INTEGER NOT NULL,
-        x DOUBLE,
-        y DOUBLE,
-        demand INTEGER,
-        is_depot BOOLEAN
+      CREATE TABLE IF NOT EXISTS tsp_problems (
+        problem_id INTEGER PRIMARY KEY,
+        dimension INTEGER NOT NULL,
+        comment VARCHAR,
+        edge_weight_type VARCHAR NOT NULL,
+        edge_weight_format VARCHAR,
+        tsplib_name VARCHAR,
+        coords DOUBLE[][],
+        display_coords DOUBLE[][]
+      )
+      """
+    )
+    conn.execute(
+      """
+      CREATE TABLE IF NOT EXISTS atsp_problems (
+        problem_id INTEGER PRIMARY KEY,
+        dimension INTEGER NOT NULL,
+        comment VARCHAR,
+        tsplib_name VARCHAR
+      )
+      """
+    )
+    conn.execute(
+      """
+      CREATE TABLE IF NOT EXISTS cvrp_problems (
+        problem_id INTEGER PRIMARY KEY,
+        dimension INTEGER NOT NULL,
+        capacity INTEGER NOT NULL,
+        comment VARCHAR,
+        edge_weight_type VARCHAR NOT NULL,
+        edge_weight_format VARCHAR,
+        tsplib_name VARCHAR,
+        coords DOUBLE[][],
+        demands INTEGER[],
+        depots INTEGER[]
       )
       """
     )
@@ -415,17 +503,52 @@ def ingest_tsplib_directory_to_duckdb(
       """
       CREATE TABLE IF NOT EXISTS edge_weight_matrices (
         problem_id INTEGER PRIMARY KEY,
-        dimension INTEGER NOT NULL,
-        format VARCHAR,
-        is_symmetric BOOLEAN,
-        matrix_json VARCHAR NOT NULL
+        matrix_format VARCHAR NOT NULL,
+        is_symmetric BOOLEAN NOT NULL,
+        matrix INTEGER[][] NOT NULL
+      )
+      """
+    )
+    conn.execute(
+      """
+      CREATE TABLE IF NOT EXISTS file_tracking (
+        id INTEGER PRIMARY KEY,
+        file_path VARCHAR UNIQUE NOT NULL,
+        problem_id INTEGER,
+        checksum VARCHAR,
+        last_processed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        file_size BIGINT
+      )
+      """
+    )
+    conn.execute(
+      """
+      CREATE TABLE IF NOT EXISTS solutions (
+        id INTEGER PRIMARY KEY,
+        problem_id INTEGER,
+        kind VARCHAR NOT NULL,
+        quality VARCHAR NOT NULL,
+        source_file VARCHAR UNIQUE NOT NULL,
+        checksum VARCHAR,
+        cost DOUBLE,
+        routes INTEGER[][],
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
       """
     )
 
-    conn.execute("DELETE FROM edge_weight_matrices")
-    conn.execute("DELETE FROM nodes")
-    conn.execute("DELETE FROM problems")
+    existing_count_row = conn.execute("SELECT COUNT(*) FROM problems").fetchone()
+    existing_count = existing_count_row[0] if existing_count_row else 0
+    if existing_count > 0:
+      if not overwrite:
+        raise DatabaseNotEmptyError(str(target_db))
+      conn.execute("DELETE FROM solutions")
+      conn.execute("DELETE FROM file_tracking")
+      conn.execute("DELETE FROM edge_weight_matrices")
+      conn.execute("DELETE FROM cvrp_problems")
+      conn.execute("DELETE FROM atsp_problems")
+      conn.execute("DELETE FROM tsp_problems")
+      conn.execute("DELETE FROM problems")
 
     ingested = 0
     for idx, tsp_file in enumerate(sorted(source_dir.glob("*.tsp")), start=1):
@@ -438,90 +561,105 @@ def ingest_tsplib_directory_to_duckdb(
       p: ProblemRowRecord = bundle.problem
       conn.execute(
         """
-        INSERT INTO problems (id, name, type, dimension, edge_weight_type, capacity, comment)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO problems (id, name, type, has_solution)
+        VALUES (?, ?, ?, false)
         """,
-        [p.problem_id, p.name, p.problem_type, p.dimension, p.edge_weight_type, p.capacity, p.comment],
+        [p.problem_id, p.name, p.problem_type],
       )
 
-      if bundle.nodes:
-        conn.executemany(
+      coords_list: list[list[float]] | None = None
+      display_coords_list: list[list[float]] | None = None
+      demands_list: list[int] = []
+      depots_list: list[int] = []
+
+      for node in bundle.nodes:
+        if node.x is not None and node.y is not None:
+          if coords_list is None:
+            coords_list = []
+          coords_list.append([node.x, node.y])
+        demands_list.append(node.demand)
+        if node.is_depot:
+          depots_list.append(node.node_id)
+
+      if p.edge_weight_type == "EXPLICIT":
+        display_coords_list = coords_list
+        coords_list = None
+
+      if p.problem_type == "TSP":
+        conn.execute(
           """
-          INSERT INTO nodes (problem_id, node_id, x, y, demand, is_depot)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO tsp_problems (
+            problem_id, dimension, comment, edge_weight_type, edge_weight_format, tsplib_name, coords, display_coords
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           """,
-          [(n.problem_id, n.node_id, n.x, n.y, n.demand, n.is_depot) for n in bundle.nodes],
+          [
+            p.problem_id,
+            p.dimension,
+            p.comment,
+            p.edge_weight_type,
+            p.edge_weight_format,
+            p.tsplib_name or p.name,
+            coords_list,
+            display_coords_list,
+          ],
+        )
+      elif p.problem_type == "ATSP":
+        conn.execute(
+          """
+          INSERT INTO atsp_problems (problem_id, dimension, comment, tsplib_name)
+          VALUES (?, ?, ?, ?)
+          """,
+          [p.problem_id, p.dimension, p.comment, p.tsplib_name or p.name],
+        )
+      elif p.problem_type == "CVRP":
+        conn.execute(
+          """
+          INSERT INTO cvrp_problems (
+            problem_id, dimension, capacity, comment, edge_weight_type, edge_weight_format,
+            tsplib_name, coords, demands, depots
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          """,
+          [
+            p.problem_id,
+            p.dimension,
+            p.capacity or 0,
+            p.comment,
+            p.edge_weight_type,
+            p.edge_weight_format,
+            p.tsplib_name or p.name,
+            coords_list,
+            demands_list,
+            depots_list,
+          ],
         )
 
       if bundle.edge_matrix is not None:
         m: MatrixRowRecord = bundle.edge_matrix
+        mat_vals = m.matrix
+        if mat_vals is None and m.matrix_json:
+          raw_json = json.loads(m.matrix_json)
+          mat_vals = [[round(w) for w in row] for row in raw_json]
         conn.execute(
           """
-          INSERT INTO edge_weight_matrices (problem_id, dimension, format, is_symmetric, matrix_json)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO edge_weight_matrices (problem_id, matrix_format, is_symmetric, matrix)
+          VALUES (?, ?, ?, ?)
           """,
-          [m.problem_id, m.dimension, m.matrix_format, m.is_symmetric, m.matrix_json],
+          [m.problem_id, m.matrix_format, m.is_symmetric, mat_vals],
         )
+
+      file_size = tsp_file.stat().st_size if tsp_file.exists() else None
+      conn.execute(
+        """
+        INSERT INTO file_tracking (id, file_path, problem_id, checksum, file_size)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        [idx, p.source_file or str(tsp_file.resolve()), p.problem_id, p.file_checksum, file_size],
+      )
 
       ingested += 1
 
     return ingested
   finally:
     conn.close()
-
-
-def main() -> None:
-  """CLI entrypoint to parse `.tsp` problems with `tsplib95` and optionally write DuckDB."""
-  parser = argparse.ArgumentParser(
-    description="Parse TSPLIB .tsp problems with tsplib95 in the DuckDB ingestion format."
-  )
-  parser.add_argument(
-    "--tsp-dir",
-    type=Path,
-    default=Path("datasets/tsp"),
-    help="Directory containing .tsp files (default: datasets/tsp)",
-  )
-  parser.add_argument(
-    "--instance",
-    type=str,
-    default=None,
-    help="Parse and validate a single instance name (e.g., berlin52)",
-  )
-  parser.add_argument(
-    "--to-duckdb",
-    type=Path,
-    default=None,
-    help="Optional path to write ingested records into a DuckDB database",
-  )
-  args: argparse.Namespace = parser.parse_args()
-
-  if args.instance is not None:
-    with TsplibLoader(args.tsp_dir) as loader:
-      problem: Problem = loader.load(args.instance)
-      print(
-        f"Loaded {problem.name}: type={problem.problem_type}, "
-        f"dimension={problem.dimension}, edge_type={problem.edge_type}, "
-        f"distances_shape={problem.distances.shape if problem.distances is not None else None}"
-      )
-    return
-
-  if args.to_duckdb is not None:
-    count: int = ingest_tsplib_directory_to_duckdb(args.tsp_dir, args.to_duckdb)
-    print(f"Ingested {count} TSPLIB problems into {args.to_duckdb}")
-    return
-
-  with TsplibLoader(args.tsp_dir) as loader:
-    names: list[str] = loader.list_instances()
-    valid_count = 0
-    for idx, name in enumerate(names, start=1):
-      try:
-        bundle: TsplibIngestionBundle = parse_tsp_file_with_tsplib95(loader.tsp_dir / f"{name}.tsp", problem_id=idx)
-        bundle_to_problem(bundle, max_eager_matrix_dimension=0)
-        valid_count += 1
-      except InvalidEdgeTypeError:
-        continue
-    print(f"Verified {valid_count}/{len(names)} .tsp files in {args.tsp_dir} via tsplib95.")
-
-
-if __name__ == "__main__":
-  main()

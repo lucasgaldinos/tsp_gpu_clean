@@ -33,6 +33,12 @@ dependencies = [
     "tsplib95>=0.6.1",
 ]
 
+[project.scripts]
+tsp-ingest = "cli.tsplib:main"
+tsp-benchmark = "cli.benchmark:main"
+tsp-import-checkpoints = "cli.checkpoints:import_main"
+tsp-validate-db = "cli.checkpoints:validate_main"
+
 [project.optional-dependencies]
 # Mirror of `[dependency-groups].dev` below, kept for `pip install -e ".[dev]"` users.
 # The uv group is canonical (`uv sync` installs it by default); change both lists together.
@@ -41,13 +47,22 @@ dev = ["mypy>=2.4.0", "pandas-stubs>=3.0.5.260914", "pytest>=8.4.2", "ruff>=0.17
 [tool.pytest.ini_options]
 # `src/` is the import root: tests import `algorithms.x`, `protocols.y`, never `src.algorithms.x`.
 pythonpath = ["src"]
+testpaths = ["tests"]
+# Registered so `-m gpu` / `-m "not slow and not gpu"` select without PytestUnknownMarkWarning.
+markers = [
+  "gpu: requires a working CUDA device through CuPy",
+  "slow: takes more than a few seconds",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.mypy]
 python_version = "3.12"
-mypy_path = "src"
+mypy_path = ["src"]
+# Every test directory ships its own conftest.py; key modules by path so two
+# `conftest` basenames do not collide.
+explicit_package_bases = true
 follow_imports = "normal"
 strict = true
 # Legacy pre-modularisation kernels; excluded from ruff below for the same reason.
@@ -95,7 +110,7 @@ ignore = ["ANN401"]                                                # Any is the 
 known-first-party = [
     "algorithms",
     "benchmarking",
-    "benchmark_scripts",
+    "cli",
     "data_models",
     "distances",
     "loaders",

@@ -1,5 +1,5 @@
-"""Evaluation strategy exports."""
+"""Evaluation strategies for routing algorithms."""
 
-from .evaluation_strategies import CPUCostEvaluation, GPUCostEvaluation
+from .cost_evaluation import CPUCostEvaluation, GPUCostEvaluation
 
-__all__ = ["CPUCostEvaluation", "GPUCostEvaluation"]
+__all__: list[str] = ["CPUCostEvaluation", "GPUCostEvaluation"]

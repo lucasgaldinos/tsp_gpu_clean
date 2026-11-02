@@ -21,7 +21,7 @@ import math
 import os
 import tempfile
 import time
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -90,11 +90,12 @@ def run_single_algorithm(
   seed_base: int = 42,
   existing_checkpoint: dict[str, Any] | None = None,
   incremental_mode: bool = False,
+  algorithm_factory: Any | None = None,
 ) -> dict[str, Any]:
   """
   Run single algorithm for specified repetitions.
   """
-  backend = "GPU" if use_gpu else "CPU"
+  backend: Literal["GPU"] | Literal["CPU"] = "GPU" if use_gpu else "CPU"
 
   if patience is None:
     patience = adaptive_patience(problem_size)
@@ -145,11 +146,16 @@ def run_single_algorithm(
     }
 
   for rep in range(repetitions):
-    run_seed = np.random.randint(0, 2**31 - 1)
+    offset: Any | Literal[0] = (
+      existing_checkpoint["successful_runs"] if (incremental_mode and existing_checkpoint) else 0
+    )
+    run_seed: Any | int = seed_base + offset + rep
     results["seeds"].append(run_seed)
 
     xp = cp if use_gpu and CUPY_AVAILABLE else np
     context = ProblemContext(problem, xp=xp, seed=run_seed)
+
+    current_algo = algorithm_factory(run_seed) if callable(algorithm_factory) else algorithm_instance
 
     if incremental_mode and existing_checkpoint:
       current_rep = existing_checkpoint["successful_runs"] + rep + 1
@@ -158,9 +164,9 @@ def run_single_algorithm(
     else:
       logging.info(f"    Repetition {rep + 1}/{repetitions} (seed={run_seed})...")
 
-    start_time = time.perf_counter()
+    start_time: float = time.perf_counter()
     try:
-      tour, stats = algorithm_instance.evolve(
+      tour, stats = current_algo.evolve(
         context,
         customers,
         max_generations,
@@ -229,11 +235,9 @@ def run_single_algorithm(
   total_successful = int(np.sum(valid_mask))
 
   valid_tours = [
-    results["best_tours"][i]
-    for i in range(len(valid_mask))
-    if valid_mask[i] and results["best_tours"][i] is not None
+    results["best_tours"][i] for i in range(len(valid_mask)) if valid_mask[i] and results["best_tours"][i] is not None
   ]
-  best_run_idx = int(np.nanargmin(final_costs[valid_mask])) if total_successful > 0 else 0
+  best_run_idx: int = int(np.nanargmin(final_costs[valid_mask])) if total_successful > 0 else 0
   best_tour = valid_tours[best_run_idx] if valid_tours and best_run_idx < len(valid_tours) else None
 
   summary = {

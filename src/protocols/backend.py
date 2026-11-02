@@ -1,9 +1,13 @@
 """Backend type protocol for NumPy/CuPy compatibility."""
 
+import functools
+import importlib.util
 from typing import Any, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
+
+from data_models.exceptions import GPUUnavailableError
 
 #: Array type shared by the numpy and cupy backends. numpy is the typed side of
 #: the pair (cupy ships no `py.typed`), so it is what callers are annotated
@@ -160,3 +164,76 @@ class BackendModule(Protocol):
   def argmax(self, *args: Any, **kwargs: Any) -> Any:
     """Find index of maximum."""
     ...
+
+
+@functools.lru_cache(maxsize=1)
+def _probe_gpu() -> tuple[Any | None, GPUUnavailableError | None]:
+  """Probe CuPy package installation and CUDA hardware availability."""
+  if importlib.util.find_spec("cupy") is None:
+    return None, GPUUnavailableError(
+      "CuPy is not installed. Install cupy-cuda12x (or compatible package) to enable GPU acceleration."
+    )
+  try:
+    import cupy as cp
+
+    count = cp.cuda.runtime.getDeviceCount()
+    if count <= 0:
+      return None, GPUUnavailableError(
+        "CUDA device unavailable: no CUDA-capable device found or driver error."
+      )
+    return cp, None
+  except Exception as exc:
+    return None, GPUUnavailableError(
+      f"CUDA device unavailable: no CUDA-capable device found or driver error ({exc})."
+    )
+
+
+def require_gpu() -> Any:
+  """Require a functional CUDA GPU with CuPy; return the CuPy module.
+
+  Raises:
+      GPUUnavailableError: If CuPy is not installed or no CUDA device is accessible.
+  """
+  cp, err = _probe_gpu()
+  if err is not None:
+    raise err
+  return cp
+
+
+def gpu_available() -> bool:
+  """Check if CuPy is installed and a CUDA device is functional."""
+  try:
+    require_gpu()
+    return True
+  except GPUUnavailableError:
+    return False
+
+
+def cupy_backend() -> Any | None:
+  """Return the CuPy module if GPU acceleration is available, otherwise None."""
+  try:
+    return require_gpu()
+  except GPUUnavailableError:
+    return None
+
+
+def clear_gpu_cache() -> None:
+  """Clear the cached GPU availability probe result."""
+  _probe_gpu.cache_clear()
+
+
+require_gpu.cache_clear = clear_gpu_cache  # type: ignore[attr-defined]
+gpu_available.cache_clear = clear_gpu_cache  # type: ignore[attr-defined]
+cupy_backend.cache_clear = clear_gpu_cache  # type: ignore[attr-defined]
+
+
+__all__ = [
+  "Array",
+  "BackendModule",
+  "CupyArray",
+  "clear_gpu_cache",
+  "cupy_backend",
+  "gpu_available",
+  "require_gpu",
+]
+

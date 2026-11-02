@@ -17,15 +17,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from protocols.backend import require_gpu
 from utils.gpu_helpers import load_kernel
 
-try:
+if TYPE_CHECKING:
   import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
 
 if TYPE_CHECKING:
   from collections.abc import Sequence
@@ -117,8 +113,10 @@ class GeneticAlgorithmFullGPUMonolithic:
     Returns:
         Tuple `(best_tour, stats)` matching the standardized benchmark contract.
     """
-    if not CUPY_AVAILABLE or cp is None:
-      raise RuntimeError("CuPy is required to run GeneticAlgorithmFullGPUMonolithic")
+    cp = require_gpu()
+
+    if len(customers) == 0:
+      raise ValueError("customers sequence cannot be empty")
 
     self._ensure_kernels_loaded()
     n = len(customers)
@@ -247,7 +245,7 @@ class GeneticAlgorithmFullGPUMonolithic:
       "best_fitness": final_best_cost,
       "initial_fitness": initial_best_cost,
       "improvement_pct": improvement_pct,
-      "best_cost_history": self.best_cost_history,
+      "convergence_history": self.best_cost_history,
       "h2d_bytes": self.h2d_bytes,
       "d2h_bytes": self.d2h_bytes,
       "kernel_launches": self.kernel_launches,
@@ -255,7 +253,3 @@ class GeneticAlgorithmFullGPUMonolithic:
       "stop_reason": stop_reason,
     }
     return best_tour, stats
-
-
-# Alias for backward compatibility
-GeneticAlgorithmFullGPUEarlyStop = GeneticAlgorithmFullGPUMonolithic

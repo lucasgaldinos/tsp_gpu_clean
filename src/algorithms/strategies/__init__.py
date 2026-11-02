@@ -17,12 +17,16 @@ from .evaluation import (
 )
 from .initialization import RandomPermutationInitialization
 from .local_search import (
+  BatchGPUMultiMoveTwoOpt,
   BatchGPUTwoOpt,
+  CPUFirstImprovementTwoOpt,
+  CPUMultiMoveTwoOpt,
   CPUTwoOpt,
   NaiveGPUTwoOpt,
   NoOpLocalSearch,
 )
 from .mutation import (
+  GPUInversionMutation,
   GPUSwapMutation,
   InversionMutation,
   SwapMutation,
@@ -33,11 +37,39 @@ from .selection import (
   TournamentSelection,
 )
 
-__all__ = [
+STRATEGY_REGISTRY: dict[str, type] = {
+  "BatchGPUMultiMoveTwoOpt": BatchGPUMultiMoveTwoOpt,
+  "BatchGPUTwoOpt": BatchGPUTwoOpt,
+  "CPUCostEvaluation": CPUCostEvaluation,
+  "CPUFirstImprovementTwoOpt": CPUFirstImprovementTwoOpt,
+  "CPUMultiMoveTwoOpt": CPUMultiMoveTwoOpt,
+  "CPUTwoOpt": CPUTwoOpt,
+  "GPUCostEvaluation": GPUCostEvaluation,
+  "GPUInversionMutation": GPUInversionMutation,
+  "GPUOrderCrossover": GPUOrderCrossover,
+  "GPUSwapMutation": GPUSwapMutation,
+  "GPUTournamentSelection": GPUTournamentSelection,
+  "InversionMutation": InversionMutation,
+  "NaiveGPUTwoOpt": NaiveGPUTwoOpt,
+  "NoOpLocalSearch": NoOpLocalSearch,
+  "OrderCrossover": OrderCrossover,
+  "PartiallyMappedCrossover": PartiallyMappedCrossover,
+  "RandomPermutationInitialization": RandomPermutationInitialization,
+  "RouletteWheelSelection": RouletteWheelSelection,
+  "SwapMutation": SwapMutation,
+  "TournamentSelection": TournamentSelection,
+}
+
+__all__: list[str] = [
+  "STRATEGY_REGISTRY",
+  "BatchGPUMultiMoveTwoOpt",
   "BatchGPUTwoOpt",
   "CPUCostEvaluation",
+  "CPUFirstImprovementTwoOpt",
+  "CPUMultiMoveTwoOpt",
   "CPUTwoOpt",
   "GPUCostEvaluation",
+  "GPUInversionMutation",
   "GPUOrderCrossover",
   "GPUSwapMutation",
   "GPUTournamentSelection",
@@ -51,3 +83,4 @@ __all__ = [
   "SwapMutation",
   "TournamentSelection",
 ]
+

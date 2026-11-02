@@ -51,6 +51,7 @@ from benchmarking.analysis.statistics import StatisticalAnalyzer
 
 if TYPE_CHECKING:
   from benchmarking.runner.config_loader import ProblemConfig
+  from data_models.records import NemenyiResult
 
 # =============================================================================
 # Helper Functions
@@ -126,17 +127,12 @@ def compare_algorithms(
   Returns:
       Comparison dictionary or None if len(problems) < 3 or len(algorithms) < 3.
   """
-  valid_problems = [
-    p for p in problems
-    if p in all_results and all(a in all_results[p] for a in algorithms)
-  ]
+  valid_problems = [p for p in problems if p in all_results and all(a in all_results[p] for a in algorithms)]
 
   if len(algorithms) < 3 or len(valid_problems) < 3:
     logging.info(separator)
     logging.info(f"{label}: Skipped (need ≥3 algorithms and ≥3 problems)")
-    logging.info(
-      f"  Found: {len(algorithms)} algorithms, {len(valid_problems)} complete problems"
-    )
+    logging.info(f"  Found: {len(algorithms)} algorithms, {len(valid_problems)} complete problems")
     logging.info(separator)
     return None
 
@@ -156,11 +152,9 @@ def compare_algorithms(
 
   data = []
   for algo in algorithms:
-    algo_gaps = _extract_algorithm_gaps(all_results, valid_problems, algo)
+    algo_gaps: list[float] = _extract_algorithm_gaps(all_results, valid_problems, algo)
     data.append(np.array(algo_gaps))
-    logging.info(
-      f"  {algo}: mean_gap={np.mean(algo_gaps):.2f}% ± {np.std(algo_gaps):.2f}%"
-    )
+    logging.info(f"  {algo}: mean_gap={np.mean(algo_gaps):.2f}% ± {np.std(algo_gaps):.2f}%")
 
   logging.info("")
 
@@ -174,8 +168,8 @@ def compare_algorithms(
       else:
         speedups = []
         for problem in valid_problems:
-          baseline_res = all_results[problem].get(baseline_algorithm, {})
-          algo_res = all_results[problem].get(algo, {})
+          baseline_res: dict[str, Any] = all_results[problem].get(baseline_algorithm, {})
+          algo_res: dict[str, Any] = all_results[problem].get(algo, {})
           baseline_time = baseline_res.get("mean_time", 0.0)
           algo_time = algo_res.get("mean_time", 0.0)
           if algo_time > 0 and baseline_time > 0:
@@ -188,7 +182,7 @@ def compare_algorithms(
 
     logging.info("")
 
-  friedman_result = analyzer.friedman_test(data)
+  friedman_result: dict[str, float] = analyzer.friedman_test(data)
   logging.info("Friedman Test:")
   logging.info(f"  Statistic: {friedman_result['statistic']:.4f}")
   logging.info(f"  p-value: {friedman_result['p_value']:.6f}")
@@ -206,7 +200,7 @@ def compare_algorithms(
 
   if friedman_result.get("post_hoc_required", False):
     logging.info("\nNemenyi Post-Hoc Test:")
-    nemenyi_result = analyzer.nemenyi_posthoc(data, algorithms)
+    nemenyi_result: NemenyiResult = analyzer.nemenyi_posthoc(data, algorithms)
     comparison_results["nemenyi_posthoc"] = nemenyi_result
 
     logging.info(f"  Critical distance: {nemenyi_result['critical_distance']:.4f}")
@@ -245,15 +239,15 @@ def compare_algorithms_by_group(
       Dictionary mapping group_name -> comparison results dict or None
   """
   groups: dict[str, list[str]] = {}
-  config_map = {p.name: p for p in problem_configs}
+  config_map: dict[str, ProblemConfig] = {p.name: p for p in problem_configs}
 
   for problem_name, problem_data in all_results.items():
-    cfg = config_map.get(problem_name)
+    cfg: ProblemConfig | None = config_map.get(problem_name)
     group_val: Any = None
     if cfg is not None and hasattr(cfg, group_key):
       group_val = getattr(cfg, group_key)
     elif problem_data:
-      first_algo_res = next(iter(problem_data.values()), {})
+      first_algo_res: dict[str, Any] = next(iter(problem_data.values()), {})
       group_val = first_algo_res.get(group_key)
 
     group_name = str(group_val) if group_val is not None else "unknown"
@@ -261,12 +255,11 @@ def compare_algorithms_by_group(
 
   results_by_group: dict[str, Any] = {}
   for group_name, prob_list in sorted(groups.items()):
-    common_algos = sorted({
-      a for p in prob_list for a in all_results.get(p, {})
-      if all(a in all_results[sp] for sp in prob_list)
-    })
-    group_label = f"GROUP COMPARISON: {group_key}={group_name}"
-    res = compare_algorithms(
+    common_algos: list[str] = sorted(
+      {a for p in prob_list for a in all_results.get(p, {}) if all(a in all_results[sp] for sp in prob_list)}
+    )
+    group_label: str = f"GROUP COMPARISON: {group_key}={group_name}"
+    res: dict[str, Any] | None = compare_algorithms(
       all_results=all_results,
       problems=prob_list,
       algorithms=common_algos,
@@ -313,8 +306,8 @@ def perform_cross_problem_analysis_stratified(
   logging.info("  - GPU runs: All problems")
   logging.info("")
 
-  problem_sizes = _get_problem_size_map(problem_configs)
-  problem_names = list(all_results.keys())
+  problem_sizes: dict[str, int] = _get_problem_size_map(problem_configs)
+  problem_names: list[str] = list(all_results.keys())
 
   all_algorithms_set: set[str] = set()
   for problem_results in all_results.values():
@@ -326,17 +319,12 @@ def perform_cross_problem_analysis_stratified(
   logging.info("")
 
   # STRATUM 1: Small Problems with CPU + GPU Algorithms
-  small_problems: list[str] = [
-    p for p in problem_names if problem_sizes.get(p, 0) <= cpu_threshold
-  ]
-  small_problem_algos = sorted({
-    a
-    for p in small_problems
-    for a in all_results.get(p, {})
-    if all(a in all_results[sp] for sp in small_problems)
-  })
+  small_problems: list[str] = [p for p in problem_names if problem_sizes.get(p, 0) <= cpu_threshold]
+  small_problem_algos: list[str] = sorted(
+    {a for p in small_problems for a in all_results.get(p, {}) if all(a in all_results[sp] for sp in small_problems)}
+  )
 
-  stratum1_results = compare_algorithms(
+  stratum1_results: dict[str, Any] | None = compare_algorithms(
     all_results=all_results,
     problems=small_problems,
     algorithms=small_problem_algos,
@@ -346,13 +334,19 @@ def perform_cross_problem_analysis_stratified(
   )
 
   # STRATUM 2: All Problems with GPU-Only Algorithms
-  gpu_algos = [a for a in all_algorithm_names if a != "CPU"]
-  all_gpu_problems = [
-    p for p in problem_names if all(a in all_results[p] for a in gpu_algos)
-  ]
-  baseline_algo = "HybridNaive" if "HybridNaive" in gpu_algos else (gpu_algos[0] if gpu_algos else None)
+  def _is_gpu_algo(algo_name: str) -> bool:
+    for prob_data in all_results.values():
+      if algo_name in prob_data:
+        raw_backend = prob_data[algo_name].get("backend")
+        if raw_backend is not None and str(raw_backend).strip() != "":
+          return str(raw_backend).upper() == "GPU"
+    return not algo_name.upper().startswith("CPU")
 
-  stratum2_results = compare_algorithms(
+  gpu_algos: list[str] = [a for a in all_algorithm_names if _is_gpu_algo(a)]
+  all_gpu_problems: list[str] = [p for p in problem_names if all(a in all_results[p] for a in gpu_algos)]
+  baseline_algo: str | None = "HybridNaive" if "HybridNaive" in gpu_algos else (gpu_algos[0] if gpu_algos else None)
+
+  stratum2_results: dict[str, Any] | None = compare_algorithms(
     all_results=all_results,
     problems=all_gpu_problems,
     algorithms=gpu_algos,
@@ -380,9 +374,7 @@ def perform_cross_problem_analysis_stratified(
         "std_gap": float(np.std(all_gaps)),
         "n_problems": len(all_gaps),
       }
-      logging.info(
-        f"{algo}: mean_gap={np.mean(all_gaps):.2f}% ± {np.std(all_gaps):.2f}% (n={len(all_gaps)} problems)"
-      )
+      logging.info(f"{algo}: mean_gap={np.mean(all_gaps):.2f}% ± {np.std(all_gaps):.2f}% (n={len(all_gaps)} problems)")
 
   logging.info("")
 

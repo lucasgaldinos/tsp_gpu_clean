@@ -12,13 +12,14 @@ Design Philosophy:
 - Backend agnostic (works with NumPy or CuPy arrays)
 
 Example:
-    >>> with DatabaseLoader() as loader:
+    >>> with DatabaseLoader("path/to/tsp.duckdb") as loader:
     ...   problem = loader.load("berlin52")
     ...   print(f"{problem.name}: {problem.dimension} nodes, {problem.edge_type}")
     berlin52: 52 nodes, EUC_2D
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -120,6 +121,39 @@ class Problem:
   distances: np.ndarray | None
   capacity: int | None = None
   demands: np.ndarray | None = None
+  # Extended metadata from datasets/tsp.duckdb / TSPLIB95
+  problem_id: int | None = None
+  comment: str | None = None
+  edge_weight_format: str | None = None
+  tsplib_name: str | None = None
+  has_solution: bool = False
+  display_coords: np.ndarray | None = None
+  depots: np.ndarray | None = None
+  source_file: str | None = None
+  file_checksum: str | None = None
+
+  def to_metadata_dict(self, optimal_cost: float | None = None) -> dict[str, Any]:
+    """Return JSON-serializable problem metadata dictionary for checkpoints and statistics."""
+    return {
+      "problem_id": self.problem_id,
+      "name": self.name,
+      "tsplib_name": self.tsplib_name or self.name,
+      "problem_type": self.problem_type,
+      "dimension": self.dimension,
+      "edge_type": self.edge_type,
+      "edge_weight_type": self.edge_type,
+      "edge_weight_format": self.edge_weight_format,
+      "is_symmetric": self.is_symmetric,
+      "comment": self.comment,
+      "capacity": self.capacity,
+      "has_coordinates": self.coordinates is not None,
+      "has_display_coords": self.display_coords is not None,
+      "has_explicit_matrix": self.edge_type == "EXPLICIT",
+      "has_solution": self.has_solution,
+      "optimal_cost": optimal_cost,
+      "source_file": self.source_file,
+      "file_checksum": self.file_checksum,
+    }
 
   def __post_init__(self) -> None:
     """

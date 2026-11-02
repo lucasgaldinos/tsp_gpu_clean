@@ -1,12 +1,9 @@
-"""Selection strategy exports."""
+"""Selection strategies for routing algorithms."""
 
-from .selection_strategies import (
-  GPUTournamentSelection,
-  RouletteWheelSelection,
-  TournamentSelection,
-)
+from .roulette_wheel_selection import RouletteWheelSelection
+from .tournament_selection import GPUTournamentSelection, TournamentSelection
 
-__all__ = [
+__all__: list[str] = [
   "GPUTournamentSelection",
   "RouletteWheelSelection",
   "TournamentSelection",

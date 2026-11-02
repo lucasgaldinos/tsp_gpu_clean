@@ -1,14 +1,20 @@
-"""Local search strategy exports."""
+"""Local search strategies for route and batch refinement."""
 
-from .local_search_strategies import (
+from .no_op import NoOpLocalSearch
+from .two_opt import (
+  BatchGPUMultiMoveTwoOpt,
   BatchGPUTwoOpt,
+  CPUFirstImprovementTwoOpt,
+  CPUMultiMoveTwoOpt,
   CPUTwoOpt,
   NaiveGPUTwoOpt,
-  NoOpLocalSearch,
 )
 
-__all__ = [
+__all__: list[str] = [
+  "BatchGPUMultiMoveTwoOpt",
   "BatchGPUTwoOpt",
+  "CPUFirstImprovementTwoOpt",
+  "CPUMultiMoveTwoOpt",
   "CPUTwoOpt",
   "NaiveGPUTwoOpt",
   "NoOpLocalSearch",

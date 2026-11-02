@@ -25,9 +25,7 @@ Author: GPU Accelerated Routing Optimization Team
 Date: 2025-11-23
 """
 
-import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -41,76 +39,26 @@ from benchmarking.database.db_operations import (
 from benchmarking.database.schema import COUNT_RUNS, TABLE_RUNS
 
 # ============================================================================
-# CLI Argument Parsing
-# ============================================================================
-
-
-def parse_arguments() -> argparse.Namespace:
-  """
-  Parse command-line arguments.
-
-  Returns:
-      Parsed arguments namespace
-  """
-  parser = argparse.ArgumentParser(
-    description="Import benchmark checkpoint JSON files to DuckDB database",
-    formatter_class=argparse.RawDescriptionHelpFormatter,
-    epilog="""
-Examples:
-  # Import from directory to current working directory
-  python -m benchmarking.database.import_checkpoints --input ./checkpoints/
-
-  # Import to custom output location
-  python -m benchmarking.database.import_checkpoints --input ./checkpoints/ --output-dir ./results/
-  python -m benchmarking.database.import_checkpoints -i ./checkpoints/ -o ./my_notes/
-
-  # Import single file
-  python -m benchmarking.database.import_checkpoints -i ./checkpoints/berlin52_CPU.json
-        """,
-  )
-
-  parser.add_argument(
-    "--input",
-    "-i",
-    type=str,
-    required=True,
-    help="Input directory (bulk scan for *.json) or single JSON file path",
-  )
-
-  parser.add_argument(
-    "--output-dir",
-    "-o",
-    type=str,
-    default=None,
-    help="Output directory for results.duckdb (default: current working directory)",
-  )
-
-  return parser.parse_args()
-
-
-# ============================================================================
 # Helper Functions
 # ============================================================================
 
 
-def resolve_output_path(output_dir: str | None) -> Path:
+def resolve_output_path(output_dir: str | Path) -> Path:
   """
   Resolve output directory path.
 
   Args:
-      output_dir: User-specified output directory or None
+      output_dir: User-specified output directory
 
   Returns:
       Absolute path to output directory
   """
-  if output_dir is None:
-    return Path.cwd()
   path = Path(output_dir).resolve()
   path.mkdir(parents=True, exist_ok=True)
   return path
 
 
-def resolve_input_paths(input_arg: str) -> list[Path]:
+def resolve_input_paths(input_arg: str | Path) -> list[Path]:
   """
   Resolve input argument to list of checkpoint JSON files.
 
@@ -182,13 +130,13 @@ def check_duplicate(conn: duckdb.DuckDBPyConnection, data: dict[str, Any]) -> bo
 # ============================================================================
 
 
-def import_checkpoints(input_path: str, output_dir: str | None = None) -> None:
+def import_checkpoints(input_path: str | Path, output_dir: str | Path) -> None:
   """
   Main import function.
 
   Args:
       input_path: Input directory or JSON file path
-      output_dir: Directory for results.duckdb (default: current working directory)
+      output_dir: Directory for results.duckdb
   """
   print("=" * 80)
   print("Importing Checkpoint JSONs to DuckDB Database")
@@ -312,21 +260,3 @@ def import_checkpoints(input_path: str, output_dir: str | None = None) -> None:
   print()
   print("✅ Import completed successfully!")
 
-
-# ============================================================================
-# Entry Point
-# ============================================================================
-
-if __name__ == "__main__":
-  try:
-    args = parse_arguments()
-    import_checkpoints(input_path=args.input, output_dir=args.output_dir)
-  except KeyboardInterrupt:
-    print("\n\n⚠️  Import interrupted by user")
-    sys.exit(1)
-  except Exception as e:
-    print(f"\n\n❌ Fatal error: {e}")
-    import traceback
-
-    traceback.print_exc()
-    sys.exit(1)

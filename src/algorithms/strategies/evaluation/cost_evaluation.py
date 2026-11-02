@@ -1,9 +1,7 @@
 """
-Fitness / cost evaluation strategies for routes and population batches.
+Tour cost evaluation strategies for routing algorithms.
 
-Every strategy in this module accepts `RouteOrRoutes` (`(n_cities,)` or `(N, n_cities)`),
-returning a scalar float via `evaluate(route, context)` or a 1D cost array `(N,)` via
-`evaluate_batch(routes, context)`.
+Provides pure CPU NumPy and accelerated GPU CUDA implementations of TSP tour cost evaluation.
 """
 
 from __future__ import annotations
@@ -12,14 +10,10 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from protocols.algorithm_strategies import (
-  Fitness,
-  Route,
-  RouteOrRoutes,
-  ensure_routes_batch,
-)
+from protocols.types import Fitness
 from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
+from utils.route_helpers import ensure_routes_batch, to_cpu_batch
 
 try:
   import cupy as cp
@@ -31,6 +25,7 @@ except ImportError:
 
 if TYPE_CHECKING:
   from protocols.problem_context import ProblemContext
+  from protocols.types import Fitness, Route, RouteOrRoutes
 
 
 def _next_power_of_2(value: int) -> int:
@@ -63,7 +58,7 @@ class CPUCostEvaluation:
 
   def evaluate(self, route: Route, context: ProblemContext) -> float:
     """Compute total closed-loop tour cost for a single 1D route `(n_cities,)`."""
-    costs = self.evaluate_batch(route, context)
+    costs: Fitness = self.evaluate_batch(route, context)
     return float(costs[0])
 
   @time_strategy
@@ -71,14 +66,11 @@ class CPUCostEvaluation:
     """
     Compute 1D cost array `(N,)` for a 1D route `(n_cities,)` or 2D batch `(N, n_cities)`.
     """
-    batch, _ = ensure_routes_batch(routes)
-    is_gpu = CUPY_AVAILABLE and cp is not None and isinstance(batch, cp.ndarray)
-    batch_np = cp.asnumpy(batch) if is_gpu else np.asarray(batch, dtype=np.int32)
-
-    distances = context.get_cpu_distances()
-    next_cities = np.roll(batch_np, -1, axis=1)
-    edge_costs = distances[batch_np, next_cities]
-    costs = np.sum(edge_costs, axis=1, dtype=np.float64)
+    batch_np, _, _ = to_cpu_batch(routes)
+    distances: np.ndarray = context.get_cpu_distances()
+    next_cities: np.ndarray = np.roll(batch_np, -1, axis=1)
+    edge_costs: np.ndarray = distances[batch_np, next_cities]
+    costs: Fitness = np.sum(edge_costs, axis=1, dtype=np.float64)
     return costs
 
 
@@ -99,8 +91,8 @@ class GPUCostEvaluation:
             array as a GPU `cp.ndarray` without D2H transfer.
         threads_per_block: Threads per block for parallel reduction (power of 2).
     """
-    self.return_gpu = return_gpu
-    self.threads_per_block = _next_power_of_2(threads_per_block)
+    self.return_gpu: bool = return_gpu
+    self.threads_per_block: int = _next_power_of_2(threads_per_block)
     self._kernel: Any = None
     self._cached_distances_gpu: Any = None
     self._cached_problem_name: str | None = None
@@ -130,14 +122,14 @@ class GPUCostEvaluation:
     """Get or cache `int32` distance matrix on GPU for `cost_calculator_kernel`."""
     prob_name = getattr(getattr(context, "problem", None), "name", None)
     if self._cached_distances_gpu is None or self._cached_problem_name != prob_name:
-      distances_cpu = context.get_cpu_distances()
+      distances_cpu: np.ndarray = context.get_cpu_distances()
       self._cached_distances_gpu = cp.asarray(distances_cpu, dtype=cp.int32)
       self._cached_problem_name = prob_name
     return self._cached_distances_gpu
 
   def evaluate(self, route: Route, context: ProblemContext) -> float:
     """Compute total closed-loop tour cost for a single 1D route `(n_cities,)`."""
-    costs = self.evaluate_batch(route, context)
+    costs: Fitness = self.evaluate_batch(route, context)
     if CUPY_AVAILABLE and cp is not None and isinstance(costs, cp.ndarray):
       return float(cp.asnumpy(costs)[0])
     return float(costs[0])
@@ -154,16 +146,16 @@ class GPUCostEvaluation:
     batch, _ = ensure_routes_batch(routes)
     batch_size, n = batch.shape
 
-    input_on_gpu = isinstance(batch, cp.ndarray)
+    input_on_gpu: bool = isinstance(batch, cp.ndarray)
     if input_on_gpu:
       d_population = cp.ascontiguousarray(batch, dtype=cp.int32)
     else:
-      batch_np = np.asarray(batch, dtype=np.int32)
+      batch_np: np.ndarray = np.asarray(batch, dtype=np.int32)
       d_population = cp.asarray(batch_np, dtype=cp.int32)
 
     d_distances = self._get_distances_int32_gpu(context)
     d_costs = cp.zeros(batch_size, dtype=cp.int64)
-    cost_shared = self.threads_per_block * 8  # s_partials (long long)
+    cost_shared: int = self.threads_per_block * 8  # s_partials (long long)
 
     kernel = self._get_kernel()
     kernel(
@@ -187,3 +179,6 @@ class GPUCostEvaluation:
     costs_cpu = d_costs.get().astype(np.float64)
     self.d2h_bytes += int(d_costs.nbytes)
     return cast("Fitness", costs_cpu)
+
+
+__all__: list[str] = ["CPUCostEvaluation", "GPUCostEvaluation"]

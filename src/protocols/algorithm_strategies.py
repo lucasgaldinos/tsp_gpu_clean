@@ -33,77 +33,45 @@ See Also:
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import numpy as np
-from numpy.typing import NDArray
+
+from utils.route_helpers import ensure_routes_batch, restore_routes_shape
 
 from .backend import BackendModule
+from .types import (
+  DistanceMatrix,
+  Fitness,
+  LocalSearchStage,
+  Route,
+  RouteOrRoutes,
+  Routes,
+)
 
 if TYPE_CHECKING:
   from .problem_context import ProblemContext
 
-# ==============================================================================
-# STANDARDIZED DATA-PIECE TYPE ALIASES (ROUTES / FITNESS / DISTANCES)
-# ==============================================================================
-
-type Route = NDArray[np.int32]
-"""Single tour represented as a 1D array of node indices with shape `(n_cities,)`."""
-
-type Routes = NDArray[np.int32]
-"""Batch/population of tours represented as a 2D array with shape `(N, n_cities)`."""
-
-type RouteOrRoutes = Route | Routes
-"""Either a single 1D `Route` `(n_cities,)` or a 2D `Routes` batch `(N, n_cities)`."""
-
-type Fitness = NDArray[np.float64]
-"""1D array of tour costs with shape `(N,)` (lower is better for TSP minimization)."""
-
-type DistanceMatrix = NDArray[np.float64]
-"""2D pairwise distance matrix with shape `(n_cities, n_cities)`."""
-
-
-def ensure_routes_batch(routes: RouteOrRoutes) -> tuple[Routes, bool]:
-  """
-  Normalize a single 1D route `(n_cities,)` or 2D batch `(N, n_cities)` into a 2D batch.
-
-  Enables every route-transforming module (crossover, mutation, 2-opt local search,
-  fitness evaluation) to ingest either a single route or a population batch using
-  the exact same parameter contract.
-
-  Args:
-      routes: 1D `(n_cities,)` or 2D `(N, n_cities)` NumPy or CuPy array (or sequence).
-
-  Returns:
-      Tuple `(routes_2d, was_1d)` where `routes_2d` has shape `(N, n_cities)` and
-      `was_1d` indicates whether the input was originally 1D.
-
-  Raises:
-      ValueError: If `routes` is not 1D or 2D.
-  """
-  if not hasattr(routes, "ndim"):
-    routes = np.asarray(routes, dtype=np.int32)
-  if routes.ndim == 1:
-    return routes.reshape(1, -1), True
-  if routes.ndim == 2:
-    return routes, False
-  raise ValueError(f"Expected 1D route or 2D routes batch, got array with ndim={routes.ndim}")
-
-
-def restore_routes_shape(routes_batch: Routes, was_1d: bool) -> RouteOrRoutes:
-  """
-  Restore a `(1, n_cities)` batch back to a 1D `(n_cities,)` route when `was_1d` is True.
-
-  Args:
-      routes_batch: 2D array of shape `(N, n_cities)`.
-      was_1d: Whether the original caller passed a 1D route.
-
-  Returns:
-      1D route `(n_cities,)` if `was_1d` is True, otherwise the 2D `routes_batch`.
-  """
-  if was_1d:
-    return cast("Route", routes_batch[0])
-  return routes_batch
+__all__: list[str] = [
+  "BinPackingStrategy",
+  "ClusteringStrategy",
+  "CrossoverStrategy",
+  "DistanceMatrix",
+  "EvaluationStrategy",
+  "Fitness",
+  "InitializationStrategy",
+  "LocalSearchStage",
+  "LocalSearchStrategy",
+  "MetaheuristicStrategy",
+  "MutationStrategy",
+  "Route",
+  "RouteOrRoutes",
+  "Routes",
+  "SelectionStrategy",
+  "TspConstructionStrategy",
+  "ensure_routes_batch",
+  "restore_routes_shape",
+]
 
 
 @dataclass
@@ -749,23 +717,6 @@ class MutationStrategy(Protocol):
   ) -> RouteOrRoutes:
     """Mutate a 1D route or 2D batch of routes `(N, n_cities)` with probability `mutation_rate`."""
     ...
-
-
-type LocalSearchStage = Literal[
-  "post_crossover",
-  "post_mutation",
-  "post_evaluation",
-  "post_evolution",
-  "none",
-]
-"""
-Pipeline stage in the evolutionary algorithm where `LocalSearchStrategy` is executed:
-- `"post_crossover"`: immediately after crossover
-- `"post_mutation"`: after mutation (canonical memetic GA default)
-- `"post_evaluation"`: after fitness evaluation & survival selection each generation
-- `"post_evolution"`: after all generations complete, applied to the final population
-- `"none"`: disabled
-"""
 
 
 @runtime_checkable

@@ -174,7 +174,7 @@ class StatisticalAnalyzer:
     if len(data_a) != len(data_b):
       raise ValueError(f"Arrays must have same length: {len(data_a)} != {len(data_b)}")
 
-    n = len(data_a)
+    n: int = len(data_a)
 
     if n < 2:
       mean_a = float(np.mean(data_a)) if n == 1 else 0.0
@@ -325,9 +325,7 @@ class StatisticalAnalyzer:
 
     return (float(ci_low), float(ci_high), bootstrap_samples)
 
-  def holm_bonferroni_correction(
-    self, p_values: list[float], alpha: float = 0.05
-  ) -> list[tuple[int, float, bool]]:
+  def holm_bonferroni_correction(self, p_values: list[float], alpha: float = 0.05) -> list[tuple[int, float, bool]]:
     """
     Apply Holm-Bonferroni correction for multiple comparisons.
 
@@ -368,9 +366,7 @@ class StatisticalAnalyzer:
       )
 
     if len(data_sets) < 3:
-      raise ValueError(
-        f"Friedman test requires at least 3 algorithms (k >= 3). Got {len(data_sets)} algorithms."
-      )
+      raise ValueError(f"Friedman test requires at least 3 algorithms (k >= 3). Got {len(data_sets)} algorithms.")
 
     all_data = np.concatenate(data_sets)
     variance_threshold = 1e-10
@@ -418,9 +414,7 @@ class StatisticalAnalyzer:
     if algorithm_names is None:
       algorithm_names = [f"Alg{i + 1}" for i in range(k)]
     elif len(algorithm_names) != k:
-      raise ValueError(
-        f"algorithm_names length ({len(algorithm_names)}) must match data_sets length ({k})"
-      )
+      raise ValueError(f"algorithm_names length ({len(algorithm_names)}) must match data_sets length ({k})")
 
     n_instances = len(data_sets[0])
     data_array = np.column_stack(data_sets)
@@ -459,4 +453,3 @@ class StatisticalAnalyzer:
       "algorithm_names": algorithm_names,
       "critical_distance": float(critical_distance),
     }
-

@@ -14,15 +14,14 @@ This module provides the high-level benchmark workflow:
 
 Usage:
     from benchmarking.runner.orchestration import run_comprehensive_benchmark
-    from argparse import Namespace
 
-    args = Namespace(
+    results = run_comprehensive_benchmark(
+        config_dir="configs",
+        output_dir="results",
         repetitions=30,
         skip_cpu=False,
-        test_mode=False
+        test_mode=False,
     )
-
-    results = run_comprehensive_benchmark(args)
 
 Author: GPU Accelerated Routing Optimization Team
 Date: 2025-01-28
@@ -33,8 +32,7 @@ import json
 import logging
 import os
 import tempfile
-from argparse import Namespace
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -75,8 +73,8 @@ from benchmarking.runner.config_loader import (
   BenchmarkConfig,
   GAParams,
   ProblemConfig,
+  build_problem_configs_from_duckdb,
   build_problem_configs_from_tsp_files,
-  default_config_dir,
   load_all_configs,
 )
 from loaders.database_loader import DatabaseLoader
@@ -88,7 +86,7 @@ from loaders.tsplib_loader import TsplibLoader
 
 
 def _log_benchmark_configuration(
-  args: Namespace,
+  repetitions: int,
   selected_algorithms: list[str],
   problem_configs: list[ProblemConfig],
   ga_params: GAParams,
@@ -103,14 +101,13 @@ def _log_benchmark_configuration(
   logging.info("Configuration:")
   logging.info(f"  Algorithms: {', '.join(selected_algorithms)}")
   logging.info(f"  Problems: {len(problem_configs)} TSP instances")
-  logging.info(f"  Repetitions: {args.repetitions}")
+  logging.info(f"  Repetitions: {repetitions}")
   logging.info(f"  CPU threshold: n ≤ {benchmark_config.cpu_size_threshold}")
   logging.info("")
 
   logging.info("GA Parameters:")
   logging.info(f"  Population size: {ga_params.population_size}")
   logging.info(f"  Mutation rate: {ga_params.mutation_rate}")
-  logging.info(f"  Tournament size: {ga_params.tournament_size}")
   logging.info("  Early stop patience: Adaptive (2x√n generations)")
   logging.info("")
 
@@ -135,17 +132,22 @@ def _save_problem_statistics_file(
   problem_results: dict[str, dict[str, Any]],
   statistical_test_results: dict[str, Any],
   checkpoint_manager: CheckpointManager,
+  problem_metadata: dict[str, Any] | None = None,
 ) -> None:
   """Save per-problem statistics to JSON file."""
   stats_path: Path = checkpoint_manager.get_problem_stats_path(problem_name)
 
   try:
+    problem_info: dict[str, Any] = {
+      "name": problem_name,
+      "size": problem_size,
+      "optimal_cost": optimal_cost,
+    }
+    if problem_metadata:
+      problem_info.update(problem_metadata)
+
     problem_stats = {
-      "problem_info": {
-        "name": problem_name,
-        "size": problem_size,
-        "optimal_cost": optimal_cost,
-      },
+      "problem_info": problem_info,
       "algorithms": {},
       "statistical_tests": statistical_test_results,
     }
@@ -188,43 +190,80 @@ def _save_problem_statistics_file(
 
 
 def run_comprehensive_benchmark(
-  args: Namespace,
   *,
+  config_dir: str | Path,
+  output_dir: str | Path,
   tsp_files: Sequence[str | Path] | None = None,
+  problem_names: Sequence[str] | None = None,
+  db_path: str | Path | None = None,
+  fallback_tsp_dir: str | Path | None = None,
   problem_configs: list[ProblemConfig] | None = None,
   algorithms: Sequence[str] | None = None,
-  output_dir: str | Path | None = None,
-  benchmark_name: str | None = None,
+  algorithm_configs_override: dict[str, AlgorithmConfig] | None = None,
+  repetitions: int | None = None,
+  benchmark_name: str = "chapter4_validation",
   local_search_stage: str | None = None,
+  skip_cpu: bool = False,
+  incremental_runs: bool | None = None,
+  cpu_size_threshold: int | None = None,
+  test_mode: bool = False,
+  patience: int | None = None,
+  seed: int | None = None,
+  population_size: int | None = None,
+  mutation_rate: float | None = None,
+  strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, dict[str, dict[str, Any]]]:
   """Run comprehensive benchmark on all configured problems and algorithms."""
   logging.info("Loading configurations...")
 
-  cli_config_dir: Any | None = getattr(args, "config_dir", None)
-  config_dir: Path = Path(cli_config_dir) if cli_config_dir else default_config_dir()
-  configs: dict[str, Any] = load_all_configs(config_dir)
+  resolved_config_dir: Path = Path(config_dir)
+  configs: dict[str, Any] = load_all_configs(resolved_config_dir)
 
-  ga_params = configs["ga_params"]
-  algorithm_configs = configs["algorithms"]
-  benchmark_config = configs["benchmark"]
-  default_problems = configs["problems"]
+  ga_params: GAParams = configs["ga_params"]
+  algorithm_configs: dict[str, AlgorithmConfig] = algorithm_configs_override or configs["algorithms"]
+  benchmark_config: BenchmarkConfig = configs["benchmark"]
+  default_problems: list[ProblemConfig] = configs["problems"]
 
-  if hasattr(args, "incremental_runs") and args.incremental_runs is not None:
-    logging.info(f"Applying CLI override: incremental_runs={args.incremental_runs}")
-    benchmark_config.incremental_runs = args.incremental_runs
+  if patience is not None:
+    logging.info(f"Applying override: patience={patience}")
+    benchmark_config.patience = patience
 
-  if hasattr(args, "cpu_size_threshold") and args.cpu_size_threshold is not None:
-    benchmark_config.cpu_size_threshold = int(args.cpu_size_threshold)
+  effective_seed: int = seed if seed is not None else ga_params.seed
+
+  param_overrides: dict[str, Any] = {}
+  if population_size is not None:
+    param_overrides["population_size"] = population_size
+  if mutation_rate is not None:
+    param_overrides["mutation_rate"] = mutation_rate
+
+  if incremental_runs is not None:
+    logging.info(f"Applying override: incremental_runs={incremental_runs}")
+    benchmark_config.incremental_runs = incremental_runs
+
+  if cpu_size_threshold is not None:
+    benchmark_config.cpu_size_threshold = int(cpu_size_threshold)
+
+  effective_repetitions = repetitions if repetitions is not None else benchmark_config.repetitions
+  effective_skip_cpu = skip_cpu
+  effective_test_mode = test_mode
+
+  resolved_db_path: Path | None = Path(db_path) if db_path is not None else None
+  resolved_fallback_dir: Path | None = Path(fallback_tsp_dir) if fallback_tsp_dir is not None else None
 
   tsp_path_map: dict[str, Path] = {}
-  cli_tsp_files: Sequence[str | Path] | Any | None = (
-    tsp_files or getattr(args, "tsp_files", None) or getattr(args, "problems", None)
-  )
   if problem_configs is not None:
     resolved_problems: list[ProblemConfig] = list(problem_configs)
-  elif cli_tsp_files:
+  elif problem_names:
+    if resolved_db_path is None:
+      raise ValueError("db_path must be provided when problem_names is specified")
+    resolved_problems = build_problem_configs_from_duckdb(
+      db_path=resolved_db_path,
+      problem_names=problem_names,
+      existing_configs=default_problems,
+    )
+  elif tsp_files:
     resolved_problems, tsp_path_map = build_problem_configs_from_tsp_files(
-      cli_tsp_files,
+      tsp_files,
       existing_configs=default_problems,
     )
   else:
@@ -232,7 +271,7 @@ def run_comprehensive_benchmark(
 
   problem_configs = resolved_problems
 
-  if getattr(args, "test_mode", False) and not cli_tsp_files:
+  if effective_test_mode and not tsp_files:
     problem_configs = problem_configs[:2]
     logging.info("=" * 80)
     logging.info("⚠️  TEST MODE ENABLED")
@@ -242,24 +281,22 @@ def run_comprehensive_benchmark(
     logging.info("=" * 80)
     logging.info("")
 
-  cli_algorithms: Sequence[str] | Any | None = algorithms or getattr(args, "algorithms", None)
-  candidate_algorithms: list[str] | list[Any] = (
-    list(cli_algorithms) if cli_algorithms else list(algorithm_configs.keys())
+  candidate_algorithms: list[str] = (
+    list(algorithms) if algorithms else list(algorithm_configs.keys())
   )
 
   selected_algorithms = []
   for alg_name in candidate_algorithms:
     if alg_name not in algorithm_configs:
       raise ValueError(f"Unknown algorithm '{alg_name}'. Available: {list(algorithm_configs.keys())}")
-    if getattr(args, "skip_cpu", False) and alg_name == "CPU":
+    if effective_skip_cpu and not algorithm_configs[alg_name].use_gpu:
       continue
     selected_algorithms.append(alg_name)
 
-  _log_benchmark_configuration(args, selected_algorithms, problem_configs, ga_params, benchmark_config)
+  _log_benchmark_configuration(effective_repetitions, selected_algorithms, problem_configs, ga_params, benchmark_config)
 
-  raw_out: str | Path | Any = output_dir if output_dir is not None else getattr(args, "output_dir", "results_v3")
-  resolved_output_dir: Path = Path(str(raw_out)) if raw_out is not None else Path("results_v3")
-  resolved_benchmark_name = str(benchmark_name or getattr(args, "benchmark_name", "chapter4_validation"))
+  resolved_output_dir: Path = Path(output_dir)
+  resolved_benchmark_name = str(benchmark_name)
 
   checkpoint_manager = CheckpointManager(
     checkpoint_dir=resolved_output_dir / "checkpoints",
@@ -269,19 +306,20 @@ def run_comprehensive_benchmark(
   completed, total = checkpoint_manager.count_completed_checkpoints(
     [p.__dict__ for p in problem_configs],
     selected_algorithms,
-    args.repetitions,
+    effective_repetitions,
     benchmark_config.cpu_size_threshold,
   )
   if completed > 0:
     logging.info(f"\n✓ Found {completed}/{total} completed checkpoints")
     logging.info("  Resuming from previous run...\n")
 
-  project_root: Path = Path(__file__).resolve().parents[3]
-  db_path: Path = project_root / "datasets" / "routing.duckdb"
-  tsp_fallback_dir: Path = project_root / "datasets" / "tsp"
-
-  if not db_path.exists() and not tsp_fallback_dir.exists() and not tsp_path_map:
-    raise FileNotFoundError(f"Neither database ({db_path}) nor TSPLIB directory ({tsp_fallback_dir}) found")
+  if not tsp_path_map:
+    has_db = resolved_db_path is not None and resolved_db_path.exists()
+    has_fallback = resolved_fallback_dir is not None and resolved_fallback_dir.exists()
+    if not has_db and not has_fallback:
+      raise FileNotFoundError(
+        f"Neither database ({resolved_db_path}) nor TSPLIB directory ({resolved_fallback_dir}) found"
+      )
 
   analyzer = StatisticalAnalyzer()
   problem_results: dict[str, dict[str, dict[str, Any]]] = {}
@@ -314,7 +352,9 @@ def run_comprehensive_benchmark(
         with TsplibLoader(tsp_path.parent) as tsp_loader:
           problem: Problem = tsp_loader.load(tsp_path)
       else:
-        with DatabaseLoader(str(db_path), fallback_tsp_dir=tsp_fallback_dir) as db_loader:
+        if resolved_db_path is None:
+          raise ValueError(f"db_path is required to load problem '{problem_name}' from database")
+        with DatabaseLoader(str(resolved_db_path), fallback_tsp_dir=resolved_fallback_dir) as db_loader:
           problem = db_loader.load(problem_name)
     except Exception as e:
       logging.error(f"Failed to load {problem_name}: {e}")
@@ -339,7 +379,7 @@ def run_comprehensive_benchmark(
         existing_runs = existing_checkpoint.get("successful_runs", 0) if existing_checkpoint else 0
 
         if incremental_mode:
-          new_reps_to_add = args.repetitions
+          new_reps_to_add = effective_repetitions
           total_target_reps = existing_runs + new_reps_to_add
 
           logging.info(
@@ -349,7 +389,7 @@ def run_comprehensive_benchmark(
           )
           actual_repetitions = new_reps_to_add
         else:
-          if existing_runs >= args.repetitions:
+          if existing_runs >= effective_repetitions:
             logging.info(
               f"  [{algo_idx}/{len(problem_algorithms)}] {alg_name} ({backend_type}): "
               f"✓ Loading from checkpoint (complete)"
@@ -362,22 +402,32 @@ def run_comprehensive_benchmark(
 
             continue
           else:
-            actual_repetitions = args.repetitions - existing_runs
+            actual_repetitions = effective_repetitions - existing_runs
             logging.info(
               f"  [{algo_idx}/{len(problem_algorithms)}] {alg_name} ({backend_type}): "
-              f"Resuming: {existing_runs}/{args.repetitions} runs exist, "
+              f"Resuming: {existing_runs}/{effective_repetitions} runs exist, "
               f"completing remaining {actual_repetitions}"
             )
             incremental_mode = True
       else:
-        actual_repetitions = args.repetitions
+        actual_repetitions = effective_repetitions
         logging.info(
           f"  [{algo_idx}/{len(problem_algorithms)}] {alg_name} ({backend_type}): "
           f"Running {actual_repetitions} repetitions..."
         )
 
-      effective_stage = local_search_stage or getattr(args, "local_search_stage", None)
-      algorithm_instance = alg_config.instantiate(ga_params, local_search_stage=effective_stage)
+      effective_stage = local_search_stage
+
+      def _factory(s: int, ac: AlgorithmConfig = alg_config, stage: str | None = effective_stage) -> Any:
+        return ac.instantiate(
+          ga_params,
+          seed=s,
+          local_search_stage=stage,
+          param_overrides=param_overrides or None,
+          strategy_overrides=strategy_overrides,
+        )
+
+      algorithm_instance = _factory(effective_seed)
 
       results: dict[str, Any] = run_single_algorithm(
         algorithm_name=alg_name,
@@ -391,13 +441,15 @@ def run_comprehensive_benchmark(
         repetitions=actual_repetitions,
         use_gpu=alg_config.use_gpu,
         patience=benchmark_config.patience,
+        seed_base=effective_seed,
         existing_checkpoint=existing_checkpoint,
         incremental_mode=incremental_mode and existing_checkpoint is not None,
+        algorithm_factory=_factory,
       )
 
-      def _get_strat_name(strat: Any, default: str) -> str:
+      def _get_strat_name(strat: Any) -> str:
         if strat is None:
-          return default
+          return "None"
         return getattr(strat, "__name__", type(strat).__name__)
 
       results["problem_name"] = problem_name
@@ -408,28 +460,29 @@ def run_comprehensive_benchmark(
       results["max_generations_configured"] = max_generations
       results["backend"] = "GPU" if alg_config.use_gpu else "CPU"
       results["timestamp"] = datetime.now().isoformat()
+      results["problem_metadata"] = problem.to_metadata_dict(optimal_cost)
+      results["comment"] = problem.comment
+      results["edge_weight_format"] = problem.edge_weight_format
+      results["tsplib_name"] = problem.tsplib_name
+      results["source_file"] = problem.source_file
+      results["file_checksum"] = problem.file_checksum
 
-      results["algorithm_config"] = {
+      algo_cfg_data: dict[str, Any] = {
         "population_size": getattr(algorithm_instance, "population_size", ga_params.population_size),
         "mutation_rate": getattr(algorithm_instance, "mutation_rate", ga_params.mutation_rate),
-        "tournament_size": getattr(algorithm_instance, "tournament_size", ga_params.tournament_size),
-        "two_opt_iterations": getattr(
-          algorithm_instance,
-          "two_opt_iterations",
-          ga_params.two_opt_iterations,
-        ),
         "seed": getattr(algorithm_instance, "seed", ga_params.seed),
       }
+      if hasattr(algorithm_instance, "local_search_stage"):
+        algo_cfg_data["local_search_stage"] = str(algorithm_instance.local_search_stage)
+      results["algorithm_config"] = algo_cfg_data
 
       results["strategies"] = {
-        "initialization": _get_strat_name(
-          getattr(algorithm_instance, "initialization", None), "RandomPermutationInitialization"
-        ),
-        "selection": _get_strat_name(getattr(algorithm_instance, "selection", None), "TournamentSelection"),
-        "crossover": _get_strat_name(getattr(algorithm_instance, "crossover", None), "OrderCrossover"),
-        "mutation": _get_strat_name(getattr(algorithm_instance, "mutation", None), "SwapMutation"),
-        "local_search": _get_strat_name(getattr(algorithm_instance, "local_search", None), "BatchGPUTwoOpt"),
-        "evaluation": _get_strat_name(getattr(algorithm_instance, "evaluation", None), "GPUCostEvaluation"),
+        "initialization": _get_strat_name(getattr(algorithm_instance, "initialization", None)),
+        "selection": _get_strat_name(getattr(algorithm_instance, "selection", None)),
+        "crossover": _get_strat_name(getattr(algorithm_instance, "crossover", None)),
+        "mutation": _get_strat_name(getattr(algorithm_instance, "mutation", None)),
+        "local_search": _get_strat_name(getattr(algorithm_instance, "local_search", None)),
+        "evaluation": _get_strat_name(getattr(algorithm_instance, "evaluation", None)),
       }
 
       results["construction_heuristic"] = "random_initialization"
@@ -447,7 +500,7 @@ def run_comprehensive_benchmark(
     logging.info(f"STATISTICS FOR {problem_name}")
     logging.info(f"{'─' * 80}")
 
-    statistical_test_results = perform_statistical_analysis(
+    statistical_test_results: dict[str, Any] = perform_statistical_analysis(
       problem_name=problem_name,
       optimal_cost=optimal_cost,
       results=problem_results[problem_name],
@@ -461,6 +514,7 @@ def run_comprehensive_benchmark(
       problem_results[problem_name],
       statistical_test_results,
       checkpoint_manager,
+      problem_metadata=problem.to_metadata_dict(optimal_cost),
     )
 
     del problem

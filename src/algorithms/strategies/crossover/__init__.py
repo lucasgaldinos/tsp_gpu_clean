@@ -1,12 +1,9 @@
-"""Crossover strategy exports."""
+"""Crossover strategies for routing algorithms."""
 
-from .crossover_strategies import (
-  GPUOrderCrossover,
-  OrderCrossover,
-  PartiallyMappedCrossover,
-)
+from .order_crossover import GPUOrderCrossover, OrderCrossover
+from .pmx_crossover import PartiallyMappedCrossover
 
-__all__ = [
+__all__: list[str] = [
   "GPUOrderCrossover",
   "OrderCrossover",
   "PartiallyMappedCrossover",

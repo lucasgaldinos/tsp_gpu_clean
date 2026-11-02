@@ -26,7 +26,6 @@ from benchmarking.database import (
   validate_benchmark_data,
 )
 from benchmarking.runner import (
-  DEFAULT_SELECTED_TSP_FILES,
   KNOWN_TSPLIB_OPTIMALS,
   AlgorithmConfig,
   BenchmarkConfig,
@@ -35,8 +34,8 @@ from benchmarking.runner import (
   ProblemConfig,
   adaptive_generations,
   adaptive_patience,
+  build_problem_configs_from_duckdb,
   build_problem_configs_from_tsp_files,
-  default_config_dir,
   load_algorithms_config,
   load_all_configs,
   load_benchmark_config,
@@ -49,10 +48,9 @@ from benchmarking.runner import (
   validate_configs,
 )
 
-__all__ = [
+__all__: list[str] = [
   "ALL_RUNS_BY_ID",
   "COUNT_RUNS",
-  "DEFAULT_SELECTED_TSP_FILES",
   "KNOWN_TSPLIB_OPTIMALS",
   "TABLE_RUNS",
   "AlgorithmConfig",
@@ -64,11 +62,11 @@ __all__ = [
   "StatisticalSummary",
   "adaptive_generations",
   "adaptive_patience",
+  "build_problem_configs_from_duckdb",
   "build_problem_configs_from_tsp_files",
   "compare_algorithms",
   "compare_algorithms_by_group",
   "create_database",
-  "default_config_dir",
   "generate_result_tables",
   "holm_bonferroni_correction",
   "insert_benchmark_run",

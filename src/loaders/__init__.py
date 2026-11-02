@@ -8,6 +8,15 @@ from various sources:
 """
 
 from .database_loader import DatabaseLoader
+from .problem_type_handlers import (
+  PROBLEM_TYPE_HANDLERS,
+  AtspHandler,
+  BaseProblemRow,
+  CvrpHandler,
+  ProblemTypeHandler,
+  TspHandler,
+  register_problem_type_handler,
+)
 from .tsplib_loader import (
   MatrixRowRecord,
   NodeRowRecord,
@@ -20,13 +29,20 @@ from .tsplib_loader import (
 )
 
 __all__ = [
+  "PROBLEM_TYPE_HANDLERS",
+  "AtspHandler",
+  "BaseProblemRow",
+  "CvrpHandler",
   "DatabaseLoader",
   "MatrixRowRecord",
   "NodeRowRecord",
   "ProblemRowRecord",
+  "ProblemTypeHandler",
+  "TspHandler",
   "TsplibIngestionBundle",
   "TsplibLoader",
   "bundle_to_problem",
   "ingest_tsplib_directory_to_duckdb",
   "parse_tsp_file_with_tsplib95",
+  "register_problem_type_handler",
 ]

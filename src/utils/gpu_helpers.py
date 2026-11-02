@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import functools
-import os
-import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"), os.W_OK):
-  os.environ["CUPY_CACHE_DIR"] = os.path.join(tempfile.gettempdir(), "cupy_cache")
+from protocols.backend import require_gpu
 
-import cupy as cp
+if TYPE_CHECKING:
+  import cupy as cp
 
 
 @functools.lru_cache(maxsize=32)
 def _compile_kernel_cached(kernel_path_str: str, kernel_function_name: str) -> cp.RawKernel:
   """Compile and cache a CUDA kernel from an absolute file path."""
+  cp = require_gpu()
   kernel_source = Path(kernel_path_str).read_text(encoding="utf-8")
   return cp.RawKernel(kernel_source, kernel_function_name)
 

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from utils.phase_timer import time_strategy
+from utils.rng import make_rng, resolve_rng
 
 try:
   import cupy as cp
@@ -21,8 +22,10 @@ except ImportError:
 if TYPE_CHECKING:
   from collections.abc import Sequence
 
-  from protocols.algorithm_strategies import Routes
+  from numpy.random._generator import Generator
+
   from protocols.problem_context import ProblemContext
+  from protocols.types import Routes, SeedLike
 
 
 class RandomPermutationInitialization:
@@ -33,18 +36,18 @@ class RandomPermutationInitialization:
   deterministic reproducibility via the provided seed or `context.rng`.
   """
 
-  def __init__(self, seed: int | None = None, return_gpu: bool = False) -> None:
+  def __init__(self, seed: SeedLike = None, return_gpu: bool = False) -> None:
     """
     Initialize random permutation strategy.
 
     Args:
-        seed: Optional random seed override.
+        seed: Optional random seed override (int, Generator, callable, or None).
         return_gpu: If True and CuPy is available, return the initial routes
             batch directly on GPU (`cp.ndarray`).
     """
-    self.seed = seed
+    self.seed: SeedLike = seed
     self.return_gpu = return_gpu
-    self.rng = np.random.default_rng(seed)
+    self.rng = make_rng(seed)
     self.h2d_bytes: int = 0
     self.d2h_bytes: int = 0
     self.kernel_launches: int = 0
@@ -73,13 +76,11 @@ class RandomPermutationInitialization:
     Returns:
         2D routes array of shape `(population_size, len(customers))` with dtype `int32`.
     """
-    n_cities = len(customers)
-    customers_array = np.asarray(customers, dtype=np.int32)
-    rng = self.rng
-    if context is not None and hasattr(context, "rng") and isinstance(context.rng, np.random.Generator):
-      rng = context.rng
+    n_cities: int = len(customers)
+    customers_array: np.ndarray = np.asarray(customers, dtype=np.int32)
+    rng: Generator = resolve_rng(context, self.rng)
 
-    population = np.empty((population_size, n_cities), dtype=np.int32)
+    population: np.ndarray = np.empty((population_size, n_cities), dtype=np.int32)
     for i in range(population_size):
       population[i] = rng.permutation(customers_array)
 

@@ -9,24 +9,27 @@ This package defines protocol interfaces for:
 
 from .algorithm_strategies import (
   CrossoverStrategy,
-  DistanceMatrix,
   EvaluationStrategy,
-  Fitness,
   InitializationStrategy,
-  LocalSearchStage,
   LocalSearchStrategy,
   MetaheuristicStrategy,
   MutationStrategy,
-  Route,
-  RouteOrRoutes,
-  Routes,
   SelectionStrategy,
   ensure_routes_batch,
   restore_routes_shape,
 )
 from .problem_context import ProblemContext
+from .types import (
+  DistanceMatrix,
+  Fitness,
+  LocalSearchStage,
+  Route,
+  RouteOrRoutes,
+  Routes,
+  SeedLike,
+)
 
-__all__ = [
+__all__: list[str] = [
   "CrossoverStrategy",
   "DistanceMatrix",
   "EvaluationStrategy",
@@ -40,6 +43,7 @@ __all__ = [
   "Route",
   "RouteOrRoutes",
   "Routes",
+  "SeedLike",
   "SelectionStrategy",
   "ensure_routes_batch",
   "restore_routes_shape",

@@ -38,7 +38,7 @@ Date: 2025-01-28
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, LiteralString
 
 import numpy as np
 
@@ -74,9 +74,7 @@ def _get_data_field(results_dict: dict[str, Any], field: str) -> list[Any]:
   return val if isinstance(val, list) else list(val)
 
 
-def holm_bonferroni_correction(
-  p_values: list[float], alpha: float = 0.05
-) -> tuple[list[bool], list[float]]:
+def holm_bonferroni_correction(p_values: list[float], alpha: float = 0.05) -> tuple[list[bool], list[float]]:
   """
   Apply Holm-Bonferroni multiple comparison correction.
 
@@ -263,9 +261,7 @@ def perform_statistical_analysis(
       )
       logging.info(f"    Test selected: {summary.test_used}")
       logging.info(f"    Mean difference: {summary.mean_difference:.2f}")
-      logging.info(
-        f"    95% CI difference: [{summary.ci_95_difference[0]:.2f}, {summary.ci_95_difference[1]:.2f}]"
-      )
+      logging.info(f"    95% CI difference: [{summary.ci_95_difference[0]:.2f}, {summary.ci_95_difference[1]:.2f}]")
       logging.info(f"    p-value (uncorrected): {summary.p_value:.6f}")
       logging.info(f"    Cohen's d: {summary.effect_size:.4f}")
 
@@ -288,9 +284,7 @@ def perform_statistical_analysis(
     reject, pvals_corrected = holm_bonferroni_correction(p_values, alpha=0.05)
 
     logging.info("\n  Multiple Comparison Correction (Holm-Bonferroni, alpha=0.05):")
-    for comp, p_orig, p_adj, sig in zip(
-      comparisons, p_values, pvals_corrected, reject, strict=True
-    ):
+    for comp, p_orig, p_adj, sig in zip(comparisons, p_values, pvals_corrected, reject, strict=True):
       logging.info(f"    {comp.comparison_label}:")
       logging.info(f"      Original p-value: {p_orig:.6f}")
       logging.info(f"      Adjusted p-value: {p_adj:.6f}")
@@ -302,9 +296,8 @@ def perform_statistical_analysis(
 
   logging.info(f"\nSummary: {problem_name} (optimal={optimal_cost})")
   logging.info(short_sep)
-  header_fmt = (
-    f"{'Algorithm':<20} {'Mean Cost':<15} {'Gap (%)':<12} "
-    f"{'Time (s)':<12} {'H2D (MB)':<12} {'D2H (MB)':<12}"
+  header_fmt: LiteralString = (
+    f"{'Algorithm':<20} {'Mean Cost':<15} {'Gap (%)':<12} {'Time (s)':<12} {'H2D (MB)':<12} {'D2H (MB)':<12}"
   )
   logging.info(header_fmt)
   logging.info(short_sep)
@@ -364,8 +357,7 @@ def perform_statistical_analysis(
             "algorithm_j": nemenyi_result["algorithm_names"][j],
             "p_value": float(p_val),
             "rank_difference": abs(
-              mean_ranks[nemenyi_result["algorithm_names"][i]]
-              - mean_ranks[nemenyi_result["algorithm_names"][j]]
+              mean_ranks[nemenyi_result["algorithm_names"][i]] - mean_ranks[nemenyi_result["algorithm_names"][j]]
             ),
           }
           for i, j, p_val in nemenyi_result["significant_pairs"]

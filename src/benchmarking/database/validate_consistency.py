@@ -17,9 +17,7 @@ Author: GPU Accelerated Routing Optimization Team
 Date: 2025-11-23
 """
 
-import argparse
 import json
-import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -255,50 +253,3 @@ def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[boo
     print("✅ All records match source JSON files!")
     return True, pd.DataFrame()
 
-
-def main() -> None:
-  parser = argparse.ArgumentParser(description="Validate database consistency")
-  parser.add_argument("--db1", required=True, help="First database path")
-  parser.add_argument("--db2", required=True, help="Second database path")
-  parser.add_argument("--checkpoints", required=True, help="Checkpoint directory")
-
-  args = parser.parse_args()
-
-  if not Path(args.db1).exists():
-    print(f"❌ Database 1 not found: {args.db1}")
-    sys.exit(1)
-
-  if not Path(args.db2).exists():
-    print(f"❌ Database 2 not found: {args.db2}")
-    sys.exit(1)
-
-  if not Path(args.checkpoints).exists():
-    print(f"❌ Checkpoint directory not found: {args.checkpoints}")
-    sys.exit(1)
-
-  identical, db_diffs = compare_databases(args.db1, args.db2)
-
-  if not identical:
-    print()
-    print("Database Differences:")
-    for diff in db_diffs:
-      print(f"  - {diff}")
-    sys.exit(1)
-
-  all_valid, mismatch_df = validate_against_checkpoints(args.db1, args.checkpoints)
-
-  if not all_valid:
-    print()
-    print("Mismatches found:")
-    print(mismatch_df.to_string(index=False))
-    sys.exit(1)
-
-  print()
-  print("=" * 80)
-  print("✅ VALIDATION COMPLETE: All checks passed!")
-  print("=" * 80)
-  sys.exit(0)
-
-
-if __name__ == "__main__":
-  main()

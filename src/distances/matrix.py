@@ -226,9 +226,10 @@ def compute_distance_matrix(coordinates: np.ndarray, edge_weight_type: str, xp: 
       f"Unsupported edge_weight_type: '{edge_weight_type}'. "
       f"Coordinate-based types: EUC_2D, EUC_3D, MAN_2D, MAN_3D, "
       f"MAX_2D, MAX_3D, GEO, ATT, CEIL_2D, XRAY1. "
-      f"For EXPLICIT types, use edge_weight_matrices table."
+      f"For EXPLICIT types, use Problem.distances (populated by "
+      f"TsplibLoader/DatabaseLoader); nothing is computed from coordinates."
     )
 
   # Convert to int32 for TSPLIB compliance (distances are always integers)
   # int32 supports values up to 2,147,483,647 — sufficient for all TSPLIB instances
-  return cast(np.ndarray, distances.astype(xp.int32))
+  return cast("np.ndarray", distances.astype(xp.int32))
