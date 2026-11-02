@@ -23,8 +23,8 @@ modifications:
       - description: >
           Round 4 (Fase 9): GPU capability API moved to core protocols.backend (lazy import),
           tests/gpu_probe.py retired and tests removed from pythonpath/mypy_path, make_population
-          fixture moved to conftest.py, empty customers validation resolved (D8 fixed),
-          archive/ isolated from test suite with D7 resolved in full_gpu_monolithic, configs
+          fixture moved to conftest.py, empty customers validation resolved (BUG-8 fixed),
+          archive/ isolated from test suite with BUG-7 resolved in full_gpu_monolithic, configs
           structural contract test added, and full test suite verified (711 passed, 6 xfailed).
 related_files:
   - "[testing.instructions.md](../../.agents/rules/testing.instructions.md)"
@@ -116,12 +116,12 @@ Total: 517 new tests (511 passing, 6 strict xfails). Full suite: `541 passed, 6 
 
 | ID | Evidence | Test |
 | :-- | :-- | :-- |
-| D1 | `src/data_models/problem.py:30` — frozen dataclass equality compares `ndarray` fields with `==`, raising `ValueError`; `hash()` raises `TypeError` | `tests/data_models/test_unit_problem_invariants.py::test_problems_with_equal_content_compare_equal` |
-| D2 | `src/utils/route_helpers.py:145` — `resolve_rng` rejects `ProblemContext.rng` because it is a `RandomState` (`src/protocols/problem_context.py:187`), so the seeded context RNG is silently ignored | `tests/utils/test_unit_route_helpers.py::test_resolve_rng_uses_seeded_problem_context_rng` |
-| D3 | `src/benchmarking/analysis/statistics.py:220` — zero-variance branch hardcodes `mean_difference=0.0` and `ci_95_difference=(0.0, 0.0)` | `tests/benchmarking/test_unit_statistics.py::test_paired_comparison_zero_variance_reports_true_mean_difference` |
-| D4 | `src/benchmarking/runner/checkpoint_io.py:266` — `is_valid_checkpoint` ignores `raw_*` array lengths that `can_resume_checkpoint` checks | `tests/benchmarking/test_unit_checkpoint_io.py::test_validity_rejects_arrays_inconsistent_with_successful_runs` |
-| D5 | `src/algorithms/strategies/mutation/swap_mutation.py:48` — depot-endpoint guard only applies when `len > 3` | `tests/algorithms/test_unit_strategies.py::test_mutation_preserves_three_node_depot_endpoints[swap]` |
-| D6 | `src/algorithms/strategies/mutation/inversion_mutation.py:48` — same guard gap | `tests/algorithms/test_unit_strategies.py::test_mutation_preserves_three_node_depot_endpoints[inversion]` |
+| BUG-1 | `src/data_models/problem.py:30` — frozen dataclass equality compares `ndarray` fields with `==`, raising `ValueError`; `hash()` raises `TypeError` | `tests/data_models/test_unit_problem_validation.py::test_problems_with_equal_content_compare_equal` |
+| BUG-2 | `src/utils/rng.py:56` — `resolve_rng` rejects `ProblemContext.rng` because it is a `RandomState` (`src/protocols/problem_context.py:166`), so the seeded context RNG is silently ignored | `tests/utils/test_unit_rng.py::test_resolve_rng_uses_seeded_problem_context_rng` |
+| BUG-3 | `src/benchmarking/analysis/statistics.py:220` — zero-variance branch hardcodes `mean_difference=0.0` and `ci_95_difference=(0.0, 0.0)` | `tests/benchmarking/test_unit_statistics_comparison.py::test_paired_comparison_zero_variance_reports_true_mean_difference` |
+| BUG-4 | `src/benchmarking/runner/checkpoint_io.py:266` — `is_valid_checkpoint` ignores `raw_*` array lengths that `can_resume_checkpoint` checks | `tests/benchmarking/test_unit_checkpoint_io.py::test_validity_rejects_arrays_inconsistent_with_successful_runs` |
+| BUG-5 | `src/algorithms/strategies/mutation/swap_mutation.py:48` — depot-endpoint guard only applies when `len > 3` | `tests/algorithms/strategies/mutation/test_unit_swap_mutation.py::test_mutation_preserves_three_node_depot_endpoints` |
+| BUG-6 | `src/algorithms/strategies/mutation/inversion_mutation.py:48` — same guard gap | `tests/algorithms/strategies/mutation/test_unit_inversion_mutation.py::test_mutation_preserves_three_node_depot_endpoints` |
 
 Documentation findings (verified behavior differs from the inline examples; no test asserts the example):
 
@@ -156,7 +156,7 @@ Chain of reasoning used during the work: six `sequentialthinking` calls (scope, 
 
 ## 9. Follow-ups
 
-1. Fix D1–D6 and remove the strict xfail markers.
+1. Fix BUG-1–BUG-6 and remove the strict xfail markers.
 2. Move the six legacy flat test files into mirrored folders; update `tests/README`-equivalent documentation if one is added.
 3. Add a `slow` marker to the validation tests and a `gpu` parity suite.
 4. Correct the four distance/exception documentation examples.
@@ -228,14 +228,14 @@ An unanchored agent explored `src/` and `tests/`; the findings below are now rec
 | Medium | `hasattr(instance, "evolve")` and key-presence assertions | Fixed | Class-name contract against `cfg.metaheuristic`; stats contract (`best_fitness <= initial_fitness`, `len(convergence_history) == generations_completed + 1`, byte counters, `stop_reason` set) |
 | Medium | Duplicated coverage of route batch helpers | Fixed | Duplicate removed from `test_unit_strategy_contracts.py`; canonical coverage in `tests/utils/` |
 | Medium | Integration run unmarked; hardcoded `7542.0` | Fixed | `slow` markers added; `KNOWN_TSPLIB_OPTIMALS["berlin52"]` used |
-| Missing | `n < 4`, `max_iterations <= 0`, `mutation_rate=0.0`, `max_generations=0`, `patience=0`, empty customers | Mostly fixed | New boundary files for two-opt, mutation rate, GA limits. Empty customers exposed a defect (D8) |
+| Missing | `n < 4`, `max_iterations <= 0`, `mutation_rate=0.0`, `max_generations=0`, `patience=0`, empty customers | Mostly fixed | New boundary files for two-opt, mutation rate, GA limits. Empty customers exposed a defect (BUG-8) |
 
 **Defects found during remediation (strict xfails):**
 
 | ID | Defect | Test |
 | :-- | :-- | :-- |
-| D7 | `GeneticAlgorithmFullGPUMonolithic.evolve` returns `best_cost_history` instead of the protocol key `convergence_history` (`full_gpu_monolithic.py:250`) | `test_gpu_variants_and_modular_vs_monolithic[FullGPU]`, `[FullGPUMonolithic]` |
-| D8 | `evolve` accepts empty `customers`, returns a `(0,)` tour and `generations_completed=1` instead of rejecting the instance (`genetic_algorithm.py:452`) | `test_empty_customers_are_rejected` |
+| BUG-7 | `GeneticAlgorithmFullGPUMonolithic.evolve` returns `best_cost_history` instead of the protocol key `convergence_history` (`full_gpu_monolithic.py:250`) | `test_gpu_variants_and_modular_vs_monolithic[FullGPU]`, `[FullGPUMonolithic]` |
+| BUG-8 | `evolve` accepts empty `customers`, returns a `(0,)` tour and `generations_completed=1` instead of rejecting the instance (`genetic_algorithm.py:452`) | `test_empty_customers_are_rejected` |
 
 **Observations, not filed as defects** (no documented promise contradicts them): `validate_benchmark_data` NaN-checks 13 aggregate fields but not `optimal_cost`; `insert_benchmark_run` stores `"...Z"` timestamps shifted by the DuckDB session timezone.
 
@@ -261,10 +261,10 @@ All checks passed!
 - **GPU capability in core**: Implemented lazy capability API in [backend.py](../../src/protocols/backend.py) (`gpu_available()`, `require_gpu()`, `cupy_backend()`, `clear_gpu_cache()`) with `GPUUnavailableError` in [exceptions.py](../../src/data_models/exceptions.py). Unit tests added in [test_unit_gpu_capability.py](../../tests/protocols/test_unit_gpu_capability.py) covering missing package, missing device, driver error, and cache reuse.
 - **Retired `tests/gpu_probe.py` and strict sys.path**: Tests and mypy path now restricted to `["src"]` in [pyproject.toml](../../pyproject.toml). `tests/gpu_probe.py` deleted; all tests import capability from `protocols.backend`.
 - **`make_population` fixture**: Migrated permutation builder from `tests/strategy_fixtures.py` to [conftest.py](../../tests/conftest.py) as an injected fixture, updated all 7 strategy test files, and deleted `tests/strategy_fixtures.py`.
-- **Defect D8 resolved**: `GeneticAlgorithm.evolve` in [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py) validates `len(customers) > 0` with `ValueError("customers sequence cannot be empty")`; strict xfail removed from `test_empty_customers_are_rejected` (now passing).
-- **Archive isolation & D7 resolved**: `full_gpu_monolithic.py` and `kernels/` moved to `src/algorithms/archive/` ([README.md](../../src/algorithms/archive/README.md)); 5 legacy non-importable files deleted; monolithic re-exports removed from `algorithms.__all__`. Key `"best_cost_history"` corrected to `"convergence_history"` (resolving D7).
+- **Defect BUG-8 resolved**: `GeneticAlgorithm.evolve` in [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py) validates `len(customers) > 0` with `ValueError("customers sequence cannot be empty")`; strict xfail removed from `test_empty_customers_are_rejected` (now passing).
+- **Archive isolation & BUG-7 resolved**: `full_gpu_monolithic.py` and `kernels/` moved to `src/algorithms/archive/` ([README.md](../../src/algorithms/archive/README.md)); 5 legacy non-importable files deleted; monolithic re-exports removed from `algorithms.__all__`. Key `"best_cost_history"` corrected to `"convergence_history"` (resolving BUG-7).
 - **Archive excluded from test suite**: Strict repository rule applied (no tests depend on archive). Removed the two monolithic `xfail(strict=True)` from [test_integration_ga_composition.py](../../tests/algorithms/test_integration_ga_composition.py) and excluded archive variants in [test_early_stopping.py](../../tests/validation/test_early_stopping.py).
-- **Smoke script & config contract**: Created pure-Python [check_archive_baseline.py](../../benchmark_scripts/check_archive_baseline.py) (zero argparse, runs standalone on CUDA) and [test_unit_algorithms_config_contract.py](../../tests/benchmarking/test_unit_algorithms_config_contract.py) ensuring structural parity between `configs/algorithms.json` and the test fixture.
+- **Smoke script & config contract**: Created pure-python [check_archive_baseline.py](../../benchmark_scripts/check_archive_baseline.py) (zero argparse, runs standalone on CUDA) and [test_unit_algorithms_config_contract.py](../../tests/benchmarking/test_unit_algorithms_config_contract.py) ensuring structural parity between `configs/algorithms.json` and the test fixture.
 
 ```text
 $ .venv/bin/pytest -q

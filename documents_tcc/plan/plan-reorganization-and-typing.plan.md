@@ -18,9 +18,14 @@ modifications:
       - description: >
           Conclusão da Fase 9 (Tarefas 9.1-9.12): API de capacidade em protocols.backend,
           aposentadoria de tests/gpu_probe.py e tests de pythonpath/mypy_path, validação de
-          customers em GeneticAlgorithm.evolve, isolamento de archive/ e resolução de D7/D8,
+          customers em GeneticAlgorithm.evolve, isolamento de archive/ e resolução de BUG-7/BUG-8,
           contrato de configs, script check_archive_baseline e limpeza de tipagem.
-status: complete
+      - description: >
+          Registro da Fase 10 (Tarefas 10.1-10.5): tabela de símbolos e unificação dos
+          identificadores DP-/BUG-, separação de `configs/algorithms.archive.json`,
+          reparo dos DoDs 9.6/9.9 e das âncoras mortas, limpeza de docstrings e do
+          validador de configuração, e criação do gate `benchmark_scripts/check_docs.py`.
+status: review
 author:
   - "[[Lucas Galdino]]"
   - "[[Antigravity]]"
@@ -62,11 +67,11 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ## Decisões Fixadas (Source of Truth)
 
-- **D1 (Tipagem)**: Não criar parâmetros de tipo genéricos em cascata (`SelectionStrategy[ArrayT]`, `ProblemContext[ArrayT]`). O `BackendModule` é um Protocolo não-genérico retornando `Array` (`NDArray[Any]`) e `arccos`.
-- **D2 (Layout de Diretórios)**: O código de biblioteca reside em `src/benchmarking/` com submódulos `runner/`, `analysis/`, `database/`. Os scripts executáveis de linha de comando residem em `benchmark_scripts/` na raiz do repositório.
-- **D3 (Importações)**: `pythonpath = ["src"]` estrito. Constantes compartilhadas como `DEFAULT_SELECTED_TSP_FILES` vivem na biblioteca (`src/benchmarking/runner/config_loader.py`), nunca em scripts CLI.
-- **D4 (Checkpoints)**: Checkpoints JSON exportam `best_tour: list[int]`, `raw_best_tours: list[list[int]]`, `problem_type: str`, `edge_type: str` e o dicionário de classes das 6 estratégias (`initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation`).
-- **D5 (Parada Precoce)**: `"hit_optimal"` ocorre apenas para `best_cost <= optimal_cost + 1e-6`. Gaps abaixo de 1% que não atingiram o ótimo registram `"within_1pct_optimal"`.
+- **DP-1 (Tipagem)**: Não criar parâmetros de tipo genéricos em cascata (`SelectionStrategy[ArrayT]`, `ProblemContext[ArrayT]`). O `BackendModule` é um Protocolo não-genérico retornando `Array` (`NDArray[Any]`) e `arccos`.
+- **DP-2 (Layout de Diretórios)**: O código de biblioteca reside em `src/benchmarking/` com submódulos `runner/`, `analysis/`, `database/`. Os scripts executáveis de linha de comando residem em `benchmark_scripts/` na raiz do repositório.
+- **DP-3 (Importações)**: `pythonpath = ["src"]` estrito. Constantes compartilhadas como `DEFAULT_SELECTED_TSP_FILES` vivem na biblioteca (`src/benchmarking/runner/config_loader.py`), nunca em scripts CLI.
+- **DP-4 (Checkpoints)**: Checkpoints JSON exportam `best_tour: list[int]`, `raw_best_tours: list[list[int]]`, `problem_type: str`, `edge_type: str` e o dicionário de classes das 6 estratégias (`initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation`).
+- **DP-5 (Parada Precoce)**: `"hit_optimal"` ocorre apenas para `best_cost <= optimal_cost + 1e-6`. Gaps abaixo de 1% que não atingiram o ótimo registram `"within_1pct_optimal"`.
 
 ---
 
@@ -76,14 +81,14 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **What:** Criar `documents_tcc/plan/plan-reorganization-and-typing.md` e vincular no `plan-roteiro.md`.
   + **Why:** Garantir rastreabilidade contínua das tarefas de engenharia de software dentro da documentação da tese.
   + **Who:** Agente (`implementer`).
-  + **Where:** [documents_tcc/plan/plan-reorganization-and-typing.md](./plan-reorganization-and-typing.plan.md), [documents_tcc/plan/plan-roteiro.md](./plan-roteiro.md).
+  + **Where:** [documents_tcc/plan/plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [documents_tcc/plan/plan-roteiro.md](./plan-roteiro.md).
   + **When:** Primeira ação da execução.
   + **How:** Criar o arquivo de plano com metadados e vincular na Tarefa 7 do roteiro.
   + **How much:** Baixo.
   + **Stakeholder Implications:** Nenhuma; rastreabilidade interna.
   + **DoD:** Arquivo criado e vinculado.
   + **Solution:**
-    - **Changed Files:** [plan-reorganization-and-typing.md](./plan-reorganization-and-typing.plan.md)
+    - **Changed Files:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md)
     - **Summary:** Criado o plano 5W2H versionado na pasta de planos do repositório.
     - **DoD Compliance:** Plano registrado e pronto para acompanhamento.
 
@@ -122,10 +127,10 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [pairwise.py](../../src/distances/pairwise.py#L515)
       + [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L323-L330)
       + [database_loader.py](../../src/loaders/database_loader.py#L23-L340)
-      + [full_gpu_monolithic.py](../../src/algorithms/monolithic/full_gpu_monolithic.py#L153-L160)
-      + [selection_strategies.py](../../src/algorithms/strategies/selection/selection_strategies.py#L11-L317)
+      + [full_gpu_monolithic.py](../../src/algorithms/archive/full_gpu_monolithic.py#L153-L160)
+      + [tournament_selection.py](../../src/algorithms/strategies/selection/tournament_selection.py) e [roulette_wheel_selection.py](../../src/algorithms/strategies/selection/roulette_wheel_selection.py)
       + [random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py#L7-L88)
-      + [evaluation_strategies.py](../../src/algorithms/strategies/evaluation/evaluation_strategies.py#L11-L189)
+      + [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py)
       + [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L324-L328)
     - **Summary:** Simplificado `BackendModule` para protocolo não-genérico com `arccos`, anotados campos de cache preguiçoso em `ProblemContext`, migrado `measure` em `phase_timer.py` para PEP 695 `[**P, R]`, corrigidos tipos de retorno e casts pontuais de rotas/fitness em estratégias e carregadores.
     - **DoD Compliance:** `mypy src/protocols src/algorithms src/distances src/loaders src/utils` executado com `Success: no issues found in 41 source files` (0 erros).
@@ -143,9 +148,9 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **Solution:**
     - **Changed Files:**
       + [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L529-L536)
-      + [full_gpu_monolithic.py](../../src/algorithms/monolithic/full_gpu_monolithic.py#L230-L241)
-      + [algorithm_runner.py](../../src/benchmarking_v2/algorithm_runner.py#L242-L415)
-      + [orchestration.py](../../src/benchmarking_v2/orchestration.py#L332-L545)
+      + [full_gpu_monolithic.py](../../src/algorithms/archive/full_gpu_monolithic.py#L230-L241)
+      + [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py#L242-L415)
+      + [orchestration.py](../../src/benchmarking/runner/orchestration.py#L332-L545)
       + [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L65)
     - **Summary:** Parada precoce agora reserva `"hit_optimal"` estritamente para `best_cost <= optimal_cost + 1e-6` e rotula `< 1.0%` como `"within_1pct_optimal"`. Checkpoints agora exportam o vetor da melhor rota (`best_tour`), lista de rotas por repetição (`raw_best_tours`), metadados `problem_type` e `edge_type`, além de introspecção dos 6 nomes reais de estratégias (`initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation`).
     - **DoD Compliance:** Testes validados em `test_early_stopping.py` e `test_benchmark_selected_problems.py` (5 passed), com verificação de arquivo JSON gerado confirmando presença de todas as chaves e rotas.
@@ -162,9 +167,9 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **DoD:** `ruff check` e `mypy` passam sem erros em `aggregate_statistics.py`; testes executam com sucesso.
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:**
-      + [aggregate_statistics.py](../../src/benchmarking_v2/aggregate_statistics.py#L98-L358)
-      + [**init**.py](../../src/benchmarking_v2/__init__.py#L5-L44)
-      + [test_benchmark_selected_problems.py](../../tests/test_benchmark_selected_problems.py#L12-L245)
+      + [aggregate_statistics.py](../../src/benchmarking/analysis/aggregate_statistics.py#L98-L358)
+      + [**init**.py](../../src/benchmarking/__init__.py#L5-L44)
+      + `test_benchmark_selected_problems.py` *(removido na TASK 8.7; substituído por `tests/benchmarking/test_integration_pipeline.py` e `tests/cli/`)*
     - **Resumo:** Extraída a função pura `compare_algorithms(...)` que valida instâncias com cobertura pareada completa, executa teste de Friedman, calcula distâncias críticas com Nemenyi e computa speedups geométricos em relação a um baseline configurável. Implementada a função `compare_algorithms_by_group(...)` para agrupamentos arbitrários (e.g. `edge_type`). A análise estratificada `perform_cross_problem_analysis_stratified(...)` agora delega ambos os estratos para `compare_algorithms(...)`, definindo `small_problem_algos` dinamicamente e eliminando os erros F821 e de tipagem em `all_algorithm_names`.
     - **Atendimento ao DoD:** `ruff check` e `mypy` passaram com 0 erros em `src/benchmarking_v2/aggregate_statistics.py`. Adicionados testes de unidade cobrindo casos normais, degenerados e agrupamento por metadados em `test_benchmark_selected_problems.py` (todos 6 testes aprovados).
 
@@ -203,8 +208,8 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [import_checkpoints.py](../../benchmark_scripts/import_checkpoints.py#L1-L25)
       + [validate_consistency.py](../../benchmark_scripts/validate_consistency.py#L1-L20)
       + [pyproject.toml](../../pyproject.toml#L90-L105)
-      + [test_benchmark_selected_problems.py](../../tests/test_benchmark_selected_problems.py#L12-L27)
-      + [test_modular_architecture.py](../../tests/test_modular_architecture.py#L35)
+      + `test_benchmark_selected_problems.py` *(removido na TASK 8.7)*
+      + `test_modular_architecture.py` *(removido na reorganização da suíte; cobertura migrada para `tests/**`)*
       + [test_incremental_checkpoints.py](../../tests/validation/test_incremental_checkpoints.py#L13)
     - **Resumo:** Os diretórios `src/benchmarks_v2/` e `src/benchmarking_v2/` foram consolidados na biblioteca limpa `src/benchmarking/` com os subpacotes especializados `runner/`, `analysis/` e `database/`. Todas as APIs públicas foram re-exportadas em `src/benchmarking/__init__.py`. Os scripts executáveis de CLI foram movidos para a raiz em `benchmark_scripts/`. A lista padrão `DEFAULT_SELECTED_TSP_FILES` foi centralizada na biblioteca em `config_loader.py`. Foram sanados todos os retornos anuláveis de `cursor.fetchone()` no DuckDB e desacoplada a circularidade entre `runner` e `analysis` através de importações sob `if TYPE_CHECKING:` com `from __future__ import annotations`. Os diretórios legados foram totalmente removidos.
     - **Atendimento ao DoD:** Executado `pytest` com 19 testes aprovados (0 falhas); `mypy src benchmark_scripts` e `ruff check src tests benchmark_scripts` passaram com 0 erros em modo estrito.
@@ -221,7 +226,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **DoD:** `pytest` aprova 19 testes (0 falhas); `mypy` e `ruff` passam com 0 erros; tabelas em Markdown e LaTeX geradas em `results_v3/local_search_comparison/tables/` reportando médias, desvios e gaps.
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:**
-      + [presets.py](../../src/algorithms/presets.py#L1-L150)
+      + `presets.py` *(criado na TASK 5.1 e removido na TASK 6.1)*
       + [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L1-L600)
       + [metaheuristics/**init**.py](../../src/algorithms/metaheuristics/__init__.py#L1-L20)
       + [algorithms/**init**.py](../../src/algorithms/__init__.py#L1-L40)
@@ -232,7 +237,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [orchestration.py](../../src/benchmarking/runner/orchestration.py#L325-L390)
       + [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py#L50-L135)
       + [compare_local_search_stages.py](../../benchmark_scripts/compare_local_search_stages.py#L1-L290)
-      + [test_modular_architecture.py](../../tests/test_modular_architecture.py#L275-L288)
+      + `test_modular_architecture.py` *(removido na reorganização da suíte do Capítulo 8)*
       + [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L11-L25)
       + [test_incremental_checkpoints.py](../../tests/validation/test_incremental_checkpoints.py#L10-L15)
       + [local_search_stage_comparison.md](../../results_v3/local_search_comparison/tables/local_search_stage_comparison.md#L1-L47)
@@ -273,10 +278,10 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [compare_local_search_stages.py](../../benchmark_scripts/compare_local_search_stages.py#L1-L100)
       + [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py#L1-L160)
       + [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py#L1-L120)
-      + [test_modular_architecture.py](../../tests/test_modular_architecture.py#L1-L310)
+      + `test_modular_architecture.py` *(removido na reorganização da suíte)*
       + [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L1-L50)
       + [test_incremental_checkpoints.py](../../tests/validation/test_incremental_checkpoints.py#L1-L70)
-      + [test_benchmark_selected_problems.py](../../tests/test_benchmark_selected_problems.py#L50-L100)
+      + `test_benchmark_selected_problems.py` *(removido na TASK 8.7)*
     - **Resumo:** Implementação completa da resolução dos 8 pontos de crítica: (1) `LocalSearchStage` e tipos de domínio migrados para `src/protocols/types.py` e helpers de lote em `src/utils/route_helpers.py`; (2) Decomposição de todas as estratégias em arquivos individuais por algoritmo, preservando caminhos adjacentes a `kernels/` para CUDA, com eliminação de 10 shims legados `*_strategies.py`; (3) Remoção definitiva de `src/algorithms/presets.py`, de `legacy_kwargs`, `tournament_size`, `two_opt_iterations` e condicionais lazy de `GeneticAlgorithm`, estabelecendo suporte nativo a AG Puro (`local_search=None`) via pipeline composável de `GenerationStep`; (4) `configs/algorithms.json` totalmente declarativo com injeção de estratégias via `STRATEGY_REGISTRY`; (5) Scripts em `benchmark_scripts/` reescritos em python puro sem `argparse`, orquestrando diretamente o pipeline de benchmark; (6) Validações e testes adaptados, com execução bem-sucedida do benchmark de comparação dos 3 estágios (`post_mutation`, `post_evaluation`, `post_evolution`) através do orquestrador.
     - **Atendimento ao DoD:** 19/19 testes aprovados no `pytest` (29.18s); `mypy` e `ruff` com 0 erros/avisos em todo o projeto; benchmark de comparação executado com sucesso e tabelas salvas em `results_v3/local_search_comparison/tables/`.
 
@@ -323,7 +328,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [pmx_crossover.py](../../src/algorithms/strategies/crossover/pmx_crossover.py#L1-L145)
       + [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L1-L150)
       + [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py#L1-L120)
-    - **Resumo:** Definido o tipo `SeedLike` em `src/protocols/types.py`; implementados `is_gpu_array`, `to_cpu_batch`, `restore_routes_shape(..., to_gpu=...)`, `make_rng` e `resolve_rng` em `src/utils/route_helpers.py`; refatoradas todas as estratégias em `src/algorithms/strategies/` para eliminar duplicações de conversão de tensores CuPy/NumPy e resolução de RNG.
+    - **Resumo:** Definido o tipo `SeedLike` em `src/protocols/types.py`; implementados `is_gpu_array`, `to_cpu_batch` e `restore_routes_shape(..., to_gpu=...)` em `src/utils/route_helpers.py`, e `make_rng`/`resolve_rng` inicialmente no mesmo módulo *(extraídos para `src/utils/rng.py` na TASK 8.10)*; refatoradas todas as estratégias em `src/algorithms/strategies/` para eliminar duplicações de conversão de tensores CuPy/NumPy e resolução de RNG.
     - **Atendimento ao DoD:** Boilerplate duplicado eliminado das estratégias; `GenerationState` atualizado com o campo `generation`; testes unitários em `tests/test_modular_architecture.py` passando.
 
 > [!WARNING]
@@ -387,8 +392,8 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [runner/**init**.py](../../src/benchmarking/runner/__init__.py#L20-L50)
       + [orchestration.py](../../src/benchmarking/runner/orchestration.py#L70-L520)
       + [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py#L1-L55)
-      + [test_benchmark_selected_problems.py](../../tests/test_benchmark_selected_problems.py#L1-L180)
-      + [test_modular_architecture.py](../../tests/test_modular_architecture.py#L315-L420)
+      + `test_benchmark_selected_problems.py` *(removido na TASK 8.7)*
+      + `test_modular_architecture.py` *(removido na reorganização da suíte)*
     - **Resumo:** `DatabaseLoader` e `ingest_tsplib_directory_to_duckdb` foram migrados para o schema normalizado de `datasets/tsp.duckdb` (com suporte a listas aninhadas nativas de coordenadas e matrizes inteiras sem dependência de parsing JSON); `Problem` foi enriquecido com metadados e o método `to_metadata_dict()`; `DEFAULT_SELECTED_TSP_FILES` foi eliminado de `config_loader.py`, introduzindo-se `build_problem_configs_from_duckdb`; a lista `SELECTED_PROBLEMS` foi definida localmente no runner `run_selected_problems.py`; checkpoints e `problem_statistics` agora gravam `problem_metadata` completo.
     - **Atendimento ao DoD:** `berlin52` e `bayg29` carregados diretamente do DuckDB; zero listas hardcoded em `config_loader.py`; metadados gravados nos checkpoints; 22 testes em `pytest`, `mypy` e `ruff` passando com 0 erros.
 
@@ -532,7 +537,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **What:** (1) Deletar o arquivo de teste acoplado a scripts `tests/test_benchmark_selected_problems.py`; (2) Criar `tests/test_benchmarking_pipeline.py` testando exaustivamente o pipeline de benchmark e estatísticas usando fixtures; (3) Criar `tests/test_cli.py` cobrindo os 4 entrypoints de terminal; (4) Atualizar `test_modular_architecture.py`, `test_early_stopping.py` e `test_incremental_checkpoints.py` para usar fixtures.
   + **Why:** O teste antigo importava scripts e usava caminhos hardcoded que falhavam caso a base de dados não estivesse gerada previamente no workspace.
   + **Who:** Agente (`implementer`).
-  + **Where:** `tests/test_benchmark_selected_problems.py` (deletado), [test_benchmarking_pipeline.py](../../tests/test_benchmarking_pipeline.py#L1-L265), [test_cli.py](../../tests/test_cli.py#L1-L75), [test_modular_architecture.py](../../tests/test_modular_architecture.py#L75-L390), [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L1-L55), [test_incremental_checkpoints.py](../../tests/validation/test_incremental_checkpoints.py#L1-L70).
+  + **Where:** `tests/test_benchmark_selected_problems.py` (deletado), `test_benchmarking_pipeline.py` *(removido na reorganização da suíte; cobertura em `tests/benchmarking/test_integration_pipeline.py`)*, `test_cli.py` *(removido; cobertura em `tests/cli/`)*, `test_modular_architecture.py` *(removido; cobertura em `tests/**`)*, [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L1-L55), [test_incremental_checkpoints.py](../../tests/validation/test_incremental_checkpoints.py#L1-L70).
   + **When:** Conclusão da Fase 8.
   + **How:** Substituir todas as referências diretas a `datasets/` por injeção de dependência via fixtures do pytest; verificar execução em `tmp_path`.
   + **How much:** Médio.
@@ -541,9 +546,9 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:**
       + `tests/test_benchmark_selected_problems.py` (removido)
-      + [test_benchmarking_pipeline.py](../../tests/test_benchmarking_pipeline.py#L1-L265)
-      + [test_cli.py](../../tests/test_cli.py#L1-L75)
-      + [test_modular_architecture.py](../../tests/test_modular_architecture.py#L75-L390)
+      + `test_benchmarking_pipeline.py` *(removido na reorganização da suíte)*
+      + `test_cli.py` *(removido; cobertura em `tests/cli/`)*
+      + `test_modular_architecture.py` *(removido; cobertura em `tests/**`)*
       + [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L1-L55)
       + [test_incremental_checkpoints.py](../../tests/validation/test_incremental_checkpoints.py#L1-L70)
     - **Resumo:** `tests/test_benchmark_selected_problems.py` foi substituído por `test_benchmarking_pipeline.py` (focado na biblioteca) e `test_cli.py` (focado nos comandos CLI); todos os testes foram adaptados para utilizar fixtures injetadas pelo pytest.
@@ -573,7 +578,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **Why:** A lógica atual viola o princípio Aberto/Fechado (OCP). Adicionar suporte a novas variantes e problemas de roteamento (ex.: MDVRP, VRPTW, mTSP) exige editar o corpo de `DatabaseLoader` e duplicar projeções SQL e transformações de metadados.
   + **Who:** Desenvolvedor / Agente (`implementer`).
   + **Where:** [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py#L1-L250), [database_loader.py](../../src/loaders/database_loader.py#L43-L212), [loaders/**init**.py](../../src/loaders/__init__.py#L11-L48), [exceptions.py](../../src/data_models/exceptions.py#L327-L341), e [test_unit_problem_type_handlers.py](../../tests/loaders/test_unit_problem_type_handlers.py#L1-L352).
-  + **When:** Conclusão da Fase 8.
+  + **When:** Conclusão da Fase 8, na ordem 8.10 → 8.11 → 8.9 fixada no plano de follow-up da Fase 8.
   + **How:**
     1. Definir o protocolo `ProblemTypeHandler(Protocol)` com os métodos `list_problems(conn: DuckDBPyConnection) -> list[dict[str, Any]]` e `load_metadata(conn: DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]`.
     2. Implementar handlers concretos (`TspHandler`, `AtspHandler`, `CvrpHandler`) e registrá-los em `PROBLEM_TYPE_HANDLERS: dict[str, ProblemTypeHandler]`.
@@ -707,7 +712,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:** [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L452-L454), [test_unit_genetic_algorithm_boundaries.py](../../tests/algorithms/metaheuristics/test_unit_genetic_algorithm_boundaries.py#L88-L105).
     - **Resumo:** Inserida checagem `if len(customers) == 0: raise ValueError("customers sequence cannot be empty")` no topo de `evolve()`. Removido `@pytest.mark.xfail(strict=True)` do teste `test_empty_customers_are_rejected`.
-    - **Atendimento ao DoD:** Defeito D8 resolvido; teste agora passa em conformidade com o DoD.
+    - **Atendimento ao DoD:** Defeito BUG-8 resolvido; teste agora passa em conformidade com o DoD.
 
 - [x] **Task 9.6: Migração e Reorganização de `archive/`**
   + **What:** Mover `full_gpu_monolithic.py` e `kernels/` para `src/algorithms/archive/`, criar `archive/__init__.py` expondo apenas `GeneticAlgorithmFullGPUMonolithic`, remover exportações de `algorithms/__init__.py`, apagar `monolithic/` e remover o alias `GeneticAlgorithmFullGPUEarlyStop`.
@@ -718,10 +723,10 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **How:** Mover arquivos com `git mv`; corrigir a chave de estatísticas para `convergence_history`; escrever `archive/__init__.py` sem importar os legados; apagar os 5 módulos legados aprovados; registrar a origem no `README.md` do archive.
   + **How much:** Média.
   + **Stakeholder Implications:** Baseline continua executável por caminho explícito, sem contaminar `algorithms.__all__`.
-  + **DoD:** `python -c "import algorithms, algorithms.archive"` funciona sem CUDA; `algorithms.__all__` não contém símbolos de archive; `grep -rn "monolithic" src/algorithms/__init__.py` retorna 0.
+  + **DoD:** `python -c "import algorithms, algorithms.archive"` funciona sem CUDA; `set(algorithms.__all__) == {"GeneticAlgorithm", "GeneticAlgorithmBase", "LocalSearchStage"}`. O docstring do pacote pode listar `archive/` como estrutura de diretórios: a regra é sobre exportação, não sobre a palavra "monolithic".
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:** [full_gpu_monolithic.py](../../src/algorithms/archive/full_gpu_monolithic.py#L240-L255), [archive/**init**.py](../../src/algorithms/archive/__init__.py#L1-L8), [archive/README.md](../../src/algorithms/archive/README.md#L1-L40), [algorithms/**init**.py](../../src/algorithms/__init__.py#L1-L25).
-    - **Resumo:** `full_gpu_monolithic.py` e seus kernels migraram para `src/algorithms/archive/`. Os 5 arquivos legados não-importáveis foram removidos. O diretório `monolithic/` foi apagado. Corrigida a chave de estatísticas para `"convergence_history"` (resolvendo D7). Exportações monolíticas removidas de `algorithms.__init__.py`. Criado `README.md` com 10 tags hierárquicas e frontmatter conforme as regras.
+    - **Resumo:** `full_gpu_monolithic.py` e seus kernels migraram para `src/algorithms/archive/`. Os 5 arquivos legados não-importáveis foram removidos. O diretório `monolithic/` foi apagado. Corrigida a chave de estatísticas para `"convergence_history"` (resolvendo BUG-7). Exportações monolíticas removidas de `algorithms.__init__.py`. Criado `README.md` com 10 tags hierárquicas e frontmatter conforme as regras.
     - **Atendimento ao DoD:** `algorithms.__all__` puramente modular; importação de `algorithms` e `algorithms.archive` bem-sucedida em CPU; `grep -rn "monolithic" src/algorithms/__init__.py` retorna apenas comentário de documentação.
 
 - [x] **Task 9.7: Atualização dos Caminhos de Classe nas Configurações**
@@ -755,7 +760,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Atendimento ao DoD:** Teste unitário hermético em CPU passa sem dependências externas; impede deriva silenciosa.
 
 - [x] **Task 9.9: Exclusão de Variantes de Archive no Teste de Composição**
-  + **What:** Filtrar do teste de composição as variantes cujo `class_module` pertence a `algorithms.archive` e remover os dois `xfail(strict=True)` de D7.
+  + **What:** Filtrar do teste de composição as variantes cujo `class_module` pertence a `algorithms.archive` e remover os dois `xfail(strict=True)` de BUG-7.
   + **Why:** A regra do repositório proíbe testar `archive/`; manter as variantes parametrizadas executaria código arquivado e o xfail deixaria de ter alvo após a correção da chave.
   + **Who:** Agente (`implementer`).
   + **Where:** [test_integration_ga_composition.py](../../tests/algorithms/test_integration_ga_composition.py#L160-L215).
@@ -763,15 +768,15 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **How:** Derivar a lista de variantes do fixture e excluir as resolvidas para `algorithms.archive`, documentando o motivo no docstring do teste.
   + **How much:** Baixa.
   + **Stakeholder Implications:** Nenhum.
-  + **DoD:** `pytest tests/algorithms -q` verde; nenhum teste importa `algorithms.archive`.
+  + **DoD:** `pytest tests/algorithms -q` verde; nenhum teste executa `evolve()` em variante de archive. As variantes de archive saíram do `configs/algorithms.json` ativo e vivem em `configs/algorithms.archive.json`, portanto a suíte não as carrega.
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:** [test_integration_ga_composition.py](../../tests/algorithms/test_integration_ga_composition.py#L165-L180), [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L35-L38).
-    - **Resumo:** Variantes de `archive/` foram excluídas da parametrização de testes da suíte ativa e os dois decoradores `xfail(strict=True)` de D7 foram removidos de `test_gpu_variants_and_modular_vs_monolithic`. Em `test_early_stopping.py`, variantes cujo módulo contém `"archive"` são puladas.
+    - **Resumo:** Variantes de `archive/` foram excluídas da parametrização de testes da suíte ativa e os dois decoradores `xfail(strict=True)` de BUG-7 foram removidos de `test_gpu_variants_and_modular_vs_monolithic`. Em `test_early_stopping.py`, variantes cujo módulo contém `"archive"` são puladas.
     - **Atendimento ao DoD:** A suíte de testes não executa código de archive; todos os testes de composição e parada antecipada passam.
 
 - [x] **Task 9.10: Script de Smoke do Baseline Arquivado**
   + **What:** Criar `benchmark_scripts/check_archive_baseline.py` que instancia o monolítico arquivado, executa uma evolução curta em burma14 e verifica `convergence_history`, `generations_completed` e `stop_reason`.
-  + **Why:** O baseline continua necessário para comparação, mas não pode ser coberto pela suíte; sem verificação, a correção de D7 fica sem evidência executável.
+  + **Why:** O baseline continua necessário para comparação, mas não pode ser coberto pela suíte; sem verificação, a correção de BUG-7 fica sem evidência executável.
   + **Who:** Agente (`implementer`).
   + **Where:** [check_archive_baseline.py](../../benchmark_scripts/check_archive_baseline.py).
   + **When:** Após Task 9.6.
@@ -816,17 +821,117 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ---
 
+## Fase 10: Registro de Defeitos, Identificadores e Gate de Documentação
+
+### Decisões Fixadas da Fase 10
+
+- **DP10-1 (Identificadores)**: `DP-<n>` para decisões do plano, `DP<fase>-<n>` para decisões de fase, `BUG-<n>` para defeitos e `TASK <fase>.<n>` para tarefas. Toda definição vive em [table-of-symbols.plan.md](./table-of-symbols.plan.md); nenhum documento usa `D<n>` isolado.
+- **DP10-2 (Archive)**: as variantes monolíticas saem do `configs/algorithms.json` ativo e passam a viver em [algorithms.archive.json](../../configs/algorithms.archive.json), carregado apenas sob demanda via `load_algorithms_config(..., config_name="algorithms.archive.json")`.
+- **DP10-3 (Nome único)**: `FullGPUMonolithic` é o único nome da variante monolítica; `FullGPU` foi eliminado de configs, código e testes.
+- **DP10-4 (Gate de documentação)**: [check_docs.py](../../benchmark_scripts/check_docs.py) é o verificador standalone de docstrings obsoletas, links mortos e símbolos não registrados.
+- **DP10-5 (Coortes de resultados)**: checkpoints de schemas diferentes não são combinados; `results_v3/selected_10/checkpoints/` mantém apenas a coorte de 41 chaves.
+
+### Tarefas da fase 10
+
+- [x] **Task 10.1: Tabela de Símbolos e Unificação dos Identificadores**
+  + **What:** Criar `table-of-symbols.plan.md` e renomear `D1`–`D5` do plano para `DP-1`–`DP-5` e `D1`–`D8` dos walkthroughs para `BUG-1`–`BUG-8`.
+  + **Why:** Três esquemas incompatíveis de `D` coexistiam — decisões no plano, defeitos no walkthrough da suíte e uma terceira ordem no checkpoint da Fase 9 — tornando instruções como "corrija D3" ambíguas.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [table-of-symbols.plan.md](./table-of-symbols.plan.md), este plano, [test-suite-walkthrough.md](../../documentation/walkthroughs/test-suite-walkthrough.md), [analysis-phase-9-gpu-capability-walkthrough.md](../../documentation/walkthroughs/analysis-phase-9-gpu-capability-walkthrough.md), [analysis-phase-7-residency-rng-walkthrough.md](../../documentation/walkthroughs/analysis-phase-7-residency-rng-walkthrough.md), [analysis-phases-1-6-reorganization-walkthrough.md](../../documentation/walkthroughs/analysis-phases-1-6-reorganization-walkthrough.md).
+  + **When:** Primeira tarefa da fase.
+  + **How:** Registrar `DP-*`, `DP9-*` e `BUG-*` na tabela; aplicar substituição mecânica preservando a ordem `D<n>` → `BUG-<n>`; corrigir os caminhos de teste citados na tabela de defeitos.
+  + **How much:** Médio.
+  + **Stakeholder Implications:** Qualquer "corrija BUG-3" resolve para um único defeito e uma única evidência verificável.
+  + **DoD:** `check_docs.py` reporta 0 símbolos não registrados; nenhum `D<n>` isolado permanece fora da tabela.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [table-of-symbols.plan.md](./table-of-symbols.plan.md#L1-L120), [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md#L65-L71), [test-suite-walkthrough.md](../../documentation/walkthroughs/test-suite-walkthrough.md#L119-L124), [analysis-phase-9-gpu-capability-walkthrough.md](../../documentation/walkthroughs/analysis-phase-9-gpu-capability-walkthrough.md#L210).
+    - **Resumo:** Criada a tabela de símbolos com os namespaces `DP`, `DP<fase>` e `BUG`, a tabela de defeitos abertos, os resolvidos e o mapa de migração. Renomeadas 5 decisões, 8 defeitos e 6 referências cruzadas; corrigidos três caminhos de teste obsoletos na tabela de defeitos (`test_unit_problem_invariants.py`, `test_unit_statistics.py`, `test_unit_strategies.py`).
+    - **Atendimento ao DoD:** `check_docs.py` → `undefined symbols: 0`.
+- [x] **Task 10.2: Separação do Config de Archive e Eliminação de `FullGPU`**
+  + **What:** Mover a variante monolítica para um arquivo de configuração próprio, mantendo um único nome (`FullGPUMonolithic`), e atualizar os ~23 sítios que citavam `FullGPU`.
+  + **Why:** `FullGPU` e `FullGPUMonolithic` tinham mesma classe, mesmos parâmetros e diferiam apenas na descrição, produzindo checkpoints duplicados em `results_v3/selected_10/`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [algorithms.archive.json](../../configs/algorithms.archive.json), [algorithms.json](../../configs/algorithms.json), [fixture algorithms.json](../../tests/fixtures/configs/algorithms.json), [config_loader.py](../../src/benchmarking/runner/config_loader.py#L365-L380), [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L38).
+  + **When:** Após a Task 10.1.
+  + **How:** Criar `algorithms.archive.json`; adicionar `config_name` a `load_algorithms_config`; remover as duas entradas do config ativo e do fixture; renomear o rótulo nos testes e exemplos; remover o filtro `"archive" in cfg.class_module`.
+  + **How much:** Médio.
+  + **Stakeholder Implications:** Benchmarks deixam de emitir linhas duplicadas; o baseline da tese continua acessível por caminho explícito.
+  + **DoD:** `grep -rn '"FullGPU"' src tests configs` retorna 0; `pytest` verde.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [algorithms.archive.json](../../configs/algorithms.archive.json#L1-L20), [algorithms.json](../../configs/algorithms.json), [config_loader.py](../../src/benchmarking/runner/config_loader.py#L365-L380), [test_unit_config_loader.py](../../tests/benchmarking/test_unit_config_loader.py#L67), [test_integration_ga_composition.py](../../tests/algorithms/test_integration_ga_composition.py#L36-L46), [test_early_stopping.py](../../tests/validation/test_early_stopping.py#L38).
+    - **Resumo:** Config ativo passa a listar 4 variantes; o monolítico vive em `algorithms.archive.json` e é carregado por `config_name`. `FullGPU` removido de configs, `problem_statistics.py`, `schema.sql`, `db_operations.py`, `QUICKSTART.md` e dos testes. O bloco que testava overrides do monolítico no pipeline foi substituído por uma nota, pois a suíte não executa archive.
+    - **Atendimento ao DoD:** `grep -rn '"FullGPU"' src tests configs` → 0; `pytest tests -q` → 711 passed, 6 xfailed.
+- [x] **Task 10.3: Reparo dos DoDs 9.6/9.9 e das Âncoras Mortas**
+  + **What:** Reescrever os dois critérios que não podiam ser satisfeitos e eliminar as 23 referências a arquivos inexistentes neste plano e no `plan-roteiro.md`.
+  + **Why:** O DoD 9.6 pedia `grep "monolithic"` = 0 enquanto o próprio Solution admitia 1 ocorrência; o DoD 9.9 afirmava que nenhum teste importava `algorithms.archive`, o que dois testes faziam; 23 links apontavam para caminhos removidos.
+  + **Who:** Agente (`implementer`).
+  + **Where:** este plano (Tasks 9.6, 9.9, 7.2, 1.1), [plan-roteiro.md](./plan-roteiro.md#L344-L380).
+  + **When:** Após a Task 10.2.
+  + **How:** Trocar o DoD 9.6 por uma asserção sobre `algorithms.__all__`; trocar o DoD 9.9 por "nenhum teste executa `evolve()` em variante de archive"; repontar caminhos movidos e anotar deleções como `*(removido na TASK x.y)*`.
+  + **How much:** Médio.
+  + **Stakeholder Implications:** O plano volta a ser navegável e auditável.
+  + **DoD:** `check_docs.py` → `dead links: 0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md#L721-L770), [plan-roteiro.md](./plan-roteiro.md#L344-L380).
+    - **Resumo:** DoD 9.6 passou a exigir `set(algorithms.__all__) == {"GeneticAlgorithm", "GeneticAlgorithmBase", "LocalSearchStage"}`; DoD 9.9 exige ausência de `evolve()` em variante de archive. Seis links foram repontados (`archive/`, `benchmarking/runner/`, `benchmarking/analysis/`, `benchmark_scripts/`) e quinze deleções anotadas; `plan-roteiro.md` recebeu o mesmo tratamento em 19 links.
+    - **Atendimento ao DoD:** `check_docs.py` → `dead links: 0`.
+- [x] **Task 10.4: Docstrings Obsoletas e Validador Morto**
+  + **What:** Corrigir as docstrings que citavam módulos inexistentes e religar `validate_configs` aos nomes reais de parâmetro.
+  + **Why:** `validate_configs` lia `tournament_size` e `two_opt_iterations`, renomeados para `k` e `max_iterations` na Task 6.1, e portanto nunca disparava; docstrings citavam `chapter4_validation.py` e `datasets/tsp.duckdb` como caminho literal.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [config_loader.py](../../src/benchmarking/runner/config_loader.py#L551), [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py#L1), [database_loader.py](../../src/loaders/database_loader.py#L20), [algorithms/**init**.py](../../src/algorithms/__init__.py#L8), [report_generator.py](../../src/benchmarking/analysis/report_generator.py#L104).
+  + **When:** Após a Task 10.3.
+  + **How:** Reescrever as docstrings; trocar as chaves do validador e as mensagens de aviso; derivar o título dos relatórios de `benchmark_name`; retargetar os dois testes de validação aos nomes vivos.
+  + **How much:** Médio.
+  + **Stakeholder Implications:** Validação que pode falhar de fato e relatórios com o título correto.
+  + **DoD:** `check_docs.py` → `stale docstrings: 0`; testes de validação cobrindo `k` e `max_iterations`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [config_loader.py](../../src/benchmarking/runner/config_loader.py#L1-L12), [config_loader.py](../../src/benchmarking/runner/config_loader.py#L551-L560), [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py#L16), [database_loader.py](../../src/loaders/database_loader.py#L20), [algorithms/**init**.py](../../src/algorithms/__init__.py#L7-L8), [report_generator.py](../../src/benchmarking/analysis/report_generator.py#L94-L115), [test_unit_config_validation.py](../../tests/benchmarking/test_unit_config_validation.py#L73-L82).
+    - **Resumo:** `validate_configs` passou a checar `k` e `max_iterations` com mensagens por slot; o título Markdown/LaTeX dos relatórios vem de `benchmark_name.replace("_", " ").title()`; quatro docstrings obsoletas reescritas.
+    - **Atendimento ao DoD:** `pytest tests/benchmarking/test_unit_config_validation.py -q` verde; `check_docs.py` → `stale docstrings: 0`.
+- [x] **Task 10.5: Gate de Documentação Standalone**
+  + **What:** Criar `benchmark_scripts/check_docs.py` verificando docstrings obsoletas, links mortos e símbolos não registrados.
+  + **Why:** As três classes de deriva passaram despercebidas porque nada as verificava; o teste da suíte não lê documentação.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [check_docs.py](../../benchmark_scripts/check_docs.py).
+  + **When:** Última tarefa da fase.
+  + **How:** Script em python puro, sem `argparse`, com listas explícitas no topo, `ast` para docstrings, regex para links e para identificadores; códigos de saída 0/1/2.
+  + **How much:** Baixo.
+  + **Stakeholder Implications:** Qualquer sessão futura detecta deriva de documentação com um comando.
+  + **DoD:** `python -m benchmark_scripts.check_docs` retorna 0 no estado atual e 1 quando um link é quebrado ou um símbolo é removido da tabela.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [check_docs.py](../../benchmark_scripts/check_docs.py#L1-L150).
+    - **Resumo:** Criado o gate com três verificações independentes e saída agregada por categoria; restrito a `documents_tcc/plan/*.md` e `documentation/walkthroughs/*.md` para evitar falsos positivos de links externos.
+    - **Atendimento ao DoD:** Execução atual → `stale docstrings: 0`, `dead links: 0`, `undefined symbols: 0`, exit 0.
+
+### Backlog registrado (não executado)
+
+Defeitos com evidência e teste de fixação em [table-of-symbols.plan.md](./table-of-symbols.plan.md#defeitos-bug). Nenhum foi corrigido nesta fase; os `xfail(strict=True)` permanecem como marcadores.
+
+- [ ] **Task 10.6: Corrigir BUG-1 (`Problem.__eq__` sobre `ndarray`)** — **Where:** [problem.py](../../src/data_models/problem.py#L30); **DoD:** `test_problems_with_equal_content_compare_equal` passa sem `xfail`.
+- [ ] **Task 10.7: Corrigir BUG-2 (`resolve_rng` rejeitar `RandomState`)** — **Where:** [rng.py](../../src/utils/rng.py#L56); **DoD:** `test_resolve_rng_uses_seeded_problem_context_rng` passa sem `xfail`.
+- [ ] **Task 10.8: Corrigir BUG-3 (`mean_difference` em variância zero)** — **Where:** [statistics.py](../../src/benchmarking/analysis/statistics.py#L220); **DoD:** `test_paired_comparison_zero_variance_reports_true_mean_difference` passa sem `xfail`.
+- [ ] **Task 10.9: Corrigir BUG-4 (`is_valid_checkpoint` ignorar `raw_*`)** — **Where:** [checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L266); **DoD:** `test_validity_rejects_arrays_inconsistent_with_successful_runs` passa sem `xfail`.
+- [ ] **Task 10.10: Corrigir BUG-5 e BUG-6 (`_mutation_bounds` com `n > 3`)** — **Where:** [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L48), [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L48); **How:** extrair um `_mutation_bounds` compartilhado; **DoD:** ambos os testes de 3 nós passam sem `xfail`.
+- [ ] **Task 10.11: Nova coleta de resultados em coorte única** — **Why:** a pasta `selected_10` perdeu a coorte de 45 chaves e a remanescente antecede a correção de sementes da Task 8.11; **DoD:** todos os checkpoints com o mesmo schema e o mesmo esquema de sementes.
+
+---
+
 ## Handoff
 
-- **State:** Fases 1 a 9 concluídas e verificadas; 35 tarefas marcadas `[x]`, 0 tarefas abertas.
+- **State:** Fases 1 a 10 concluídas; 40 tarefas `[x]` e 6 tarefas de backlog `[ ]` (BUG-1 a BUG-6) registradas na Fase 10.
 - **Last Verified Observation:**
-  + `pytest tests -q`: `711 passed, 6 xfailed in 16.12s`.
+  + `pytest tests -q`: `711 passed, 6 xfailed in 11.08s`.
   + `mypy src tests`: `Success: no issues found in 111 source files`.
   + `ruff check src tests benchmark_scripts`: `All checks passed!`.
+  + `python -m benchmark_scripts.check_docs`: `stale docstrings: 0`, `dead links: 0`, `undefined symbols: 0`, exit 0.
   + `check_archive_baseline.py`: executado com sucesso no dispositivo CUDA (burma14: 3323.0 em 6 gerações, stop_reason='no_improvements').
-- **Next Item:** Consolidação de experimentos e benchmarking comparativo (Capítulo 4 da tese).
-- **Open Decisions:** `CUPY_CACHE_DIR` fallback no núcleo mantido em espera (hold) conforme instrução do usuário; cache dir configurado em `tests/conftest.py` para isolamento de ambiente.
+- **Next Item:** Fechar o backlog da Fase 10 (BUG-1 a BUG-6) e refazer a coleta de `results_v3/selected_10` em coorte única.
+- **Open Decisions:** `CUPY_CACHE_DIR` fallback no núcleo mantido em espera (hold) conforme instrução do usuário; cache dir configurado em `tests/conftest.py` para isolamento de ambiente. `archive/` continua excluído de `mypy` e `ruff` por decisão do usuário.
 - **Files to Read First:**
+  + [table-of-symbols.plan.md](./table-of-symbols.plan.md)
+  + [configs/algorithms.archive.json](../../configs/algorithms.archive.json)
+  + [benchmark_scripts/check_docs.py](../../benchmark_scripts/check_docs.py)
   + [src/protocols/backend.py](../../src/protocols/backend.py)
   + [src/algorithms/archive/README.md](../../src/algorithms/archive/README.md)
   + [benchmark_scripts/check_archive_baseline.py](../../benchmark_scripts/check_archive_baseline.py)

@@ -347,14 +347,14 @@ Este plano detalha as adições e modificações necessárias diretamente no doc
       - [algorithm_strategies.py](../../src/protocols/algorithm_strategies.py#L34-L98) e [algorithm_strategies.py](../../src/protocols/algorithm_strategies.py#L645-L783)
       - [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L1-L395) e [database_loader.py](../../src/loaders/database_loader.py#L76-L185)
       - [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L1-L520)
-      - [local_search_strategies.py](../../src/algorithms/strategies/local_search/local_search_strategies.py#L1-L360)
-      - [evaluation_strategies.py](../../src/algorithms/strategies/evaluation/evaluation_strategies.py#L1-L180)
-      - [selection_strategies.py](../../src/algorithms/strategies/selection/selection_strategies.py#L1-L260)
-      - [crossover_strategies.py](../../src/algorithms/strategies/crossover/crossover_strategies.py#L1-L280)
-      - [mutation_strategies.py](../../src/algorithms/strategies/mutation/mutation_strategies.py#L1-L235)
-      - [full_gpu_monolithic.py](../../src/algorithms/monolithic/full_gpu_monolithic.py#L1-L235)
+      - `local_search_strategies.py` *(dividido em `two_opt.py` por estratégia na TASK 6.1)*
+      - [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py)
+      - `selection_strategies.py` *(dividido em `tournament_selection.py` e `roulette_wheel_selection.py` na TASK 6.1)*
+      - `crossover_strategies.py` *(dividido em `order_crossover.py` e `pmx_crossover.py` na TASK 6.1)*
+      - `mutation_strategies.py` *(dividido em `swap_mutation.py` e `inversion_mutation.py` na TASK 6.1)*
+      - [full_gpu_monolithic.py](../../src/algorithms/archive/full_gpu_monolithic.py)
       - [phase_timer.py](../../src/utils/phase_timer.py#L1-L140) e [gpu_helpers.py](../../src/utils/gpu_helpers.py#L1-L55)
-      - [test_modular_architecture.py](../../tests/test_modular_architecture.py#L1-L295)
+      - `test_modular_architecture.py` *(removido na reorganização da suíte; cobertura em `tests/**`)*
     - **Resumo:** Foi implementada a arquitetura modular completa em `src/algorithms/`, onde cada fase evolutiva (`initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation`) opera sobre o contrato tipado `RouteOrRoutes` (`(n_cities,)` ou `(N, n_cities)`), permitindo reposicionar o 2-opt após o OX (`post_crossover`), após a mutação (`post_mutation`), após a avaliação de fitness (`post_evaluation`) ou apenas ao final do GA (`post_evolution`). O kernel monolítico de Fujimoto foi separado em `src/algorithms/monolithic/`, os kernels por fase foram organizados em `src/algorithms/strategies/<fase>/kernels/`, as implementações originais foram preservadas em `src/algorithms/archive/`, e o carregador/ingestor `tsplib95` foi criado em `src/loaders/tsplib_loader.py`.
     - **Atendimento ao DoD:** Validado com 13 testes automatizados passando no `pytest` (incluindo execução real em GPU CUDA das variantes `HybridNaive`, `HybridOptimized`, `FullGPUModular` e `FullGPUMonolithic`, além da validação de 111 instâncias `.tsp` via `tsplib95`) e 0 avisos/erros no `ruff check`.
 
@@ -369,14 +369,14 @@ Este plano detalha as adições e modificações necessárias diretamente no doc
   + **DoD (Definition of Done):** Script `run_selected_problems.py` executado com sucesso nas 10 instâncias com geração de *checkpoints*, estatísticas por instância, análise estratificada entre problemas e tabelas Markdown/LaTeX, além de suíte `pytest` e `ruff check` sem erros.
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:**
-      - [run_selected_problems.py](../../src/benchmarks_v2/run_selected_problems.py#L1-L150) e [run_chapter4_benchmark.py](../../src/benchmarks_v2/run_chapter4_benchmark.py#L114-L148)
-      - [config_loader.py](../../src/benchmarking_v2/config_loader.py#L31-L185) e [config_loader.py](../../src/benchmarking_v2/config_loader.py#L460-L549)
-      - [orchestration.py](../../src/benchmarking_v2/orchestration.py#L204-L410) e [orchestration.py](../../src/benchmarking_v2/orchestration.py#L589-L610)
-      - [statistics.py](../../src/benchmarking_v2/statistics.py#L153-L295) e [statistics.py](../../src/benchmarking_v2/statistics.py#L508-L625)
-      - [report_generator.py](../../src/benchmarking_v2/report_generator.py#L302-L405) e [report_generator.py](../../src/benchmarking_v2/report_generator.py#L619-L626)
-      - [aggregate_statistics.py](../../src/benchmarking_v2/aggregate_statistics.py#L163-L176)
+      - [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py) e [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py)
+      - [config_loader.py](../../src/benchmarking/runner/config_loader.py)
+      - [orchestration.py](../../src/benchmarking/runner/orchestration.py)
+      - [statistics.py](../../src/benchmarking/analysis/statistics.py)
+      - [report_generator.py](../../src/benchmarking/analysis/report_generator.py)
+      - [aggregate_statistics.py](../../src/benchmarking/analysis/aggregate_statistics.py)
       - [matrix.py](../../src/distances/matrix.py#L179-L209) e [pairwise.py](../../src/distances/pairwise.py#L254-L258)
-      - [test_benchmark_selected_problems.py](../../tests/test_benchmark_selected_problems.py#L1-L168)
+      - `test_benchmark_selected_problems.py` *(removido na TASK 8.7)*
     - **Resumo:** A API `benchmarking_v2` foi completada com suporte direto a arquivos `.tsp` via `tsplib95` (`build_problem_configs_from_tsp_files`), correção da conversão de graus/minutos em distâncias `GEO` (`xp.trunc` em vez de `xp.floor`, fazendo `gr96.tsp` bater exatamente com o ótimo canônico `55209`), proteção estatística para variância zero/amostras reduzidas e fallback Nemenyi em SciPy puro, além de pré-cálculo do tempo de *baseline* na Tabela 2. O script `run_selected_problems.py` foi criado e executado nas 10 instâncias solicitadas (`att48`, `bayg29`, `bays29`, `berlin52`, `brg180`, `gr17`, `gr21`, `gr24`, `gr48`, `gr96`).
     - **Atendimento ao DoD:** Todas as 10 instâncias foram executadas fim a fim com geração de *checkpoints*, estatísticas JSON e tabelas em `results_v3/selected_10/tables/selected_10_validation.{md,tex}` (gaps médios de `0.00%` a `0.79%` e *speedups* de até `89.25x` sobre `HybridNaive` e `>2000x` sobre `CPU` em `gr96`), com 18 testes passando no `pytest` e 0 erros no `ruff check`.
 
