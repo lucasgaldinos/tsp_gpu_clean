@@ -1,5 +1,10 @@
 ---
+# --- Antigravity rule keys ---
 trigger: always_on
+description: "Use when updating a plan file: preserve the original problem text, record changes in the required Solution format, and keep artifacts current." # shared with VS Code
+# --- VS Code instruction keys ---
+name: "Plan Update Discipline"
+applyTo: "**/*.plan.md"
 ---
 
 - Always update the plan APPROPRIATELY after doing changes. The tasks description and problems shouldn't be changed, but what was/is being/needs to be done is extremely important.

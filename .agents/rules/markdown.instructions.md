@@ -1,10 +1,11 @@
 ---
+# --- Antigravity rule keys ---
+trigger: glob
+globs: "**/*.md, !**/.agents/**, !**/.github/**"
+description: "Use when creating or editing any Markdown file: required frontmatter fields, code-block language tags, and filename casing rules." # shared with VS Code
+# --- VS Code instruction keys ---
 name: "Markdown Standards"
-description: >
-  Frontmatter template, code block language tags, and filename conventions
-  for all .md files in this repository. Apply when creating or editing any
-  markdown file, or when asked about naming, metadata, or structure of .md files.
-applyTo: "**/*.md"
+applyTo: "**/*.md, !**/.agents/**, !**/.github/**"
 ---
 
 <check>
@@ -35,8 +36,8 @@ modifications:
       - description: >
           <summary of changes made in this session>
 related_files:
-  - [filename.md](./relative/path/to/filename.md)
-tags: [] # 10–15 tags; hierarchical Obsidian-style, e.g. benchmark/results
+  - "[filename.md](./relative/path/to/filename.md)"
+  - "[filename2.md](./relative/path/to/filename2.md)" # It's important that the links are inside double quotes and in a list.
 ---
 ```
 
@@ -120,3 +121,11 @@ Rules apply to the **filename only**. The frontmatter `title` may be human-reada
 - The frontmatter `title` is independent (e.g. `title: "Review for the second draft document"`).
 
 </file_naming_rules>
+
+<referencing_rules>
+
+## Referencing
+
+Make usage of markdown internal links and external links, e.g. for referencing other files, use the \[file-name/file-info\]\(/file/path#gfm-header\) or \[file-name/file-info\]\(/file/path#l\<number\>\) and for internal links \[paragraph/section\]\(#gfm-header\). Repo current uses backticks to reference files, which makes no sense without the link to the file itself.
+
+</referencing_rules>

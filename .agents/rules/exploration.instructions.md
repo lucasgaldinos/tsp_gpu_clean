@@ -1,8 +1,9 @@
 ---
-description: Whenever an agent must explore the workspace
-applyTo: 'Whenever an agent must explore the workspace', 'explore', 'gathering_information'
+# --- Antigravity rule keys ---
 trigger: model_decision
-model: deepseek-flash
+description: "Use when exploring the workspace: tree listing, targeted search before reading, parallel tool calls, and stopping once context is sufficient." # shared with VS Code
+# --- VS Code instruction keys ---
+name: "Workspace Exploration"
 ---
 
 # Workspace exploration
