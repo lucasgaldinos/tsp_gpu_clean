@@ -36,8 +36,6 @@ def test_early_stopping_berlin52(berlin52_problem: Problem, fixture_config_dir: 
   ga_params, alg_configs = load_algorithms_config(fixture_config_dir)
 
   for name, cfg in alg_configs.items():
-    if cfg.class_module and "archive" in cfg.class_module:
-      continue
     if cfg.use_gpu and not GPU_AVAILABLE:
       continue
     xp: Any = cp if cfg.use_gpu else np

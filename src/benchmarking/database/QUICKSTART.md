@@ -103,7 +103,7 @@ from benchmarking.database.db_operations import create_database, compute_speedup
 conn = create_database("results/results.duckdb")
 
 # Compute speedup of GPU algorithms vs CPU
-speedups = compute_speedup_matrix(conn, "CPU", ["HybridOptimized", "FullGPU"])
+speedups = compute_speedup_matrix(conn, "CPU", ["HybridOptimized", "FullGPUMonolithic"])
 
 for problem, algo, speedup, baseline_time in speedups:
   print(f"{problem}: {algo} is {speedup:.2f}x faster than CPU")

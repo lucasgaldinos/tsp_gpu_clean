@@ -1,11 +1,12 @@
 """
-Configuration Loader for Benchmark V2
-======================================
+Configuration Loader for the Benchmark Runner
+=============================================
 
 Loads and validates JSON configuration files for the modular benchmark system.
 
 This module provides type-safe configuration loading with dataclasses,
-replacing the hardcoded constants from the monolithic chapter4_validation.py.
+replacing the constants that were previously hardcoded in the chapter 4
+validation script (removed during the benchmarking consolidation).
 
 Usage:
     from pathlib import Path
@@ -364,17 +365,21 @@ class ProblemConfig:
 
 def load_algorithms_config(
   config_dir: Path,
+  *,
+  config_name: str = "algorithms.json",
 ) -> tuple[GAParams, dict[str, AlgorithmConfig]]:
   """
-  Load algorithms.json containing default parameters and algorithm configurations.
+  Load an algorithms configuration file containing default parameters and variants.
 
   Args:
       config_dir: Path to configuration directory
+      config_name: Configuration file name. Pass `"algorithms.archive.json"` to load the
+          archived monolithic baseline, which the active configuration no longer lists.
 
   Returns:
       Tuple of (GAParams, dict of algorithm_name -> AlgorithmConfig)
   """
-  config_path: Path = config_dir / "algorithms.json"
+  config_path: Path = config_dir / config_name
 
   if not config_path.exists():
     raise FileNotFoundError(f"Algorithms config not found: {config_path}")
@@ -548,13 +553,13 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
 
   for algo_name, algo_cfg in algorithms.items():
     sel_params = algo_cfg.strategies.get("selection", {}).get("params", {})
-    tourn_size = sel_params.get("tournament_size")
-    if tourn_size is not None and tourn_size <= 0:
-      warnings.append(f"Invalid tournament_size in {algo_name}: {tourn_size} (must be > 0)")
+    tournament_k = sel_params.get("k")
+    if tournament_k is not None and tournament_k <= 0:
+      warnings.append(f"Invalid k in {algo_name}.selection: {tournament_k} (must be > 0)")
     ls_params = algo_cfg.strategies.get("local_search", {}).get("params", {})
-    two_opt_iters = ls_params.get("two_opt_iterations")
-    if two_opt_iters is not None and two_opt_iters <= 0:
-      warnings.append(f"Invalid two_opt_iterations in {algo_name}: {two_opt_iters} (must be > 0)")
+    max_iterations = ls_params.get("max_iterations")
+    if max_iterations is not None and max_iterations <= 0:
+      warnings.append(f"Invalid max_iterations in {algo_name}.local_search: {max_iterations} (must be > 0)")
 
   if benchmark.repetitions <= 0:
     warnings.append(f"Invalid repetitions: {benchmark.repetitions} (must be > 0)")

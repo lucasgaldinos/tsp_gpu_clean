@@ -158,28 +158,6 @@
           }
         }
       }
-    },
-    "FullGPU": {
-      "metaheuristic": "GeneticAlgorithmFullGPUMonolithic",
-      "class_module": "algorithms.archive.full_gpu_monolithic",
-      "class_name": "GeneticAlgorithmFullGPUMonolithic",
-      "use_gpu": true,
-      "description": "Fujimoto monolithic full-GPU kernel with early stopping",
-      "params": {
-        "tournament_size": 5,
-        "two_opt_iterations": 10
-      }
-    },
-    "FullGPUMonolithic": {
-      "metaheuristic": "GeneticAlgorithmFullGPUMonolithic",
-      "class_module": "algorithms.archive.full_gpu_monolithic",
-      "class_name": "GeneticAlgorithmFullGPUMonolithic",
-      "use_gpu": true,
-      "description": "Fujimoto monolithic full-GPU kernel",
-      "params": {
-        "tournament_size": 5,
-        "two_opt_iterations": 10
-      }
     }
   }
 }

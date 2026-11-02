@@ -17,7 +17,7 @@ Database Schema (datasets/tsp.duckdb):
     - solutions: Known solutions (id, problem_id, kind, quality, source_file, checksum, cost, routes)
 
 Usage:
-    >>> with DatabaseLoader("datasets/tsp.duckdb") as loader:
+    >>> with DatabaseLoader("<path/to/tsp.duckdb>") as loader:
     ...   problem = loader.load("berlin52")
     ...   print(f"{problem.name}: {problem.dimension} nodes")
     berlin52: 52 nodes

@@ -5,7 +5,8 @@ Structure:
 - `metaheuristics/`: Composable `GeneticAlgorithm` metaheuristic orchestrator
 - `strategies/`: Pluggable operator strategies (`initialization`, `selection`, `crossover`,
   `mutation`, `local_search`, `evaluation`) with modular CUDA `kernels/`
-- `archive/`: Legacy pre-modularization implementations and monolithic baseline
+- `archive/`: Pre-modularization baseline kept for thesis comparison; not part of the
+  public API and never imported by this package
 """
 
 from protocols.types import LocalSearchStage

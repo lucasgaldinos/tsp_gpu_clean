@@ -1,0 +1,20 @@
+{
+  "default_params": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "FullGPUMonolithic": {
+      "metaheuristic": "GeneticAlgorithmFullGPUMonolithic",
+      "class_module": "algorithms.archive.full_gpu_monolithic",
+      "class_name": "GeneticAlgorithmFullGPUMonolithic",
+      "use_gpu": true,
+      "description": "Fujimoto monolithic full-GPU kernel (fused single kernel, early stopping built in)",
+      "params": {
+        "tournament_size": 5,
+        "two_opt_iterations": 10
+      }
+    }
+  }
+}

@@ -427,12 +427,12 @@ def compute_speedup_matrix(
       List of (problem_name, algorithm, speedup, baseline_time) tuples
 
   Example:
-      >>> speedups = compute_speedup_matrix(conn, "CPU", ["HybridOptimized", "FullGPU"])
+      >>> speedups = compute_speedup_matrix(conn, "CPU", ["HybridOptimized", "FullGPUMonolithic"])
       >>> for prob, alg, speedup, base_time in speedups:
       ...   print(f"{prob}: {alg} is {speedup:.2f}x faster than CPU")
   """
   if comparisons is None:
-    comparisons = ["HybridNaive", "HybridOptimized", "FullGPU"]
+    comparisons = ["HybridNaive", "HybridOptimized", "FullGPUMonolithic"]
 
   results = []
 

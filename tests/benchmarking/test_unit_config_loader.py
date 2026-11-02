@@ -70,8 +70,6 @@ def test_load_all_configs_returns_expected_structure(fixture_configs: dict[str, 
     "HybridNaive",
     "HybridOptimized",
     "FullGPUModular",
-    "FullGPU",
-    "FullGPUMonolithic",
   ]
   assert configs["algorithms"]["CPU"].use_gpu is False
   assert configs["algorithms"]["CPU"].metaheuristic == "GeneticAlgorithm"

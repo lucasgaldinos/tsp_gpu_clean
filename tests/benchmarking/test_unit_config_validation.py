@@ -73,12 +73,12 @@ def _mutated_configs(configs: dict[str, Any], case: str) -> dict[str, Any]:
     case "tournament_zero":
       mutated["algorithms"]["CPU"] = replace(
         cpu_config,
-        strategies={**cpu_config.strategies, "selection": {"params": {"tournament_size": 0}}},
+        strategies={**cpu_config.strategies, "selection": {"params": {"k": 0}}},
       )
     case "two_opt_negative":
       mutated["algorithms"]["CPU"] = replace(
         cpu_config,
-        strategies={**cpu_config.strategies, "local_search": {"params": {"two_opt_iterations": -3}}},
+        strategies={**cpu_config.strategies, "local_search": {"params": {"max_iterations": -3}}},
       )
     case "repetitions_zero":
       mutated["benchmark"] = replace(mutated["benchmark"], repetitions=0)
@@ -136,12 +136,12 @@ def test_validate_configs_accepts_fixture_configs(fixture_configs: dict[str, Any
     pytest.param("mutation_negative", "Invalid mutation_rate: -0.1 (must be in [0, 1])", id="mutation_negative"),
     pytest.param(
       "tournament_zero",
-      "Invalid tournament_size in CPU: 0 (must be > 0)",
+      "Invalid k in CPU.selection: 0 (must be > 0)",
       id="tournament_zero",
     ),
     pytest.param(
       "two_opt_negative",
-      "Invalid two_opt_iterations in CPU: -3 (must be > 0)",
+      "Invalid max_iterations in CPU.local_search: -3 (must be > 0)",
       id="two_opt_negative",
     ),
     pytest.param("repetitions_zero", "Invalid repetitions: 0 (must be > 0)", id="repetitions_zero"),

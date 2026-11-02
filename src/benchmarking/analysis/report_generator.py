@@ -97,11 +97,13 @@ def _generate_table1_markdown(
   algorithm_names: list[str],
   baseline_algorithm: str,
   baseline_times: dict[str, float],
+  benchmark_name: str,
 ) -> list[str]:
   """Generate Markdown format for Table 1 (summary by problem)."""
   lines = []
 
-  lines.append("# Chapter 4 Validation Results\n")
+  report_title = benchmark_name.replace("_", " ").title()
+  lines.append(f"# {report_title}\n")
   lines.append(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
   lines.append("## Table 1: Summary Statistics by Problem\n")
   lines.append("| Problem | Algorithm | Mean Cost | Std Dev | Gap (%) | Mean Time (s) | Speedup |")
@@ -136,13 +138,16 @@ def _generate_table1_latex(
   algorithm_names: list[str],
   baseline_algorithm: str,
   baseline_times: dict[str, float],
+  benchmark_name: str,
 ) -> list[str]:
   """Generate LaTeX format for Table 1 (summary by problem)."""
   lines = []
 
-  lines.append("% Chapter 4 Validation Results - Auto-generated")
+  report_title = benchmark_name.replace("_", " ").title()
+
+  lines.append(f"% {report_title} - Auto-generated")
   lines.append(f"% Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-  lines.append("% Compile with: pdflatex chapter4_validation.tex\n")
+  lines.append(f"% Compile with: pdflatex {benchmark_name}.tex\n")
   lines.append("\\documentclass[11pt,a4paper]{article}")
   lines.append("\\usepackage{booktabs}  % Professional tables")
   lines.append("\\usepackage{multirow}  % Row spanning")
@@ -150,7 +155,7 @@ def _generate_table1_latex(
   lines.append("\\usepackage{caption}   % Better captions")
   lines.append("\\geometry{margin=1in}")
   lines.append("\\captionsetup{font=small,labelfont=bf}\n")
-  lines.append("\\title{Chapter 4 Validation: GPU-Accelerated Genetic Algorithm Benchmark}")
+  lines.append(f"\\title{{{report_title}}}")
   lines.append(f"\\date{{{time.strftime('%B %d, %Y')}}}")
   lines.append("\\author{Automated Benchmark Report}\n")
   lines.append("\\begin{document}")
@@ -492,6 +497,7 @@ def generate_result_tables(
       algorithm_names,
       baseline_algorithm,
       baseline_times,
+      benchmark_name,
     )
   )
   tex_lines.extend(
@@ -501,6 +507,7 @@ def generate_result_tables(
       algorithm_names,
       baseline_algorithm,
       baseline_times,
+      benchmark_name,
     )
   )
 

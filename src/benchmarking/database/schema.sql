@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     -- ========================================================================
     -- Algorithm Identification
     -- ========================================================================
-    algorithm VARCHAR NOT NULL,         -- "CPU", "HybridNaive", "HybridOptimized", "FullGPU"
+    algorithm VARCHAR NOT NULL,         -- "CPU", "HybridNaive", "HybridOptimized", "FullGPUModular", "FullGPUMonolithic"
     backend VARCHAR NOT NULL,           -- "CPU" or "GPU"
     
     -- ========================================================================

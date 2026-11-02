@@ -33,14 +33,14 @@ if TYPE_CHECKING:
   from data_models.problem import Problem
 
 # Every variant named in `algorithm_configs`; the conftest fixture mirrors production.
+# The archived monolithic baseline lives in `configs/algorithms.archive.json` and is
+# intentionally absent here: no test executes archive code.
 EXPECTED_VARIANTS: frozenset[str] = frozenset(
   {
     "CPU",
     "HybridNaive",
     "HybridOptimized",
     "FullGPUModular",
-    "FullGPU",
-    "FullGPUMonolithic",
   }
 )
 

@@ -129,7 +129,7 @@ def test_report_generator_table2_speedup(tmp_path: Path) -> None:
         "mean_time": 0.80,
         "std_time": 0.01,
       },
-      "FullGPU": {
+      "FullGPUMonolithic": {
         "mean_cost": 2085.0,
         "std_cost": 0.0,
         "mean_gap": 0.0,
@@ -197,28 +197,28 @@ def test_compare_algorithms_and_grouping() -> None:
       "CPU": {"mean_gap": 0.5, "mean_time": 1.0, "edge_type": "EXPLICIT"},
       "HybridNaive": {"mean_gap": 0.8, "mean_time": 0.5, "edge_type": "EXPLICIT"},
       "HybridOptimized": {"mean_gap": 0.1, "mean_time": 0.05, "edge_type": "EXPLICIT"},
-      "FullGPU": {"mean_gap": 0.2, "mean_time": 0.02, "edge_type": "EXPLICIT"},
+      "FullGPUMonolithic": {"mean_gap": 0.2, "mean_time": 0.02, "edge_type": "EXPLICIT"},
     },
     "gr21": {
       "CPU": {"mean_gap": 0.6, "mean_time": 1.2, "edge_type": "EXPLICIT"},
       "HybridNaive": {"mean_gap": 0.7, "mean_time": 0.6, "edge_type": "EXPLICIT"},
       "HybridOptimized": {"mean_gap": 0.0, "mean_time": 0.06, "edge_type": "EXPLICIT"},
-      "FullGPU": {"mean_gap": 0.3, "mean_time": 0.03, "edge_type": "EXPLICIT"},
+      "FullGPUMonolithic": {"mean_gap": 0.3, "mean_time": 0.03, "edge_type": "EXPLICIT"},
     },
     "gr24": {
       "CPU": {"mean_gap": 0.4, "mean_time": 1.1, "edge_type": "EXPLICIT"},
       "HybridNaive": {"mean_gap": 0.9, "mean_time": 0.55, "edge_type": "EXPLICIT"},
       "HybridOptimized": {"mean_gap": 0.05, "mean_time": 0.07, "edge_type": "EXPLICIT"},
-      "FullGPU": {"mean_gap": 0.25, "mean_time": 0.025, "edge_type": "EXPLICIT"},
+      "FullGPUMonolithic": {"mean_gap": 0.25, "mean_time": 0.025, "edge_type": "EXPLICIT"},
     },
     "berlin52": {
       "HybridNaive": {"mean_gap": 1.2, "mean_time": 2.0, "edge_type": "EUC_2D"},
       "HybridOptimized": {"mean_gap": 0.3, "mean_time": 0.2, "edge_type": "EUC_2D"},
-      "FullGPU": {"mean_gap": 0.4, "mean_time": 0.08, "edge_type": "EUC_2D"},
+      "FullGPUMonolithic": {"mean_gap": 0.4, "mean_time": 0.08, "edge_type": "EUC_2D"},
     },
   }
   problems: list[str] = ["gr17", "gr21", "gr24"]
-  algorithms: list[str] = ["CPU", "HybridNaive", "HybridOptimized", "FullGPU"]
+  algorithms: list[str] = ["CPU", "HybridNaive", "HybridOptimized", "FullGPUMonolithic"]
 
   analyzer = StatisticalAnalyzer()
   res: dict[str, Any] | None = compare_algorithms(
@@ -238,12 +238,12 @@ def test_compare_algorithms_and_grouping() -> None:
   assert 0.0 <= res["friedman_test"]["p_value"] <= 1.0
   # Geometric mean of the literal baseline/algo mean_time ratios for each algorithm.
   assert res["speedups"]["HybridNaive"] == pytest.approx(1.0)
-  assert res["speedups"]["FullGPU"] == pytest.approx(22.2398, rel=1e-4)
+  assert res["speedups"]["FullGPUMonolithic"] == pytest.approx(22.2398, rel=1e-4)
   assert res["speedups"]["HybridOptimized"] == pytest.approx(9.2276, rel=1e-4)
 
   # Degenerate: less than 3 problems or algorithms returns None
   assert compare_algorithms(all_results, ["gr17"], algorithms, analyzer) is None
-  assert compare_algorithms(all_results, problems, ["CPU", "FullGPU"], analyzer) is None
+  assert compare_algorithms(all_results, problems, ["CPU", "FullGPUMonolithic"], analyzer) is None
 
   # Grouping test
   p_configs: list[ProblemConfig] = [
@@ -288,14 +288,14 @@ def test_compare_algorithms_and_grouping() -> None:
   assert stratum2 is not None
   assert stratum2["n_problems"] == 4
   assert stratum2["n_algorithms"] == 3
-  assert stratum2["algorithms"] == ["FullGPU", "HybridNaive", "HybridOptimized"]
+  assert stratum2["algorithms"] == ["FullGPUMonolithic", "HybridNaive", "HybridOptimized"]
   assert stratum2["speedups"]["HybridNaive"] == pytest.approx(1.0)
-  assert stratum2["speedups"]["FullGPU"] == pytest.approx(22.8999, rel=1e-4)
+  assert stratum2["speedups"]["FullGPUMonolithic"] == pytest.approx(22.8999, rel=1e-4)
   assert stratum2["speedups"]["HybridOptimized"] == pytest.approx(9.4149, rel=1e-4)
 
   # CPU covers only the three small problems; FullGPU covers all four.
   assert strat_res["summary_statistics"]["CPU"]["n_problems"] == 3
-  assert strat_res["summary_statistics"]["FullGPU"]["n_problems"] == 4
+  assert strat_res["summary_statistics"]["FullGPUMonolithic"]["n_problems"] == 4
 
 
 def test_seed_override_drives_repetition_seeds(fixture_config_dir: Path, fixture_tsp_dir: Path, tmp_path: Path) -> None:
@@ -341,14 +341,8 @@ def test_strategy_override_reaches_instance(fixture_config_dir: Path) -> None:
       strategy_overrides={"unknown_slot": {"param": 1}},
     )
 
-  # Verify monolithic algorithms map strategy overrides (e.g. local_search.max_iterations -> two_opt_iterations)
-  assert "FullGPU" in algo_configs
-  monolithic_cfg = algo_configs["FullGPU"]
-  assert monolithic_cfg.class_name == "GeneticAlgorithmFullGPUMonolithic"
-  mono_inst = monolithic_cfg.instantiate(
-    ga_params,
-    strategy_overrides={"local_search": {"max_iterations": 25}},
-  )
-  assert mono_inst.two_opt_iterations == 25
+  # Monolithic strategy-override mapping is covered by the opt-in archive config
+  # (`configs/algorithms.archive.json`), which the suite no longer loads: no test
+  # executes archive code.
 
 

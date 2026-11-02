@@ -11,7 +11,7 @@ including:
 - Pairwise comparisons with Holm-Bonferroni correction
 - Summary statistics and speedup calculations
 
-Extracted from chapter4_validation.py lines 702-870.
+Extracted from the analysis helpers formerly embedded in the chapter 4 validation script.
 
 Usage:
     from benchmarking.analysis.problem_statistics import perform_statistical_analysis
@@ -21,7 +21,7 @@ Usage:
     results = {
         "CPU": {...},  # Results dict from algorithm_runner
         "HybridOptimized": {...},
-        "FullGPU": {...}
+        "FullGPUMonolithic": {...}
     }
 
     stats = perform_statistical_analysis(

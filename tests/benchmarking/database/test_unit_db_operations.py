@@ -653,7 +653,7 @@ def test_get_algorithm_summary_returns_none_when_no_run_matches(
   empty_summary = get_algorithm_summary(db_conn, "berlin52", "CPU")
 
   insert_run(db_conn)
-  missing_algorithm = get_algorithm_summary(db_conn, "berlin52", "FullGPU")
+  missing_algorithm = get_algorithm_summary(db_conn, "berlin52", "FullGPUMonolithic")
 
   assert empty_summary is None
   assert missing_algorithm is None
@@ -690,7 +690,7 @@ def test_get_problems_with_cpu_lists_distinct_cpu_problems_by_size(
   insert_run(db_conn)  # CPU, berlin52, size 52
   insert_run(db_conn, timestamp="2025-11-23T13:00:00")  # CPU, berlin52 again
   insert_run(db_conn, problem_name="st70", problem_size=70)  # CPU, size 70
-  insert_run(db_conn, problem_name="eil76", problem_size=76, algorithm="FullGPU", backend="GPU")
+  insert_run(db_conn, problem_name="eil76", problem_size=76, algorithm="FullGPUMonolithic", backend="GPU")
 
   assert get_problems_with_cpu(db_conn) == ["berlin52", "st70"]
 
@@ -707,16 +707,16 @@ def test_compute_speedup_matrix_reports_ratio_to_baseline(db_conn: duckdb.DuckDB
   insert_payload(db_conn, production_payload(mean_time=2.0, timestamp="2025-11-23T10:00:00"))
   insert_payload(
     db_conn,
-    production_payload(mean_time=0.5, timestamp="2025-11-23T10:00:00", algorithm="FullGPU", backend="GPU"),
+    production_payload(mean_time=0.5, timestamp="2025-11-23T10:00:00", algorithm="FullGPUMonolithic", backend="GPU"),
   )
-  insert_run(db_conn, algorithm="FullGPU", backend="GPU", mean_time=0.1, timestamp="2025-11-23T12:00:00")
+  insert_run(db_conn, algorithm="FullGPUMonolithic", backend="GPU", mean_time=0.1, timestamp="2025-11-23T12:00:00")
 
-  speedups = compute_speedup_matrix(db_conn, "CPU", ["FullGPU", "HybridOptimized"])
+  speedups = compute_speedup_matrix(db_conn, "CPU", ["FullGPUMonolithic", "HybridOptimized"])
   default_speedups = compute_speedup_matrix(db_conn)
 
-  assert [entry[:2] for entry in speedups] == [("berlin52", "FullGPU")]
+  assert [entry[:2] for entry in speedups] == [("berlin52", "FullGPUMonolithic")]
   assert speedups[0][2] == pytest.approx(4.0)
   assert speedups[0][3] == pytest.approx(2.0)
-  assert [entry[:2] for entry in default_speedups] == [("berlin52", "FullGPU")]
+  assert [entry[:2] for entry in default_speedups] == [("berlin52", "FullGPUMonolithic")]
   assert default_speedups[0][2] == pytest.approx(4.0)
   assert default_speedups[0][3] == pytest.approx(2.0)
