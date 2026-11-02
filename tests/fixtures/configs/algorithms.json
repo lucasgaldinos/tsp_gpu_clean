@@ -1,0 +1,186 @@
+{
+  "default_params": {
+    "population_size": 32,
+    "mutation_rate": 0.05,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "CPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Pure NumPy CPU baseline with 2-opt local search",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "RandomPermutationInitialization",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "TournamentSelection",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "OrderCrossover"
+        },
+        "mutation": {
+          "class": "SwapMutation"
+        },
+        "local_search": {
+          "class": "CPUTwoOpt",
+          "params": {
+            "max_iterations": 5
+          }
+        },
+        "evaluation": {
+          "class": "CPUCostEvaluation"
+        }
+      }
+    },
+    "HybridNaive": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "GPU operators with naive per-route memory transfers",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "RandomPermutationInitialization",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "TournamentSelection",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "OrderCrossover"
+        },
+        "mutation": {
+          "class": "SwapMutation"
+        },
+        "local_search": {
+          "class": "NaiveGPUTwoOpt",
+          "params": {
+            "max_iterations": 5
+          }
+        },
+        "evaluation": {
+          "class": "CPUCostEvaluation"
+        }
+      }
+    },
+    "HybridOptimized": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "GPU operators with batch transfers and batch GPU 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "RandomPermutationInitialization",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "TournamentSelection",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "OrderCrossover"
+        },
+        "mutation": {
+          "class": "SwapMutation"
+        },
+        "local_search": {
+          "class": "BatchGPUTwoOpt",
+          "params": {
+            "max_iterations": 5
+          }
+        },
+        "evaluation": {
+          "class": "GPUCostEvaluation",
+          "params": {
+            "return_gpu": false
+          }
+        }
+      }
+    },
+    "FullGPUModular": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Modular Full-GPU pipeline with per-phase CUDA kernels",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "RandomPermutationInitialization",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "GPUTournamentSelection",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "GPUOrderCrossover"
+        },
+        "mutation": {
+          "class": "GPUSwapMutation"
+        },
+        "local_search": {
+          "class": "BatchGPUTwoOpt",
+          "params": {
+            "max_iterations": 5
+          }
+        },
+        "evaluation": {
+          "class": "GPUCostEvaluation",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "FullGPU": {
+      "metaheuristic": "GeneticAlgorithmFullGPUMonolithic",
+      "class_module": "algorithms.archive.full_gpu_monolithic",
+      "class_name": "GeneticAlgorithmFullGPUMonolithic",
+      "use_gpu": true,
+      "description": "Fujimoto monolithic full-GPU kernel with early stopping",
+      "params": {
+        "tournament_size": 3,
+        "two_opt_iterations": 5
+      }
+    },
+    "FullGPUMonolithic": {
+      "metaheuristic": "GeneticAlgorithmFullGPUMonolithic",
+      "class_module": "algorithms.archive.full_gpu_monolithic",
+      "class_name": "GeneticAlgorithmFullGPUMonolithic",
+      "use_gpu": true,
+      "description": "Fujimoto monolithic full-GPU kernel",
+      "params": {
+        "tournament_size": 3,
+        "two_opt_iterations": 5
+      }
+    }
+  }
+}
+

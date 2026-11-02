@@ -1,0 +1,102 @@
+"""Unit tests for `InversionMutation`.
+
+Inversion mutation reverses a contiguous segment of a route. The tests pin the
+invariants the GA depends on: the permutation and its dtype survive, the parent array
+is never mutated in place, a zero rate is an identity, and batch input keeps its
+dimensionality.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+import pytest
+
+from algorithms.strategies.mutation.inversion_mutation import InversionMutation
+
+if TYPE_CHECKING:
+  from collections.abc import Callable
+
+
+@pytest.mark.parametrize("mutation_rate", [0.0, 1.0])
+@pytest.mark.parametrize("n_genes", [1, 2, 5, 9])
+def test_mutation_preserves_permutation(mutation_rate: float, n_genes: int) -> None:
+  """WHAT: Inversion mutation across rates and route sizes.
+
+  WHY: Mutation must explore without breaking the permutation or mutating the parent
+  array that the population still references.
+
+  EXPECTED: Same shape and int32 dtype, same gene multiset, untouched input, and an
+  identity result at rate 0.0.
+  """
+  # Arrange
+  rng = np.random.default_rng(200 + n_genes)
+  route = rng.permutation(np.arange(n_genes, dtype=np.int32)).astype(np.int32, copy=False)
+  original = route.copy()
+
+  # Act
+  mutated = InversionMutation(seed=3).mutate(route, mutation_rate=mutation_rate)
+
+  # Assert
+  assert mutated.shape == route.shape
+  assert mutated.dtype == np.int32
+  assert sorted(mutated.tolist()) == sorted(route.tolist())
+  np.testing.assert_array_equal(route, original)
+  if mutation_rate == 0.0:
+    np.testing.assert_array_equal(mutated, route)
+
+
+@pytest.mark.parametrize("as_batch", [False, True], ids=["single-route", "batch"])
+def test_mutation_batch_preserves_shape_and_permutations(
+  as_batch: bool,
+  make_population: Callable[..., np.ndarray],
+) -> None:
+  """WHAT: `mutate_batch` on a 1D route and on a 2D population.
+
+  WHY: Batch mutation is the path used by the GA pipeline; shape restoration must not
+  flatten or wrap a single route.
+
+  EXPECTED: Output keeps the input dimensionality and every row stays a permutation.
+  """
+  # Arrange
+  routes = make_population(3, 6, seed=31)
+  input_routes = routes if as_batch else routes[0]
+
+  # Act
+  mutated = InversionMutation(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
+
+  # Assert
+  assert mutated.ndim == input_routes.ndim
+  rows = mutated if as_batch else mutated[np.newaxis, :]
+  assert rows.shape[1] == 6
+  for row in rows:
+    assert sorted(row.tolist()) == list(range(6))
+
+
+@pytest.mark.xfail(
+  reason=(
+    "DEFECT: src/algorithms/strategies/mutation/inversion_mutation.py:48 "
+    "`_mutation_bounds` only protects depot endpoints when len > 3, so a "
+    "3-node [depot, node, depot] route can invert across a depot endpoint"
+  ),
+  strict=True,
+)
+def test_mutation_preserves_three_node_depot_endpoints() -> None:
+  """WHAT: Mutation on the shortest depot-bounded route.
+
+  WHY: Depot endpoints delimit vehicle routes; moving them turns a valid tour into an
+  invalid chromosome for the constructor.
+
+  EXPECTED: Both endpoints remain at the depot (currently fails; registered as a defect).
+  """
+  # Arrange
+  route = np.array([0, 1, 0], dtype=np.int32)
+
+  # Act
+  mutated = InversionMutation(seed=0).mutate(route, mutation_rate=1.0)
+
+  # Assert
+  assert mutated[0] == 0
+  assert mutated[-1] == 0
+  assert sorted(mutated.tolist()) == sorted(route.tolist())

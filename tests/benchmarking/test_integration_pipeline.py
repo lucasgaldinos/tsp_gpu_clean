@@ -1,20 +1,18 @@
-"""
-Integration tests for the adjusted Benchmark V2 API and the 10 selected TSPLIB problems.
-"""
+"""Hermetic integration tests for the benchmarking pipeline and analysis components."""
 
 from __future__ import annotations
 
-from argparse import Namespace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import pytest
 
 from benchmarking import (
-  DEFAULT_SELECTED_TSP_FILES,
   KNOWN_TSPLIB_OPTIMALS,
   ProblemConfig,
   StatisticalAnalyzer,
+  build_problem_configs_from_duckdb,
   build_problem_configs_from_tsp_files,
   compare_algorithms,
   compare_algorithms_by_group,
@@ -24,36 +22,35 @@ from benchmarking import (
   run_comprehensive_benchmark,
   validate_configs,
 )
-from benchmarking.analysis.statistics import StatisticalSummary
 from loaders.tsplib_loader import TsplibLoader
 from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
+  from pathlib import Path
+
   from benchmarking.analysis.statistics import StatisticalSummary
   from data_models.records import NemenyiResult
 
+FIXTURE_NAMES: tuple[str, ...] = ("burma14", "gr17", "bayg29", "att48", "berlin52")
 
-def test_selected_10_tsp_files_parse_and_match_optimals() -> None:
-  """Verify all 10 target .tsp files parse via tsplib95 and build valid ProblemConfigs."""
-  assert len(DEFAULT_SELECTED_TSP_FILES) == 10
-  configs, path_map = build_problem_configs_from_tsp_files(DEFAULT_SELECTED_TSP_FILES)
+
+def test_problem_configs_from_tsp_files(fixture_tsp_dir: Path) -> None:
+  """Verify fixture .tsp files build valid ProblemConfigs and load properly via TsplibLoader."""
+  tsp_file_paths: list[Path] = [fixture_tsp_dir / f"{name}.tsp" for name in FIXTURE_NAMES]
+  configs, path_map = build_problem_configs_from_tsp_files(tsp_file_paths)
+  assert len(configs) == 5
 
   expected: dict[str, tuple[int, float, str]] = {
-    "att48": (48, 10628.0, "ATT"),
-    "bayg29": (29, 1610.0, "EXPLICIT"),
-    "bays29": (29, 2020.0, "EXPLICIT"),
-    "berlin52": (52, 7542.0, "EUC_2D"),
-    "brg180": (180, 1950.0, "EXPLICIT"),
+    "burma14": (14, 3323.0, "GEO"),
     "gr17": (17, 2085.0, "EXPLICIT"),
-    "gr21": (21, 2707.0, "EXPLICIT"),
-    "gr24": (24, 1272.0, "EXPLICIT"),
-    "gr48": (48, 5046.0, "EXPLICIT"),
-    "gr96": (96, 55209.0, "GEO"),
+    "bayg29": (29, 1610.0, "EXPLICIT"),
+    "att48": (48, 10628.0, "ATT"),
+    "berlin52": (52, 7542.0, "EUC_2D"),
   }
 
   assert {c.name for c in configs} == set(expected.keys())
 
-  with TsplibLoader() as loader:
+  with TsplibLoader(fixture_tsp_dir) as loader:
     for cfg in configs:
       exp_size, exp_opt, exp_edge_type = expected[cfg.name]
       assert cfg.size == exp_size
@@ -67,10 +64,19 @@ def test_selected_10_tsp_files_parse_and_match_optimals() -> None:
       assert np.all(np.diag(mat) == 0)
 
 
-def test_validate_configs_allows_none_patience() -> None:
-  """Verify load_all_configs and validate_configs handle patience=null in benchmark.json."""
-  config_dir: Path = Path(__file__).resolve().parent.parent / "configs"
-  configs: dict[str, Any] = load_all_configs(config_dir)
+def test_problem_configs_from_duckdb(fixture_duckdb_path: Path) -> None:
+  """Verify building ProblemConfigs from DuckDB fixture database."""
+  db_configs = build_problem_configs_from_duckdb(
+    db_path=fixture_duckdb_path,
+    problem_names=FIXTURE_NAMES,
+  )
+  assert len(db_configs) == 5
+  assert [c.name for c in db_configs] == list(FIXTURE_NAMES)
+
+
+def test_validate_configs_allows_none_patience(fixture_config_dir: Path) -> None:
+  """Verify load_all_configs and validate_configs handle configurations cleanly."""
+  configs: dict[str, Any] = load_all_configs(fixture_config_dir)
   warnings: list[str] = validate_configs(configs)
   assert warnings == []
 
@@ -98,7 +104,7 @@ def test_statistical_analyzer_small_and_degenerate_samples() -> None:
   )
   assert 0.0 <= summary_ties.p_value <= 1.0
 
-  # Nemenyi post-hoc should work even without external posthocs library
+  # Nemenyi post-hoc
   nemenyi: NemenyiResult = analyzer.nemenyi_posthoc(
     [
       np.array([10.0, 12.0, 11.0, 13.0]),
@@ -111,8 +117,8 @@ def test_statistical_analyzer_small_and_degenerate_samples() -> None:
   assert nemenyi["critical_distance"] > 0
 
 
-def test_report_generator_table2_speedup_all_algorithms(tmp_path: Path) -> None:
-  """Verify Table 2 computes Avg Speedup for algorithms alphabetically before baseline."""
+def test_report_generator_table2_speedup(tmp_path: Path) -> None:
+  """Verify Table 2 computes Avg Speedup for algorithms against baseline."""
   all_results: dict[str, dict[str, dict[str, float]]] = {
     "gr17": {
       "CPU": {
@@ -157,30 +163,29 @@ def test_report_generator_table2_speedup_all_algorithms(tmp_path: Path) -> None:
     benchmark_name="test_table",
   )
   md_content: str = (tmp_path / "test_table.md").read_text(encoding="utf-8")
-  # HybridNaive is baseline (0.40s), so FullGPU (0.02s) should have 20.00x speedup in Table 2
   assert "20.00x" in md_content
   assert "0.50x" in md_content
 
 
-def test_run_comprehensive_benchmark_custom_tsp_file(tmp_path: Path) -> None:
-  """Verify run_comprehensive_benchmark executes end-to-end on a custom .tsp path."""
-  gr17_path: Path = DEFAULT_SELECTED_TSP_FILES[5]
-  args = Namespace(
-    repetitions=1,
-    skip_cpu=True,
-    test_mode=False,
-    incremental_runs=False,
-  )
+def test_run_comprehensive_benchmark_fixture(
+  fixture_config_dir: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+) -> None:
+  """Verify run_comprehensive_benchmark executes end-to-end with fixture configs and data."""
+  gr17_path: Path = fixture_tsp_dir / "gr17.tsp"
   results: dict[str, dict[str, dict[str, Any]]] = run_comprehensive_benchmark(
-    args,
-    tsp_files=[gr17_path],
-    algorithms=["HybridOptimized", "FullGPU"],
+    config_dir=fixture_config_dir,
     output_dir=tmp_path,
+    tsp_files=[gr17_path],
+    algorithms=["CPU"],
+    repetitions=1,
+    skip_cpu=False,
     benchmark_name="gr17_smoke",
   )
   assert "gr17" in results
-  assert results["gr17"]["HybridOptimized"]["mean_cost"] >= KNOWN_TSPLIB_OPTIMALS["gr17"]
-  assert results["gr17"]["FullGPU"]["mean_cost"] >= KNOWN_TSPLIB_OPTIMALS["gr17"]
+  assert "CPU" in results["gr17"]
+  assert results["gr17"]["CPU"]["mean_cost"] >= KNOWN_TSPLIB_OPTIMALS["gr17"]
   assert (tmp_path / "tables" / "gr17_smoke.md").exists()
   assert (tmp_path / "tables" / "gr17_smoke.tex").exists()
 
@@ -225,11 +230,16 @@ def test_compare_algorithms_and_grouping() -> None:
     label="Test Comparison",
   )
   assert res is not None
+  assert res["problems"] == problems
+  assert res["algorithms"] == algorithms
   assert res["n_problems"] == 3
   assert res["n_algorithms"] == 4
-  assert "friedman_test" in res
-  assert "speedups" in res
-  assert res["speedups"]["FullGPU"] > 1.0
+  assert res["friedman_test"]["statistic"] >= 0.0
+  assert 0.0 <= res["friedman_test"]["p_value"] <= 1.0
+  # Geometric mean of the literal baseline/algo mean_time ratios for each algorithm.
+  assert res["speedups"]["HybridNaive"] == pytest.approx(1.0)
+  assert res["speedups"]["FullGPU"] == pytest.approx(22.2398, rel=1e-4)
+  assert res["speedups"]["HybridOptimized"] == pytest.approx(9.2276, rel=1e-4)
 
   # Degenerate: less than 3 problems or algorithms returns None
   assert compare_algorithms(all_results, ["gr17"], algorithms, analyzer) is None
@@ -248,9 +258,14 @@ def test_compare_algorithms_and_grouping() -> None:
     group_key="edge_type",
     analyzer=analyzer,
   )
-  assert "EXPLICIT" in group_res
-  assert group_res["EXPLICIT"] is not None
-  assert group_res["EXPLICIT"]["n_problems"] == 3
+  assert set(group_res) == {"EXPLICIT", "EUC_2D"}
+  explicit_group: dict[str, Any] | None = group_res["EXPLICIT"]
+  assert explicit_group is not None
+  assert explicit_group["n_problems"] == 3
+  assert explicit_group["n_algorithms"] == 4
+  assert set(explicit_group["problems"]) == {"gr17", "gr21", "gr24"}
+  # berlin52 is the only EUC_2D problem, so that group cannot reach the 3-problem minimum.
+  assert group_res["EUC_2D"] is None
 
   # Stratified cross-problem analysis
   strat_res: dict[str, Any] = perform_cross_problem_analysis_stratified(
@@ -259,5 +274,81 @@ def test_compare_algorithms_and_grouping() -> None:
     analyzer=analyzer,
     cpu_threshold=30,
   )
-  assert strat_res["stratum1_small_problems"] is not None
-  assert strat_res["stratum2_all_gpu_problems"] is not None
+  assert strat_res["cpu_threshold"] == 30
+  assert strat_res["total_problems"] == 4
+  assert strat_res["total_algorithms"] == 4
+
+  stratum1: dict[str, Any] | None = strat_res["stratum1_small_problems"]
+  assert stratum1 is not None
+  assert stratum1["n_problems"] == 3
+  assert stratum1["n_algorithms"] == 4
+  assert set(stratum1["problems"]) == {"gr17", "gr21", "gr24"}
+
+  stratum2: dict[str, Any] | None = strat_res["stratum2_all_gpu_problems"]
+  assert stratum2 is not None
+  assert stratum2["n_problems"] == 4
+  assert stratum2["n_algorithms"] == 3
+  assert stratum2["algorithms"] == ["FullGPU", "HybridNaive", "HybridOptimized"]
+  assert stratum2["speedups"]["HybridNaive"] == pytest.approx(1.0)
+  assert stratum2["speedups"]["FullGPU"] == pytest.approx(22.8999, rel=1e-4)
+  assert stratum2["speedups"]["HybridOptimized"] == pytest.approx(9.4149, rel=1e-4)
+
+  # CPU covers only the three small problems; FullGPU covers all four.
+  assert strat_res["summary_statistics"]["CPU"]["n_problems"] == 3
+  assert strat_res["summary_statistics"]["FullGPU"]["n_problems"] == 4
+
+
+def test_seed_override_drives_repetition_seeds(fixture_config_dir: Path, fixture_tsp_dir: Path, tmp_path: Path) -> None:
+  """Verify that CLI/orchestration seed parameter drives algorithm repetition seeds."""
+  gr17_path = fixture_tsp_dir / "gr17.tsp"
+  benchmark_results = run_comprehensive_benchmark(
+    config_dir=fixture_config_dir,
+    output_dir=tmp_path,
+    tsp_files=[gr17_path],
+    algorithms=["CPU"],
+    repetitions=2,
+    seed=7,
+  )
+  assert "gr17" in benchmark_results
+  assert "CPU" in benchmark_results["gr17"]
+  seeds = benchmark_results["gr17"]["CPU"]["raw_seeds"]
+  assert seeds == [7, 8]
+
+
+def test_strategy_override_reaches_instance(fixture_config_dir: Path) -> None:
+  """Verify strategy parameter overrides modify instantiated strategy properties and reject invalid keys."""
+  configs = load_all_configs(fixture_config_dir)
+  ga_params = configs["ga_params"]
+  algo_configs = configs["algorithms"]
+
+  target_cfg = algo_configs.get("HybridOptimized") or algo_configs.get("FullGPUModular") or algo_configs["CPU"]
+
+  inst = target_cfg.instantiate(
+    ga_params,
+    strategy_overrides={"local_search": {"max_iterations": 20}},
+  )
+  assert inst.local_search.max_iterations == 20
+
+  with pytest.raises(ValueError, match="does not accept parameter 'non_existent_param'"):
+    target_cfg.instantiate(
+      ga_params,
+      strategy_overrides={"local_search": {"non_existent_param": 999}},
+    )
+
+  with pytest.raises(ValueError, match="Unknown strategy slot 'unknown_slot'"):
+    target_cfg.instantiate(
+      ga_params,
+      strategy_overrides={"unknown_slot": {"param": 1}},
+    )
+
+  # Verify monolithic algorithms map strategy overrides (e.g. local_search.max_iterations -> two_opt_iterations)
+  assert "FullGPU" in algo_configs
+  monolithic_cfg = algo_configs["FullGPU"]
+  assert monolithic_cfg.class_name == "GeneticAlgorithmFullGPUMonolithic"
+  mono_inst = monolithic_cfg.instantiate(
+    ga_params,
+    strategy_overrides={"local_search": {"max_iterations": 25}},
+  )
+  assert mono_inst.two_opt_iterations == 25
+
+

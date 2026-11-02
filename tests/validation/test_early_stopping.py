@@ -5,49 +5,44 @@ Quick test of early stopping on berlin52 (small problem) across all variants.
 
 from __future__ import annotations
 
-import cupy as cp
-import numpy as np
+from typing import TYPE_CHECKING, Any
 
-from algorithms import (
-  GeneticAlgorithmCPU,
-  GeneticAlgorithmFullGPUEarlyStop,
-  GeneticAlgorithmFullGPUModular,
-  GeneticAlgorithmHybridNaive,
-  GeneticAlgorithmHybridOptimized,
-)
-from data_models.problem import Problem
-from loaders.database_loader import DatabaseLoader
+import numpy as np
+import pytest
+
+from benchmarking.runner.config_loader import KNOWN_TSPLIB_OPTIMALS, load_algorithms_config
+from protocols.backend import cupy_backend, gpu_available
 from protocols.problem_context import ProblemContext
 
+GPU_AVAILABLE = gpu_available()
+cp = cupy_backend()
 
-def test_early_stopping_berlin52() -> None:
+if TYPE_CHECKING:
+  from pathlib import Path
+
+  from data_models.problem import Problem
+
+
+@pytest.mark.slow
+def test_early_stopping_berlin52(berlin52_problem: Problem, fixture_config_dir: Path) -> None:
   """Verify early stopping and standardized stats across all GA variants on berlin52."""
-  with DatabaseLoader("datasets/routing.duckdb") as loader:
-    problem: Problem = loader.load("berlin52")
+  problem: Problem = berlin52_problem
 
-  optimal_cost = 7542.0
+  optimal_cost = KNOWN_TSPLIB_OPTIMALS["berlin52"]
   max_generations = 80
   patience = 14
   customers: list[int] = list(range(problem.dimension))
 
-  algorithms = [
-    ("CPU", GeneticAlgorithmCPU, False),
-    ("HybridNaive", GeneticAlgorithmHybridNaive, True),
-    ("HybridOptimized", GeneticAlgorithmHybridOptimized, True),
-    ("FullGPUModular", GeneticAlgorithmFullGPUModular, True),
-    ("FullGPUEarlyStop", GeneticAlgorithmFullGPUEarlyStop, True),
-  ]
+  ga_params, alg_configs = load_algorithms_config(fixture_config_dir)
 
-  for name, algo_cls, use_gpu in algorithms:
-    xp = cp if use_gpu else np
+  for name, cfg in alg_configs.items():
+    if cfg.class_module and "archive" in cfg.class_module:
+      continue
+    if cfg.use_gpu and not GPU_AVAILABLE:
+      continue
+    xp: Any = cp if cfg.use_gpu else np
     context = ProblemContext(problem, xp=xp, seed=42)
-    ga = algo_cls(
-      population_size=64,
-      mutation_rate=0.02,
-      tournament_size=5,
-      two_opt_iterations=5,
-      seed=42,
-    )
+    ga = cfg.instantiate(ga_params, seed=42)
     best_tour, stats = ga.evolve(
       context,
       customers,
