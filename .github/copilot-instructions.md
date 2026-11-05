@@ -18,7 +18,7 @@ git add . && git commit -m "msg" && git push
 rtk git add . && rtk git commit -m "msg" && rtk git push
 ```
 
-**Python Virtual Environment Rule**: Always invoke Python tools through the project virtual environment (`.venv/bin/python -m pytest`, `.venv/bin/python -m mypy`, `.venv/bin/python -m ruff`, or `uv run ...`) prefixed with `rtk`. Never run bare `pytest` or `mypy`, which resolves to system Python and causes false missing-dependency errors.
+**python Virtual Environment Rule**: Always invoke python tools through the project virtual environment (`.venv/bin/python -m pytest`, `.venv/bin/python -m mypy`, `.venv/bin/python -m ruff`, or `uv run ...`) prefixed with `rtk`. Never run bare `pytest` or `mypy`, which resolves to system python and causes false missing-dependency errors.
 
 ## RTK Commands by Workflow
 
@@ -140,7 +140,7 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 ## Token Savings Overview
 
 | Category | Commands | Typical Savings |
-|----------|----------|-----------------|
+| ---------- | ---------- | ----------------- |
 | Tests | vitest, playwright, cargo test | 90-99% |
 | Build | next, tsc, lint, prettier | 70-87% |
 | Git | status, log, diff, add, commit | 59-80% |
@@ -171,7 +171,7 @@ Rules:
 Switch level: /caveman lite|full|ultra|wenyan
 Stop: "stop caveman" or "normal mode"
 
-Auto-Clarity: ALWAYS drop caveman for conceptual/"why"/ELI5 explanations, Python object-model or GPU architecture deep dives, mathematical derivations, code reviews, decision trade-off analyses, security warnings, irreversible actions, or whenever the user expresses confusion. Never sacrifice clarity or justification for brevity.
+Auto-Clarity: ALWAYS drop caveman for conceptual/"why"/ELI5 explanations, python object-model or GPU architecture deep dives, mathematical derivations, code reviews, decision trade-off analyses, security warnings, irreversible actions, or whenever the user expresses confusion. Never sacrifice clarity or justification for brevity.
 
 Boundaries: code/docstrings/comments/documentation/commits/PRs written normal (comments must state domain/business WHY, not restate syntax).
 
