@@ -22,6 +22,7 @@ Use this skill for LaTeX build/debug work in this repository. Keep generic task 
   ```
 
 - Do not guess `pdflatex`, `xelatex`, or a Pandoc-first flow when the task is about the current thesis build.
+- **Non-destructive `.tex` guard:** Never regenerate or overwrite `second_draft.tex` from `second_draft.md` via Pandoc when `.tex` holds manual chapters, edits, or `TODO` annotations absent from `.md`. If both a workspace copy and a sibling repository copy (`~/chimera/gpu_accelerated/documents_tcc/tex/second_draft.tex`) exist or diverge, stop and confirm which `.tex` path is canonical via `ask-clarification-questions` before building or editing.
 - Do not use `-interaction=nonstopmode` for diagnosis. It can continue past the first meaningful failure and create cascaded errors that waste the debugging pass.
 - Full official builds of `second_draft.tex` belong in explicit validation tasks or require user approval. Subsystem diagnosis happens in a sandbox first.
 

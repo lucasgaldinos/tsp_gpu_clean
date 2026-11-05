@@ -13,9 +13,12 @@ import numpy as np
 import pytest
 
 from algorithms.strategies.mutation.swap_mutation import SwapMutation
+from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
   from collections.abc import Callable
+
+  from data_models.problem import Problem
 
 
 @pytest.mark.parametrize("mutation_rate", [0.0, 1.0])
@@ -73,21 +76,13 @@ def test_mutation_batch_preserves_shape_and_permutations(
     assert sorted(row.tolist()) == list(range(6))
 
 
-@pytest.mark.xfail(
-  reason=(
-    "DEFECT: src/algorithms/strategies/mutation/swap_mutation.py:48 "
-    "`_mutation_bounds` only protects depot endpoints when len > 3, so a "
-    "3-node [depot, node, depot] route can swap a depot endpoint"
-  ),
-  strict=True,
-)
 def test_mutation_preserves_three_node_depot_endpoints() -> None:
   """WHAT: Mutation on the shortest depot-bounded route.
 
   WHY: Depot endpoints delimit vehicle routes; moving them turns a valid tour into an
   invalid chromosome for the constructor.
 
-  EXPECTED: Both endpoints remain at the depot (currently fails; registered as a defect).
+  EXPECTED: Both endpoints remain at the depot.
   """
   # Arrange
   route = np.array([0, 1, 0], dtype=np.int32)
@@ -99,3 +94,52 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
   assert mutated[0] == 0
   assert mutated[-1] == 0
   assert sorted(mutated.tolist()) == sorted(route.tolist())
+
+
+def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem) -> None:
+  """WHAT: `SwapMutation(candidate_k=10)` on a full 52-city tour.
+
+  WHY: proximity-guided mutation changes how `idx2` is drawn; it must still exchange two
+  interior positions and leave every gene exactly once (`DP10-20`).
+
+  EXPECTED: valid permutation, depot endpoints untouched, parent array not mutated.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=9)
+  route = np.random.default_rng(11).permutation(np.arange(52, dtype=np.int32)).astype(np.int32, copy=False)
+  original = route.copy()
+
+  # Act
+  mutated = SwapMutation(seed=4, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
+
+  # Assert
+  assert sorted(mutated.tolist()) == list(range(52))
+  assert mutated[0] == route[0]
+  assert mutated[-1] == route[-1]
+  np.testing.assert_array_equal(route, original)
+
+
+def test_proximity_index_selects_a_candidate_neighbour(berlin52_problem: Problem) -> None:
+  """WHAT: `_proximity_index` on a full tour with `candidate_k=10`.
+
+  WHY: the second swap position must be the tour position of a real `N_k` neighbour of
+  the first city, in the mutable interior, and different from the first index.
+
+  EXPECTED: an interior index whose city belongs to `N_k[route[idx1]]`.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=12)
+  route = np.random.default_rng(13).permutation(np.arange(52, dtype=np.int32)).astype(np.int32, copy=False)
+  strategy = SwapMutation(seed=5, candidate_k=10)
+  first_index = 9
+  candidates = context.get_cpu_candidate_list(10)
+
+  # Act
+  second_index = strategy._proximity_index(route, 1, len(route) - 1, first_index, strategy.rng, context)
+
+  # Assert
+  assert second_index is not None
+  assert second_index != first_index
+  assert 1 <= second_index <= len(route) - 2
+  neighbours = {int(neighbor) for neighbor in candidates[int(route[first_index])]}
+  assert int(route[second_index]) in neighbours

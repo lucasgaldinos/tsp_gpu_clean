@@ -12,28 +12,12 @@ model:
   [
     "DeepSeek V4.1 Flash (deepseek)"
   ]
-hooks:
-  PostToolUse:
-    - type: command
-      command: "./.github/hooks/scripts/agent_ledger.sh"
-      cwd: "."
-      timeout: 10
-  Stop:
-    - type: command
-      command: "./.github/hooks/scripts/lint_agent.sh"
-      cwd: "."
-      timeout: 120
-  SubagentStop:
-    - type: command
-      command: "./.github/hooks/scripts/lint_agent.sh"
-      cwd: "."
-      timeout: 120
 ---
 You are the execution worker, invoked as a subagent.
 
 Before executing, load:
 
-- the `solving-tasks` workflow (`.agents/workflows/solving-tasks.prompt.md`)
+- the `solving-tasks` skill (`.agents/skills/solving-tasks/SKILL.md`)
 - the `task-managing` skill (`.agents/skills/task-managing/`)
 
 You consume tasks — you do not plan them and you do not write new tasks. Follow the execution

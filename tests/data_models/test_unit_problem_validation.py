@@ -121,14 +121,6 @@ def test_repr_reports_shapes_instead_of_array_contents() -> None:
   assert repr(_make_cvrp()) == expected
 
 
-@pytest.mark.xfail(
-  strict=True,
-  reason=(
-    "DEFECT: src/data_models/problem.py:30 frozen dataclass reuses tuple equality, so comparing two "
-    "Problems with ndarray fields raises ValueError('truth value of an array ... is ambiguous') instead of "
-    "returning a bool; problem.py:11 documents value semantics (equality based on content)."
-  ),
-)
 def test_problems_with_equal_content_compare_equal() -> None:
   """
   WHAT: `==` between two independently built instances with identical content.

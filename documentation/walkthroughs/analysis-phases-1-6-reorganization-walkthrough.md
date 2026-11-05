@@ -19,7 +19,7 @@ modifications:
 related_files:
   - "[plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md)"
   - "[analysis-phase-7-residency-rng-walkthrough.md](./analysis-phase-7-residency-rng-walkthrough.md)"
-  - "[test-suite-walkthrough.md](./test-suite-walkthrough.md)"
+  - "[analysis-test-suite-walkthrough.md](./analysis-test-suite-walkthrough.md)"
   - "[guide-local-search-pipeline-stages.md](../guide-local-search-pipeline-stages.md)"
   - "[algorithms.json](../../configs/algorithms.json)"
   - "[types.py](../../src/protocols/types.py)"
@@ -164,7 +164,7 @@ All checks passed!
 1. **The three transcripts named in the brief are not Phase 1–6 sources.** `e8dd0e92`, `8ad95c8b` and `57bedbaa` are all timestamped `2026-10-30T23:09Z`–`2026-10-30T23:56Z` and discuss Phase 9 exclusively: counting case-insensitively, `"Fase 2"` through `"Fase 8"`, `"residency"` and `"Task 7."` each return zero hits in all three, while `"Fase 9"` returns 11, 17 and 31 respectively. The real Phase 1–7 session is `4f72da0b-6375-4cc1-ac90-dd8390461096`.
 2. **The Copilot transcript named as a secondary source postdates the work.** Session `86299fac-0e20-41ba-99d0-171ed05945a7` starts `2026-10-29T13:15Z` and its first user message is `2026-10-30T14:24Z`; its last two user messages are the two archaeology briefs that commissioned these documents. It reads the plan, so it mentions every phase, but it executes none of them.
 3. **Phases 1–6 have no headings.** The plan writes a single `## Registro de Tarefas 5W2H` heading (line 73) and only adds `## Fase 7`/`8`/`9` headings later (lines 285, 397, 623). The "phase" grouping for Tasks 1.1–6.1 exists only in the task numbering.
-4. **Two files the plan cites as changed no longer exist.** `tests/test_modular_architecture.py` and `tests/test_benchmark_selected_problems.py` are listed in the Task 4.1 and Task 6.1 Solution blocks but are absent; the suite was later reorganised into a package-mirrored layout, recorded in [test-suite-walkthrough.md](./test-suite-walkthrough.md) under [10.4 Test reorganization](./test-suite-walkthrough.md#104-test-reorganization).
+4. **Two files the plan cites as changed no longer exist.** `tests/test_modular_architecture.py` and `tests/test_benchmark_selected_problems.py` are listed in the Task 4.1 and Task 6.1 Solution blocks but are absent; the suite was later reorganised into a package-mirrored layout, recorded in [analysis-test-suite-walkthrough.md](./analysis-test-suite-walkthrough.md) under [10.4 Test reorganization](./analysis-test-suite-walkthrough.md#104-test-reorganization).
 5. **The Phase 5 report contradicts its own table.** Step 1205 says `post_evolution` is "faster overall", but the same message's table reports `0.852 s` for `att48`/`HybridOptimized` `post_evolution` against `0.037 s` for `post_evaluation`. Only the gap claim survives (`post_evaluation` reaches 0.00 % on `bayg29`); the speed claim does not.
 6. **The eight critiques are stored truncated.** In `transcript.jsonl`, step 1208 carries 4120 characters and `truncated_fields: ["content"]`, which cuts the list after critique 3. The full 8320-character list exists only in `transcript_full.jsonl`.
 7. **The `mypy` denominator grows across phases.** `41` files (Phase 2), `68` (Phase 7), `111` today. A "0 errors" claim is only comparable within one phase.

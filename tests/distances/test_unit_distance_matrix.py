@@ -7,12 +7,13 @@ rounding are public contract rather than incidental implementation detail.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import itertools
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pytest
 
-from distances.matrix import compute_distance_matrix
+from distances.matrix import compute_candidate_list, compute_distance_matrix
 from distances.pairwise import get_distance_function
 
 if TYPE_CHECKING:
@@ -308,3 +309,198 @@ def test_berlin52_euclidean_matrix_known_values(berlin52_problem: Problem) -> No
   assert matrix[0, 1] == 666
   assert matrix[0, 2] == 281
   assert matrix[1, 2] == 649
+
+
+@pytest.mark.parametrize("chunk_size", [3, 10], ids=["multi-block", "single-block"])
+@pytest.mark.parametrize("edge_weight_type", ALL_SUPPORTED_TYPES)
+def test_distance_matrix_row_chunked_path_matches_full_broadcast(
+  edge_weight_type: str,
+  chunk_size: int,
+) -> None:
+  """WHAT: the row-chunked path (``n > chunk_threshold``) against the full 2D broadcast.
+
+  WHY: BUG-13 bounds peak memory to ``O(chunk_size * n * d)`` for large instances; a
+  chunked evaluation that disagrees with the direct broadcast changes costs depending
+  only on instance size, and the single-block and multi-block branches differ.
+
+  EXPECTED: bit-identical matrices for all ten types, with ``n = 7`` rows split into
+  three blocks (``chunk_size=3``) and one block (``chunk_size=10``).
+  """
+  rng = np.random.default_rng(13)
+  width = 3 if edge_weight_type in CARTESIAN_3D_TYPES else 2
+  coordinates = rng.uniform(0.0, 60.0, size=(7, width))
+
+  full = compute_distance_matrix(coordinates, edge_weight_type)
+  chunked = compute_distance_matrix(coordinates, edge_weight_type, chunk_threshold=3, chunk_size=chunk_size)
+
+  assert chunked.dtype == np.dtype(np.int32)
+  np.testing.assert_array_equal(
+    chunked,
+    full,
+    err_msg=f"{edge_weight_type}: chunked path (chunk_size={chunk_size}) diverged from the full broadcast",
+  )
+
+
+def _brute_force_candidates(
+  matrix: np.ndarray,
+  k: int,
+) -> np.ndarray:
+  """Return ``N_k`` by sorting every row of ``matrix`` (ties broken by node index)."""
+  n = int(matrix.shape[0])
+  k_eff = min(k, n - 1)
+  expected = np.empty((n, k_eff), dtype=np.int32)
+  for u in range(n):
+    order = sorted((v for v in range(n) if v != u), key=lambda v: (int(matrix[u, v]), v))
+    expected[u] = order[:k_eff]
+  return expected
+
+
+@pytest.mark.parametrize(
+  ("n", "k", "expected_shape"),
+  [
+    pytest.param(3, 20, (3, 2), id="clamped-to-n-minus-1"),
+    pytest.param(20, 5, (20, 5), id="k-below-n"),
+    pytest.param(20, 0, (20, 0), id="k-zero"),
+    pytest.param(20, -3, (20, 0), id="k-negative"),
+    pytest.param(1, 20, (1, 0), id="single-node"),
+  ],
+)
+def test_candidate_list_shape_and_dtype(n: int, k: int, expected_shape: tuple[int, int]) -> None:
+  """WHAT: shape and dtype contract of the ``k``-NN candidate list.
+
+  WHY: every consumer indexes ``N_k[u, r]`` assuming ``k_eff = min(k, n - 1)`` columns
+  and ``int32`` node ids; a wrong width silently drops or repeats neighbours.
+
+  EXPECTED: ``(n, k_eff)`` int32, with ``(n, 0)`` for ``k <= 0`` and ``n <= 1``.
+  """
+  rng = np.random.default_rng(7)
+  coordinates = rng.uniform(0.0, 10_000.0, size=(n, 2))
+
+  candidates = compute_candidate_list(coordinates, "EUC_2D", k)
+
+  assert candidates.shape == expected_shape
+  assert candidates.dtype == np.dtype(np.int32)
+
+
+@pytest.mark.parametrize("edge_weight_type", ["EUC_2D", "MAN_2D", "GEO"])
+def test_candidate_list_matches_brute_force_from_coordinates(edge_weight_type: str) -> None:
+  """WHAT: blocked coordinate construction against a row-by-row brute force.
+
+  WHY: ``argpartition`` + ``lexsort`` must return exactly the ``k`` smallest *distinct*
+  nodes; an off-by-one in the partial selection silently substitutes a farther node.
+
+  EXPECTED: identical tables for the hand-checked three-point fixtures.
+  """
+  coordinates = _points_for(edge_weight_type)
+  matrix = compute_distance_matrix(coordinates, edge_weight_type)
+  expected = _brute_force_candidates(matrix, k=2)
+
+  candidates = compute_candidate_list(coordinates, edge_weight_type, 2)
+
+  np.testing.assert_array_equal(candidates, expected)
+
+
+@pytest.mark.parametrize("k", [1, 2, 5], ids=["k1", "k2", "k5"])
+def test_candidate_list_from_distances_matches_brute_force(k: int) -> None:
+  """WHAT: the ``distances=`` path against the brute force on the same matrix.
+
+  WHY: EXPLICIT problems have no coordinates; the matrix overload must produce the same
+  neighbour multiset as the coordinate path so candidate-guided search behaves identically.
+
+  EXPECTED: identical distance multisets per row, and every node strictly nearer than the
+  ``k``-th selected distance present (the tie at the selection boundary may resolve either
+  way, because ``argpartition`` is a linear-time partial sort).
+  """
+  rng = np.random.default_rng(23)
+  coordinates = rng.uniform(0.0, 500.0, size=(12, 2))
+  matrix = compute_distance_matrix(coordinates, "EUC_2D")
+  expected = _brute_force_candidates(matrix, k)
+
+  candidates = compute_candidate_list(k=k, distances=matrix)
+
+  assert candidates.shape == expected.shape
+  for node in range(matrix.shape[0]):
+    selected = [int(matrix[node, int(neighbor)]) for neighbor in candidates[node]]
+    reference = [int(matrix[node, int(neighbor)]) for neighbor in expected[node]]
+    assert selected == sorted(selected), f"row {node} is not ordered by distance"
+    assert selected == reference, f"row {node} selected a different distance multiset"
+    boundary = reference[-1]
+    present = {int(neighbor) for neighbor in candidates[node]}
+    for other in range(matrix.shape[0]):
+      if other != node and matrix[node, other] < boundary:
+        assert other in present, f"row {node} dropped the strictly nearer node {other}"
+
+
+
+def test_candidate_list_blocked_path_matches_unchunked() -> None:
+  """WHAT: a tiny ``chunk_size`` against the single-block evaluation.
+
+  WHY: ``DP10-20`` evaluates rows in blocks so large instances never materialise the
+  ``(n, n)`` matrix; a block boundary must not change a single neighbour.
+
+  EXPECTED: bit-identical tables for ``chunk_size=7`` and ``chunk_size=512``.
+  """
+  rng = np.random.default_rng(31)
+  coordinates = rng.uniform(0.0, 1_000.0, size=(37, 2))
+
+  blocked = compute_candidate_list(coordinates, "EUC_2D", 6, chunk_size=7)
+  single = compute_candidate_list(coordinates, "EUC_2D", 6, chunk_size=512)
+
+  np.testing.assert_array_equal(blocked, single)
+
+
+def test_candidate_list_never_materializes_the_full_matrix(monkeypatch: pytest.MonkeyPatch) -> None:
+  """WHAT: row-block heights observed inside ``compute_candidate_list``.
+
+  WHY: the whole point of ``DP10-20`` is bounding peak memory to ``O(chunk_size * n)``
+  for coordinate-only problems; one leaked full-width block defeats it.
+
+  EXPECTED: every ``_distance_block`` call evaluates at most ``chunk_size`` rows.
+  """
+  from distances import matrix as matrix_module
+
+  rng = np.random.default_rng(41)
+  n = 64
+  chunk_size = 16
+  coordinates = rng.uniform(0.0, 5_000.0, size=(n, 2))
+  observed_rows: list[int] = []
+  original = matrix_module._distance_block
+
+  def _recording_distance_block(rows: np.ndarray, all_coords: np.ndarray, edge: str, xp: Any) -> np.ndarray:
+    observed_rows.append(int(rows.shape[0]))
+    return cast("np.ndarray", original(rows, all_coords, edge, xp))
+
+  monkeypatch.setattr(matrix_module, "_distance_block", _recording_distance_block)
+
+  candidates = compute_candidate_list(coordinates, "EUC_2D", 5, chunk_size=chunk_size)
+
+  assert candidates.shape == (n, 5)
+  assert observed_rows, "the blocked path must call _distance_block"
+  assert max(observed_rows) <= chunk_size, f"block of {max(observed_rows)} rows exceeds chunk_size={chunk_size}"
+  assert max(observed_rows) < n, "a full-width block means the (n, n) matrix was materialised"
+
+
+def test_candidate_list_excludes_self_and_sorts_by_distance() -> None:
+  """WHAT: self-edge exclusion plus ordering invariants of ``N_k``.
+
+  WHY: a self-edge costs 0 and would occupy the first column of every row; unsorted
+  columns turn the first improving move into an arbitrary one.
+
+  EXPECTED: ``u not in N_k[u, :]``, distances non-decreasing along the row, and equal
+  distances ordered by ascending node index.
+  """
+  rng = np.random.default_rng(53)
+  coordinates = rng.integers(0, 8, size=(30, 2)).astype(np.float64)
+  matrix = compute_distance_matrix(coordinates, "EUC_2D")
+
+  candidates = compute_candidate_list(k=8, distances=matrix)
+
+  for u in range(30):
+    row = candidates[u]
+    assert u not in set(int(v) for v in row), f"node {u} appears in its own candidate list"
+    distances = [int(matrix[u, int(v)]) for v in row]
+    assert distances == sorted(distances), f"row {u} is not ordered by distance"
+    for left, right in itertools.pairwise(row):
+      if matrix[u, int(left)] == matrix[u, int(right)]:
+        assert int(left) < int(right), f"row {u} breaks ties by descending node index"
+

@@ -31,6 +31,7 @@ dependencies = [
     "pandoc-mermaid-filter>=0.1.0",
     "numba>=0.65.1",
     "tsplib95>=0.6.1",
+    "routing-data",
 ]
 
 [project.scripts]
@@ -128,6 +129,9 @@ indent-style = "space"
 quote-style = "double"
 docstring-code-format = true
 docstring-code-line-length = "dynamic"
+
+[tool.uv.sources]
+routing-data = { git = "https://github.com/lucasgaldinos/Routing_data.git", rev = "v0.2.0" }
 
 [dependency-groups]
 dev = [

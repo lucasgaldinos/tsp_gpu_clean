@@ -8,10 +8,21 @@ a particular random sequence.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
 
 from algorithms.strategies.initialization.random_initialization import RandomPermutationInitialization
+from protocols.problem_context import ProblemContext
+
+if TYPE_CHECKING:
+  from data_models.problem import Problem
+
+
+def _closed_cost(route: np.ndarray, distances: np.ndarray) -> int:
+  """Return the closed-loop tour cost under a dense distance matrix."""
+  return int(sum(distances[route[i], route[(i + 1) % len(route)]] for i in range(len(route))))
 
 
 @pytest.mark.parametrize(
@@ -64,3 +75,32 @@ def test_random_permutation_initialization_respects_seed() -> None:
 
   # Assert
   np.testing.assert_array_equal(first, second)
+
+
+def test_candidate_k_builds_greedy_nearest_neighbour_tours(berlin52_problem: Problem) -> None:
+  """WHAT: `RandomPermutationInitialization(candidate_k=10)` with a context.
+
+  WHY: `DP10-20` turns initialization into a randomized greedy nearest-neighbour
+  construction guided by `N_k`; it must still emit permutations, and those tours must be
+  shorter than uniform random ones.
+
+  EXPECTED: every row is a permutation of the customers and has a strictly lower closed
+  cost than the uniform-random population drawn from the same context.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=3)
+  distances = context.get_cpu_distances()
+  customers = list(range(berlin52_problem.dimension))
+
+  # Act
+  guided = RandomPermutationInitialization(seed=7, candidate_k=10).initialize(customers, 4, context)
+  uniform = RandomPermutationInitialization(seed=7).initialize(customers, 4, context)
+
+  # Assert
+  expected_genes = sorted(customers)
+  for route in guided:
+    assert sorted(route.tolist()) == expected_genes
+  best_guided = min(_closed_cost(route, distances) for route in guided)
+  best_uniform = min(_closed_cost(route, distances) for route in uniform)
+  assert best_guided < best_uniform, "candidate-guided construction must beat uniform sampling"
+

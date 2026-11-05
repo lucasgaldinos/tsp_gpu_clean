@@ -32,6 +32,10 @@ Does the code do what it claims to do?
 - Are error paths handled (not just the happy path)?
 - Does it pass all tests? Are the tests actually testing the right things?
 - Are there off-by-one errors, race conditions, or state inconsistencies?
+- **Spec & mathematical parity:** Verify numeric formulas, rounding vs. truncation (`int(x)` vs. `_nint(x)`), and 1-based vs. 0-based indexing directly against upstream specifications (e.g., TSPLIB95, Fortran reference code) — never trust docstrings or status-quo characterization snapshots alone.
+- **Sub-route vs. full-permutation bounds:** In routing operators (TSP/CVRP), verify lookup buffers (such as `inverse_positions`) size against max node ID (`max(len(route), int(route.max()) + 1)`), never `len(route)`, and check static CUDA array caps (`applied_start[16]`) against dynamic block capacity.
+- **No silent data evaporation:** Reject parsers, validators, or fallback guards (`if route.max() >= route.size: return None`) that silently drop malformed sections or disable features instead of raising or handling properly.
+- **Whole-module sibling sweep:** When a defect fix targets one strategy/operator class (e.g., GPU distance caching in `GPUCostEvaluation`), check all sibling classes in the module (`BatchGPUTwoOpt`, `BatchGPUMultiMoveTwoOpt`) so partial fixes never pass review.
 
 ### 2. Readability & Simplicity
 
@@ -43,8 +47,8 @@ Can another engineer (or agent) understand this code without the author explaini
 - Are there any "clever" tricks that should be simplified?
 - **Could this be done in fewer lines?** (1000 lines where 100 suffice is a failure)
 - **Are abstractions earning their complexity?** (Don't generalize until the third use case)
-- Would comments help clarify non-obvious intent? (But don't comment obvious code.)
-- Are there dead code artifacts: no-op variables (`_unused`), backwards-compat shims, or `// removed` comments?
+- **Do comments explain domain/business WHY rather than syntax WHAT?** Flag comments that merely narrate Python/C++ mechanics instead of the domain invariant, spec clause, or hardware constraint.
+- Are there dead code artifacts: no-op variables (`_unused`), single-developer backwards-compat aliases (`DataTransformer = ProblemNormalizer`), test-only production structures (`SECTION_GRAMMARS`), or `// removed` comments?
 - **Is a new conditional bolted onto an unrelated flow?** That's a design smell, not a nit — push the logic into its own helper, state, or policy instead of tangling an existing path.
 - **Do repeated conditionals on the same shape appear?** They signal a missing model or dispatcher. A "temporary" branch is usually permanent debt.
 

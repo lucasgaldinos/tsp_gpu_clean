@@ -27,6 +27,7 @@ from loaders.problem_type_handlers import (
   AtspHandler,
   BaseProblemRow,
   CvrpHandler,
+  ProblemMetadataRow,
   ProblemTypeHandler,
   TspHandler,
   register_problem_type_handler,
@@ -254,7 +255,7 @@ def test_custom_handler_injection(multi_problem_db: Path) -> None:
     def list_problems(self, conn: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
       return [{"name": "vrptw_test", "dimension": 10, "edge_weight_type": "EUC_2D"}]
 
-    def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]:
+    def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
       return {
         "problem_id": base.problem_id,
         "name": base.name,
@@ -301,8 +302,8 @@ def test_register_problem_type_handler_and_restore() -> None:
     def list_problems(self, conn: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
       return []
 
-    def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]:
-      return {}
+    def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
+      raise NotImplementedError("registration test never loads metadata")
 
   dummy = DummyHandler()
   register_problem_type_handler(dummy)

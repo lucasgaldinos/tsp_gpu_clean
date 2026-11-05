@@ -84,28 +84,32 @@ duckdb >= 0.9.0        # TSP problem database
 - **Size Range**: 51 to 1002 cities
 - **Format**: Distance matrices (double precision, symmetric)
 
-### Algorithm Parameters (GA_PARAMS)
+### Algorithm Parameters (`configs/algorithms.json`)
 
-```python
+```json
 {
+  "default_params": {
     "population_size": 256,
     "mutation_rate": 0.02,
-    "tournament_size": 5,
-    "two_opt_iterations": 10,
-    "seed": 42                    # For reproducibility
+    "seed": 42
+  }
 }
 ```
 
-### Benchmark Parameters (BENCHMARK_PARAMS)
+Per-algorithm overrides (strategy classes, selection `k`, local-search `max_iterations`) live under `algorithm_configs` in the same file.
 
-```python
+### Benchmark Parameters (`configs/benchmark.json`)
+
+```json
 {
-    "repetitions": 30,             # Statistical power
-    "patience": 50,                # Early stopping generations
-    "skip_cpu_default": False,     # Include CPU baseline
-    "cpu_size_threshold": 100      # CPU only for n < 100
+  "repetitions": 15,
+  "patience": null,
+  "cpu_size_threshold": 100,
+  "skip_cpu_default": false
 }
 ```
+
+`patience: null` disables the early-stopping stagnation window; `repetitions` is the statistical sample size per (instance, algorithm) pair.
 
 ### Timing Methodology
 

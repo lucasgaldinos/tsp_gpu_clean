@@ -30,7 +30,7 @@ from dataclasses import field as dc_field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsp_file_with_tsplib95
+from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsplib_file
 
 if TYPE_CHECKING:
   from inspect import Signature
@@ -599,7 +599,7 @@ def build_problem_configs_from_tsp_files(
   tsp_dir: str | Path | None = None,
 ) -> tuple[list[ProblemConfig], dict[str, Path]]:
   """
-  Build ProblemConfig instances directly from .tsp file paths using tsplib95.
+  Build ProblemConfig instances directly from .tsp file paths using `routing_data`.
 
   Args:
       tsp_files: Sequence of paths to .tsp files (or problem names when `tsp_dir` is supplied).
@@ -628,7 +628,7 @@ def build_problem_configs_from_tsp_files(
       else:
         raise FileNotFoundError(f"TSPLIB file not found: {item}")
 
-    bundle: TsplibIngestionBundle = parse_tsp_file_with_tsplib95(candidate)
+    bundle: TsplibIngestionBundle = parse_tsplib_file(candidate)
     name = str(bundle.problem.name)
     dimension = int(bundle.problem.dimension)
     tsp_path_map[name] = candidate.resolve()

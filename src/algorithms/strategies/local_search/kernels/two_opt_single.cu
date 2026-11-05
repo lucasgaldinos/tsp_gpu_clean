@@ -17,15 +17,14 @@
  *   - In-place reversal avoids temporary allocations
  * 
  * References:
- *   - Fujimoto & Tsutsui (2011). "A Highly-Parallel TSP Solver for a GPU Computing Platform"
- *   - Croes (1958). "A Method for Solving Traveling Salesman Problems"
-
- * Author: GPU Debugging Session
- * Date: 2025-01-27
- * Updated: 2025-11-14 (Phase 3.5 - Kernel extraction)
- * >[!warning]
- * >- This references are out of place, please double check. Is this really the same method as fujimoto or is it based on tsplogo/rocki and suda.
- * >- change the variables to descriptive names
+ *   - Croes, G. A. (1958). "A Method for Solving Traveling-Salesman Problems."
+ *     Operations Research, 6(6), 791-812.
+ *   - Fujimoto, N., & Tsutsui, S. (2011). "A Highly-Parallel TSP Solver for a
+ *     GPU Computing Platform." ICNAAM, Vol. 1389, pp. 264-267. (Shared-memory
+ *     tour representation per CUDA thread block).
+ *   - Rocki, K., & Suda, R. (2012). "Accelerating 2-opt and 3-opt Local Search
+ *     Using GPU in the Travelling Salesman Problem." IEEE HPCS, pp. 489-495.
+ *     (Cooperative parallel evaluation of (i, j) pairs and block reduction).
  */
 
 extern "C" __global__
@@ -59,27 +58,31 @@ void two_opt_kernel(
     
     // Each thread evaluates a subset of i positions
     for (int i = tid; i < n - 2; i += block_size) {
+        // Hoisted row endpoints and current edge cost (`Task 10.16`)
         int node_i = s_tour[i];
         int node_i1 = s_tour[i + 1];
-        
-        // Serial inner loop over j
+        const int *row_i = dist + (size_t)node_i * (size_t)n;
+        const int *row_i1 = dist + (size_t)node_i1 * (size_t)n;
+        int d_ab = row_i[node_i1];
+        // Carry-over: `node_j` of iteration `j + 1` is `node_j1` of iteration `j`
+        int node_j = s_tour[i + 2];
+
+        // Serial inner loop over j (upper triangle only)
         for (int j = i + 2; j < n; ++j) {
-            int node_j = s_tour[j];
             int node_j1 = s_tour[(j + 1) % n];
-            
+
             // Calculate delta (new - old: negative = improvement)
-            int old_dist = dist[node_i * n + node_i1] + 
-                           dist[node_j * n + node_j1];
-            int new_dist = dist[node_i * n + node_j] + 
-                           dist[node_i1 * n + node_j1];
+            int old_dist = d_ab + dist[(size_t)node_j * (size_t)n + (size_t)node_j1];
+            int new_dist = row_i[node_j] + row_i1[node_j1];
             int delta = new_dist - old_dist;  // Negative = improvement
-            
+
             // Update best for this thread (delta < 0 means improvement)
             if (delta < my_delta) {
                 my_delta = delta;
                 my_swap_i = i;
                 my_swap_j = j;
             }
+            node_j = node_j1;
         }
     }
     

@@ -18,13 +18,29 @@ Example:
     berlin52: 52 nodes, EUC_2D
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any
 
 import numpy as np
 
 VALID_PROBLEM_TYPES: frozenset[str] = frozenset({"TSP", "ATSP", "CVRP"})
 VALID_EDGE_TYPES: frozenset[str] = frozenset({"EUC_2D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"})
+
+_ARRAY_FIELDS: frozenset[str] = frozenset({"coordinates", "distances", "demands", "display_coords", "depots"})
+
+
+def _arrays_equal(first: np.ndarray | None, second: np.ndarray | None) -> bool:
+  """Compare two optional arrays by content, treating `None` as equal only to `None`."""
+  if first is None or second is None:
+    return first is second
+  return bool(np.array_equal(first, second))
+
+
+def _array_hash_key(value: np.ndarray | None) -> tuple[tuple[int, ...], str, bytes] | None:
+  """Build a hashable content key for an optional array."""
+  if value is None:
+    return None
+  return value.shape, value.dtype.str, value.tobytes()
 
 
 @dataclass(frozen=True)
@@ -202,6 +218,34 @@ class Problem:
         raise ValueError("CVRP instances require demands")
       if self.demands.shape != (self.dimension,):
         raise ValueError(f"demands.shape should be ({self.dimension},), got {self.demands.shape}")
+
+  def __eq__(self, other: object) -> bool:
+    """
+    Compare two problems by content instead of dataclass field identity.
+
+    NumPy arrays are compared with `np.array_equal` (and `None` fields are only
+    equal to other `None` fields) so two independently built instances with the
+    same data compare equal without raising `ValueError`.
+    """
+    if not isinstance(other, Problem):
+      return NotImplemented
+
+    for field in fields(self):
+      if field.name in _ARRAY_FIELDS:
+        if not _arrays_equal(getattr(self, field.name), getattr(other, field.name)):
+          return False
+      elif getattr(self, field.name) != getattr(other, field.name):
+        return False
+    return True
+
+  def __hash__(self) -> int:
+    """Hash problem content so frozen instances stay usable in sets and dict keys."""
+    return hash(
+      tuple(
+        _array_hash_key(getattr(self, field.name)) if field.name in _ARRAY_FIELDS else getattr(self, field.name)
+        for field in fields(self)
+      )
+    )
 
   def __repr__(self) -> str:
     """

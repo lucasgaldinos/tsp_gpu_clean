@@ -9,12 +9,37 @@ without conditional branching in DatabaseLoader.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict
 
 from data_models.exceptions import InvalidProblemDataError
 
 if TYPE_CHECKING:
   import duckdb
+
+
+class ProblemMetadataRow(TypedDict):
+  """Named contract for one problem's metadata row (hub + type table).
+
+  Replaces the untyped ``dict[str, Any]`` bags that crossed the handler -> loader
+  boundary (``DP10-8``). ``raw_*`` carry the DuckDB array columns verbatim.
+  """
+
+  problem_id: int
+  name: str
+  type: str
+  dimension: int
+  edge_type: str
+  edge_weight_format: str | None
+  tsplib_name: str | None
+  comment: str | None
+  capacity: int | None
+  has_solution: bool
+  source_file: str | None
+  file_checksum: str | None
+  raw_coords: list[list[float]] | None
+  raw_display_coords: list[list[float]] | None
+  raw_demands: list[int] | None
+  raw_depots: list[int] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +63,7 @@ class ProblemTypeHandler(Protocol):
     """List all problems of this formulation type present in the database."""
     ...
 
-  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]:
+  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
     """Load metadata dictionary for the instance from type-specific tables."""
     ...
 
@@ -72,7 +97,7 @@ class TspHandler:
       for r in rows
     ]
 
-  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]:
+  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
     tsp_row = conn.execute(
       """
       SELECT dimension, comment, edge_weight_type, edge_weight_format, tsplib_name, coords, display_coords
@@ -133,7 +158,7 @@ class AtspHandler:
       for r in rows
     ]
 
-  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]:
+  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
     atsp_row = conn.execute(
       """
       SELECT dimension, comment, tsplib_name
@@ -194,7 +219,7 @@ class CvrpHandler:
       for r in rows
     ]
 
-  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> dict[str, Any]:
+  def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
     cvrp_row = conn.execute(
       """
       SELECT dimension, capacity, comment, edge_weight_type, edge_weight_format, tsplib_name, coords, demands, depots
@@ -243,6 +268,7 @@ __all__: list[str] = [
   "AtspHandler",
   "BaseProblemRow",
   "CvrpHandler",
+  "ProblemMetadataRow",
   "ProblemTypeHandler",
   "TspHandler",
   "register_problem_type_handler",

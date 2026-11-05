@@ -12,7 +12,7 @@ from loaders.tsplib_loader import (
   TsplibLoader,
   bundle_to_problem,
   ingest_tsplib_directory_to_duckdb,
-  parse_tsp_file_with_tsplib95,
+  parse_tsplib_file,
 )
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
   """Build the argument parser for TSPLIB operations."""
   parser = argparse.ArgumentParser(
     prog="tsp-ingest",
-    description="Parse TSPLIB .tsp problems with tsplib95 in DuckDB ingestion format.",
+    description="Parse TSPLIB .tsp problems with routing_data into DuckDB ingestion format.",
   )
   parser.add_argument(
     "--tsp-dir",
@@ -90,12 +90,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     valid_count = 0
     for idx, name in enumerate(names, start=1):
       try:
-        bundle: TsplibIngestionBundle = parse_tsp_file_with_tsplib95(loader.tsp_dir / f"{name}.tsp", problem_id=idx)
+        bundle: TsplibIngestionBundle = parse_tsplib_file(loader.tsp_dir / f"{name}.tsp", problem_id=idx)
         bundle_to_problem(bundle, max_eager_matrix_dimension=args.max_eager_matrix_dimension)
         valid_count += 1
       except InvalidEdgeTypeError:
         continue
-    print(f"Verified {valid_count}/{len(names)} .tsp files in {args.tsp_dir} via tsplib95.")
+    print(f"Verified {valid_count}/{len(names)} .tsp files in {args.tsp_dir} via routing_data.")
 
   return 0
 

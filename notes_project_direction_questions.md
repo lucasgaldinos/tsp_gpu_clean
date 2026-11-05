@@ -1,9 +1,7 @@
 ---
 title: Project direction and question synthesis
 description: >
-  Consolidates meeting-notes.md and daily_planning.md into a single working note
-  that frames the project, groups the main open questions, and extracts immediate
-  academic and technical actions.
+  Consolidated `meeting-notes.md` and `daily_planning.md` (both retired) into this single working note that frames the project, groups the main open questions, and extracts immediate academic and technical actions.
 created: 2026-05-12
 status: draft
 author:
@@ -15,12 +13,9 @@ modifications:
   - date_modified: 2026-05-12
     modifications:
       - description: >
-          Created a synthesized planning note that merges the meeting notes and
-          daily planning backlog into a coherent project framing with categorized
-          questions, working assumptions, and immediate next actions.
+          Created a synthesized planning note that merges the meeting notes and daily planning backlog into a coherent project framing with categorized questions, working assumptions, and immediate next actions.
 related_files:
-  - [meeting-notes.md](./meeting-notes.md)
-  - [daily_planning.md](./daily_planning.md)
+  - [AGENTS.md](./AGENTS.md)
   - [documentation/diagrams/flowchart_ga_loop_variants.md](./documentation/diagrams/flowchart_ga_loop_variants.md)
   - [documentation/diagrams/class_diagram_genetic_algorithms.md](./documentation/diagrams/class_diagram_genetic_algorithms.md)
 tags:
@@ -152,6 +147,4 @@ This group covers institutional constraints and execution planning.
 
 ## Recommended next pass on the notes
 
-- Keep [meeting-notes.md](./meeting-notes.md) as raw meeting capture.
-- Keep [daily_planning.md](./daily_planning.md) as a lightweight operational checklist.
 - Use this synthesis file as the stable project-level question map that turns scattered notes into a coherent planning structure.

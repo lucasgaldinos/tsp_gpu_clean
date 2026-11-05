@@ -8,11 +8,14 @@ absence of in-place side effects on the population.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 
-from algorithms.strategies.evaluation.cost_evaluation import CPUCostEvaluation
+from algorithms.strategies.evaluation.cost_evaluation import CPUCostEvaluation, GPUCostEvaluation
 from data_models.problem import Problem
+from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
 
 TINY_DISTANCES: np.ndarray = np.array(
@@ -135,3 +138,52 @@ def test_cpu_cost_evaluation_does_not_mutate_routes() -> None:
 
   # Assert
   np.testing.assert_array_equal(tours, original)
+
+
+def _cupy() -> Any:
+  """Return the importable CuPy module, skipping the test when it is unavailable."""
+  cp = cupy_backend()
+  if cp is None:
+    pytest.skip("CuPy is not importable")
+  return cp
+
+
+def _random_tours(n: int, count: int, seed: int) -> np.ndarray:
+  """Return `count` deterministic permutations of `0..n-1`."""
+  rng = np.random.default_rng(seed)
+  base = np.arange(n, dtype=np.int32)
+  return np.stack([rng.permutation(base) for _ in range(count)]).astype(np.int32, copy=False)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("fixture_name", ["berlin52_problem", "burma14_problem"])
+def test_gpu_cost_evaluation_coordinate_mode_matches_dense_matrix(
+  fixture_name: str,
+  request: pytest.FixtureRequest,
+) -> None:
+  """WHAT: `GPUCostEvaluation` with the dense matrix versus on-the-fly coordinates.
+
+  WHY: above `max_matrix_dimension` a coordinate-based problem must not allocate the
+  `(n, n)` matrix, yet its costs must stay bit-identical to the matrix path.
+
+  EXPECTED: identical int64 costs, and the coordinate-mode context never materializes
+  the CPU or GPU distance matrix.
+  """
+  # Arrange
+  cp = _cupy()
+  problem: Problem = request.getfixturevalue(fixture_name)
+  tours = _random_tours(problem.dimension, 4, seed=11)
+
+  dense_context = ProblemContext(problem, xp=cp, seed=0)
+  dense_costs = GPUCostEvaluation().evaluate_batch(tours, dense_context)
+  assert dense_context._gpu_distances is not None, "the dense path must build the matrix"
+
+  coords_context = ProblemContext(problem, xp=cp, seed=0)
+  coords_costs = GPUCostEvaluation(max_matrix_dimension=10).evaluate_batch(tours, coords_context)
+
+  # Assert
+  np.testing.assert_array_equal(np.asarray(dense_costs), np.asarray(coords_costs))
+  assert coords_context._gpu_distances is None, "coordinate mode must not allocate the dense matrix"
+  assert coords_context._cpu_distances is None, "coordinate mode must not build the CPU matrix"
+  expected = CPUCostEvaluation().evaluate_batch(tours, ProblemContext(problem, xp=np, seed=0))
+  np.testing.assert_array_equal(np.asarray(coords_costs), expected)

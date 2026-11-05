@@ -1,6 +1,6 @@
 """Integration tests for the TSPLIB95 / DuckDB loading layer.
 
-Covers the `tsplib95` parse into a `Problem` bundle, the `DatabaseLoader` fallback to
+Covers the `routing_data` parse into a `Problem` bundle, the `DatabaseLoader` fallback to
 `TsplibLoader` when the database file is missing, the DuckDB ingestion round-trip, and
 the normalized-schema metadata exposed by `Problem.to_metadata_dict`.
 """
@@ -15,7 +15,7 @@ from loaders import (
   DatabaseLoader,
   bundle_to_problem,
   ingest_tsplib_directory_to_duckdb,
-  parse_tsp_file_with_tsplib95,
+  parse_tsplib_file,
 )
 
 if TYPE_CHECKING:
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
 
 def test_tsplib95_parse_and_bundle_to_problem(fixture_tsp_dir: Path) -> None:
-  """Verify parsing EUC_2D and EXPLICIT .tsp instances with tsplib95."""
-  bundle_euc: TsplibIngestionBundle = parse_tsp_file_with_tsplib95(fixture_tsp_dir / "berlin52.tsp", problem_id=1)
+  """Verify parsing EUC_2D and EXPLICIT .tsp instances through `routing_data`."""
+  bundle_euc: TsplibIngestionBundle = parse_tsplib_file(fixture_tsp_dir / "berlin52.tsp", problem_id=1)
   assert bundle_euc.problem.name == "berlin52"
   assert bundle_euc.problem.dimension == 52
   assert bundle_euc.problem.edge_weight_type == "EUC_2D"
@@ -41,7 +41,7 @@ def test_tsplib95_parse_and_bundle_to_problem(fixture_tsp_dir: Path) -> None:
   assert problem_euc.distances is not None
   assert problem_euc.distances.shape == (52, 52)
 
-  bundle_exp: TsplibIngestionBundle = parse_tsp_file_with_tsplib95(fixture_tsp_dir / "gr17.tsp", problem_id=2)
+  bundle_exp: TsplibIngestionBundle = parse_tsplib_file(fixture_tsp_dir / "gr17.tsp", problem_id=2)
   assert bundle_exp.problem.name == "gr17"
   assert bundle_exp.problem.edge_weight_type == "EXPLICIT"
   assert bundle_exp.edge_matrix is not None

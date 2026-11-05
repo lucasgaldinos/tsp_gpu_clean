@@ -12,7 +12,7 @@ applyTo: "**/*.md, !**/.agents/**, !**/.github/**"
 
 # repository markdown standards
 
-When **updating** a file **without** that does not conform with below instructions inside this repository, confirm with `vscode_askQuestions` tool before doing changes.
+When **updating** an existing file inside this repository that does not conform with the instructions below, confirm with `vscode_askQuestions` (or `ask_question`) before changing its structure.
 
 </check>
 
@@ -126,6 +126,22 @@ Rules apply to the **filename only**. The frontmatter `title` may be human-reada
 
 ## Referencing
 
-Make usage of markdown internal links and external links, e.g. for referencing other files, use the \[file-name/file-info\]\(/file/path#gfm-header\) or \[file-name/file-info\]\(/file/path#l\<number\>\) and for internal links \[paragraph/section\]\(#gfm-header\). Repo current uses backticks to reference files, which makes no sense without the link to the file itself.
+Use repo-relative Markdown links (never workstation-absolute `file:///home/...` URIs inside committed docs, and never bare backticked filenames without a link):
+
+- Cross-file section links: `[file.md §Heading](./relative/path/to/file.md#gfm-header)` — contextualize *which section/paragraph* explains the concept, and keep bidirectional `Links out` / `Backlinks` graphs symmetric when splitting multi-part guides.
+- GFM heading anchor slugs: lowercase, spaces → `-`, strip `.` and backticks, preserve `_`; validate `MD051`/`MD052` after heading edits.
+- Line-drift resilience: in narrative/conceptual prose, link symbols, classes, functions, or section headers rather than hardcoding fragile line numbers in prose text; reserve `#L<line>` anchors for plan `Where`/`Solution` entries and audit citations verified via `grep_search`.
 
 </referencing_rules>
+
+<authoring_hygiene>
+
+## Authoring Hygiene, Math & Diagrams
+
+- **Edit in place, never append errata:** Update specifications, plans, and `TODO.md` where the relevant section lives. Never append corrections at EOF while leaving contradicted text intact above, and rewrite decision reports to record the chosen architecture + rationale rather than preserving obsolete rejected options as open noise.
+- **No placeholder stubs:** Never pre-create empty or `"Placeholder"` `.md` files across turns; author each document completely and atomically (≤3 new docs per interactive turn unless batched in an approved plan).
+- **Self-contained prose:** Committed documentation must never leak chat-session artifacts (e.g., *"as discussed in the transcript..."* or *"in the previous turn..."*), must verify every cited symbol exists in code, and should use prose + GitHub callouts (`> [!NOTE]`, `> [!IMPORTANT]`, with a space after `>`) rather than turning every paragraph into a table.
+- **KaTeX & citations:** Write multi-term memory/complexity/cost formulas in KaTeX (`$...$` / `$$...$$`) and cite primary sources (e.g., Reinelt 1991; Rocki & Suda 2012; O'Neil & Burtscher 2015).
+- **Mermaid diagrams:** Use palettes legible in both light and dark themes, give nodes descriptive human-readable labels (never bare 2-letter abbreviations), ensure YAML frontmatter closes with `---` before an unindented diagram keyword (`flowchart TD`), and validate modified diagrams via `rtk npx -y @mermaid-js/mermaid-cli` on `/tmp/` extracts when Node/CLI is available.
+
+</authoring_hygiene>

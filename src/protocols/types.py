@@ -7,15 +7,15 @@ using PEP 695 type aliases and numpy.typing.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Literal
 
 import numpy as np
 from numpy.random import Generator
 from numpy.typing import NDArray
 
-type SeedLike = int | Generator | Callable[[], Generator] | None
-"""Random seed integer, existing `np.random.Generator`, zero-arg callable factory, or `None`."""
+type SeedLike = int | Sequence[int] | Generator | Callable[[], Generator] | None
+"""Random seed integer, integer seed sequence, existing `np.random.Generator`, zero-arg callable factory, or `None`."""
 
 type Route = NDArray[np.int32]
 """Single tour represented as a 1D array of node indices with shape `(n_cities,)`."""

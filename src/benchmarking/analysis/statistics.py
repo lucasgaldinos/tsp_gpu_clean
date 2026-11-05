@@ -203,10 +203,14 @@ class StatisticalAnalyzer:
     # Check for zero variance across differences
     differences = data_a - data_b
     variance_threshold = 1e-10
+    mean_diff = float(np.mean(differences))
 
     if np.std(differences) < variance_threshold:
       mean_a = float(np.mean(data_a))
       mean_b = float(np.mean(data_b))
+      # Zero variance makes the paired t-test/Cohen's d undefined (division by zero).
+      # A constant offset is different from no offset, so only a zero mean difference
+      # collapses to the identity summary; any nonzero constant is fully separated.
       return StatisticalSummary(
         comparison_label=label,
         metric_name=metric_name,
@@ -217,9 +221,9 @@ class StatisticalAnalyzer:
         std_b=0.0,
         ci_95_a=(mean_a, mean_a),
         ci_95_b=(mean_b, mean_b),
-        mean_difference=0.0,
-        ci_95_difference=(0.0, 0.0),
-        p_value=1.0,
+        mean_difference=mean_diff,
+        ci_95_difference=(mean_diff, mean_diff),
+        p_value=1.0 if mean_diff == 0.0 else 0.0,
         effect_size=0.0,
         test_used="no_test_needed",
         normality_p_value_a=1.0,
@@ -243,8 +247,6 @@ class StatisticalAnalyzer:
     ci_95_a = (mean_a - t_critical * se_a, mean_a + t_critical * se_a)
     ci_95_b = (mean_b - t_critical * se_b, mean_b + t_critical * se_b)
 
-    differences = data_a - data_b
-    mean_diff = float(np.mean(differences))
     std_diff = float(np.std(differences, ddof=1))
     se_diff = std_diff / np.sqrt(n)
     ci_95_diff = (

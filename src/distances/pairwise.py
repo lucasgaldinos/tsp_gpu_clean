@@ -1,301 +1,92 @@
 """
 Pairwise distance functions for TSPLIB95 edge weight types.
 
-This module implements all coordinate-based distance functions from the TSPLIB95
-specification. Each function takes two coordinate tuples and returns an integer
-distance, following TSPLIB95 rounding conventions.
+The scalar TSPLIB95 arithmetic lives in ``routing_data``'s
+:mod:`converter.utils.cost` module (``DP10-13``). This module re-exports those
+functions under the names the solver has always used, defines the
+``EDGE_WEIGHT_TYPE`` dispatch table, and shares the TSPLIB95 constants with
+:mod:`distances.matrix`.
 
 Implementation Notes:
     - All functions return int (TSPLIB95 stores distances as integers)
     - Rounding: nint(x) = int(x + 0.5) (round to nearest integer)
-    - Coordinates: tuples of floats (x, y) or (x, y, z)
+    - Coordinates: sequences of floats (x, y) or (x, y, z)
     - GEO coordinates: DDD.MM format (degrees and decimal minutes)
     - XRAY coordinates: (PHI, CHI, TWOTH) crystallography angles
-
-Source: Adapted from academic thesis implementation (sem0ark/met_projects)
-        Verified against TSPLIB95 specification and canonical tour lengths.
 
 References:
     - TSPLIB95 spec: http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/
     - Original C code: TSPLIB95 dist.c
-    - Python reference: github.com/sem0ark/met_projects
 """
 
+from __future__ import annotations
+
 import math
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Protocol
 
+from converter.utils.cost import (
+  att as compute_att,
+)
+from converter.utils.cost import (
+  ceil_2d as compute_ceiling_2d,
+)
+from converter.utils.cost import (
+  euclidean_2d as compute_euclidean_2d,
+)
+from converter.utils.cost import (
+  euclidean_3d as compute_euclidean_3d,
+)
+from converter.utils.cost import (
+  manhattan_2d as compute_manhattan_2d,
+)
+from converter.utils.cost import (
+  manhattan_3d as compute_manhattan_3d,
+)
+from converter.utils.cost import (
+  maximum_2d as compute_maximum_2d,
+)
+from converter.utils.cost import (
+  maximum_3d as compute_maximum_3d,
+)
+from converter.utils.cost import (
+  nint as _nint,
+)
+from converter.utils.cost import (
+  xray1 as compute_xray1,
+)
 
-def _nint(x: float) -> int:
-  """
-  Round float to nearest integer (TSPLIB95 convention).
+if TYPE_CHECKING:
+  from collections.abc import Sequence
 
-  Corresponds to C's nint(x) function. This is critical for matching
-  TSPLIB95 canonical tour lengths exactly.
+#: TSPLIB95 uses this approximation of pi for DDD.MM coordinate conversion.
+PI = 3.141592
 
-  Args:
-      x: Float value to round
-
-  Returns:
-      Nearest integer (ties round up due to +0.5)
-
-  Example:
-      >>> _nint(4.4)
-      4
-      >>> _nint(4.5)
-      5
-      >>> _nint(4.6)
-      5
-  """
-  return int(x + 0.5)
-
-
-# =============================================================================
-# 2.1 Euclidean Distances (L2-metric)
-# =============================================================================
-
-
-def compute_euclidean_2d(coord1: tuple[float, float], coord2: tuple[float, float]) -> int:
-  """
-  Compute 2D Euclidean distance (L2-metric).
-
-  Formula: d_ij = nint(sqrt((x_i - x_j)^2 + (y_i - y_j)^2))
-
-  Used by: berlin52, ch130, pr76, kroA100, kroB100, kroC100, kroD100, kroE100,
-           rd100, eil51, eil76, eil101, st70, pr107, pr124, pr136, pr144,
-           pr152, u159, rat195, d198, kroA200, kroB200, ts225, pr226, gil262,
-           pr264, a280, pr299, lin318, linhp318, rd400, fl417, pr439, pcb442,
-           d493, u574, rat575, p654, d657, u724, rat783, pr1002, ...
-
-  Args:
-      coord1: First point (x1, y1)
-      coord2: Second point (x2, y2)
-
-  Returns:
-      Euclidean distance rounded to nearest integer
-
-  Examples:
-      >>> compute_euclidean_2d((0.0, 0.0), (3.0, 4.0))
-      5
-      >>> compute_euclidean_2d((1.5, 2.5), (4.5, 6.5))
-      5
-  """
-  xd: float = coord1[0] - coord2[0]
-  yd: float = coord1[1] - coord2[1]
-  return _nint(math.sqrt(xd * xd + yd * yd))
-
-
-def compute_euclidean_3d(coord1: tuple[float, float, float], coord2: tuple[float, float, float]) -> int:
-  """
-  Compute 3D Euclidean distance (L2-metric).
-
-  Formula: d_ij = nint(sqrt((x_i - x_j)^2 + (y_i - y_j)^2 + (z_i - z_j)^2))
-
-  Used by: fnl4461 (3D TSP instance)
-
-  Args:
-      coord1: First point (x1, y1, z1)
-      coord2: Second point (x2, y2, z2)
-
-  Returns:
-      Euclidean distance rounded to nearest integer
-
-  Examples:
-      >>> compute_euclidean_3d((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
-      2
-      >>> compute_euclidean_3d((1.0, 2.0, 3.0), (4.0, 6.0, 8.0))
-      7
-  """
-  xd: float = coord1[0] - coord2[0]
-  yd: float = coord1[1] - coord2[1]
-  zd: float = coord1[2] - coord2[2]
-  return _nint(math.sqrt(xd * xd + yd * yd + zd * zd))
-
-
-# =============================================================================
-# 2.2 Manhattan Distances (L1-metric)
-# =============================================================================
-
-
-def compute_manhattan_2d(coord1: tuple[float, float], coord2: tuple[float, float]) -> int:
-  """
-  Compute 2D Manhattan distance (L1-metric, taxicab distance).
-
-  Formula: d_ij = nint(|x_i - x_j| + |y_i - y_j|)
-
-  Useful for grid-based routing (city blocks, warehouse paths).
-
-  Args:
-      coord1: First point (x1, y1)
-      coord2: Second point (x2, y2)
-
-  Returns:
-      Manhattan distance rounded to nearest integer
-
-  Examples:
-      >>> compute_manhattan_2d((0.0, 0.0), (3.0, 4.0))
-      7
-      >>> compute_manhattan_2d((1.5, 2.5), (4.5, 6.5))
-      7
-  """
-  xd: float = abs(coord1[0] - coord2[0])
-  yd: float = abs(coord1[1] - coord2[1])
-  return _nint(xd + yd)
-
-
-def compute_manhattan_3d(coord1: tuple[float, float, float], coord2: tuple[float, float, float]) -> int:
-  """
-  Compute 3D Manhattan distance (L1-metric).
-
-  Formula: d_ij = nint(|x_i - x_j| + |y_i - y_j| + |z_i - z_j|)
-
-  Useful for 3D grid navigation (multi-floor buildings, 3D warehouses).
-
-  Args:
-      coord1: First point (x1, y1, z1)
-      coord2: Second point (x2, y2, z2)
-
-  Returns:
-      Manhattan distance rounded to nearest integer
-
-  Examples:
-      >>> compute_manhattan_3d((0.0, 0.0, 0.0), (1.0, 1.0, 1.0))
-      3
-      >>> compute_manhattan_3d((1.0, 2.0, 3.0), (4.0, 6.0, 8.0))
-      12
-  """
-  xd: float = abs(coord1[0] - coord2[0])
-  yd: float = abs(coord1[1] - coord2[1])
-  zd: float = abs(coord1[2] - coord2[2])
-  return _nint(xd + yd + zd)
-
-
-# =============================================================================
-# 2.3 Maximum Distances (L∞-metric, Chebyshev distance)
-# =============================================================================
-
-
-def compute_maximum_2d(coord1: tuple[float, float], coord2: tuple[float, float]) -> int:
-  """
-  Compute 2D maximum distance (L∞-metric, Chebyshev distance).
-
-  Formula: d_ij = max(nint(|x_i - x_j|), nint(|y_i - y_j|))
-
-  Useful for chess king moves, pixel distance in images.
-
-  Args:
-      coord1: First point (x1, y1)
-      coord2: Second point (x2, y2)
-
-  Returns:
-      Maximum distance rounded component-wise
-
-  Examples:
-      >>> compute_maximum_2d((0.0, 0.0), (3.0, 4.0))
-      4
-      >>> compute_maximum_2d((1.5, 2.5), (4.5, 6.5))
-      4
-  """
-  xd: float = abs(coord1[0] - coord2[0])
-  yd: float = abs(coord1[1] - coord2[1])
-  return max(_nint(xd), _nint(yd))
-
-
-def compute_maximum_3d(coord1: tuple[float, float, float], coord2: tuple[float, float, float]) -> int:
-  """
-  Compute 3D maximum distance (L∞-metric).
-
-  Formula: d_ij = max(nint(|x_i - x_j|), nint(|y_i - y_j|), nint(|z_i - z_j|))
-
-  Args:
-      coord1: First point (x1, y1, z1)
-      coord2: Second point (x2, y2, z2)
-
-  Returns:
-      Maximum distance rounded component-wise
-
-  Examples:
-      >>> compute_maximum_3d((0.0, 0.0, 0.0), (1.0, 2.0, 3.0))
-      3
-      >>> compute_maximum_3d((1.0, 2.0, 3.0), (4.0, 6.0, 8.0))
-      5
-  """
-  xd: float = abs(coord1[0] - coord2[0])
-  yd: float = abs(coord1[1] - coord2[1])
-  zd: float = abs(coord1[2] - coord2[2])
-  return max(_nint(xd), _nint(yd), _nint(zd))
-
-
-# =============================================================================
-# 2.4 Geographical Distance (spherical Earth)
-# =============================================================================
+#: Earth radius in km used by the TSPLIB95 geographical distance.
+EARTH_RADIUS_KM = 6378.388
 
 
 def _to_radians_geo(coord_val: float) -> float:
+  """Convert a TSPLIB95 DDD.MM coordinate to radians.
+
+  The spec truncates the degree part (``deg = (int) x[i]``) and treats the
+  fractional part as minutes, so ``52.31`` is 52 deg 18.6 min. Rounding the
+  degree instead (as a naive ``nint`` would) shifts every GEO distance whose
+  minutes are ``>= 30`` -- burma14 d(1,3) reads 560 instead of the canonical
+  510 -- so this conversion deliberately stays with truncation.
   """
-  Convert geographical coordinate from DDD.MM format to radians.
+  deg: int = int(coord_val)
+  minutes: float = coord_val - deg
+  return PI * (deg + 5.0 * minutes / 3.0) / 180.0
 
-  TSPLIB95 geographical coordinates are in degrees and decimal minutes:
-  - DDD: degrees (integer part)
-  - MM: minutes (fractional part, 0-59)
 
-  Formula: radians = PI * (degrees + 5 * minutes / 3) / 180
+def compute_geographical(coord1: Sequence[float], coord2: Sequence[float]) -> int:
+  """Compute the TSPLIB95 geographical distance (spherical law of cosines).
 
-  Args:
-      coord_val: Coordinate in DDD.MM format (e.g., 38.24 = 38°24')
-
-  Returns:
-      Coordinate in radians
-
-  Example:
-      >>> _to_radians_geo(38.24)  # 38°24' (Berlin latitude)
-      0.6697...
+  GEO keeps its own implementation here rather than re-exporting
+  ``converter.utils.cost.geographical``: that function rounds the degree part
+  instead of truncating it (``routing_data`` register defect), which changes
+  canonical lengths such as burma14 d(1,3) from 510 to 560.
   """
-  PI = 3.141592  # TSPLIB95 uses this approximation
-  deg = int(coord_val)
-  _min: float = coord_val - deg
-  return PI * (deg + 5.0 * _min / 3.0) / 180.0
-
-
-def compute_geographical(coord1: tuple[float, float], coord2: tuple[float, float]) -> int:
-  """
-  Compute geographical distance on spherical Earth.
-
-  Calculates great-circle distance using spherical law of cosines.
-  Coordinates must be in DDD.MM format (degrees and decimal minutes).
-
-  Formula:
-      lat1, lon1 = to_radians(coord1)
-      lat2, lon2 = to_radians(coord2)
-      q1 = cos(lon1 - lon2)
-      q2 = cos(lat1 - lat2)
-      q3 = cos(lat1 + lat2)
-      d = R * arccos(0.5 * ((1 + q1) * q2 - (1 - q1) * q3))
-      return int(d + 1.0)
-
-  where R = 6378.388 km (Earth radius in TSPLIB95).
-
-  Used by: ulysses16, ulysses22, gr17, gr21, gr24, gr48, gr96, gr120, gr137,
-           gr202, gr229, gr431, gr666 (European cities)
-
-  Args:
-      coord1: First point (latitude, longitude) in DDD.MM format
-      coord2: Second point (latitude, longitude) in DDD.MM format
-
-  Returns:
-      Great-circle distance in kilometers (rounded to integer + 1)
-
-  Example:
-      >>> # Berlin (52.31N, 13.23E) to Munich (48.08N, 11.34E)
-      >>> compute_geographical((52.31, 13.23), (48.08, 11.34))
-      504
-
-  Note:
-      TSPLIB95 adds 1.0 before truncation: int(d + 1.0)
-      This ensures distances are always >= 1.
-  """
-  RRR = 6378.388  # Earth radius in km (TSPLIB95 standard)
-
   lat1: float = _to_radians_geo(coord1[0])
   lon1: float = _to_radians_geo(coord1[1])
   lat2: float = _to_radians_geo(coord2[0])
@@ -304,172 +95,92 @@ def compute_geographical(coord1: tuple[float, float], coord2: tuple[float, float
   q1: float = math.cos(lon1 - lon2)
   q2: float = math.cos(lat1 - lat2)
   q3: float = math.cos(lat1 + lat2)
-
-  # Spherical law of cosines
-  # Clamp to [-1, 1] to avoid floating-point errors in acos
   acos_arg: float = 0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)
   acos_arg = max(-1.0, min(1.0, acos_arg))
-
-  dij: float = RRR * math.acos(acos_arg)
-  return int(dij + 1.0)  # TSPLIB95: (int)(dij + 1.0)
+  return int(EARTH_RADIUS_KM * math.acos(acos_arg) + 1.0)
 
 
-# =============================================================================
-# 2.5 Pseudo-Euclidean Distance (ATT)
-# =============================================================================
+class PairwiseDistanceFn(Protocol):
+  """Callable computing an integer TSPLIB95 distance from two coordinates.
 
-
-def compute_att(coord1: tuple[float, float], coord2: tuple[float, float]) -> int:
+  The parameters are positional-only so the ``routing_data`` scalar functions
+  (``euclidean_2d(a, b)``, ``att(a, b)``, ...) satisfy the protocol without
+  renaming their arguments (``DP10-13``).
   """
-  Compute pseudo-Euclidean distance (ATT).
 
-  Special distance function for att48 and att532 instances.
-  Uses modified Euclidean calculation with conditional rounding.
+  def __call__(self, coord1: Sequence[float], coord2: Sequence[float], /) -> int:
+    """Return the TSPLIB95 integer distance between ``coord1`` and ``coord2``."""
+    ...
 
-  Formula:
-      xd = x1 - x2
-      yd = y1 - y2
-      r_ij = sqrt((xd^2 + yd^2) / 10.0)
-      t_ij = nint(r_ij)
-      d_ij = t_ij + 1 if t_ij < r_ij else t_ij
 
-  Used by: att48, att532
+_DISTANCE_FUNCTION_MAP: dict[str, PairwiseDistanceFn] = {
+  "EUC_2D": compute_euclidean_2d,
+  "EUC_3D": compute_euclidean_3d,
+  "MAN_2D": compute_manhattan_2d,
+  "MAN_3D": compute_manhattan_3d,
+  "MAX_2D": compute_maximum_2d,
+  "MAX_3D": compute_maximum_3d,
+  "GEO": compute_geographical,
+  "ATT": compute_att,
+  "CEIL_2D": compute_ceiling_2d,
+  "XRAY1": compute_xray1,
+  # XRAY2 would be similar to XRAY1 with different normalization
+  # Not implemented as no TSPLIB instances use it
+}
+
+
+#: Coordinate-based ``EDGE_WEIGHT_TYPE`` -> integer code understood by
+#: ``gpu_pairwise_distance`` in ``src/distances/kernels/pairwise_device.cuh``.
+#: The codes must match ``enum GpuEdgeTypeCode`` in that header; the parity is
+#: asserted by ``tests/distances/test_unit_gpu_pairwise_device.py``.
+EDGE_TYPE_TO_CODE: dict[str, int] = {
+  "EUC_2D": 0,
+  "EUC_3D": 1,
+  "MAN_2D": 2,
+  "MAN_3D": 3,
+  "MAX_2D": 4,
+  "MAX_3D": 5,
+  "CEIL_2D": 6,
+  "ATT": 7,
+  "GEO": 8,
+}
+
+
+def get_edge_type_code(edge_weight_type: str) -> int:
+  """Return the device dispatcher code for a coordinate-based edge weight type.
 
   Args:
-      coord1: First point (x1, y1)
-      coord2: Second point (x2, y2)
+      edge_weight_type: TSPLIB95 edge weight type string (case-insensitive).
 
   Returns:
-      Pseudo-Euclidean distance (integer)
+      The ``int`` code shared with ``pairwise_device.cuh``.
 
-  Example:
-      >>> compute_att((6734.0, 1453.0), (2233.0, 10))  # att48 cities
-      6495
-
-  Note:
-      The /10.0 divisor and conditional +1 are specific to ATT instances.
-      This ensures correct matching with canonical tour lengths:
-      - att48: optimal = 10628
-      - att532: optimal = 27686
+  Raises:
+      ValueError: If the type has no on-the-fly formula (``EXPLICIT``,
+          ``SPECIAL``, ``XRAY1``).
   """
-  xd: float = coord1[0] - coord2[0]
-  yd: float = coord1[1] - coord2[1]
-
-  rij: float = math.sqrt((xd * xd + yd * yd) / 10.0)
-  tij: int = _nint(rij)
-
-  if tij < rij:
-    dij: int = tij + 1
-  else:
-    dij = tij
-  return dij
+  code: int | None = EDGE_TYPE_TO_CODE.get(edge_weight_type.upper())
+  if code is None:
+    raise ValueError(
+      f"EDGE_WEIGHT_TYPE '{edge_weight_type}' has no device distance code. "
+      f"Supported types: {', '.join(EDGE_TYPE_TO_CODE)}"
+    )
+  return code
 
 
-# =============================================================================
-# 2.6 Ceiling of Euclidean Distance
-# =============================================================================
-
-
-def compute_ceiling_2d(coord1: tuple[float, float], coord2: tuple[float, float]) -> int:
-  """
-  Compute ceiling of 2D Euclidean distance.
-
-  Formula: d_ij = ceil(sqrt((x_i - x_j)^2 + (y_i - y_j)^2))
-
-  Rounds Euclidean distance UP to next integer (conservative estimate).
-  Useful when overestimating distance is safer than underestimating.
-
-  Args:
-      coord1: First point (x1, y1)
-      coord2: Second point (x2, y2)
-
-  Returns:
-      Euclidean distance rounded up to next integer
-
-  Examples:
-      >>> compute_ceiling_2d((0.0, 0.0), (3.0, 4.0))
-      5
-      >>> compute_ceiling_2d((0.0, 0.0), (3.1, 4.0))
-      6
-      >>> compute_ceiling_2d((1.5, 2.5), (4.4, 6.4))
-      5
-  """
-  xd: float = coord1[0] - coord2[0]
-  yd: float = coord1[1] - coord2[1]
-  return math.ceil(math.sqrt(xd * xd + yd * yd))
-
-
-# =============================================================================
-# 2.7 Crystallography Distances (XRAY1, XRAY2)
-# =============================================================================
-
-
-def compute_xray1(coord1: tuple[float, float, float], coord2: tuple[float, float, float]) -> int:
-  """
-  Compute XRAY1 crystallography distance.
-
-  Distance function for X-ray crystallography diffraction experiments.
-  Coordinates represent crystallographic angles: (PHI, CHI, TWOTH).
-
-  Formula:
-      PHI1, CHI1, TWOTH1 = coord1
-      PHI2, CHI2, TWOTH2 = coord2
-      dist_phi = min(|PHI1 - PHI2|, ||PHI1 - PHI2| - 360|)
-      dist_chi = |CHI1 - CHI2|
-      dist_twoth = |TWOTH1 - TWOTH2|
-      cost = max(dist_phi / 1.0, dist_chi / 1.0, dist_twoth / 1.0)
-      d_ij = nint(100.0 * cost)
-
-  Used by: XRAY crystallography instances
-
-  Args:
-      coord1: First point (PHI1, CHI1, TWOTH1) angles
-      coord2: Second point (PHI2, CHI2, TWOTH2) angles
-
-  Returns:
-      Crystallographic distance (integer, scaled by 100)
-
-  Note:
-      PHI wraps around at 360° (handled by min with 360 - delta).
-      Distance is scaled by 100 to maintain integer precision.
-
-  Reference:
-      TSPLIB95 spec points to deq.f FORTRAN implementation.
-      This is a simplified Python translation.
-  """
-  phi1, chi1, twoth1 = coord1
-  phi2, chi2, twoth2 = coord2
-
-  # PHI is circular (0-360°), find minimum angular distance
-  distp: float = min(abs(phi1 - phi2), abs(abs(phi1 - phi2) - 360.0))
-  distc: float = abs(chi1 - chi2)
-  distt = abs(twoth1 - twoth2)
-
-  # Maximum of normalized distances
-  cost: float = max(distp / 1.00, distc / 1.0, distt / 1.00)
-
-  # Scale by 100 and round to integer
-  return _nint(100.0 * cost)
-
-
-# =============================================================================
-# Distance Function Factory
-# =============================================================================
-
-
-def get_distance_function(edge_weight_type: str) -> Callable[[Any, Any], int]:
+def get_distance_function(edge_weight_type: str) -> PairwiseDistanceFn:
   """
   Get distance computation function for given EDGE_WEIGHT_TYPE.
 
   Returns the appropriate pairwise distance function based on TSPLIB95
-  edge weight type string. Handles all 13 supported types.
+  edge weight type string. Handles all 10 supported types.
 
   Args:
       edge_weight_type: TSPLIB95 edge weight type string
           (case-insensitive)
 
   Returns:
-      Distance computation function taking two coordinate tuples
+      Distance computation function taking two coordinate sequences
 
   Raises:
       ValueError: If edge_weight_type is unknown or requires special handling
@@ -486,48 +197,8 @@ def get_distance_function(edge_weight_type: str) -> Callable[[Any, Any], int]:
       - ATT: Pseudo-Euclidean (att48, att532)
       - CEIL_2D: Ceiling of Euclidean
       - XRAY1: Crystallography distance
-
-  Not Computed (Special Cases):
-      - EXPLICIT: Uses pre-computed matrix (no function needed)
-      - SPECIAL: Problem-specific (requires external documentation)
-      - XRAY2: Similar to XRAY1 but different normalization
-
-  Examples:
-      >>> func = get_distance_function("EUC_2D")
-      >>> func((0.0, 0.0), (3.0, 4.0))
-      5
-
-      >>> func = get_distance_function("geo")  # Case-insensitive
-      >>> func((52.31, 13.23), (48.08, 11.34))
-      504
-
-      >>> get_distance_function("EXPLICIT")
-      ValueError: Distance type 'EXPLICIT' is handled via explicit data...
-
-  Usage Pattern:
-      # In problem loader
-      dist_func = get_distance_function(edge_type)
-      dist_matrix = np.zeros((n, n))
-      for i in range(n):
-          for j in range(n):
-              dist_matrix[i, j] = dist_func(coords[i], coords[j])
   """
-  _DISTANCE_FUNCTION_MAP: dict[str, Callable[[Any, Any], int]] = {
-    "EUC_2D": compute_euclidean_2d,
-    "EUC_3D": compute_euclidean_3d,
-    "MAN_2D": compute_manhattan_2d,
-    "MAN_3D": compute_manhattan_3d,
-    "MAX_2D": compute_maximum_2d,
-    "MAX_3D": compute_maximum_3d,
-    "GEO": compute_geographical,
-    "ATT": compute_att,
-    "CEIL_2D": compute_ceiling_2d,
-    "XRAY1": compute_xray1,
-    # XRAY2 would be similar to XRAY1 with different normalization
-    # Not implemented as no TSPLIB instances use it
-  }
-
-  func: Callable[[Any, Any], int] | None = _DISTANCE_FUNCTION_MAP.get(edge_weight_type.upper())
+  func: PairwiseDistanceFn | None = _DISTANCE_FUNCTION_MAP.get(edge_weight_type.upper())
   if func:
     return func
   elif edge_weight_type.upper() in ["EXPLICIT", "SPECIAL"]:
@@ -540,3 +211,25 @@ def get_distance_function(edge_weight_type: str) -> Callable[[Any, Any], int]:
       f"Unknown or unsupported EDGE_WEIGHT_TYPE: '{edge_weight_type}'. "
       f"Supported types: {', '.join(_DISTANCE_FUNCTION_MAP.keys())}, EXPLICIT, SPECIAL"
     )
+
+
+__all__ = [
+  "EARTH_RADIUS_KM",
+  "EDGE_TYPE_TO_CODE",
+  "PI",
+  "PairwiseDistanceFn",
+  "_nint",
+  "_to_radians_geo",
+  "compute_att",
+  "compute_ceiling_2d",
+  "compute_euclidean_2d",
+  "compute_euclidean_3d",
+  "compute_geographical",
+  "compute_manhattan_2d",
+  "compute_manhattan_3d",
+  "compute_maximum_2d",
+  "compute_maximum_3d",
+  "compute_xray1",
+  "get_distance_function",
+  "get_edge_type_code",
+]

@@ -51,11 +51,18 @@ References:
     - Phase 5 Cleanup: Removed eager @property accessors (distances, demands, coordinates)
 """
 
+from typing import TYPE_CHECKING, Any, cast
+
 import numpy as np
 
+from data_models.exceptions import VRAMInsufficientError
 from data_models.problem import Problem
-from distances.matrix import compute_distance_matrix
+from distances.matrix import compute_candidate_list, compute_distance_matrix
 from protocols.backend import BackendModule, CupyArray, require_gpu
+from utils.rng import make_rng
+
+if TYPE_CHECKING:
+  from numpy.random import Generator
 
 
 class ProblemContext:
@@ -105,6 +112,7 @@ class ProblemContext:
     problem: Problem,
     xp: BackendModule,
     seed: int | list[int] | None = None,
+    max_matrix_dimension: int = 10_000,
   ) -> None:
     """
     Initialize ProblemContext with lazy computation strategy.
@@ -121,6 +129,9 @@ class ProblemContext:
               If None, OS entropy is used. For parallel execution,
               use sequence of integers: [worker_id, root_seed].
               See NumPy docs on "Parallel random number generation".
+        max_matrix_dimension: Largest `n` for which GPU strategies allocate the
+              dense `(n, n)` matrix. Above it, coordinate-based problems switch to
+              on-the-fly distances (`DP10-19`). Configurable for testing.
 
     Raises:
         GPUUnavailableError: If xp is CuPy but CuPy is not installed or CUDA device is unavailable.
@@ -158,15 +169,12 @@ class ProblemContext:
     self.problem = problem
     self.dimension = problem.dimension
     self.capacity = problem.capacity
+    self.max_matrix_dimension: int = max_matrix_dimension
 
-    # Create independent RNG instance (NumPy "Sequence of integer seeds" pattern)
-    # RandomState works with both NumPy and CuPy for cross-backend compatibility
-    if seed is not None:
-      # Accepts both int and sequence of ints (e.g., [worker_id, root_seed])
-      self.rng = xp.random.RandomState(seed)
-    else:
-      # Use OS entropy (non-deterministic)
-      self.rng = xp.random.RandomState()
+    # Create an independent `np.random.Generator` (NumPy "Sequence of integer seeds" pattern).
+    # Strategies and `resolve_rng` operate on `Generator`, so the context must expose the
+    # same type or the seeded stream is silently ignored.
+    self.rng: Generator = make_rng(seed)
 
     # Store seed for debugging/reproducibility
     self.seed = seed
@@ -178,6 +186,9 @@ class ProblemContext:
     self._gpu_demands: CupyArray | None = None
     self._cpu_coordinates: np.ndarray | None = None
     self._gpu_coordinates: CupyArray | None = None
+    # `k`-NN candidate lists `N_k`, cached per requested `k` (`DP10-20`).
+    self._cpu_candidate_lists: dict[int, np.ndarray] = {}
+    self._gpu_candidate_lists: dict[int, CupyArray] = {}
 
     # Validate problem has data to compute from
     if problem.distances is None and problem.coordinates is None:
@@ -311,17 +322,28 @@ class ProblemContext:
       raise ValueError("get_gpu_distances() requires xp to be CuPy, not NumPy")
 
     if self._gpu_distances is None:
-      # Priority: CPU cache > problem.distances > compute from coordinates
+      # Fail before the allocation, not inside CUDA: a `(n, n)` `int32` matrix is
+      # `4n^2` bytes and the driver aborts the process when it does not fit.
+      self._raise_if_insufficient(
+        4 * self.dimension * self.dimension,
+        self._query_free_vram_bytes(),
+        f"dense distance matrix (n={self.dimension})",
+      )
+      # Priority: CPU cache > problem.distances > compute from coordinates.
+      # Every path lands on ``int32`` so GPU kernels can bind the matrix without
+      # an implicit dtype conversion (``BUG-14`` / ``DP10-17``).
       if self._cpu_distances is not None:
         # Transfer from CPU cache (most efficient if CPU was used first)
-        self._gpu_distances = self.xp.asarray(self._cpu_distances)
+        self._gpu_distances = self.xp.asarray(self._cpu_distances, dtype=self.xp.int32)
       elif self.problem.distances is not None:
         # Transfer EXPLICIT matrix to GPU
-        self._gpu_distances = self.xp.asarray(self.problem.distances)
+        self._gpu_distances = self.xp.asarray(self.problem.distances, dtype=self.xp.int32)
       elif self.problem.coordinates is not None:
         # Compute from coordinates on GPU
         coords_gpu = self.xp.asarray(self.problem.coordinates)
-        self._gpu_distances = compute_distance_matrix(coords_gpu, self.problem.edge_type, self.xp)
+        self._gpu_distances = self.xp.asarray(
+          compute_distance_matrix(coords_gpu, self.problem.edge_type, self.xp), dtype=self.xp.int32
+        )
       else:
         raise ValueError(
           f"Problem '{self.problem.name}' has no distances or coordinates to compute distance matrix from."
@@ -349,6 +371,170 @@ class ProblemContext:
         # Transfer from problem data
         self._gpu_coordinates = self.xp.asarray(self.problem.coordinates)
     return self._gpu_coordinates
+
+  def get_cpu_candidate_list(self, k: int = 20) -> np.ndarray:
+    """Get the `k`-NN candidate list `N_k` on CPU (lazy computation with caching).
+
+    `N_k` has shape `(n, min(k, n - 1))` and dtype `int32`; row `u` holds the
+    `k_eff` nearest nodes to `u` sorted by ascending distance, self excluded
+    (`DP10-20`). Rows are built in blocks, so a coordinate-only problem never
+    allocates the full `(n, n)` matrix.
+
+    Args:
+        k: Requested neighbours per node; clamped to `min(k, n - 1)`.
+
+    Returns:
+        Candidate list as a NumPy array on CPU.
+
+    Raises:
+        ValueError: If the problem carries neither distances nor coordinates.
+    """
+    cached = self._cpu_candidate_lists.get(k)
+    if cached is None:
+      if self.problem.distances is not None:
+        cached = compute_candidate_list(
+          self.problem.coordinates,
+          self.problem.edge_type,
+          k,
+          np,
+          distances=self.problem.distances,
+        )
+      elif self.problem.coordinates is not None:
+        cached = compute_candidate_list(self.problem.coordinates, self.problem.edge_type, k, np)
+      else:
+        raise ValueError(
+          f"Problem '{self.problem.name}' has no distances or coordinates to compute a candidate list from."
+        )
+      self._cpu_candidate_lists[k] = cached
+    return cached
+
+  def get_gpu_candidate_list(self, k: int = 20) -> CupyArray:
+    """Get the `k`-NN candidate list `N_k` on GPU (lazy computation with caching).
+
+    The table is built on CPU (blocked, `O(chunk_size * n)` peak) and transferred
+    once as `int32`; `N_k` itself is only `4 * n * k` bytes (`DP10-20`).
+
+    Args:
+        k: Requested neighbours per node; clamped to `min(k, n - 1)`.
+
+    Returns:
+        Candidate list as a CuPy array on GPU, shape `(n, min(k, n - 1))`.
+
+    Raises:
+        ValueError: If xp is NumPy (not CuPy).
+    """
+    if self.xp == np:
+      raise ValueError("get_gpu_candidate_list() requires xp to be CuPy, not NumPy")
+
+    cached = self._gpu_candidate_lists.get(k)
+    if cached is None:
+      cached = self.xp.asarray(self.get_cpu_candidate_list(k), dtype=self.xp.int32)
+      self._gpu_candidate_lists[k] = cached
+    return cached
+
+  def uses_on_the_fly_distances(self, n: int, max_matrix_dimension: int | None = None) -> bool:
+    """Return True when GPU kernels should compute distances from coordinates.
+
+    The dense `(n, n)` matrix costs `4n^2` bytes in VRAM; above
+    `max_matrix_dimension` a coordinate-based problem is served on the fly by
+    `gpu_pairwise_distance` instead (`DP10-19`).
+
+    Args:
+        n: Number of cities in the current batch (matrix row width).
+        max_matrix_dimension: Threshold override; falls back to the context value.
+
+    Returns:
+        True when `n` exceeds the threshold and the problem carries coordinates
+        with a coordinate-based `EDGE_WEIGHT_TYPE`.
+    """
+    threshold = self.max_matrix_dimension if max_matrix_dimension is None else max_matrix_dimension
+    return (
+      n > threshold
+      and self.problem.edge_type != "EXPLICIT"
+      and self.problem.coordinates is not None
+    )
+
+  def _coordinate_bytes(self) -> int:
+    """Return VRAM bytes for the coordinate buffer (`8 * d * n`, `float64`)."""
+    n = self.dimension
+    coordinates = self.problem.coordinates
+    components = coordinates.shape[1] if coordinates is not None and coordinates.ndim == 2 else 1
+    return 8 * components * n
+
+  def _query_free_vram_bytes(self) -> int | None:
+    """Return free device VRAM in bytes, or `None` on the NumPy backend.
+
+    CuPy ships no type information, so `BackendModule` cannot declare `cuda`;
+    this is the project's documented third-party `Any` boundary
+    (`protocols/backend.py`).
+    """
+    if self.xp == np:
+      return None
+    cuda: Any = cast("Any", self.xp).cuda
+    free_bytes, _total_bytes = cuda.Device().mem_info
+    return int(free_bytes)
+
+  def _raise_if_insufficient(self, required_bytes: int, available_bytes: int | None, operation: str) -> None:
+    """Raise `VRAMInsufficientError` when `required_bytes` exceeds the available VRAM."""
+    if available_bytes is not None and required_bytes > available_bytes:
+      raise VRAMInsufficientError(
+        f"Insufficient VRAM for {operation}",
+        required_bytes=required_bytes,
+        available_bytes=available_bytes,
+      )
+
+  def estimate_vram_bytes(self, pop_size: int) -> int:
+    """Estimate the VRAM bytes needed to evaluate a population of `pop_size` tours.
+
+    Dense-matrix mode (`DP10-19`) accounts for the `int32` distance matrix
+    (`4n^2`), three `int32` population/offspring buffers (`12Pn`), three
+    `int64`/`float64` per-individual fitness buffers (`24P`) and the coordinate
+    or auxiliary buffers (`8dn`, `d=1` without a 2-D coordinate array).
+    On-the-fly mode drops the matrix term, keeping memory `O(n)`.
+
+    Args:
+        pop_size: Number of candidate tours held at once.
+
+    Returns:
+        Required VRAM in bytes.
+
+    Raises:
+        ValueError: If `pop_size` is negative.
+    """
+    if pop_size < 0:
+      raise ValueError(f"pop_size must be non-negative, got {pop_size}")
+    n = self.dimension
+    population_bytes = 12 * pop_size * n
+    fitness_bytes = 24 * pop_size
+    auxiliary_bytes = self._coordinate_bytes()
+    if self.uses_on_the_fly_distances(n):
+      return population_bytes + fitness_bytes + auxiliary_bytes
+    return 4 * n * n + population_bytes + fitness_bytes + auxiliary_bytes
+
+  def check_vram_capacity(self, pop_size: int, available_bytes: int | None = None) -> int:
+    """Validate that `pop_size` tours fit in the available VRAM.
+
+    Args:
+        pop_size: Number of candidate tours held at once.
+        available_bytes: Free VRAM override (tests and dry runs). When `None`
+            and the backend is CuPy, free VRAM is read from
+            `xp.cuda.Device().mem_info`; on the NumPy backend there is no VRAM
+            budget, so the check reduces to returning the estimate.
+
+    Returns:
+        The required VRAM in bytes from `estimate_vram_bytes(pop_size)`.
+
+    Raises:
+        VRAMInsufficientError: If the estimate exceeds the available VRAM.
+    """
+    required_bytes = self.estimate_vram_bytes(pop_size)
+    free_bytes = available_bytes if available_bytes is not None else self._query_free_vram_bytes()
+    self._raise_if_insufficient(
+      required_bytes,
+      free_bytes,
+      f"population evaluation (pop_size={pop_size}, n={self.dimension})",
+    )
+    return required_bytes
 
   def __repr__(self) -> str:
     """String representation showing problem and backend."""

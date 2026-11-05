@@ -17,7 +17,7 @@ modifications:
           plan file lines 397–622; re-verified the 2026-10-31 gate.
 related_files:
   - "[plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md)"
-  - "[test-suite-walkthrough.md](./test-suite-walkthrough.md)"
+  - "[analysis-test-suite-walkthrough.md](./analysis-test-suite-walkthrough.md)"
   - "[pyproject.toml](../../pyproject.toml)"
   - "[src/utils/rng.py](../../src/utils/rng.py)"
   - "[src/loaders/problem_type_handlers.py](../../src/loaders/problem_type_handlers.py)"

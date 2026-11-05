@@ -14,6 +14,7 @@ from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
 from utils.rng import make_rng, resolve_rng
 from utils.route_helpers import (
+  _mutation_bounds,
   ensure_routes_batch,
   is_gpu_array,
   restore_routes_shape,
@@ -35,20 +36,6 @@ if TYPE_CHECKING:
   from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-def _mutation_bounds(route: np.ndarray) -> tuple[int, int]:
-  """
-  Determine valid mutable index slice `[low, high)` for a 1D route.
-
-  If the route is depot-bounded (`route[0] == route[-1]` and `len > 3`),
-  preserves the depot at index `0` and `len - 1`. Otherwise, allows all
-  indices `[0, len(route))`.
-  """
-  n: int = len(route)
-  if n > 3 and int(route[0]) == int(route[-1]):
-    return 1, n - 1
-  return 0, n
-
-
 class SwapMutation:
   """
   Swap Mutation strategy for single routes and 2D route batches.
@@ -56,10 +43,18 @@ class SwapMutation:
   Swaps two randomly chosen positions in a route with probability `mutation_rate`.
   """
 
-  def __init__(self, seed: SeedLike = None) -> None:
-    """Initialize SwapMutation with optional RNG seed."""
+  def __init__(self, seed: SeedLike = None, candidate_k: int | None = None) -> None:
+    """Initialize SwapMutation with optional RNG seed.
+
+    Args:
+        seed: Optional random seed override.
+        candidate_k: When set, the second swap position is taken from the tour
+            position of a random candidate neighbour of the first city instead of a
+            uniform draw (`DP10-20`). `None` keeps the uniform behaviour.
+    """
     self.seed: SeedLike = seed
     self.rng: Generator = make_rng(seed)
+    self.candidate_k: int | None = candidate_k
     self.h2d_bytes: int = 0
     self.d2h_bytes: int = 0
     self.kernel_launches: int = 0
@@ -70,6 +65,39 @@ class SwapMutation:
     self.d2h_bytes = 0
     self.kernel_launches = 0
 
+  def _proximity_index(
+    self,
+    route: np.ndarray,
+    low: int,
+    high: int,
+    idx1: int,
+    rng: Generator,
+    context: ProblemContext | None,
+  ) -> int | None:
+    """Return the tour position of a random candidate neighbour of `route[idx1]`.
+
+    Candidates are visited in a random order so repeated calls explore different
+    neighbours; positions outside the mutable interior (depot endpoints) and the first
+    index itself are skipped. Returns `None` when no candidate is usable, letting the
+    caller fall back to a uniform interior draw (`DP10-20`).
+    """
+    if self.candidate_k is None or self.candidate_k <= 0 or context is None:
+      return None
+    if route.size == 0 or int(route.max()) >= route.size:
+      return None
+    candidates = context.get_cpu_candidate_list(self.candidate_k)
+    node = int(route[idx1])
+    if node >= candidates.shape[0]:
+      return None
+
+    positions = np.empty(route.size, dtype=np.int32)
+    positions[route] = np.arange(route.size, dtype=np.int32)
+    for r in rng.permutation(int(candidates.shape[1])):
+      idx2 = int(positions[candidates[node, int(r)]])
+      if idx2 != idx1 and low <= idx2 < high:
+        return idx2
+    return None
+
   def mutate(
     self,
     individual: Route,
@@ -78,14 +106,21 @@ class SwapMutation:
   ) -> Route:
     """Mutate a single 1D route `(n_cities,)` with probability `mutation_rate`."""
     mutated = np.asarray(individual, dtype=np.int32).copy()
-    low, high = _mutation_bounds(mutated)
+    low, high = _mutation_bounds(len(mutated))
     if high - low < 2:
       return mutated
 
     rng: Generator = resolve_rng(context, self.rng)
 
     if float(rng.random()) < mutation_rate:
-      idx1, idx2 = rng.choice(np.arange(low, high), size=2, replace=False)
+      idx2: int | None = None
+      idx1: int = -1
+      if self.candidate_k is not None and self.candidate_k > 0 and context is not None:
+        idx1 = int(rng.integers(low, high))
+        idx2 = self._proximity_index(mutated, low, high, idx1, rng, context)
+      if idx2 is None:
+        first, second = rng.choice(np.arange(low, high), size=2, replace=False)
+        idx1, idx2 = int(first), int(second)
       mutated[idx1], mutated[idx2] = mutated[idx2], mutated[idx1]
 
     return mutated

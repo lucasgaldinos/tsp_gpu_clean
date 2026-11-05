@@ -83,9 +83,7 @@ class CheckpointManager:
     """
     return self.problem_stats_dir / f"{problem_name}_stats.json"
 
-  def is_valid_checkpoint(
-    self, problem_name: str, algorithm_name: str, expected_reps: int = 30
-  ) -> bool:
+  def is_valid_checkpoint(self, problem_name: str, algorithm_name: str, expected_reps: int = 30) -> bool:
     """
     Validate checkpoint file integrity and completeness.
 
@@ -100,9 +98,7 @@ class CheckpointManager:
     filepath = self.get_checkpoint_path(problem_name, algorithm_name)
     return is_valid_checkpoint(filepath, expected_reps)
 
-  def can_resume_checkpoint(
-    self, problem_name: str, algorithm_name: str, expected_reps: int = 30
-  ) -> bool:
+  def can_resume_checkpoint(self, problem_name: str, algorithm_name: str, expected_reps: int = 30) -> bool:
     """
     Check if checkpoint exists and can be extended with more repetitions.
 
@@ -117,9 +113,7 @@ class CheckpointManager:
     filepath = self.get_checkpoint_path(problem_name, algorithm_name)
     return can_resume_checkpoint(filepath, expected_reps)
 
-  def get_remaining_repetitions(
-    self, problem_name: str, algorithm_name: str, expected_reps: int = 30
-  ) -> int:
+  def get_remaining_repetitions(self, problem_name: str, algorithm_name: str, expected_reps: int = 30) -> int:
     """
     Get number of additional repetitions needed to reach target.
 
@@ -208,9 +202,7 @@ def save_checkpoint_atomic(filepath: Path, results: dict[str, Any]) -> None:
   """
   Save checkpoint using atomic write (temp file + rename).
   """
-  temp_fd, temp_path = tempfile.mkstemp(
-    dir=filepath.parent, prefix=f".tmp_{filepath.stem}_", suffix=".json"
-  )
+  temp_fd, temp_path = tempfile.mkstemp(dir=filepath.parent, prefix=f".tmp_{filepath.stem}_", suffix=".json")
 
   try:
     with os.fdopen(temp_fd, "w") as f:
@@ -264,9 +256,20 @@ def is_valid_checkpoint(filepath: Path, expected_reps: int = 30) -> bool:
       return False
 
     if data["successful_runs"] < expected_reps:
-      logging.debug(
-        f"Checkpoint {filepath.name} incomplete: {data['successful_runs']}/{expected_reps} successful runs"
-      )
+      logging.debug(f"Checkpoint {filepath.name} incomplete: {data['successful_runs']}/{expected_reps} successful runs")
+      return False
+
+    raw_times = data["raw_times"]
+    raw_costs = data["raw_costs"]
+    raw_gaps = data["raw_gaps"]
+    raw_seeds = data["raw_seeds"]
+
+    if not (len(raw_times) == len(raw_costs) == len(raw_gaps) == len(raw_seeds)):
+      logging.warning(f"Checkpoint {filepath.name} has inconsistent array lengths")
+      return False
+
+    if len(raw_times) != data["successful_runs"]:
+      logging.warning(f"Checkpoint {filepath.name} array length mismatch")
       return False
 
     return True

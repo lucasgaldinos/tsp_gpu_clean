@@ -463,7 +463,7 @@ Este capítulo “consome” diretamente o que `chapter4_validation.py` produz, 
 - [pandoc-full](../documentation/pdfs/pandoc-manual.pdf)
 - [pandoc-images](https://pandoc.org/MANUAL.html#images)
 - [website-manual-markdown](https://pandoc.org/MANUAL.html#pandocs-markdown) -> fonte da verdade para como escrever o arquivo em pandoc.
-- [checklist do que o documento deve conter](../documentation/critical_analysis/critical_analysis_checklist.md)
+- [checklist do que o documento deve conter](../documentation/critical_analysis/guide-academic-critical-appraisal.md#2-eight-dimension-critical-appraisal-checklist)
 - [mermaid in pandoc](https://github.com/raghur/mermaid-filter) -> add this package to uv.
 
 ---

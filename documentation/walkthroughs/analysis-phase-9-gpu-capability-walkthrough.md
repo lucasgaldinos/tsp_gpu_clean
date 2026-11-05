@@ -17,7 +17,7 @@ modifications:
           re-verified the 2026-10-31 gate and the archived-baseline smoke script.
 related_files:
   - "[plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md)"
-  - "[test-suite-walkthrough.md](./test-suite-walkthrough.md)"
+  - "[analysis-test-suite-walkthrough.md](./analysis-test-suite-walkthrough.md)"
   - "[analysis-phase-8-hermeticity-walkthrough.md](./analysis-phase-8-hermeticity-walkthrough.md)"
   - "[src/protocols/backend.py](../../src/protocols/backend.py)"
   - "[src/algorithms/archive/full_gpu_monolithic.py](../../src/algorithms/archive/full_gpu_monolithic.py)"
@@ -148,7 +148,7 @@ The user had asked for `/code-review-and-quality` **without subagents**, and the
 
 **Task 9.11 — typing cleanup.** `AlgorithmConfig.params`/`.strategies` use `dc_field(default_factory=dict)`; the two `type: ignore` comments and the `default_config_dir` docstring reference disappear.
 
-**Task 9.12 — documentation.** Section 10.8 is appended to [test-suite-walkthrough.md](./test-suite-walkthrough.md#L259), every Task 9.x `Solution` block is filled in, and the Handoff is rewritten.
+**Task 9.12 — documentation.** Section 10.8 is appended to [analysis-test-suite-walkthrough.md](./analysis-test-suite-walkthrough.md#L259), every Task 9.x `Solution` block is filled in, and the Handoff is rewritten.
 
 ## Verification
 
@@ -212,7 +212,7 @@ The smoke script reproduces the transcript-era numbers bit for bit, which is the
 7. **The `CUPY_CACHE_DIR` hold was honoured in the library only.** `src/protocols/backend.py` has no fallback, but [tests/conftest.py:15-16](../../tests/conftest.py#L15) and [benchmark_scripts/check_archive_baseline.py:10-11](../../benchmark_scripts/check_archive_baseline.py#L10) both set one. The Handoff records the hold as an open decision, so this is a deliberate split rather than drift — but it means the library still fails on a read-only home.
 8. **The archive is outside both static gates.** `mypy` excludes `^src/algorithms/archive/` ([pyproject.toml:69](../../pyproject.toml#L69)) and `ruff` excludes `src/algorithms/archive` ([pyproject.toml:89](../../pyproject.toml#L89)). "0 errors in 111 source files" therefore says nothing about the baseline; only `check_archive_baseline.py` covers it.
 9. **Task 9.5's scope grew without a record.** The guard in `full_gpu_monolithic.py` was added in Round 5 because the audit flagged it; the Task 9.5 `Solution` lists only `genetic_algorithm.py` and the boundary test.
-10. **Task 9.12's recorded path is stale.** At execution time the walkthrough lived at `documentation/analysis/test-suite-walkthrough.md` (step 1011 read that path); it now lives at `documentation/walkthroughs/test-suite-walkthrough.md` and `documentation/analysis/` holds no such file.
+10. **Task 9.12's recorded path is stale.** At execution time the walkthrough lived at `documentation/analysis/analysis-test-suite-walkthrough.md` (step 1011 read that path); it now lives at `documentation/walkthroughs/analysis-test-suite-walkthrough.md` and `documentation/analysis/` holds no such file.
 
 ## Open questions
 

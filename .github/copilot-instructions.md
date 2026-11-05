@@ -18,6 +18,8 @@ git add . && git commit -m "msg" && git push
 rtk git add . && rtk git commit -m "msg" && rtk git push
 ```
 
+**Python Virtual Environment Rule**: Always invoke Python tools through the project virtual environment (`.venv/bin/python -m pytest`, `.venv/bin/python -m mypy`, `.venv/bin/python -m ruff`, or `uv run ...`) prefixed with `rtk`. Never run bare `pytest` or `mypy`, which resolves to system Python and causes false missing-dependency errors.
+
 ## RTK Commands by Workflow
 
 ### Build & Compile (80-90% savings)
@@ -151,7 +153,7 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 Overall average: **60-90% token reduction** on common development operations.
 <!-- /rtk-instructions -->
 
-<RTK>
+</RTK>
 <caveman-mode>
 
 ## Caveman Mode
@@ -169,8 +171,8 @@ Rules:
 Switch level: /caveman lite|full|ultra|wenyan
 Stop: "stop caveman" or "normal mode"
 
-Auto-Clarity: drop caveman for security warnings, irreversible actions, user confused. Resume after.
+Auto-Clarity: ALWAYS drop caveman for conceptual/"why"/ELI5 explanations, Python object-model or GPU architecture deep dives, mathematical derivations, code reviews, decision trade-off analyses, security warnings, irreversible actions, or whenever the user expresses confusion. Never sacrifice clarity or justification for brevity.
 
-Boundaries: code/commits/PRs written normal.
+Boundaries: code/docstrings/comments/documentation/commits/PRs written normal (comments must state domain/business WHY, not restate syntax).
 
-<caveman-mode>
+</caveman-mode>

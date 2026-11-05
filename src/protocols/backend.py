@@ -1,6 +1,5 @@
 """Backend type protocol for NumPy/CuPy compatibility."""
 
-import functools
 import importlib.util
 from typing import Any, Protocol
 
@@ -107,6 +106,14 @@ class BackendModule(Protocol):
     """Return indices that would sort an array."""
     ...
 
+  def argpartition(self, *args: Any, **kwargs: Any) -> Array:
+    """Return indices that partially sort an array (``k``-th smallest in place)."""
+    ...
+
+  def lexsort(self, *args: Any, **kwargs: Any) -> Array:
+    """Return indices that sort by multiple keys (last key is primary)."""
+    ...
+
   # --- element-wise math ---------------------------------------------------
   def abs(self, *args: Any, **kwargs: Any) -> Array:
     """Absolute value."""
@@ -166,26 +173,52 @@ class BackendModule(Protocol):
     ...
 
 
-@functools.lru_cache(maxsize=1)
-def _probe_gpu() -> tuple[Any | None, GPUUnavailableError | None]:
-  """Probe CuPy package installation and CUDA hardware availability."""
-  if importlib.util.find_spec("cupy") is None:
-    return None, GPUUnavailableError(
-      "CuPy is not installed. Install cupy-cuda12x (or compatible package) to enable GPU acceleration."
-    )
-  try:
-    import cupy as cp
+class GPUCapabilityProbe:
+  """Typed callable that caches the CuPy/CUDA capability probe.
 
-    count = cp.cuda.runtime.getDeviceCount()
-    if count <= 0:
+  Replaces the previous ``functools.lru_cache`` function plus the three
+  ``cache_clear`` monkey-patches (which needed ``# type: ignore[attr-defined]``):
+  callers invoke the instance, and cache invalidation is an explicit method.
+  """
+
+  def __init__(self) -> None:
+    """Initialize an empty probe cache."""
+    self._cached: tuple[Any | None, GPUUnavailableError | None] | None = None
+
+  def __call__(self) -> tuple[Any | None, GPUUnavailableError | None]:
+    """Return the cached probe result, probing only on the first call."""
+    if self._cached is None:
+      self._cached = self._probe()
+    return self._cached
+
+  def cache_clear(self) -> None:
+    """Drop the cached probe result so the next call re-probes."""
+    self._cached = None
+
+  @staticmethod
+  def _probe() -> tuple[Any | None, GPUUnavailableError | None]:
+    """Probe CuPy package installation and CUDA hardware availability."""
+    if importlib.util.find_spec("cupy") is None:
       return None, GPUUnavailableError(
-        "CUDA device unavailable: no CUDA-capable device found or driver error."
+        "CuPy is not installed. Install cupy-cuda12x (or compatible package) to enable GPU acceleration."
       )
-    return cp, None
-  except Exception as exc:
-    return None, GPUUnavailableError(
-      f"CUDA device unavailable: no CUDA-capable device found or driver error ({exc})."
-    )
+    try:
+      import cupy as cp
+
+      count = cp.cuda.runtime.getDeviceCount()
+      if count <= 0:
+        return None, GPUUnavailableError(
+          "CUDA device unavailable: no CUDA-capable device found or driver error."
+        )
+      return cp, None
+    except Exception as exc:
+      return None, GPUUnavailableError(
+        f"CUDA device unavailable: no CUDA-capable device found or driver error ({exc})."
+      )
+
+
+#: Module-level probe instance; ``__call__`` returns its cached verdict.
+_probe_gpu = GPUCapabilityProbe()
 
 
 def require_gpu() -> Any:
@@ -222,15 +255,11 @@ def clear_gpu_cache() -> None:
   _probe_gpu.cache_clear()
 
 
-require_gpu.cache_clear = clear_gpu_cache  # type: ignore[attr-defined]
-gpu_available.cache_clear = clear_gpu_cache  # type: ignore[attr-defined]
-cupy_backend.cache_clear = clear_gpu_cache  # type: ignore[attr-defined]
-
-
 __all__ = [
   "Array",
   "BackendModule",
   "CupyArray",
+  "GPUCapabilityProbe",
   "clear_gpu_cache",
   "cupy_backend",
   "gpu_available",

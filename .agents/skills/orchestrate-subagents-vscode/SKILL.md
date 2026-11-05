@@ -21,7 +21,7 @@ A subagent is a one-shot, context-isolated worker: the main agent launches it th
 <prerequisites>
 
 - [ ] The orchestrator (RUG) has the `agent` tool in `tools` and an `agents` allowlist of `['reviewer', 'implementer']`.
-- [ ] The repo's canonical skills are present: `code-review-and-quality`, `task-managing`, `explore` (`.agents/skills/`), and the `solving-tasks` workflow (`.agents/workflows/`). The reviewer loads the first three; the implementer loads the last two.
+- [ ] The repo's canonical skills are present in `.agents/skills/`: `code-review-and-quality`, `task-managing`, `explore`, and `solving-tasks`. The reviewer loads the first three; the implementer loads `solving-tasks` + `task-managing`.
 - [ ] Worker names are exact and case-sensitive (`reviewer`, `implementer`).
 - [ ] Nesting is off by default — no worker spawns subagents; only RUG delegates.
 
@@ -111,7 +111,8 @@ Every batch's outcome is recorded; failures are captured with a reason.
 
 <recovery>
 
-An underspecified task is a planning gap — feed it back to the reviewer (step 1), not into more execution.
+- An underspecified task is a planning gap — feed it back to the reviewer (step 1), not into more execution.
+- If an `implementer` subagent times out or disconnects mid-batch, inspect disk state first (`rtk git status`, `rtk git diff`, targeted `pytest`) to identify what `src/`/`tests/` edits already landed, then dispatch a targeted continuation prompt for the remaining delta rather than redoing completed edits.
 
 </recovery>
 
@@ -175,7 +176,7 @@ Pause and confirm with the user when any of these hold:
 
 <rules>
 
-1. **Thin dispatcher.** RUG decomposes, batches, dispatches, tracks, and synthesizes. It never plans, reviews, or executes — those are the reviewer's and implementer's jobs. RUG may read files to orient but never writes code or edits files — including the plan/TODO. Task registration is the reviewer's job.
+1. **Thin dispatcher & zero read duplication.** RUG decomposes, batches, dispatches, tracks, and synthesizes. Once directories or files are assigned to a subagent, RUG must **never** read, list, or grep those delegated paths itself before or during delegation. RUG never writes code or edits files — including the plan/TODO. Task registration is the reviewer's job.
 2. **Reviewer owns review + plan + register.** One worker reviews, plans, and registers tasks (loads `code-review-and-quality` + `task-managing`). Its `edit` is scoped to the plan file; source stays read-only.
 3. **Implementer consumes, never plans.** The implementer executes batched tasks and updates state/artifacts (loads `solving-tasks` + `task-managing`). It does not write new tasks.
 4. **Stateless, one-shot.** A subagent gets one prompt and returns one report — no follow-ups, no mid-run iteration.
@@ -199,6 +200,7 @@ Pause and confirm with the user when any of these hold:
 - **Handoffs ≠ subagents.** Handoffs are human-in-the-loop UI transitions; subagents are automatic workers.
 - **A skill can fork into a subagent** (`context: fork`). Don't confuse forked skills with `runSubagent` workers.
 - **Worker frontmatter overrides inheritance.** A worker is read-only only if its frontmatter makes it so.
+- **Subagent output spilling (`chat-session-resources/*.txt`).** VS Code spills large `runSubagent` outputs (>6–12 KB) to temp files barred by `AGENTS.md` Rule 2. Enforce `< 4,500` characters on every worker report so it stays inline.
 - **Claude Code tool names differ** (camelCase in VS Code, `Write`/`Edit` in Claude). Keep harness-specific names out of shared scripts.
 
 </gotchas>
@@ -215,13 +217,13 @@ What this dispatch must accomplish — the specific tasks with their DoD (the im
 The exact files (and line ranges) to read. Review/operate only on these.
 
 <deltas>
-Only what differs from the worker's defaults: extra constraints (e.g. "do not edit <paths>"), scope changes, or duty changes. A duty change (e.g. "skip plan registration this pass") must be confirmed with the user before dispatch — never imposed silently.
+Run-specific constraints and active **negative constraints** (stateless workers do NOT inherit session history or post-compaction memory — always re-inject active prohibitions here: e.g., `C1`–`C3` no `datasets_raw` paths/corpus shapes, zero legacy aliases, owning repo plan file path, `rtk .venv/bin/python` runner, and whole-file sibling-class scope). Any duty change must be confirmed with the user before dispatch.
 ```
 
 Append this report-back discipline line to every prompt:
 
 ```text
-Return only the result. No narration, no "here's what I did".
+HARD OUTPUT LIMIT: Keep your entire response strictly under 4,500 characters (< 4.5 KB) so it returns inline without spilling to disk. Return only the result — no narration.
 ```
 
 </output_format>
@@ -244,7 +246,7 @@ Load [references/cli-fleet.md](./references/cli-fleet.md) when the user actually
 | The reviewer's review procedure (five axes, spec-adherence) | `code-review-and-quality` skill (`.agents/skills/`) |
 | Task format (5W2H), plan structure, task states | `task-managing` skill (`.agents/skills/`) |
 | Codebase exploration and targeted research | `explore` skill (`.agents/skills/`) |
-| Execution discipline and artifact creation | `solving-tasks` workflow (`.agents/workflows/`) |
+| Execution discipline and artifact creation | `solving-tasks` skill (`.agents/skills/solving-tasks/`) |
 | Concrete orchestration patterns (coordinator/worker, review, research-then-act, recursion) | [references/patterns.md](./references/patterns.md) |
 | `.agent.md` field semantics (tools, agents, model, handoffs, hooks) | [references/agent-frontmatter.md](./references/agent-frontmatter.md) |
 | Copilot CLI `/fleet`, `/delegate`, rubber-duck details | [references/cli-fleet.md](./references/cli-fleet.md) |

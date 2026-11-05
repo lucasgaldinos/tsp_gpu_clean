@@ -170,17 +170,12 @@ def test_paired_comparison_identical_samples_skip_test() -> None:
   assert summary.effect_size == 0.0
 
 
-@pytest.mark.xfail(
-  reason="DEFECT: src/benchmarking/analysis/statistics.py:220 zero-variance branch hardcodes "
-  "mean_difference=0.0 (and CI (0,0)) although mean_a - mean_b = 1.0",
-  strict=True,
-)
 def test_paired_comparison_zero_variance_reports_true_mean_difference() -> None:
   """WHAT: mean difference when every pair differs by the same constant.
 
   WHY: `StatisticalSummary.mean_difference` is documented as mean(A - B); a
   constant offset is still a real difference and must be reported.
-  EXPECTED: 1.0, not 0.0 (currently violated; tracked as a DEFECT xfail).
+  EXPECTED: 1.0, not 0.0.
   """
   # Arrange
   analyzer = StatisticalAnalyzer()

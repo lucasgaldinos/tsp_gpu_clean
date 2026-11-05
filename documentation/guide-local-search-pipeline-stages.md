@@ -20,12 +20,17 @@ modifications:
       - description: >
           Created step-by-step implementation guide for all built-in local search
           stages and custom GenerationStep pipeline extensions.
+  - date_modified: 2026-11-05
+    modifications:
+      - description: >
+          Standardized YAML frontmatter with double-quoted related_files and cleaned
+          code block fence identifiers to approved standards.
 related_files:
-  - [genetic_algorithm.py](../src/algorithms/metaheuristics/genetic_algorithm.py)
-  - [types.py](../src/protocols/types.py)
-  - [algorithm_strategies.py](../src/protocols/algorithm_strategies.py)
-  - [two_opt.py](../src/algorithms/strategies/local_search/two_opt.py)
-  - [algorithms.json](../configs/algorithms.json)
+  - "[genetic_algorithm.py](../src/algorithms/metaheuristics/genetic_algorithm.py)"
+  - "[types.py](../src/protocols/types.py)"
+  - "[algorithm_strategies.py](../src/protocols/algorithm_strategies.py)"
+  - "[two_opt.py](../src/algorithms/strategies/local_search/two_opt.py)"
+  - "[algorithms.json](../configs/algorithms.json)"
 tags:
   - guide/architecture
   - guide/local-search
@@ -54,7 +59,7 @@ The evolutionary loop in [`GeneticAlgorithm`](../src/algorithms/metaheuristics/g
 
 Defined in [`src/algorithms/metaheuristics/genetic_algorithm.py`](../src/algorithms/metaheuristics/genetic_algorithm.py#L70-L80):
 
-```python src/algorithms/metaheuristics/genetic_algorithm.py#L70-L80
+```python
 @dataclass
 class GenerationState:
   """Mutable state carried through evolutionary pipeline steps each generation."""
@@ -82,7 +87,7 @@ Field contracts at every point in the pipeline:
 
 Defined in [`src/algorithms/metaheuristics/genetic_algorithm.py`](../src/algorithms/metaheuristics/genetic_algorithm.py#L81-L87):
 
-```python src/algorithms/metaheuristics/genetic_algorithm.py#L81-L87
+```python
 class GenerationStep(Protocol):
   """Protocol for an individual step within an evolutionary generation."""
 
@@ -120,7 +125,7 @@ flowchart TD
 
 The type alias [`LocalSearchStage`](../src/protocols/types.py#L18-L24) defines five built-in stage strings:
 
-```python src/protocols/types.py#L18-L24
+```python
 type LocalSearchStage = Literal[
   "post_crossover",
   "post_mutation",
@@ -603,7 +608,7 @@ To benchmark any of the built-in stages through [`run_comprehensive_benchmark`](
 
 ### 4.1. In `configs/algorithms.json`
 
-```json configs/algorithms.json#L88-L119
+```json
     "FullGPUModular": {
       "module": "algorithms.metaheuristics.genetic_algorithm",
       "class_name": "GeneticAlgorithm",
@@ -649,7 +654,7 @@ To benchmark any of the built-in stages through [`run_comprehensive_benchmark`](
 
 See [`benchmark_scripts/compare_local_search_stages.py`](../benchmark_scripts/compare_local_search_stages.py#L46-L70) for how multiple stages are benchmarked side-by-side without duplicating JSON entries:
 
-```python benchmark_scripts/compare_local_search_stages.py#L46-L65
+```python
 def build_stage_algorithm_configs() -> tuple[dict[str, AlgorithmConfig], list[str]]:
   """Expand base algorithms across local search stages for the orchestrator."""
   configs = load_all_configs(default_config_dir())

@@ -14,7 +14,7 @@ argument-hint: "[what is unclear] [why you cannot proceed without an answer] [us
 <context>
 
 This is a **user-in-the-loop** workflow skill. When a request is ambiguous or underspecified,
-always ask with `vscode_askQuestions` #tool:vscode/askQuestions before acting — do not guess and proceed. The user prefers to be consulted over
+always ask with `vscode_askQuestions` #tool:vscode/askQuestions (or Antigravity's `ask_question`) before acting — do not guess and proceed. The user prefers to be consulted over
 having assumptions made silently.
 </context>
 
@@ -40,9 +40,12 @@ If any of the above are unclear, proceed to Step 2. When in doubt, ask.
 
 Before invoking `vscode_askQuestions`, identify every question that eliminates a whole branch of wrong work. Ask **as many questions as needed** — there is no arbitrary cap. Certainty beats speed: if a decision is required to avoid guessing or assuming, ask it, no matter how many questions that produces. Each question should change the implementation fundamentally — not just style or minor preferences.
 
+**Render full context BEFORE opening the question popup:** In VS Code Copilot, invoking `vscode_askQuestions` pauses UI markdown streaming behind the modal dialog. Always write out the complete explanation, concrete code snippets (*"show the ~30 lines first"*), measured data/benchmark numbers, and honest architectural pros/cons in the chat response **first**, and invoke `vscode_askQuestions` / `ask_question` only as the final action of the turn after all context is written.
+
 For each question:
 
 - Prefer multiple-choice options with many alternatives, or open-ended questions when the space of answers is large or hard to enumerate.
+- Ground every option in **real architectural trade-offs** (actor–critic framing: memory, complexity, spec fidelity, coupling, failure modes) — never list trivial/artificial pros or cons such as *"changes fewer lines"*.
 - Mark the recommended default clearly so the user can accept it in one word.
 - Add a "Not sure — use default" option to minimize friction.
 - Always set `allowFreeformInput: true` so the user can type a custom answer.
@@ -110,6 +113,17 @@ Good — two rounds, keyed on the answer:
 `vscode_askQuestions` returns answers mapped to each question, so inspect that result to decide whether a follow-up round is required before asking more.
 </instructions>
 
+## Step 2c: Socratic comprehension check mode (when requested)
+
+<instructions>
+
+When the user asks to verify their understanding of an explanation (e.g., *"use askQuestions to check if I understood"*):
+
+1. Present the first-principles mental model (e.g., Schema vs. Instance `__dict__`, Layer 1 Distance Matrix vs. Layer 2 Move Matrix) and a concrete code trace in chat first.
+2. Ask 2–4 diagnostic multiple-choice questions targeting subtle misconceptions.
+3. If any answer is wrong, immediately state the exact misconception, show a minimal counter-example proving why that option fails, and re-verify before moving on.
+</instructions>
+
 ## Step 3: Pause before acting
 
 <instructions>
@@ -156,5 +170,7 @@ Then start work immediately — do not ask further questions unless a new blocke
 - Don't proceed without confirmation when the user explicitly asked you to pause first — ignoring
   that request breaks trust more than any wrong implementation would.
 - Don't ask for "nice to know" details in the same pass as "must have" questions — ask "must have" questions first, and only ask "nice to know" questions in a later round if they still gate correct work.
+- Don't ask low-level static-typing or transaction-isolation questions before the functional pipeline, database schema, and output contracts are defined ("architecture precedes typing").
+- When the user says an explanation or question was unclear, clarify and illustrate first before re-asking — never repeat the same opaque question.
 
 </rules>

@@ -10,12 +10,25 @@ if TYPE_CHECKING:
   import cupy as cp
 
 
+#: Directory holding device-side distance headers (`pairwise_device.cuh`).
+DISTANCE_KERNELS_DIR: Path = Path(__file__).resolve().parents[1] / "distances" / "kernels"
+
+
+def _kernel_compile_options() -> tuple[str, ...]:
+  """Return the nvcc options every JIT-compiled kernel is built with.
+
+  `-I<src/distances/kernels>` lets any kernel `#include "pairwise_device.cuh"`
+  (`DP10-19`) without copying the header next to the `.cu` file.
+  """
+  return (f"-I{DISTANCE_KERNELS_DIR}",)
+
+
 @functools.lru_cache(maxsize=32)
 def _compile_kernel_cached(kernel_path_str: str, kernel_function_name: str) -> cp.RawKernel:
   """Compile and cache a CUDA kernel from an absolute file path."""
   cp = require_gpu()
   kernel_source = Path(kernel_path_str).read_text(encoding="utf-8")
-  return cp.RawKernel(kernel_source, kernel_function_name)
+  return cp.RawKernel(kernel_source, kernel_function_name, options=_kernel_compile_options())
 
 
 def load_kernel(kernel_filename: str, kernel_function_name: str, caller_file_path: str) -> cp.RawKernel:

@@ -1,120 +1,105 @@
-# Technical Decisions Documentation
-
-This folder contains comprehensive analyses of architectural and implementation decisions for the GPU-accelerated routing optimization project.
-
-## Key Documents
-
-### GPU Reduction Patterns and Lessons
-
-**File**: [`GPU_REDUCTION_PATTERNS_AND_LESSONS.md`](./GPU_REDUCTION_PATTERNS_AND_LESSONS.md)  
-**Status**: ✅ Complete (2025-01-28)  
-**Length**: ~2000 lines (comprehensive reference)
-
-**What it covers**:
-
-1. **Bug Report**: Parallel reduction bug in 2-opt CUDA kernels (now fixed)
-2. **CUB Library Integration**: How to use NVIDIA CUB with CuPy RawKernel (saves 5-7 hours per kernel!)
-3. **Warp Shuffle Mechanics**: Detailed explanation of `__shfl_down_sync()`, masks (0xffffffff), and offset progression
-4. **Block vs Warp Level**: Clear boundary between warp-level (32 threads) and block-level (98+ threads) operations
-5. **VRP Applicability**: Current 2-opt works for TSP + intra-route VRP, missing inter-route operators
-6. **Lessons Learned**: Time cost analysis, testing checklist, recommendations for future work
-
-**Quick Navigation** (by question):
-
-| Your Question | Section to Read |
-|---------------|----------------|
-| "Why did manual reduction fail?" | **Bug Evolution** (Stage 1-3) |
-| "How do I use CUB with CuPy?" | **NVIDIA CUB Library: Production Alternative** (lines 86-160) |
-| "What is 0xffffffff?" | **Understanding Warp Shuffle Primitives** (lines 950-995) |
-| "Why offset starts at 16?" | **Warp Shuffle: Step-by-Step Breakdown** (lines 996-1075) |
-| "What's the difference between warp and block?" | **WARP vs BLOCK Level Boundary** (lines 1085-1140) |
-| "Does 2-opt work for VRP?" | **Applicability to Vehicle Routing Problems** (lines 165-235) |
-| "Should I use CUB or manual implementation?" | **Recommendations for Future Kernel Development** (lines 1485-1540) |
-| "How much time did debugging cost?" | **Time Cost Analysis** (lines 1445-1455) |
-
-**Key Takeaways**:
-
-- ✅ Bug fixed: 0.00% error vs CPU (was 1.79%)
-- ✅ CUB library available via CuPy: `options=('-I{cuda_include}',)` in RawKernel
-- ✅ Warp shuffles use 0xffffffff mask for all 32 threads participation
-- ✅ Block-level needs `__syncthreads()`, warp-level doesn't (hardware synchronous)
-- ✅ Current 2-opt works for TSP + VRP intra-route, missing relocate/exchange for full CVRP
-- ⚠️ Manual kernel debugging cost: 9.5 hours (CUB would take 30 minutes)
-
-**For Quick Reference**:
-
-- CUB integration code: Lines 106-140
-- Warp shuffle visual diagram: Lines 1000-1045
-- Block vs warp comparison table: Lines 1115-1120
-- VRP operator table: Lines 190-200
-- Testing checklist: Lines 1555-1565
-
+---
+title: "Knowledge Base Index — GPU Routing Architecture, Statistical Testing, and Tooling"
+description: >
+  Thematic index of the curated knowledge-base directory covering GPU memory
+  hierarchy, CUDA 2-opt parallelization and reduction patterns, Simulated Annealing
+  dynamics, Memetic Genetic Algorithms, frequentist/non-parametric statistical
+  validation, and Pandoc/LaTeX authoring guides.
+created: 2025-01-28
+status: final
+author:
+  - "[[Lucas Galdino]]"
+  - "[[Antigravity]]"
+type: guide
+scope: global
+modifications:
+  - date_modified: 2026-11-05
+    modifications:
+      - description: >
+          Rewrote the knowledge-base index after modularizing monolithic guides
+          (statistical testing, 2-opt parallelization, Simulated Annealing, and
+          GPU hardware/memory regimes) and enforcing repository Markdown standards.
+related_files:
+  - "[README.md](../README.md)"
+  - "[guide-local-search-pipeline-stages.md](../guide-local-search-pipeline-stages.md)"
+  - "[analysis-gpu-distance-and-shared-memory-limits.md](./analysis-gpu-distance-and-shared-memory-limits.md)"
+  - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
+tags:
+  - guide/architecture
+  - guide/documentation
+  - guide/cuda
+  - guide/testing
+  - algorithm/genetic-algorithm
+  - algorithm/two-opt
+  - algorithm/simulated-annealing
+  - algorithm/tsp
+  - analysis/performance
+  - analysis/statistics
+  - benchmark/gpu
+  - notes/cuda
 ---
 
-## Other Documents in This Folder
+# Knowledge base index
 
-- **`2opt_parallelization_strategies_comparison.md`**: Analysis of HybridNaive vs HybridOptimized vs FullGPU
-- **`compiling-tsp-heuristics-analysis.md`**: Performance analysis of compilation-based TSP heuristics
-- **`cuda_synchronization_levels.md`**: Thread, warp, and block synchronization primitives
-- **`cupy_amd_compatibility.md`**: Status of CuPy on AMD GPUs (ROCm)
-- **`cupy_kernels_for_parallel_optimization.md`**: Guide to writing custom CUDA kernels in CuPy
-- **`GPU_2OPT_INTEGRATION_ANALYSIS.md`**: Design decisions for GPU 2-opt integration
-- **`non_power_of_2_block_sizes_proof.md`**: Mathematical proof of orphaned threads issue
-- **`SA_COMPREHENSIVE_ANALYSIS.md`**: Simulated Annealing GPU acceleration analysis
+Curated technical reference articles, mathematical derivations, and engineering guides for the GPU-accelerated routing solver. For the repository-wide documentation map, see [documentation/README.md](../README.md).
 
----
+## 1. GPU architecture, memory hierarchy, and synchronization
 
-## How to Use This Documentation
+- [analysis-gpu-distance-and-shared-memory-limits.md](./analysis-gpu-distance-and-shared-memory-limits.md) — Dense VRAM matrix vs on-the-fly coordinate evaluation, Pascal GP107 shared-memory limits, and multi-tour occupancy break-even ($T^* = 2048$).
+- [analysis-gpu-memory-latency-and-occupancy.md](./analysis-gpu-memory-latency-and-occupancy.md) — GPU memory latency hierarchy (registers, shared memory, L1/L2, GDDR5), bank conflicts, and 256-byte allocation granularity.
+- [analysis-gpu-intra-inter-route-regimes.md](./analysis-gpu-intra-inter-route-regimes.md) — Intra-route (`two_opt_single.cu`), population batch (`two_opt_batch.cu`), and hybrid tiled execution regimes.
+- [analysis-gpu-memory-calculation.md](./analysis-gpu-memory-calculation.md) — Analytical upper-bound VRAM sizing formulas across TSPLIB95 problem scales.
+- [guide-gpu-vram-guardrails-buffer-pooling.md](./guide-gpu-vram-guardrails-buffer-pooling.md) — Pre-flight `VRAMInsufficientError` checks, persistent scratchpad pooling, P-Data vs P-Task streams, and PCIe Roofline diagnostics.
+- [guide-cuda-synchronization-levels.md](./guide-cuda-synchronization-levels.md) — Thread, warp (`__shfl_down_sync`), block (`__syncthreads`), and host-device synchronization primitives.
+- [analysis-non-power-of-two-blocks.md](./analysis-non-power-of-two-blocks.md) — Formal proof of orphaned-thread failure modes in non-power-of-two tree reductions.
+- [guide-cupy-raw-kernels-optimization.md](./guide-cupy-raw-kernels-optimization.md) — Authoring and compiling custom CUDA C++ `RawKernel` modules in CuPy.
+- [notes_cupy_amd_rocm_compatibility.md](./notes_cupy_amd_rocm_compatibility.md) — Portability notes for running CuPy kernels on AMD ROCm / HIP backends.
 
-**When implementing new kernels**:
+## 2. Parallel 2-opt local search and GPU reductions
 
-1. Read **CUB Library Integration** section first
-2. Use CUB for primitives (reduce, scan, sort)
-3. Only manual implementation if algorithm is domain-specific
+- [analysis-gpu-2opt-performance-modeling.md](./analysis-gpu-2opt-performance-modeling.md) — Symbol table, Pascal GP107 hardware bounds, and analytical runtime/occupancy modeling for 2-opt.
+- [analysis-gpu-2opt-parallel-architectures.md](./analysis-gpu-2opt-parallel-architectures.md) — Architectural comparison of HybridNaive, HybridOptimized, and FullGPU 2-opt execution pipelines.
+- [analysis-gpu-2opt-reduction-strategies.md](./analysis-gpu-2opt-reduction-strategies.md) — Shared-memory tree reductions, warp-shuffle argmin patterns, and CUB integration trade-offs.
+- [analysis-gpu-2opt-kernel-benchmarking.md](./analysis-gpu-2opt-kernel-benchmarking.md) — Micro-benchmark methodology, empirical speedup profiles, and synchronization overhead isolation.
+- [analysis-gpu-2opt-literature-attribution.md](./analysis-gpu-2opt-literature-attribution.md) — Mapping implemented CUDA 2-opt choices to Rocki & Suda (2012, 2013) and O'Neil & Burtscher (2015).
+- [analysis-gpu-2opt-integration-postmortem.md](./analysis-gpu-2opt-integration-postmortem.md) — Engineering postmortem on integrating GPU 2-opt into the modular strategy pipeline.
+- [analysis-gpu-reduction-patterns.md](./analysis-gpu-reduction-patterns.md) — Deep-dive reference on parallel reduction bug root causes, warp masks, and VRP operator scope.
+- [analysis-gpu-performance-bottlenecks.md](./analysis-gpu-performance-bottlenecks.md) — Profiling host-device transfer bottlenecks, Python dispatch overhead, and kernel occupancy limits.
 
-**When debugging GPU kernels**:
+## 3. Metaheuristics, problem formulations, and software design
 
-1. Check **Testing Checklist** (lines 1555-1565)
-2. Test non-power-of-2 sizes (n=98, 100, 198)
-3. Create minimal reproducible test case
+- [analysis-problem-definition-tsp-cvrp.md](./analysis-problem-definition-tsp-cvrp.md) — Formal mathematical definitions for symmetric/asymmetric TSP and Capacitated VRP (CVRP).
+- [guide-construction-heuristics.md](./guide-construction-heuristics.md) — Nearest Neighbor, Clarke-Wright Savings, and greedy tour construction heuristics.
+- [analysis-compiling-tsp-heuristics.md](./analysis-compiling-tsp-heuristics.md) — Performance trade-offs across pure Python, NumPy vectorization, JIT compilation, and CUDA kernels.
+- [analysis-genetic-algorithm-memetic-lineage.md](./analysis-genetic-algorithm-memetic-lineage.md) — Holland GA -> Moscato Memetic Algorithm lineage, discrete tournament selection math, and strategy composition.
+- [guide-ga-hyperparameter-tuning.md](./guide-ga-hyperparameter-tuning.md) — Population sizing, crossover/mutation rates, and local-search intensity tuning benchmarks.
+- [guide-iso-algorithmic-ga-validation.md](./guide-iso-algorithmic-ga-validation.md) — Protocol for verifying algorithmic equivalence between CPU and GPU Genetic Algorithm implementations.
+- [guide-gpu-cpu-comparison-methodology.md](./guide-gpu-cpu-comparison-methodology.md) — Fair benchmarking rules, warm-up handling, stopping criteria, and hardware normalization caveats.
+- [analysis-simulated-annealing-foundations.md](./analysis-simulated-annealing-foundations.md) — Talbi's S-Task vs P-Data taxonomy, Metropolis criterion, Kirkpatrick initial temperature, and adaptive cooling.
+- [analysis-simulated-annealing-gpu-execution.md](./analysis-simulated-annealing-gpu-execution.md) — CUDA kernel launch latency vs arithmetic intensity, multi-tier SA parallelization, and `ch150` benchmarks.
+- [analysis-strategy-hierarchy-and-context-contracts.md](./analysis-strategy-hierarchy-and-context-contracts.md) — Slot-prefixed `StrategyBase` hierarchy, `ProblemContext` GPU cache ownership, and three-tier TSPLIB95 distances.
+- [notes_average_worst_case_analysis.md](./notes_average_worst_case_analysis.md) — Asymptotic worst-case vs empirical average-case complexity notes for routing heuristics.
+- [guide-clean-python-practices.md](./guide-clean-python-practices.md) — Type annotations, protocol-driven design, and clean Python conventions used in `src/`.
 
-**When writing thesis**:
+## 4. Statistical validation suite
 
-1. Cite **Academic Context & Literature Review** (lines 18-160)
-2. Reference **Lessons Learned** for methodology discussion
-3. Use **VRP Applicability** to clarify scope limitations
+- [guide-statistical-testing-index.md](./guide-statistical-testing-index.md) — Master decision tree and navigation hub for the 6-part statistical testing series.
+- [guide-statistical-parametric-foundations.md](./guide-statistical-parametric-foundations.md) — Hypothesis testing mechanics, Type I/II errors, confidence intervals, and parametric assumptions.
+- [guide-statistical-normality-and-outliers.md](./guide-statistical-normality-and-outliers.md) — Shapiro-Wilk, D'Agostino-Pearson, Q-Q diagnostics, skewness/heavy tails in heuristic costs, and IQR outlier rules.
+- [guide-statistical-pairwise-comparisons.md](./guide-statistical-pairwise-comparisons.md) — Paired $t$-test, Welch's $t$-test, Wilcoxon signed-rank, and Mann-Whitney U protocols.
+- [guide-statistical-multicomparison-tests.md](./guide-statistical-multicomparison-tests.md) — One-way ANOVA, Friedman aligned/rank tests, Holm/Bonferroni family-wise error control, and omnibus workflows.
+- [guide-statistical-demsar-post-hoc-tests.md](./guide-statistical-demsar-post-hoc-tests.md) — Demšar (2006) multi-problem protocol, Nemenyi Critical Difference diagrams, and SciPy `studentized_range` scaling.
+- [guide-statistical-effect-sizes-and-power.md](./guide-statistical-effect-sizes-and-power.md) — Cohen's $d$, Cliff's $\delta$, Vargha-Delaney $\hat{A}_{12}$, Kendall's $W$, and sample-size power calculations.
+- [analysis-complete-statistical-results.md](./analysis-complete-statistical-results.md) — Empirical statistical benchmark evaluation across CPU, HybridNaive, HybridOpt, and FullGPU solvers.
+- [notes_types_of_variables_statistics.md](./notes_types_of_variables_statistics.md) — Nominal, ordinal, interval, and ratio measurement scales mapped to benchmark metrics.
 
----
+## 5. Literature notes, authoring guides, and LaTeX templates
 
-## Contributing
-
-When adding new technical decisions:
-
-1. Create markdown file with descriptive name
-2. Add entry to this README with summary
-3. Include code examples and diagrams
-4. Link from relevant source code comments
-
-**Document template**:
-
-```markdown
-# [Decision Title]
-
-## Status
-[Active/Deprecated/Superseded]
-
-## Context
-What problem are we solving?
-
-## Decision
-What did we choose and why?
-
-## Consequences
-What are the trade-offs?
-
-## Alternatives Considered
-What else did we evaluate?
-
-## References
-Academic papers, benchmarks, discussions
-```
+- [useful_notes/notes_cook2012_pursuit_of_tsp.md](./useful_notes/notes_cook2012_pursuit_of_tsp.md) — Structured reading notes on Cook (2012), *In Pursuit of the Traveling Salesman*.
+- [useful_notes/notes_crainic2003_metaheuristics.md](./useful_notes/notes_crainic2003_metaheuristics.md) — Structured reading notes on Crainic & Toulouse (2003), *Parallel Strategies for Meta-Heuristics*.
+- [guide-latex-math-notation.md](./guide-latex-math-notation.md) — Mathematical typesetting conventions and LaTeX symbol reference for thesis chapters and Markdown docs.
+- [guide-pandoc-latex-compilation.md](./guide-pandoc-latex-compilation.md) — Pandoc + LuaLaTeX/XeLaTeX + BibLaTeX build pipeline and troubleshooting guide.
+- [guide-mermaid-diagram-authoring.md](./guide-mermaid-diagram-authoring.md) — Supported Mermaid diagram types, label quoting rules, and rendering tips.
+- LaTeX templates & cheat sheets (preserved in `tex-docs/`):
+  - [tex-docs/CheatSheet.tex](./tex-docs/CheatSheet.tex)
+  - [tex-docs/Template.tex](./tex-docs/Template.tex)

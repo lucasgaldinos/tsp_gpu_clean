@@ -8,6 +8,7 @@ existing NumPy generators, and context-attached RNG instances.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -24,8 +25,8 @@ def make_rng(seed: SeedLike = None) -> Generator:
   Construct or resolve a `np.random.Generator` from an int, existing Generator, or callable.
 
   Args:
-      seed: Integer seed, existing `np.random.Generator`, zero-argument callable returning
-          a `np.random.Generator`, or `None`.
+      seed: Integer seed, integer seed sequence, existing `np.random.Generator`, zero-argument
+          callable returning a `np.random.Generator`, or `None`.
 
   Returns:
       Configured `np.random.Generator` instance.
@@ -37,7 +38,11 @@ def make_rng(seed: SeedLike = None) -> Generator:
     if not isinstance(rng, np.random.Generator):
       raise TypeError(f"Callable seed factory must return np.random.Generator, got {type(rng)!r}")
     return rng
-  return np.random.default_rng(seed)
+  if isinstance(seed, Sequence) and not isinstance(seed, (str, bytes)):
+    return np.random.default_rng(np.random.SeedSequence(list(seed)))
+  if seed is None or isinstance(seed, int):
+    return np.random.default_rng(seed)
+  raise TypeError(f"Unsupported seed type: {type(seed)!r}")
 
 
 def resolve_rng(

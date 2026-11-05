@@ -111,9 +111,9 @@ def test_seed_controls_context_rng(berlin52_problem: Problem) -> None:
   third = ProblemContext(berlin52_problem, xp=np, seed=124)
 
   # Act
-  first_draw = first.rng.random_sample(8)
-  second_draw = second.rng.random_sample(8)
-  third_draw = third.rng.random_sample(8)
+  first_draw = first.rng.random(8)
+  second_draw = second.rng.random(8)
+  third_draw = third.rng.random(8)
 
   # Assert
   assert first.rng is not second.rng
@@ -143,3 +143,84 @@ def test_repr_reports_cpu_backend(
   assert problem.name in text
   assert f"N={problem.dimension}" in text
   assert "CPU (NumPy)" in text
+
+
+@pytest.mark.parametrize(
+  ("fixture_name", "k", "expected_columns"),
+  [
+    pytest.param("berlin52_problem", 20, 20, id="k-below-n"),
+    pytest.param("berlin52_problem", 100, 51, id="k-clamped-to-n-minus-1"),
+    pytest.param("burma14_problem", 0, 0, id="k-zero"),
+  ],
+)
+def test_cpu_candidate_list_contract(
+  request: pytest.FixtureRequest,
+  fixture_name: str,
+  k: int,
+  expected_columns: int,
+) -> None:
+  """WHAT: `get_cpu_candidate_list(k)` shape, dtype and neighbour invariants.
+
+  WHY: `DP10-20` exposes `N_k` as a shared context service; consumers assume
+  `k_eff = min(k, n - 1)` `int32` columns, no self-edge, ascending distances.
+
+  EXPECTED: `(n, k_eff)` `int32`, `u` absent from its own row, distances non-decreasing.
+  """
+  # Arrange
+  problem: Problem = request.getfixturevalue(fixture_name)
+  context = ProblemContext(problem, xp=np, seed=5)
+
+  # Act
+  candidates = context.get_cpu_candidate_list(k)
+
+  # Assert
+  assert candidates.shape == (problem.dimension, expected_columns)
+  assert candidates.dtype == np.int32
+  distances = context.get_cpu_distances()
+  for node in range(problem.dimension):
+    row = candidates[node]
+    assert node not in set(int(neighbor) for neighbor in row)
+    row_distances = [int(distances[node, int(neighbor)]) for neighbor in row]
+    assert row_distances == sorted(row_distances)
+
+
+def test_cpu_candidate_list_is_cached_per_k(berlin52_problem: Problem) -> None:
+  """WHAT: Cache identity of the `k`-NN candidate lists.
+
+  WHY: rebuilding `N_k` per mutation or per local-search pass would turn the `Theta(n k)`
+  speed-up back into `Theta(n^2)` setup cost every generation.
+
+  EXPECTED: repeated calls return the same object, and a different `k` gets its own
+  entry with a different width.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=13)
+
+  # Act
+  first = context.get_cpu_candidate_list(10)
+  again = context.get_cpu_candidate_list(10)
+  wider = context.get_cpu_candidate_list(25)
+
+  # Assert
+  assert again is first
+  assert wider is not first
+  assert context._cpu_candidate_lists[10] is first
+  assert wider.shape[1] == 25
+  assert first.shape[1] == 10
+
+
+def test_gpu_candidate_list_requires_cupy_backend(berlin52_problem: Problem) -> None:
+  """WHAT: `get_gpu_candidate_list` on a NumPy-backed context.
+
+  WHY: silently returning a host array would make a GPU strategy send a NumPy array into
+  a CUDA launch; the guard must fail loudly instead.
+
+  EXPECTED: `ValueError` naming the accessor.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=17)
+
+  # Act / Assert
+  with pytest.raises(ValueError, match="get_gpu_candidate_list"):
+    context.get_gpu_candidate_list(5)
+

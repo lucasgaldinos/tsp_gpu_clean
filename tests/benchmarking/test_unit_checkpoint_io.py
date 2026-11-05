@@ -237,19 +237,13 @@ def test_checkpoint_manager_builds_paths_and_delegates(tmp_path: Path) -> None:
   assert manager.get_remaining_repetitions("berlin52", "CPU", EXPECTED_REPS) == 0
 
 
-@pytest.mark.xfail(
-  reason="DEFECT: src/benchmarking/runner/checkpoint_io.py:266 is_valid_checkpoint only checks "
-  "successful_runs >= expected_reps and never verifies the raw_* array lengths "
-  "(can_resume_checkpoint does), so a 30-run summary with empty arrays is reported valid",
-  strict=True,
-)
 def test_validity_rejects_arrays_inconsistent_with_successful_runs(tmp_path: Path) -> None:
   """WHAT: `is_valid_checkpoint` on `successful_runs=30` with empty raw arrays.
 
   WHY: `can_resume_checkpoint` treats array-length consistency as a hard
   invariant; the completeness check must apply the same rule, otherwise data-less
   checkpoint rows are imported as complete runs.
-  EXPECTED: False (currently True; tracked as a DEFECT xfail).
+  EXPECTED: False.
   """
   # Arrange
   path = _write_json(tmp_path / "empty_arrays.json", _payload(EXPECTED_REPS, array_length=0))

@@ -1,8 +1,7 @@
 """CPU-only unit tests for `make_rng` and `resolve_rng` seed contracts in `utils.rng`.
 
-Pins seed resolution, generator passthrough and fallback precedence. The strict xfail
-tracks `ProblemContext.rng` being a `np.random.RandomState`, which `resolve_rng`
-silently ignores. Every test is hermetic: explicit seeds and no CUDA device access.
+Pins seed resolution, generator passthrough and fallback precedence. Every test is
+hermetic: explicit seeds and no CUDA device access.
 """
 
 from __future__ import annotations
@@ -160,21 +159,13 @@ def test_resolve_rng_int_fallback_is_deterministic() -> None:
   assert np.array_equal(resolved.random(4), make_rng(7).random(4))
 
 
-@pytest.mark.xfail(
-  reason=(
-    "DEFECT: src/utils/rng.py:56 resolve_rng only accepts np.random.Generator, "
-    "but ProblemContext.rng is always a np.random.RandomState (src/protocols/problem_context.py:187), "
-    "so a seeded context RNG is silently ignored and the fallback/default stream is used"
-  ),
-  strict=True,
-)
 def test_resolve_rng_uses_seeded_problem_context_rng() -> None:
   """WHAT: `resolve_rng` with the RNG shape a real `ProblemContext` exposes.
 
-  WHY: `ProblemContext.__init__` assigns `xp.random.RandomState`, so the context RNG
+  WHY: `ProblemContext.__init__` assigns a `np.random.Generator`, so the context RNG
   must be honoured for per-problem determinism.
   EXPECTED: `resolve_rng` returns `context.rng` instead of falling back.
   """
-  context_rng = np.random.RandomState(42)
+  context_rng = make_rng(42)
   context = cast("ProblemContext", _RngContextStub(context_rng))
   assert cast("object", resolve_rng(context, 7)) is context_rng

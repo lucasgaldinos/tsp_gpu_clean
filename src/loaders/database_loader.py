@@ -17,7 +17,7 @@ Database Schema (datasets/tsp.duckdb):
     - solutions: Known solutions (id, problem_id, kind, quality, source_file, checksum, cost, routes)
 
 Usage:
-    >>> with DatabaseLoader("<path/to/tsp.duckdb>") as loader:
+    >>> with DatabaseLoader("<path/to/file.duckdb>") as loader:
     ...   problem = loader.load("berlin52")
     ...   print(f"{problem.name}: {problem.dimension} nodes")
     berlin52: 52 nodes
@@ -26,7 +26,7 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import duckdb
 import numpy as np
@@ -43,12 +43,15 @@ from data_models.problem import Problem
 from .problem_type_handlers import (
   PROBLEM_TYPE_HANDLERS,
   BaseProblemRow,
+  ProblemMetadataRow,
   ProblemTypeHandler,
 )
 
 if TYPE_CHECKING:
   from collections.abc import Mapping
   from types import TracebackType
+
+  from .tsplib_loader import TsplibLoader
 
 
 class DatabaseLoader:
@@ -79,7 +82,7 @@ class DatabaseLoader:
     self.db_path = str(db_path)
     self.fallback_tsp_dir = Path(fallback_tsp_dir) if fallback_tsp_dir is not None else None
     self.conn: duckdb.DuckDBPyConnection | None = None
-    self._tsplib_fallback: Any = None
+    self._tsplib_fallback: TsplibLoader | None = None
     self.handlers: dict[str, ProblemTypeHandler] = (
       dict(handlers) if handlers is not None else dict(PROBLEM_TYPE_HANDLERS)
     )
@@ -94,19 +97,18 @@ class DatabaseLoader:
     Raises:
         DatabaseConnectionError: If database file doesn't exist or connection fails.
     """
+    db_file = Path(self.db_path)
+    if not db_file.exists():
+      if self.fallback_tsp_dir is not None and self.fallback_tsp_dir.exists():
+        from .tsplib_loader import TsplibLoader
+
+        self._tsplib_fallback = TsplibLoader(self.fallback_tsp_dir).__enter__()
+        return self
+      raise DatabaseConnectionError(self.db_path, FileNotFoundError(f"Database file does not exist: {self.db_path}"))
+
     try:
-      db_file = Path(self.db_path)
-      if not db_file.exists():
-        if self.fallback_tsp_dir is not None and self.fallback_tsp_dir.exists():
-          from .tsplib_loader import TsplibLoader
-
-          self._tsplib_fallback = TsplibLoader(self.fallback_tsp_dir).__enter__()
-          return self
-        raise FileNotFoundError(f"Database file not found: {self.db_path}")
-
       self.conn = duckdb.connect(str(db_file), read_only=True)
       return self
-
     except Exception as e:
       raise DatabaseConnectionError(self.db_path, e) from e
 
@@ -157,16 +159,15 @@ class DatabaseLoader:
         Immutable `Problem` instance with all data and metadata loaded.
     """
     if self._tsplib_fallback is not None:
-      return cast("Problem", self._tsplib_fallback.load(instance_name))
+      return self._tsplib_fallback.load(instance_name)
 
     if self.conn is None:
       raise RuntimeError("DatabaseLoader must be used as context manager")
 
     metadata = self._load_metadata(instance_name)
     coordinates, demands, display_coords, depots = self._load_coordinates(metadata)
-    distances, matrix_format, is_symmetric = self._load_distance_matrix(metadata)
+    distances, matrix_format, _is_symmetric = self._load_distance_matrix(metadata)
     metadata["edge_weight_format"] = metadata["edge_weight_format"] or matrix_format
-    metadata["is_symmetric"] = is_symmetric
 
     return self._construct_problem(
       metadata=metadata,
@@ -177,7 +178,7 @@ class DatabaseLoader:
       depots=depots,
     )
 
-  def _load_metadata(self, instance_name: str) -> dict[str, Any]:
+  def _load_metadata(self, instance_name: str) -> ProblemMetadataRow:
     """Query and validate problem metadata across normalized tables."""
     if self.conn is None:
       raise RuntimeError("DatabaseLoader must be used as context manager")
@@ -212,7 +213,7 @@ class DatabaseLoader:
     return handler.load_metadata(self.conn, base)
 
   def _load_coordinates(
-    self, metadata: dict[str, Any]
+    self, metadata: ProblemMetadataRow
   ) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None, np.ndarray | None]:
     """Parse node coordinates, display coordinates, demands, and depots."""
     raw_coords = metadata["raw_coords"]
@@ -239,7 +240,7 @@ class DatabaseLoader:
 
     return coordinates, demands, display_coords, depots
 
-  def _load_distance_matrix(self, metadata: dict[str, Any]) -> tuple[np.ndarray | None, str | None, bool]:
+  def _load_distance_matrix(self, metadata: ProblemMetadataRow) -> tuple[np.ndarray | None, str | None, bool]:
     """Parse explicit distance matrix from `edge_weight_matrices` table."""
     if self.conn is None:
       raise RuntimeError("DatabaseLoader must be used as context manager")
@@ -263,7 +264,7 @@ class DatabaseLoader:
       )
 
     matrix_format, is_symmetric, matrix_raw = row
-    distances = np.asarray(matrix_raw, dtype=np.float64)
+    distances = np.asarray(matrix_raw, dtype=np.int32)
     expected_shape = (metadata["dimension"], metadata["dimension"])
     if distances.shape != expected_shape:
       raise InvalidProblemDataError(
@@ -275,7 +276,7 @@ class DatabaseLoader:
 
   def _construct_problem(
     self,
-    metadata: dict[str, Any],
+    metadata: ProblemMetadataRow,
     coordinates: np.ndarray | None,
     demands: np.ndarray | None,
     distances: np.ndarray | None,

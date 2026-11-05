@@ -2,14 +2,30 @@
   "problem_info": {
     "name": "gr21",
     "size": 21,
-    "optimal_cost": 2707.0
+    "optimal_cost": 2707.0,
+    "problem_id": 56,
+    "tsplib_name": "gr21",
+    "problem_type": "TSP",
+    "dimension": 21,
+    "edge_type": "EXPLICIT",
+    "edge_weight_type": "EXPLICIT",
+    "edge_weight_format": "LOWER_DIAG_ROW",
+    "is_symmetric": true,
+    "comment": "21-city problem (Groetschel)",
+    "capacity": null,
+    "has_coordinates": false,
+    "has_display_coords": false,
+    "has_explicit_matrix": true,
+    "has_solution": false,
+    "source_file": "datasets_raw/problems/tsp/gr21.tsp",
+    "file_checksum": "3ff0ab452689b2e9ffb7aa206a7dcee4e6053dbb915afa99e66005f84e8b54b4"
   },
   "algorithms": {
     "CPU": {
-      "mean_time": 1.2521768143336278,
-      "std_time": 0.01757759399439506,
-      "mean_initial_cost": 2791.0,
-      "std_initial_cost": 26.695817400234567,
+      "mean_time": 0.8934566186667325,
+      "std_time": 0.09217406768617083,
+      "mean_initial_cost": 2750.6666666666665,
+      "std_initial_cost": 32.74480450731417,
       "mean_cost": 2707.0,
       "std_cost": 0.0,
       "mean_gap": 0.0,
@@ -21,21 +37,23 @@
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
-        "tournament_size": 5,
-        "two_opt_iterations": 10,
-        "seed": 42
+        "seed": 42,
+        "local_search_stage": "post_mutation"
       },
       "strategies": {
+        "initialization": "RandomPermutationInitialization",
         "selection": "TournamentSelection",
         "crossover": "OrderCrossover",
-        "mutation": "SwapMutation"
+        "mutation": "SwapMutation",
+        "local_search": "CPUTwoOpt",
+        "evaluation": "CPUCostEvaluation"
       }
     },
     "HybridNaive": {
-      "mean_time": 0.1109254493330809,
-      "std_time": 0.005287851698525582,
-      "mean_initial_cost": 2791.0,
-      "std_initial_cost": 26.695817400234567,
+      "mean_time": 0.12149259199986773,
+      "std_time": 0.003631852974518312,
+      "mean_initial_cost": 2750.6666666666665,
+      "std_initial_cost": 32.74480450731417,
       "mean_cost": 2707.0,
       "std_cost": 0.0,
       "mean_gap": 0.0,
@@ -47,21 +65,23 @@
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
-        "tournament_size": 5,
-        "two_opt_iterations": 10,
-        "seed": 42
+        "seed": 42,
+        "local_search_stage": "post_mutation"
       },
       "strategies": {
+        "initialization": "RandomPermutationInitialization",
         "selection": "TournamentSelection",
         "crossover": "OrderCrossover",
-        "mutation": "SwapMutation"
+        "mutation": "SwapMutation",
+        "local_search": "NaiveGPUTwoOpt",
+        "evaluation": "CPUCostEvaluation"
       }
     },
     "HybridOptimized": {
-      "mean_time": 0.015074670667066433,
-      "std_time": 0.0035390792662060785,
-      "mean_initial_cost": 2791.0,
-      "std_initial_cost": 26.695817400234567,
+      "mean_time": 0.013244955333296579,
+      "std_time": 0.0002858100785031394,
+      "mean_initial_cost": 2750.6666666666665,
+      "std_initial_cost": 32.74480450731417,
       "mean_cost": 2707.0,
       "std_cost": 0.0,
       "mean_gap": 0.0,
@@ -73,21 +93,23 @@
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
-        "tournament_size": 5,
-        "two_opt_iterations": 10,
-        "seed": 42
+        "seed": 42,
+        "local_search_stage": "post_mutation"
       },
       "strategies": {
+        "initialization": "RandomPermutationInitialization",
         "selection": "TournamentSelection",
         "crossover": "OrderCrossover",
-        "mutation": "SwapMutation"
+        "mutation": "SwapMutation",
+        "local_search": "BatchGPUTwoOpt",
+        "evaluation": "GPUCostEvaluation"
       }
     },
-    "FullGPU": {
-      "mean_time": 0.001743368333336548,
-      "std_time": 0.00040770155793006907,
-      "mean_initial_cost": 5629.666666666667,
-      "std_initial_cost": 102.00762498732904,
+    "FullGPUModular": {
+      "mean_time": 0.005552854999981112,
+      "std_time": 0.00032992505185849364,
+      "mean_initial_cost": 2750.6666666666665,
+      "std_initial_cost": 32.74480450731417,
       "mean_cost": 2707.0,
       "std_cost": 0.0,
       "mean_gap": 0.0,
@@ -99,14 +121,16 @@
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
-        "tournament_size": 5,
-        "two_opt_iterations": 10,
-        "seed": 42
+        "seed": 42,
+        "local_search_stage": "post_mutation"
       },
       "strategies": {
-        "selection": "TournamentSelection",
-        "crossover": "OrderCrossover",
-        "mutation": "SwapMutation"
+        "initialization": "RandomPermutationInitialization",
+        "selection": "GPUTournamentSelection",
+        "crossover": "GPUOrderCrossover",
+        "mutation": "GPUSwapMutation",
+        "local_search": "BatchGPUTwoOpt",
+        "evaluation": "GPUCostEvaluation"
       }
     }
   },
@@ -150,7 +174,7 @@
         "effect_interpretation": "negligible"
       },
       {
-        "comparison": "CPU vs FullGPU",
+        "comparison": "CPU vs FullGPUModular",
         "test_used": "no_test_needed",
         "p_value": 1.0,
         "mean_difference": 0.0,
@@ -178,7 +202,7 @@
         "effect_interpretation": "negligible"
       },
       {
-        "comparison": "HybridNaive vs FullGPU",
+        "comparison": "HybridNaive vs FullGPUModular",
         "test_used": "no_test_needed",
         "p_value": 1.0,
         "mean_difference": 0.0,
@@ -192,7 +216,7 @@
         "effect_interpretation": "negligible"
       },
       {
-        "comparison": "HybridOptimized vs FullGPU",
+        "comparison": "HybridOptimized vs FullGPUModular",
         "test_used": "no_test_needed",
         "p_value": 1.0,
         "mean_difference": 0.0,

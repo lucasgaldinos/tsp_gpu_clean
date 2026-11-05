@@ -49,8 +49,8 @@ one evolutionary loop.
 | `src/data_models/` | `Problem` and domain exceptions |
 | `src/distances/` | Pairwise distance kernels and full-matrix construction |
 | `src/loaders/` | TSPLIB parsing and DuckDB access |
-| `src/benchmarking_v2/` | Orchestration, statistics, tables and checkpoints |
-| `src/benchmarks_v2/` | CLI entry points and result-database scripts |
+| `src/benchmarking/` | Orchestration (`runner/`), statistics and reports (`analysis/`), result database (`database/`) |
+| `src/cli/` | Console entry points: `tsp-ingest`, `tsp-benchmark`, `tsp-import-checkpoints`, `tsp-validate-db` |
 | `src/utils/` | CUDA kernel loading, phase timing |
 
 `src/algorithms/archive/` holds pre-modularisation kernels and is excluded from
@@ -79,8 +79,8 @@ and hybrid paths run without one.
 .venv/bin/python -m mypy src
 
 # Benchmarks
-.venv/bin/python -m benchmarks_v2.run_chapter4_benchmark --help
-.venv/bin/python -m benchmarks_v2.run_selected_problems --repetitions 3
+.venv/bin/python -m benchmark_scripts.run_chapter4_benchmark --help
+.venv/bin/python -m benchmark_scripts.run_selected_problems --repetitions 3
 ```
 
 All tool configuration lives in `pyproject.toml`; do not add a second config file.

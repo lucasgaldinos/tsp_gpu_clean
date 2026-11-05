@@ -29,6 +29,16 @@ def is_gpu_array(arr: Any) -> bool:
   return bool(CUPY_AVAILABLE and cp is not None and isinstance(arr, cp.ndarray))
 
 
+def _mutation_bounds(n: int) -> tuple[int, int]:
+  """Return the mutable index slice `[low, high)` for a route of length `n`.
+
+  Endpoints (index `0` and `n - 1`) are never mutated, so depot delimiters stay
+  fixed. For `n <= 3` the slice is empty (`high - low < 2`), making mutation a
+  safe no-op when there is no interior position to swap or invert.
+  """
+  return 1, n - 1
+
+
 def ensure_routes_batch(routes: RouteOrRoutes) -> tuple[Routes, bool]:
   """
   Normalize a single 1D route `(n_cities,)` or 2D batch `(N, n_cities)` into a 2D batch.
@@ -105,6 +115,7 @@ def restore_routes_shape(
 
 
 __all__: list[str] = [
+  "_mutation_bounds",
   "ensure_routes_batch",
   "is_gpu_array",
   "restore_routes_shape",

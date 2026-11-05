@@ -1,9 +1,14 @@
 """
 Distance matrix computation from coordinate data.
 
-This module provides the bridge between pairwise distance functions and
-full distance matrix computation. It uses the factory pattern from pairwise.py
-to dispatch to the correct distance function based on edge weight type.
+This module is the bridge between the pairwise distance functions and full
+distance matrix computation. It uses the factory from :mod:`distances.pairwise`
+to dispatch to the correct TSPLIB95 formula based on edge weight type.
+
+Memory model (``BUG-13`` / ``DP10-16``): the naive 2D broadcast materialises an
+``(n, n, d)`` tensor. For ``n <= DEFAULT_CHUNK_THRESHOLD`` that stays the direct
+path; above it the rows are processed in blocks of ``chunk_size`` so peak
+memory is ``O(chunk_size * n * d)`` instead of ``O(n^2 * d)``.
 
 Usage:
     >>> from .matrix import compute_distance_matrix
@@ -12,7 +17,7 @@ Usage:
     >>> distances.shape
     (3, 3)
     >>> distances[0, 1]  # Distance from node 0 to node 1
-    5.0
+    5
 """
 
 from __future__ import annotations
@@ -21,207 +26,218 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from .pairwise import get_distance_function
+from .pairwise import EARTH_RADIUS_KM, PI, get_distance_function
 
 if TYPE_CHECKING:
-  from protocols.backend import Array, BackendModule
+  from protocols.backend import BackendModule
+
+#: Largest ``n`` still computed with a single full 2D broadcast.
+DEFAULT_CHUNK_THRESHOLD: int = 2048
+
+#: Number of rows evaluated per broadcast block when ``n > chunk_threshold``.
+DEFAULT_CHUNK_SIZE: int = 512
+
+_VECTORIZED_TYPES: frozenset[str] = frozenset(
+  ("EUC_2D", "EUC_3D", "MAN_2D", "MAN_3D", "MAX_2D", "MAX_3D", "CEIL_2D", "ATT", "GEO")
+)
 
 
-def compute_distance_matrix(coordinates: np.ndarray, edge_weight_type: str, xp: BackendModule = np) -> np.ndarray:
+def _geo_to_radians(coord_array: Any, xp: BackendModule) -> Any:
+  """Convert DDD.MM coordinates to radians (truncated degrees, minutes in the fraction)."""
+  deg: Any = xp.trunc(coord_array)
+  minutes: Any = coord_array - deg
+  return PI * (deg + 5.0 * minutes / 3.0) / 180.0
+
+
+def _xray_block(rows: Any, all_coords: Any, xp: BackendModule) -> Any:
+  """Compute an ``(m, n)`` XRAY1 block with the scalar crystallography formula."""
+  distance_fn = get_distance_function("XRAY1")
+  row_count: int = int(rows.shape[0])
+  column_count: int = int(all_coords.shape[0])
+  result: Any = xp.zeros((row_count, column_count), dtype=xp.int32)
+  for i in range(row_count):
+    coord_i = tuple(float(value) for value in rows[i])
+    for j in range(column_count):
+      coord_j = tuple(float(value) for value in all_coords[j])
+      result[i, j] = distance_fn(coord_i, coord_j)
+  return result
+
+
+def _distance_block(rows: Any, all_coords: Any, edge_weight_type: str, xp: BackendModule) -> Any:
+  """Compute the ``(len(rows), n)`` distance block between ``rows`` and ``all_coords``."""
+  if edge_weight_type == "XRAY1":
+    return _xray_block(rows, all_coords, xp)
+
+  coordinate_diff: Any = rows[:, np.newaxis, :] - all_coords[np.newaxis, :, :]
+
+  if edge_weight_type == "EUC_2D":
+    squared = xp.sum(coordinate_diff * coordinate_diff, axis=2)
+    return (xp.sqrt(squared) + 0.5).astype(xp.int64)
+
+  if edge_weight_type == "EUC_3D":
+    squared = xp.sum(coordinate_diff * coordinate_diff, axis=2)
+    return (xp.sqrt(squared) + 0.5).astype(xp.int64)
+
+  if edge_weight_type == "MAN_2D":
+    return (xp.sum(xp.abs(coordinate_diff), axis=2) + 0.5).astype(xp.int64)
+
+  if edge_weight_type == "MAN_3D":
+    return (xp.sum(xp.abs(coordinate_diff), axis=2) + 0.5).astype(xp.int64)
+
+  if edge_weight_type == "MAX_2D":
+    return (xp.max(xp.abs(coordinate_diff), axis=2) + 0.5).astype(xp.int64)
+
+  if edge_weight_type == "MAX_3D":
+    return (xp.max(xp.abs(coordinate_diff), axis=2) + 0.5).astype(xp.int64)
+
+  if edge_weight_type == "CEIL_2D":
+    squared = xp.sum(coordinate_diff * coordinate_diff, axis=2)
+    return xp.ceil(xp.sqrt(squared)).astype(xp.int64)
+
+  if edge_weight_type == "ATT":
+    squared = xp.sum(coordinate_diff * coordinate_diff, axis=2)
+    pseudo_euclidean: Any = xp.sqrt(squared / 10.0)
+    rounded: Any = (pseudo_euclidean + 0.5).astype(xp.int64)
+    return xp.where(rounded < pseudo_euclidean, rounded + 1, rounded)
+
+  if edge_weight_type == "GEO":
+    lat_rad: Any = _geo_to_radians(rows[:, 0], xp)
+    lon_rad: Any = _geo_to_radians(rows[:, 1], xp)
+    all_lat_rad: Any = _geo_to_radians(all_coords[:, 0], xp)
+    all_lon_rad: Any = _geo_to_radians(all_coords[:, 1], xp)
+
+    lat_i: Any = lat_rad[:, np.newaxis]
+    lat_j: Any = all_lat_rad[np.newaxis, :]
+    lon_i: Any = lon_rad[:, np.newaxis]
+    lon_j: Any = all_lon_rad[np.newaxis, :]
+
+    q1: Any = xp.cos(lon_i - lon_j)
+    q2: Any = xp.cos(lat_i - lat_j)
+    q3: Any = xp.cos(lat_i + lat_j)
+    acos_arg: Any = xp.clip(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3), -1.0, 1.0)
+    return (EARTH_RADIUS_KM * xp.arccos(acos_arg) + 1.0).astype(xp.int64)
+
+  raise ValueError(
+    f"Unsupported edge_weight_type: '{edge_weight_type}'. "
+    f"Coordinate-based types: EUC_2D, EUC_3D, MAN_2D, MAN_3D, "
+    f"MAX_2D, MAX_3D, GEO, ATT, CEIL_2D, XRAY1. "
+    f"For EXPLICIT types, use Problem.distances (populated by "
+    f"TsplibLoader/DatabaseLoader); nothing is computed from coordinates."
+  )
+
+
+def compute_candidate_list(
+  coordinates: np.ndarray | None = None,
+  edge_weight_type: str = "EUC_2D",
+  k: int = 20,
+  xp: BackendModule = np,
+  *,
+  distances: Any | None = None,
+  chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> np.ndarray:
+  """Build the ``k``-nearest-neighbour candidate list ``N_k`` of every node.
+
+  ``N_k[u, r]`` is the ``(r + 1)``-th closest node to ``u``, self-edges excluded and
+  ties broken by ascending node index. Rows are evaluated in blocks of ``chunk_size``
+  so a coordinate-only problem never materialises the full ``(n, n)`` matrix when
+  ``n > chunk_size`` (``DP10-20``).
+
+  Args:
+      coordinates: Node coordinates, shape ``(n, 2)`` or ``(n, 3)``. Ignored when
+          ``distances`` is provided.
+      edge_weight_type: TSPLIB95 edge weight type used for the coordinate blocks.
+      k: Requested neighbours per node; clamped to ``min(k, n - 1)``.
+      xp: Backend module (NumPy or CuPy). Default is NumPy.
+      distances: Precomputed distance matrix, shape ``(n, n)``. Rows are read in
+          blocks, so the matrix may stay on the target backend.
+      chunk_size: Rows evaluated per block.
+
+  Returns:
+      ``int32`` array of shape ``(n, k_eff)`` with ``k_eff = min(k, n - 1)``, or
+      ``(n, 0)`` when ``n <= 1`` or ``k <= 0``.
+
+  Raises:
+      ValueError: If neither ``distances`` nor ``coordinates`` is provided.
+
+  Performance:
+      Peak intermediate memory is ``O(chunk_size * n)`` plus the ``O(n * k)`` result,
+      independent of ``n`` when ``distances`` is ``None``.
+  """
+  if distances is not None:
+    n: int = int(distances.shape[0])
+  elif coordinates is not None:
+    n = int(coordinates.shape[0])
+  else:
+    raise ValueError("compute_candidate_list requires either `distances` or `coordinates`.")
+
+  if n <= 1 or k <= 0:
+    return np.zeros((n, 0), dtype=np.int32)
+
+  k_eff: int = min(k, n - 1)
+  step: int = max(1, chunk_size)
+  # Self-edges are masked with the largest `int64`, which no real distance reaches.
+  sentinel: int = int(np.iinfo(np.int64).max)
+  result: Any = xp.empty((n, k_eff), dtype=xp.int32)
+
+  for start in range(0, n, step):
+    end: int = min(start + step, n)
+    block: Any
+    if distances is not None:
+      block = xp.asarray(distances[start:end], dtype=xp.int64)
+    else:
+      if coordinates is None:  # pragma: no cover - guarded above
+        raise ValueError("compute_candidate_list requires coordinates when `distances` is None.")
+      block = _distance_block(coordinates[start:end], coordinates, edge_weight_type, xp).astype(xp.int64)
+
+    rows: Any = xp.arange(end - start)
+    block[rows, xp.arange(start, end)] = sentinel
+    candidate_columns: Any = xp.argpartition(block, k_eff, axis=1)[:, :k_eff]
+    candidate_distances: Any = block[rows[:, np.newaxis], candidate_columns]
+    # `lexsort` uses its last key as primary: ascending distance, then node index.
+    order: Any = xp.lexsort((candidate_columns, candidate_distances), axis=1)
+    result[start:end, :] = candidate_columns[rows[:, np.newaxis], order]
+
+  return cast("np.ndarray", result)
+
+
+def compute_distance_matrix(
+  coordinates: np.ndarray,
+  edge_weight_type: str,
+  xp: BackendModule = np,
+  *,
+  chunk_threshold: int = DEFAULT_CHUNK_THRESHOLD,
+  chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> np.ndarray:
   """
   Compute full distance matrix from coordinates using specified edge type.
 
-  This function dispatches to the appropriate pairwise distance function
-  (EUC_2D, GEO, ATT, etc.) and computes the complete nxn distance matrix.
-
-  For symmetric distance types (all coordinate-based types), exploits
-  symmetry to compute only the upper triangle and mirror to lower triangle,
-  achieving ~2x speedup for large instances.
+  Dispatches to the appropriate TSPLIB95 formula (EUC_2D, GEO, ATT, etc.) and
+  returns the complete ``n x n`` matrix. All coordinate-based types are
+  symmetric; the matrix is computed exactly once per ordered pair through the
+  vectorized broadcast (no upper-triangle shortcut is taken, because the
+  vectorized path is faster than a triangular Python loop).
 
   Args:
-      coordinates: Node coordinates, shape (n, 2) or (n, 3)
-          - 2D: Most TSP/CVRP instances (x, y)
-          - 3D: EUC_3D, MAN_3D, MAX_3D, XRAY1 (x, y, z)
-      edge_weight_type: TSPLIB95 edge weight type string
-          - 'EUC_2D': 2D Euclidean distance
-          - 'EUC_3D': 3D Euclidean distance
-          - 'MAN_2D': 2D Manhattan distance
-          - 'MAN_3D': 3D Manhattan distance
-          - 'MAX_2D': 2D Maximum distance
-          - 'MAX_3D': 3D Maximum distance
-          - 'GEO': Geographical distance
-          - 'ATT': Pseudo-Euclidean (att48, att532)
-          - 'CEIL_2D': Ceiling of Euclidean
-          - 'XRAY1': Crystallography distance
-      xp: BackendModule, optional
-          Computational backend (NumPy or CuPy). Default is NumPy (CPU).
-          - Use `xp=np` for CPU computation (default)
-          - Use `xp=cp` for GPU computation (requires CuPy)
-
-          When computing distance matrices for GPU algorithms, pass `xp=cp`
-          to compute on GPU and keep the matrix in VRAM, avoiding repeated
-          CPU→GPU transfers. For workflows using multiple GPU algorithms on
-          the same problem, this can save 500-1000ms of transfer overhead.
+      coordinates: Node coordinates, shape ``(n, 2)`` or ``(n, 3)``.
+      edge_weight_type: TSPLIB95 edge weight type string.
+      xp: Backend module (NumPy or CuPy). Default is NumPy.
+      chunk_threshold: Largest ``n`` computed with a single full broadcast.
+      chunk_size: Rows per broadcast block when ``n > chunk_threshold``.
 
   Returns:
-      Distance matrix, shape (n, n), dtype int32
-      - For TSP/CVRP: Symmetric matrix (distances[i,j] == distances[j,i])
-      - Diagonal is always zero (distance to self)
-      - Array type matches backend (NumPy ndarray or CuPy ndarray)
+      Distance matrix, shape ``(n, n)``, dtype ``int32`` with a zero diagonal.
 
   Raises:
-      ValueError: If edge_weight_type is unknown or unsupported
-          (e.g., 'EXPLICIT' or 'SPECIAL' should not be computed)
-
-  Examples:
-      >>> # CPU computation (default)
-      >>> coords = np.array([[0.0, 0.0], [3.0, 4.0], [6.0, 0.0]])
-      >>> dist = compute_distance_matrix(coords, "EUC_2D")
-      >>> dist[0, 1]  # Distance from 0 to 1
-      5.0
-      >>> dist[1, 0]  # Symmetric
-      5.0
-
-      >>> # GPU computation (CuPy)
-      >>> import cupy as cp
-      >>> coords_gpu = cp.array([[0.0, 0.0], [3.0, 4.0]])
-      >>> dist_gpu = compute_distance_matrix(coords_gpu, "EUC_2D", xp=cp)
-      >>> # Result stays in GPU VRAM, no transfer overhead
-
-      >>> # Geographic distances
-      >>> coords = np.array([[52.31, 13.23], [48.08, 11.34]])  # Berlin, Munich
-      >>> dist = compute_distance_matrix(coords, "GEO")
-      >>> dist[0, 1]
-      504.0
+      ValueError: If ``edge_weight_type`` is unknown or unsupported.
 
   Performance:
-      - Time complexity: O(n²) for n nodes (with constant factor improvement)
-      - Space complexity: O(n²) for matrix storage
-      - Symmetric optimization: Computes only n(n-1)/2 + n distances
-      - Example: dl15112 (15,112 nodes) - 114M calculations instead of 228M
-      - GPU acceleration: 10-100x speedup for large matrices (n > 1000)
-
-  Note on Symmetry:
-      All coordinate-based distance functions produce symmetric matrices.
-      This implementation exploits symmetry by computing only the upper
-      triangle (i < j) and mirroring to the lower triangle.
-
-  Note on Backend Selection:
-      For workflows that precompute distance matrices and then run multiple
-      GPU algorithms, compute the matrix on GPU to avoid repeated transfers:
-
-      # Recommended workflow for GPU algorithms
-      distances = compute_distance_matrix(coords, 'EUC_2D', xp=cp)
-      problem = Problem(..., distances=distances)  # CuPy array in VRAM
-      result1 = nearest_neighbor(problem, xp=cp)   # No transfer
-      result2 = christofides(problem, xp=cp)       # No transfer
-      result3 = two_opt(problem, xp=cp)            # No transfer
+      - Direct path: peak intermediate memory ``O(n^2 * d)``.
+      - Chunked path (``n > chunk_threshold``): peak memory
+        ``O(chunk_size * n * d)``, keeping large instances inside VRAM/RAM.
   """
-  # Initialize distance matrix
-  n = coordinates.shape[0]
+  n: int = int(coordinates.shape[0])
 
-  # Vectorized computation using numpy broadcasting
-  # Create pairwise coordinate differences: shape (n, n, d)
-  # coords_i has shape (n, 1, d), coords_j has shape (1, n, d)
-  # Broadcasting creates (n, n, d) array of all pairwise differences
-  coords_i: Any = coordinates[:, xp.newaxis, :]  # Add axis for broadcasting
-  coords_j: Any = coordinates[xp.newaxis, :, :]  # Add axis for broadcasting
-  diff = coords_i - coords_j  # Shape: (n, n, d)
-
-  # Type-specific vectorized distance computation
-  # All preserve TSPLIB95 rounding: nint(x) = int(x + 0.5)
-
-  if edge_weight_type == "EUC_2D":
-    # Euclidean 2D: nint(sqrt(dx² + dy²))
-    sq_dist = xp.sum(diff**2, axis=2)
-    distances: Any = (xp.sqrt(sq_dist) + 0.5).astype(xp.int64)
-
-  elif edge_weight_type == "EUC_3D":
-    # Euclidean 3D: nint(sqrt(dx² + dy² + dz²))
-    sq_dist = xp.sum(diff**2, axis=2)
-    distances = (xp.sqrt(sq_dist) + 0.5).astype(xp.int64)
-
-  elif edge_weight_type == "MAN_2D":
-    # Manhattan 2D: nint(|dx| + |dy|)
-    distances = (xp.sum(xp.abs(diff), axis=2) + 0.5).astype(xp.int64)
-
-  elif edge_weight_type == "MAN_3D":
-    # Manhattan 3D: nint(|dx| + |dy| + |dz|)
-    distances = (xp.sum(xp.abs(diff), axis=2) + 0.5).astype(xp.int64)
-
-  elif edge_weight_type == "MAX_2D":
-    # Maximum 2D: nint(max(|dx|, |dy|))
-    distances = (xp.max(xp.abs(diff), axis=2) + 0.5).astype(xp.int64)
-
-  elif edge_weight_type == "MAX_3D":
-    # Maximum 3D: nint(max(|dx|, |dy|, |dz|))
-    distances = (xp.max(xp.abs(diff), axis=2) + 0.5).astype(xp.int64)
-
-  elif edge_weight_type == "CEIL_2D":
-    # Ceiling of Euclidean: ceil(sqrt(dx² + dy²))
-    sq_dist = xp.sum(diff**2, axis=2)
-    distances = xp.ceil(xp.sqrt(sq_dist)).astype(xp.int64)
-
-  elif edge_weight_type == "ATT":
-    # Pseudo-Euclidean (ATT) with special rounding
-    # rij = sqrt((dx² + dy²) / 10.0)
-    # tij = nint(rij)
-    # if tij < rij: return tij + 1, else: return tij
-    sq_dist = xp.sum(diff**2, axis=2)
-    rij: Array = xp.sqrt(sq_dist / 10.0)
-    tij: Any = (rij + 0.5).astype(xp.int64)  # nint(rij)
-    distances = xp.where(tij < rij, tij + 1, tij)
-
-  elif edge_weight_type == "GEO":
-    # Geographical distance with latitude/longitude
-    # Requires special degree-to-radian conversion for DDD.MM format
-
-    # Helper function for vectorized degree conversion
-    def deg_to_rad_vec(coord_array: np.ndarray) -> np.ndarray:
-      """Convert DDD.MM format to radians (vectorized)."""
-      PI = 3.141592
-      deg = xp.trunc(coord_array)
-      min_part = coord_array - deg
-      return PI * (deg + 5.0 * min_part / 3.0) / 180.0
-
-    # Extract lat/lon for all points
-    lat: Any = coordinates[:, 0]  # Shape: (n,)
-    lon: Any = coordinates[:, 1]  # Shape: (n,)
-
-    # Convert to radians
-    lat_rad = deg_to_rad_vec(lat)
-    lon_rad = deg_to_rad_vec(lon)
-
-    # Create pairwise arrays using broadcasting
-    lat_i = lat_rad[:, xp.newaxis]  # Shape: (n, 1)
-    lat_j = lat_rad[xp.newaxis, :]  # Shape: (1, n)
-    lon_i = lon_rad[:, xp.newaxis]
-    lon_j = lon_rad[xp.newaxis, :]
-
-    # Haversine formula (vectorized)
-    RRR = 6378.388  # Earth radius in km
-    q1: Array = xp.cos(lon_i - lon_j)
-    q2: Array = xp.cos(lat_i - lat_j)
-    q3: Array = xp.cos(lat_i + lat_j)
-    acos_arg: Array = xp.clip(0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3), -1.0, 1.0)
-    distances = (RRR * xp.arccos(acos_arg) + 1.0).astype(xp.int64)
-    xp.fill_diagonal(distances, 0)
-
-  elif edge_weight_type == "XRAY1":
-    # Crystallography distance (rarely used)
-    # Fall back to loop-based for now (complex trigonometry)
-    dist_func = get_distance_function(edge_weight_type)
-    distances = xp.zeros((n, n), dtype=xp.int64)
-    for i in range(n):
-      for j in range(i + 1, n):
-        coord_i = tuple(coordinates[i])
-        coord_j = tuple(coordinates[j])
-        dist_ij = int(dist_func(coord_i, coord_j))
-        distances[i, j] = dist_ij
-        distances[j, i] = dist_ij
-
-  else:
-    # Unknown or unsupported type - raise error
+  if edge_weight_type not in _VECTORIZED_TYPES and edge_weight_type != "XRAY1":
     raise ValueError(
       f"Unsupported edge_weight_type: '{edge_weight_type}'. "
       f"Coordinate-based types: EUC_2D, EUC_3D, MAN_2D, MAN_3D, "
@@ -230,6 +246,17 @@ def compute_distance_matrix(coordinates: np.ndarray, edge_weight_type: str, xp: 
       f"TsplibLoader/DatabaseLoader); nothing is computed from coordinates."
     )
 
-  # Convert to int32 for TSPLIB compliance (distances are always integers)
-  # int32 supports values up to 2,147,483,647 — sufficient for all TSPLIB instances
-  return cast("np.ndarray", distances.astype(xp.int32))
+  if n <= chunk_threshold:
+    distances: Any = _distance_block(coordinates, coordinates, edge_weight_type, xp)
+  else:
+    blocks: list[Any] = [
+      _distance_block(coordinates[start : start + chunk_size], coordinates, edge_weight_type, xp)
+      for start in range(0, n, chunk_size)
+    ]
+    distances = blocks[0] if len(blocks) == 1 else xp.concatenate(blocks, axis=0)
+
+  # TSPLIB GEO returns 1 for identical points (`int(d + 1.0)`); the diagonal is
+  # a hard contract, so it is zeroed explicitly for every type.
+  result: Any = distances.astype(xp.int32)
+  xp.fill_diagonal(result, 0)
+  return cast("np.ndarray", result)

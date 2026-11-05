@@ -14,9 +14,12 @@ import numpy as np
 import pytest
 
 from algorithms.strategies.mutation.inversion_mutation import InversionMutation
+from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
   from collections.abc import Callable
+
+  from data_models.problem import Problem
 
 
 @pytest.mark.parametrize("mutation_rate", [0.0, 1.0])
@@ -74,21 +77,13 @@ def test_mutation_batch_preserves_shape_and_permutations(
     assert sorted(row.tolist()) == list(range(6))
 
 
-@pytest.mark.xfail(
-  reason=(
-    "DEFECT: src/algorithms/strategies/mutation/inversion_mutation.py:48 "
-    "`_mutation_bounds` only protects depot endpoints when len > 3, so a "
-    "3-node [depot, node, depot] route can invert across a depot endpoint"
-  ),
-  strict=True,
-)
 def test_mutation_preserves_three_node_depot_endpoints() -> None:
   """WHAT: Mutation on the shortest depot-bounded route.
 
   WHY: Depot endpoints delimit vehicle routes; moving them turns a valid tour into an
   invalid chromosome for the constructor.
 
-  EXPECTED: Both endpoints remain at the depot (currently fails; registered as a defect).
+  EXPECTED: Both endpoints remain at the depot.
   """
   # Arrange
   route = np.array([0, 1, 0], dtype=np.int32)
@@ -100,3 +95,26 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
   assert mutated[0] == 0
   assert mutated[-1] == 0
   assert sorted(mutated.tolist()) == sorted(route.tolist())
+
+
+def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Problem) -> None:
+  """WHAT: `InversionMutation(candidate_k=10)` on a full 52-city tour.
+
+  WHY: proximity-guided cuts change how the segment is chosen; the reversal must still
+  produce a permutation and leave the depot endpoints fixed (`DP10-20`).
+
+  EXPECTED: valid permutation, depot endpoints untouched, parent array not mutated.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=19)
+  route = np.random.default_rng(23).permutation(np.arange(52, dtype=np.int32)).astype(np.int32, copy=False)
+  original = route.copy()
+
+  # Act
+  mutated = InversionMutation(seed=6, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
+
+  # Assert
+  assert sorted(mutated.tolist()) == list(range(52))
+  assert mutated[0] == route[0]
+  assert mutated[-1] == route[-1]
+  np.testing.assert_array_equal(route, original)

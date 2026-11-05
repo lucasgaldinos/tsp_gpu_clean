@@ -25,6 +25,15 @@ modifications:
           identificadores DP-/BUG-, separação de `configs/algorithms.archive.json`,
           reparo dos DoDs 9.6/9.9 e das âncoras mortas, limpeza de docstrings e do
           validador de configuração, e criação do gate `benchmark_scripts/check_docs.py`.
+  - date_modified: 2026-11-03
+    modifications:
+      - description: >
+          Reformulação da Fase 10: incorporação do backlog (`Task 10.6`–`Task 10.11`) em
+          formato 5W2H dentro de `### Tarefas da fase 10`, registro das decisões já
+          tomadas (`DP10-6` a `DP10-20`), decomposição da antiga tarefa monolítica de kernels
+          on-the-fly em 5 sub-tarefas modulares (`Task 10.15` a `Task 10.19`), correções de
+          revisão de código (`BUG-13` a `BUG-16`), higiene de documentação e lista de
+          candidatos (`Task 10.12`–`Task 10.22`).
 status: review
 author:
   - "[[Lucas Galdino]]"
@@ -64,6 +73,22 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 6. **Consolidação do Pacote `src/benchmarking/`**: Unificação dos diretórios duplicados `src/benchmarking_v2/` e `src/benchmarks_v2/` em `src/benchmarking/{runner,analysis,database}/`, movendo os pontos de entrada CLI para `benchmark_scripts/`.
 
 ---
+
+## TOC
+
+- [Plano de Reorganização Arquitetural, Tipagem PEP 695/698 e Benchmark Modular](#plano-de-reorganização-arquitetural-tipagem-pep-695698-e-benchmark-modular)
+  + [TOC](#toc)
+  + [Decisões Fixadas (Source of Truth)](#decisões-fixadas-source-of-truth)
+  + [Registro de Tarefas 5W2H](#registro-de-tarefas-5w2h)
+  + [Fase 7: Utilitários de Residência CPU/GPU e RNG, Variantes de 2-Opt, GPU Inversion Mutation e Integração Nativa com `tsp.duckdb`](#fase-7-utilitários-de-residência-cpugpu-e-rng-variantes-de-2-opt-gpu-inversion-mutation-e-integração-nativa-com-tspduckdb)
+  + [Fase 8: Hermetismo de Caminhos, Separação Estrita de CLI/Scripts e Isolamento de Testes](#fase-8-hermetismo-de-caminhos-separação-estrita-de-cliscripts-e-isolamento-de-testes)
+  + [Fase 9: Capacidade de GPU no Núcleo, Entrada Válida, Isolamento do Monolítico e Contrato de Configurações](#fase-9-capacidade-de-gpu-no-núcleo-entrada-válida-isolamento-do-monolítico-e-contrato-de-configurações)
+    - [Decisões Fixadas da Fase 9](#decisões-fixadas-da-fase-9)
+    - [Tarefas da fase 9](#tarefas-da-fase-9)
+  + [Fase 10: Registro de Defeitos, Identificadores e Gate de Documentação](#fase-10-registro-de-defeitos-identificadores-e-gate-de-documentação)
+    - [Decisões Fixadas da Fase 10](#decisões-fixadas-da-fase-10)
+    - [Tarefas da fase 10](#tarefas-da-fase-10)
+  + [Handoff](#handoff)
 
 ## Decisões Fixadas (Source of Truth)
 
@@ -830,6 +855,28 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 - **DP10-3 (Nome único)**: `FullGPUMonolithic` é o único nome da variante monolítica; `FullGPU` foi eliminado de configs, código e testes.
 - **DP10-4 (Gate de documentação)**: [check_docs.py](../../benchmark_scripts/check_docs.py) é o verificador standalone de docstrings obsoletas, links mortos e símbolos não registrados.
 - **DP10-5 (Coortes de resultados)**: checkpoints de schemas diferentes não são combinados; `results_v3/selected_10/checkpoints/` mantém apenas a coorte de 41 chaves.
+- **DP10-6 (Substituição de `tsplib95` e ETL duplicado por `routing_data`)**: `tsplib_loader.py` era temporário; `gpu_accelerated_clean` delegará o parsing de problemas e a criação/ingestão do banco DuckDB para `routing_data` (`tsplib_parser` + `converter`), removendo a dependência `tsplib95` e o DDL duplicado em [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L418-L660).
+- **DP10-7 (Dependência via tag de release Git e versão do DuckDB)**: `routing-data` será consumido via tag de release Git (`uv add "routing-data @ git+https://github.com/lucasgaldinos/Routing_data.git@v0.2.0"`) após o commit das correções em `routing_data`, e a restrição de versão do DuckDB em `routing_data/pyproject.toml` será relaxada (`duckdb>=1.4.0`).
+- **DP10-8 (Contratos tipados em `distances`, `loaders` e `protocols.backend`)**: Substituir `Callable[[Any, Any], int]` em [pairwise.py](../../src/distances/pairwise.py#L460) por um `Protocol` (`PairwiseDistanceFn`), substituir `dict[str, Any]` em [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py#L30-L41) por `TypedDict` (`ProblemMetadataRow`), e eliminar o monkey-patching `# type: ignore` de `cache_clear` e assinaturas `*args: Any, **kwargs: Any` em [backend.py](../../src/protocols/backend.py#L120-L228).
+- **DP10-9 (Correções aprovadas em `routing_data`)**:
+  + `B1`: implementar upsert em `insert_problem` (`ON CONFLICT (name, type) DO UPDATE` / caminho explícito de atualização);
+  + `B3`: isolar falhas por problema em `insert_problems_batch` para que problemas válidos sejam comitados e inválidos registrados em `failed[]`;
+  + `M4`: levantar erro em `transform_problem` quando a matriz `EXPLICIT` falhar e descartar o problema inteiro no worker (nunca inserir problema `EXPLICIT` sem matriz no DuckDB);
+  + `M7`: derivar `is_symmetric` para `FULL_MATRIX` a partir dos valores da matriz via `check_symmetry`;
+  + `M11`: implementar verificações reais de integridade SQL e dimensões em `converter validate` com saída não-zero (`exit 1`) em caso de falha;
+  + `M2`/`m17`: sanitizar nomes em `json_writer.py` usando o padrão `<problem_name>.<problem_type>.json` (ex.: `lucas32.tsp.json`, `lucas32.vrp.json`), evitar re-parsing/inserção de arquivos duplicados com mesmo `(name, type)` e conteúdo, e validar nomes de tabela contra whitelist em `parquet_writer.py`;
+  + `T1`–`T5` / Batch 4: renomear `DataTransformer` para `ProblemNormalizer` com retorno `TypedDict`, e remover/consolidar os scripts raiz `convert_vrp.py` e `converter_cli.py`.
+- **DP10-10 (Higiene de documentação e scripts temporários)**: Deletar os 4 arquivos obsoletos em `routing_data/tmp/` (`src_exploration_report.md`, `analysis-test-suite-organization.md`, `baseline-durations.txt`, `batch3-durations.txt`), deletar os 9 scripts one-shot de migração de testes em `routing_data/tmp/*.py` e refatorar os 4 scripts `probe_*.py` em exemplos limpos após estabilização da API; deletar os 5 arquivos Markdown obsoletos/duplicados em `gpu_accelerated_clean` (`daily_planning.md`, `meeting-notes.md`, `modularizing-cuda-kernels.md`, `documentation/analysis/presentations/key_findings.md`, `documentation/critical_analysis/criticas_analysis_bib.md`); atualizar as âncoras e caminhos obsoletos listados nas Seções 5.B e 5.D após as tarefas de código.
+- **DP10-11 (Verificação limpa de arquivo ausente em `DatabaseLoader`, `BUG-16`)**: Mover a verificação de existência de `self.db_path` para fora do bloco `try` em [database_loader.py](../../src/loaders/database_loader.py#L92-L111) e levantar `DatabaseConnectionError` diretamente sem auto-capturar `FileNotFoundError`.
+- **DP10-12 (Manutenção de `INTEGER[][]` e `int32` segundo TSPLIB95 e registro de escalabilidade futura, `M3`)**: Manter `edge_weight_matrices.matrix` como `INTEGER[][]` no DuckDB e `int32` em todo o pipeline GPU/CPU aplicando arredondamento TSPLIB95 (`_nint`), e documentar os trade-offs futuros de precisão/escala em [analysis-future-scaling-and-type-decisions.md](../../documentation/analysis/questions/analysis-future-scaling-and-type-decisions.md).
+- **DP10-13 (Fronteira de funções de distância, Item 1.3)**: As funções escalares TSPLIB95 (`_nint`, `EUC_2D`, `GEO`, `ATT`, etc.) residem em `routing_data` e são importadas/reexportadas por [pairwise.py](../../src/distances/pairwise.py); o construtor de matrizes `(n, n)` vetorizado sobre `xp` (`numpy`/`cupy`) permanece em [matrix.py](../../src/distances/matrix.py).
+- **DP10-14 (Fronteira `DatabaseManager` vs `DatabaseLoader`, Item 1.4)**: `DatabaseManager` em `routing_data` detém 100% do DDL e das queries SQL sobre o banco de problemas (`problems`, tabelas por tipo, `edge_weight_matrices`, `file_tracking`, `solutions`); [database_loader.py](../../src/loaders/database_loader.py) em `gpu_accelerated_clean` consome esses dados e constrói objetos `Problem` com arrays `np.ndarray` (`int32` para distâncias/demandas, `float64` para coordenadas).
+- **DP10-15 (Padronização de `ProblemContext.rng` em `np.random.Generator`, `BUG-2`)**: `ProblemContext.__init__` instancia `self.rng: Generator = make_rng(seed)` (`np.random.default_rng`), eliminando `RandomState` do contexto para que `resolve_rng(context, fallback)` sempre utilize o gerador semeado do contexto.
+- **DP10-16 (Cálculo de matriz de distâncias em blocos para `n` grande, `BUG-13`)**: [matrix.py](../../src/distances/matrix.py#L126-L206) mantém broadcast 2D completo para `n <= 2048` e utiliza broadcast em blocos de linhas (`chunk_size = 512`) para `n > 2048` (reduzindo o pico de RAM de `O(n^2 d)` float64 sem o overhead de `triu_indices`), compartilha constantes com `pairwise.py` e atualiza a docstring.
+- **DP10-17 (Cache compartilhado de matriz `int32` em GPU no `ProblemContext`, `BUG-14`)**: `ProblemContext.get_gpu_distances()` garante retorno `cp.int32` cacheado no contexto (e `DatabaseLoader._load_distance_matrix` carrega matrizes `EXPLICIT` como `np.int32`); as estratégias `BatchGPUCostEvaluation`, `BatchGPUTwoOpt` e `BatchGPUMultiMoveTwoOpt` delegam a `context.get_gpu_distances()` e usam a chave composta `(problem.name, problem.dimension, problem.edge_type, id(problem))` como fallback.
+- **DP10-18 (Remoção de `Stream.null.synchronize()` redundante em 2-opt GPU, `BUG-15`)**: Remover `cp.cuda.Stream.null.synchronize()` incondicional em [two_opt.py#L358](../../src/algorithms/strategies/local_search/two_opt.py#L358) e [two_opt.py#L637](../../src/algorithms/strategies/local_search/two_opt.py#L637) quando `input_on_gpu=True`, pois transferências D2H (`d_population.get()` / `cp.asnumpy()`) e eventos CUDA em `@time_strategy` já sincronizam a stream quando necessário.
+- **DP10-19 (Kernels CUDA de distância par-a-par on-the-fly para `n > 10.000`, tiling de memória compartilhada para `n > 11.520` e validação de VRAM)**: Para `n <= 10.000` (ou `EXPLICIT`), mantém-se a matriz densa `(n, n)` `int32` na VRAM; para `n > 10.000` com coordenadas (`EUC_2D`, `EUC_3D`, `MAN_2D`, `MAN_3D`, `MAX_2D`, `MAX_3D`, `CEIL_2D`, `ATT`, `GEO`), os kernels CUDA calculam distâncias on-the-fly em registradores via `src/distances/kernels/pairwise_device.cuh` *(novo, Task 10.15)* lendo apenas `coords` (cacheado em L1/L2); para `n > 11.520`, os kernels de 2-opt operam com tiling em memória compartilhada (`TILE_SIZE = 2048`, ~8 KB) e carry-over de registrador (`node_j = node_j1`) para não exceder o limite rígido de 48 KB por bloco; `ProblemContext` valida a memória exigida ($\mathrm{VRAM}_{\mathrm{total}}(n, P) = 4n^2 + 12Pn + 24P + 8n$) contra `cp.cuda.Device().mem_info` e levanta [VRAMInsufficientError](../../src/data_models/exceptions.py#L210) quando insuficiente.
+- **DP10-20 (Lista de candidatos $k$-Nearest Neighbor $\mathcal{N}_k(u)$ compartilhada para CPU e GPU)**: `ProblemContext` expõe `get_cpu_candidate_list(k: int = 20)` e `get_gpu_candidate_list(k: int = 20)` retornando a matriz estática `(n, min(k, n - 1))` `int32` dos $k$ vizinhos mais próximos de cada nó (Reinelt, 1994; Johnson & McGeoch, 1997; Toth & Vigo, 2003); essa estrutura alimenta as variantes de 2-opt com lista de candidatos em CPU e GPU ($\Theta(n \cdot k)$ via permutação inversa $\text{pos}(\pi_i) = i$) e permanece disponível para operadores futuros (3-opt, Or-opt, vizinhanças granulares CVRP, inicialização GRASP e mutação guiada).
 
 ### Tarefas da fase 10
 
@@ -903,41 +950,436 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Arquivos Alterados:** [check_docs.py](../../benchmark_scripts/check_docs.py#L1-L150).
     - **Resumo:** Criado o gate com três verificações independentes e saída agregada por categoria; restrito a `documents_tcc/plan/*.md` e `documentation/walkthroughs/*.md` para evitar falsos positivos de links externos.
     - **Atendimento ao DoD:** Execução atual → `stale docstrings: 0`, `dead links: 0`, `undefined symbols: 0`, exit 0.
+- [x] **Task 10.6: Corrigir `BUG-1` (`Problem.__eq__` e `hash()` sobre `ndarray`)**
+  + **What:** Implementar comparação por conteúdo (`np.array_equal`) e igualdade segura para campos `np.ndarray | None` na dataclass `Problem`.
+  + **Why:** Como `Problem` é `@dataclass(frozen=True)` contendo arrays NumPy, `p1 == p2` levanta `ValueError: The truth value of an array with more than one element is ambiguous` e `hash(p1)` levanta `TypeError: unhashable type: 'numpy.ndarray'`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [problem.py](../../src/data_models/problem.py#L30-L135), [test_unit_problem_validation.py](../../tests/data_models/test_unit_problem_validation.py#L124).
+  + **When:** Independente; pode rodar na primeira bateria de correções de defeitos unitários de `gpu_accelerated_clean`.
+  + **How:** Implementar `__eq__` comparando escalares diretamente e arrays via `np.array_equal` (tratando `None`), e remover o marcador `@pytest.mark.xfail(strict=True)` em `test_problems_with_equal_content_compare_equal`.
+  + **How much:** Baixo (~25 linhas).
+  + **Stakeholder Implications:** Instâncias `Problem` com mesmos dados podem ser comparadas diretamente em testes e caches sem erro de broadcast NumPy.
+  + **DoD:** `pytest tests/data_models/test_unit_problem_validation.py -k "test_problems_with_equal_content_compare_equal" -q` passa sem `xfail`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [problem.py](../../src/data_models/problem.py#L26-L40), [test_unit_problem_validation.py](../../tests/data_models/test_unit_problem_validation.py#L124).
+    - **Resumo:** `Problem` ganhou `__eq__` (escalares por igualdade, arrays por `np.array_equal`, `None` só igual a `None`) e `__hash__` derivado do conteúdo dos arrays, preservando o uso da dataclass `frozen` em sets/dicts.
+    - **Atendimento ao DoD:** `pytest ... -k "test_problems_with_equal_content_compare_equal" -q` → `1 passed`; `ruff`/`mypy` nos arquivos tocados sem erros.
+- [x] **Task 10.7: Corrigir `BUG-2` (Padronizar `ProblemContext.rng` em `np.random.Generator`, `DP10-15`)**
+  + **What:** Substituir `xp.random.RandomState(seed)` por `make_rng(seed)` (`np.random.Generator`) em `ProblemContext.__init__` e garantir em `resolve_rng(context, fallback)` que `context.rng` seja retornado diretamente.
+  + **Why:** `ProblemContext.__init__` criava `xp.random.RandomState(seed)` ([problem_context.py](../../src/protocols/problem_context.py#L166)), enquanto todas as 7 estratégias e `resolve_rng` ([rng.py](../../src/utils/rng.py#L57)) operam sobre `np.random.Generator` (`.integers()`), fazendo `resolve_rng` ignorar silenciosamente `context.rng`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [problem_context.py](../../src/protocols/problem_context.py#L160-L175), [rng.py](../../src/utils/rng.py#L43-L60), [test_unit_rng.py](../../tests/utils/test_unit_rng.py#L145-L180), [test_unit_problem_context.py](../../tests/protocols/test_unit_problem_context.py#L100-L120).
+  + **When:** Independente; primeira bateria de correções unitárias em `gpu_accelerated_clean`.
+  + **How:**
+    1. Em `src/protocols/problem_context.py`, importar `make_rng` de `utils.rng` e definir `self.rng: Generator = make_rng(seed)`.
+    2. Em `tests/protocols/test_unit_problem_context.py:114-116`, atualizar `first.rng.random_sample(8)` para `first.rng.random(8)`.
+    3. Em `tests/utils/test_unit_rng.py:163`, atualizar `test_resolve_rng_uses_seeded_problem_context_rng` para usar `ProblemContext` real (ou `make_rng(42)`) e remover `@pytest.mark.xfail(strict=True)`.
+  + **How much:** Baixo (~25 linhas).
+  + **Stakeholder Implications:** Execuções com mesma semente em `ProblemContext` produzem trajetórias determinísticas e reprodutíveis em todas as estratégias CPU e GPU.
+  + **DoD:** `pytest tests/utils/test_unit_rng.py tests/protocols/test_unit_problem_context.py -q` passa integralmente sem `xfail`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [problem_context.py](../../src/protocols/problem_context.py#L168), [rng.py](../../src/utils/rng.py#L33-L46), [types.py](../../src/protocols/types.py#L17), [test_unit_rng.py](../../tests/utils/test_unit_rng.py#L163), [test_unit_problem_context.py](../../tests/protocols/test_unit_problem_context.py#L114).
+    - **Resumo:** `ProblemContext.rng` agora é `make_rng(seed)` (`np.random.Generator`); `SeedLike` e `make_rng` aceitam sequências de inteiros (sementes por worker); testes usam `.random(8)` e um `Generator` real.
+    - **Atendimento ao DoD:** `pytest tests/utils/test_unit_rng.py tests/protocols/test_unit_problem_context.py -q` → `22 passed`; `mypy`/`ruff` limpos.
+- [x] **Task 10.8: Corrigir `BUG-3` (`mean_difference` e IC em Variância Zero)**
+  + **What:** Preservar a diferença média real `mean_diff = float(np.mean(differences))` e `ci_95_difference = (mean_diff, mean_diff)` quando `std_diff == 0` em `paired_comparison`.
+  + **Why:** O ramo de variância zero em [statistics.py](../../src/benchmarking/analysis/statistics.py#L220) força `mean_difference=0.0` e `ci_95_difference=(0.0, 0.0)` mesmo quando dois algoritmos diferem por uma constante exata não nula (ex.: `[10, 10, 10]` vs `[15, 15, 15]`).
+  + **Who:** Agente (`implementer`).
+  + **Where:** [statistics.py](../../src/benchmarking/analysis/statistics.py#L215-L245), [test_unit_statistics_comparison.py](../../tests/benchmarking/test_unit_statistics_comparison.py#L173).
+  + **When:** Independente; bateria de correções unitárias.
+  + **How:** Calcular `mean_diff` antes do ramo `std_diff == 0`; quando `mean_diff == 0.0`, manter `p_value = 1.0`, `effect_size = 0.0`; quando `mean_diff != 0.0` e `std_diff == 0.0`, reportar `mean_diff`, `ci_95_difference = (mean_diff, mean_diff)` e tratar o valor-p/tamanho de efeito sem divisão por zero; remover o `xfail(strict=True)`.
+  + **How much:** Baixo (~25 linhas).
+  + **Stakeholder Implications:** Comparações estatísticas em instâncias onde ambos os algoritmos têm variância zero (ex.: convergem sempre para o mesmo ótimo local de cada variante) reportam a diferença real de custo.
+  + **DoD:** `test_paired_comparison_zero_variance_reports_true_mean_difference` passa sem `xfail`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [statistics.py](../../src/benchmarking/analysis/statistics.py#L213-L242), [test_unit_statistics_comparison.py](../../tests/benchmarking/test_unit_statistics_comparison.py#L173).
+    - **Resumo:** `mean_diff` é calculado antes do ramo de variância zero e reportado em `mean_difference`/`ci_95_difference`; quando a diferença é nula mantém `p_value=1.0`, quando é constante não nula usa `p_value=0.0` e `effect_size=0.0` (variância nula), sem divisão por zero.
+    - **Atendimento ao DoD:** `pytest ... -k "test_paired_comparison_zero_variance_reports_true_mean_difference" -q` → `1 passed`; arquivo completo `14 passed`.
+- [x] **Task 10.9: Corrigir `BUG-4` (Validação do Comprimento de `raw_*` em `is_valid_checkpoint`)**
+  + **What:** Verificar em `is_valid_checkpoint` que os comprimentos das listas `raw_times`, `raw_costs`, `raw_gaps` (e demais `raw_*` obrigatórios) coincidem com `successful_runs`.
+  + **Why:** `is_valid_checkpoint` ([checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L266)) aceita checkpoints com `successful_runs = 5` e `raw_costs = [100.0]` (tamanho 1), embora `can_resume_checkpoint` rejeite essa mesma inconsistência.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L266-L315), [test_unit_checkpoint_io.py](../../tests/benchmarking/test_unit_checkpoint_io.py#L240).
+  + **When:** Independente; bateria de correções unitárias.
+  + **How:** Adicionar checagem de comprimento das listas `raw_*` contra `successful_runs` (ou `repetitions`) em `is_valid_checkpoint` e remover o `xfail(strict=True)` em `test_validity_rejects_arrays_inconsistent_with_successful_runs`.
+  + **How much:** Baixo (~20 linhas).
+  + **Stakeholder Implications:** Checkpoints truncados ou corrompidos são rejeitados na leitura antes de contaminar o banco de resultados.
+  + **DoD:** `test_validity_rejects_arrays_inconsistent_with_successful_runs` passa sem `xfail`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L266-L288), [test_unit_checkpoint_io.py](../../tests/benchmarking/test_unit_checkpoint_io.py#L240).
+    - **Resumo:** `is_valid_checkpoint` agora exige que `raw_times`, `raw_costs`, `raw_gaps` e `raw_seeds` tenham o mesmo comprimento e que esse comprimento iguale `successful_runs`, alinhando a regra de `can_resume_checkpoint`.
+    - **Atendimento ao DoD:** `pytest ... -k "test_validity_rejects_arrays_inconsistent_with_successful_runs" -q` → `1 passed`; arquivo completo `17 passed`.
+- [x] **Task 10.10: Corrigir `BUG-5` e `BUG-6` (Proteção de Endpoints em `_mutation_bounds` para `n == 3`)**
+  + **What:** Extrair um helper compartilhado `_mutation_bounds(n: int)` e corrigir a condição de proteção de endpoints/depots para rotas pequenas (`n <= 3`).
+  + **Why:** Em [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L48) e [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L48), `_mutation_bounds` protege `0` e `n - 1` apenas quando `n > 3`; para uma rota `[depot, cliente, depot]` (`n == 3`), retorna `(0, 3)` e permite mutar o depósito de lugar.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [route_helpers.py](../../src/utils/route_helpers.py), [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L48), [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L48), [test_unit_swap_mutation.py](../../tests/algorithms/strategies/mutation/test_unit_swap_mutation.py#L76), [test_unit_inversion_mutation.py](../../tests/algorithms/strategies/mutation/test_unit_inversion_mutation.py#L77).
+  + **When:** Independente; bateria de correções unitárias.
+  + **How:** Centralizar `_mutation_bounds` em `route_helpers.py` (ou `mutation/__init__.py`), preservar os endpoints `[0]` e `[n-1]` para `n >= 3` (tornando `n <= 3` no-op interior pois só há 1 cliente interno), e remover os dois `xfail(strict=True)`.
+  + **How much:** Baixo (~25 linhas).
+  + **Stakeholder Implications:** Rotas CVRP/TSP com 3 posições nunca têm seus endpoints/depósitos corrompidos por mutação.
+  + **DoD:** `pytest tests/algorithms/strategies/mutation -q` passa sem `xfail`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [route_helpers.py](../../src/utils/route_helpers.py#L32-L41), [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L8-L14), [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L8-L14), [test_unit_swap_mutation.py](../../tests/algorithms/strategies/mutation/test_unit_swap_mutation.py#L76), [test_unit_inversion_mutation.py](../../tests/algorithms/strategies/mutation/test_unit_inversion_mutation.py#L77).
+    - **Resumo:** `_mutation_bounds(n)` centralizado em `route_helpers` retorna `(1, n - 1)` (endpoints `0` e `n - 1` preservados); para `n <= 3` a fatia tem menos de 2 posições e a mutação vira no-op. As cópias locais foram removidas das duas estratégias.
+    - **Atendimento ao DoD:** `pytest tests/algorithms/strategies/mutation -q` → `26 passed`; `ruff`/`mypy` limpos.
+- [x] **Task 10.11: Correções de Integridade, Contratos e Empacotamento em `routing_data` (`DP10-7`, `DP10-9`, `DP10-12`, `DP10-13`, `DP10-14`)**
+  + **What:** Preparar `routing_data/src/` para a release `v0.2.0`:
+    1. Relaxar `duckdb>=1.4.0` em `routing_data/pyproject.toml` (`DP10-7`);
+    2. Implementar upsert em `DatabaseManager.insert_problem` (`B1`) e isolamento por problema (savepoint/validação prévia dentro da transação única) em `insert_problems_batch` (`B3`);
+    3. Manter `edge_weight_matrices.matrix` como `INTEGER[][]` aplicando arredondamento TSPLIB95 `_nint` para pesos explícitos (`M3`, `DP10-12`);
+    4. Levantar erro em `transform_problem` quando `_convert_edge_weights_to_matrix` falhar em problema `EXPLICIT`, descartando o problema inteiro no worker sem inserir linha órfã no banco (`M4`);
+    5. Derivar `is_symmetric` em `FormatParser` usando `check_symmetry` sobre os valores da matriz quando `EDGE_WEIGHT_FORMAT == "FULL_MATRIX"` (`M7`);
+    6. Implementar checagens SQL reais em `converter validate` (joins hub↔tipo, presença/dimensão de matriz `EXPLICIT`, dimensões de coordenadas e FKs de `solutions`) com `sys.exit(1)` em falha (`M11`);
+    7. Em `json_writer.py`, gravar arquivos como `<problem_name>.<problem_type>.json` (ex.: `berlin52.tsp.json`) com sanitização por regex e pular re-parsing/inserção de arquivos duplicados com mesmo `(name, type)` e conteúdo; em `parquet_writer.py`, validar nomes de tabela contra `ALLOWED_TABLES` (`M2`/`m17`);
+    8. Renomear `DataTransformer` para `ProblemNormalizer` com retorno `TypedDict` (`T1`–`T5`), expor as funções escalares TSPLIB95 de distância (`DP10-13`) e métodos de leitura do `DatabaseManager` (`DP10-14`), e remover/consolidar `convert_vrp.py` e `converter_cli.py`.
+  + **Why:** `routing_data` é a fonte única de verdade para parsing TSPLIB e geração/consulta do banco DuckDB (`DP10-6`); corrigir esses itens e gerar a tag `v0.2.0` permite que `gpu_accelerated_clean` instale apenas o pacote limpo via `uv add`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** `routing_data/pyproject.toml`, `routing_data/src/converter/database/operations.py`, `routing_data/src/tsplib_parser/parser.py`, `routing_data/src/converter/core/transformer.py`, `routing_data/src/converter/utils/cost.py`, `routing_data/src/converter/cli/commands.py`, `routing_data/src/converter/output/json_writer.py`, `routing_data/src/converter/output/parquet_writer.py`, `routing_data/convert_vrp.py`, `routing_data/converter_cli.py`.
+  + **When:** Antes da `Task 10.12`. (Pode ser dividida em sub-batches internos ao executar em `routing_data`).
+  + **How:** Implementar cada item com seu respectivo teste de regressão em `routing_data/tests/`, verificar `pytest` e `mypy src`, realizar commit e criar a tag Git `v0.2.0`.
+  + **How much:** Médio/Alto.
+  + **Stakeholder Implications:** `routing_data` torna-se um pacote instalável determinístico, idempotente e sem falhas silenciosas.
+  + **DoD:** `pytest` e `mypy src` verdes em `routing_data`; tag `v0.2.0` pronta para consumo via `uv add`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [pyproject.toml](../../../routing_data/pyproject.toml#L10), [operations.py](../../../routing_data/src/converter/database/operations.py#L520), [transformer.py](../../../routing_data/src/converter/core/transformer.py#L20), [parser.py](../../../routing_data/src/tsplib_parser/parser.py#L543), [commands.py](../../../routing_data/src/converter/cli/commands.py#L240), [json_writer.py](../../../routing_data/src/converter/output/json_writer.py#L15), [parquet_writer.py](../../../routing_data/src/converter/output/parquet_writer.py#L12), [cost.py](../../../routing_data/src/converter/utils/cost.py#L300).
+    - **Resumo:** `routing_data` atualizado para `v0.2.0` com `duckdb>=1.4.0` (`DP10-7`), upsert idempotente em `_upsert_problem_row` preservando `problems.id` (`B1`), transações isoladas por problema em `insert_problems_batch` (`B3`), arredondamento TSPLIB95 `_nint` para matrizes `INTEGER[][]` (`M3`, `DP10-12`), erro explícito `TransformError` em falha de matriz `EXPLICIT` (`M4`), simetria real de `FULL_MATRIX` via `check_symmetry` (`M7`), validação SQL executável com `integrity_failures()` e `sys.exit(1)` (`M11`), arquivos `<name>.<type>.json` sanitizados com supressão de duplicatas (`M2`), whitelist `ALLOWED_TABLES` em Parquet (`m17`), `ProblemNormalizer` com `NormalizedProblemData` (`TypedDict`), exportação pública das funções escalares de distância em `cost.py` (`DP10-13`), e métodos de leitura `list_problem_metadata`/`load_problem_metadata`/`load_matrix_metadata`/`load_solution` em `DatabaseManager` (`DP10-14`). Scripts raiz `convert_vrp.py` e `converter_cli.py` removidos.
+    - **Atendimento ao DoD:** Revisado em 5+1 eixos (`code-review-and-quality`): `pytest` → `425 passed, 1 xfailed`; `mypy src` → `0 errors (38 files)`; `ruff check src tests` → `All checks passed!`; commit `7a46960` e tag `v0.2.0` enviados para `origin`.
+- [ ] **Task 10.12: Instalação de `routing-data` e Substituição de `tsplib95` e DDL Duplicado em `gpu_accelerated_clean` (`DP10-6`, `DP10-7`, `DP10-13`, `DP10-14`)**
+  + **What:** Adicionar `routing-data @ git+https://github.com/lucasgaldinos/Routing_data.git@v0.2.0` em [pyproject.toml](../../pyproject.toml), remover `tsplib95`, reexportar as funções escalares de distância a partir de `routing_data` em [pairwise.py](../../src/distances/pairwise.py), e refatorar [tsplib_loader.py](../../src/loaders/tsplib_loader.py), [database_loader.py](../../src/loaders/database_loader.py) e [cli/tsplib.py](../../src/cli/tsplib.py) para delegar o parsing (`FormatParser`) e o gerenciamento/consulta DuckDB (`DatabaseManager`) ao `routing_data`.
+  + **Why:** Elimina ~250 linhas de DDL e SQL duplicados em `tsplib_loader.py`, elimina a duplicação matemática em `pairwise.py` e remove a dependência externa `tsplib95`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [pyproject.toml](../../pyproject.toml), [pairwise.py](../../src/distances/pairwise.py), [tsplib_loader.py](../../src/loaders/tsplib_loader.py), [database_loader.py](../../src/loaders/database_loader.py), [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py), [cli/tsplib.py](../../src/cli/tsplib.py), [test_unit_problem_type_handlers.py](../../tests/loaders/test_unit_problem_type_handlers.py), [test_integration_loaders.py](../../tests/loaders/test_integration_loaders.py).
+  + **When:** Após a `Task 10.11`.
+  + **How:**
+    1. Atualizar `pyproject.toml` trocando `tsplib95>=0.6.1` por `routing-data` e adicionando `converter` e `tsplib_parser` às configurações de `mypy`/`ruff`.
+    2. Em `src/loaders/tsplib_loader.py`, substituir `tsplib95.load_problem` por `tsplib_parser.parser.FormatParser` e delegar `ingest_tsplib_directory_to_duckdb` a `converter.database.operations.DatabaseManager` + `ProblemNormalizer`.
+    3. Em `src/loaders/database_loader.py`, carregar matrizes `EXPLICIT` diretamente como `np.int32` (`DP10-12`) e alinhar as leituras ao `DatabaseManager`.
+    4. Em `src/distances/pairwise.py`, importar/reexportar as funções escalares TSPLIB95 de `routing_data` mantendo os nomes públicos e a tabela de despacho `get_distance_function`.
+  + **How much:** Médio (~150 linhas alteradas, ~250 linhas removidas).
+  + **Stakeholder Implications:** `gpu_accelerated_clean` consome `routing_data` como biblioteca única de dados/ETL sem qualquer DDL de problemas próprio.
+  + **DoD:** `grep -rn "import tsplib95" src tests` retorna 0; `pytest tests/loaders tests/distances -q` e `mypy src tests` passam com 0 erros; `pairwise.py` não possui aritmética própria de distâncias (`GEO` reexportado diretamente de `converter.utils.cost` após correção do truncamento de graus em `routing_data`).
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [pyproject.toml](../../pyproject.toml#L29), [pairwise.py](../../src/distances/pairwise.py#L27), [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L112), [database_loader.py](../../src/loaders/database_loader.py#L99), [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py#L20), [cli/tsplib.py](../../src/cli/tsplib.py#L1), [config_loader.py](../../src/benchmarking/runner/config_loader.py#L33), [test_integration_loaders.py](../../tests/loaders/test_integration_loaders.py#L18).
+    - **Resumo:** `tsplib95` substituído por `routing-data @ v0.2.0`; `tsplib_loader` passou a delegar o parse a `FormatParser` + `ProblemNormalizer` e a ingestão a `DatabaseManager` (removendo as ~250 linhas de DDL duplicadas); `pairwise.py` reexporta as funções escalares de `converter.utils.cost`; `parse_tsplib_file` substituiu o nome público `parse_tsp_file_with_tsplib95` em `loaders`, `config_loader.py` e nos testes de integração.
+    - **Atendimento ao DoD:** **Parcial (reaberto na auditoria pós-Fase 10):** `pairwise.py` ([pairwise.py#L55-L82](../../src/distances/pairwise.py#L55)) manteve uma implementação local de `_to_radians_geo` e `compute_geographical` porque `converter.utils.cost.geographical` em `routing_data` usava `_nint(x)` em vez de `int(x)` na parte inteira do grau (`DP10-13`). Após corrigir `cost.py` em `routing_data`, `pairwise.py` deve reexportar `geographical as compute_geographical` sem aritmética duplicada.
+- [x] **Task 10.13: Contratos Tipados Explícitos em `distances`, `loaders` e `protocols.backend` (`DP10-8`)**
+  + **What:** Substituir `Callable[[Any, Any], int]` por `PairwiseDistanceFn` (`Protocol`) em [pairwise.py](../../src/distances/pairwise.py#L460), substituir `dict[str, Any]` por `ProblemMetadataRow` (`TypedDict`) em [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py#L30-L41) e [database_loader.py](../../src/loaders/database_loader.py#L181), e refatorar [backend.py](../../src/protocols/backend.py#L120-L228) para remover `*args: Any, **kwargs: Any` desnecessários e o monkey-patching `# type: ignore` de `cache_clear`.
+  + **Why:** Garante segurança de tipos estática nas fronteiras entre módulos (Eixo 6 da revisão de código), aprovada em `DP10-8`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [pairwise.py](../../src/distances/pairwise.py#L460), [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py#L30-L41), [database_loader.py](../../src/loaders/database_loader.py#L128-L276), [backend.py](../../src/protocols/backend.py#L120-L228).
+  + **When:** Após a `Task 10.12`.
+  + **How:** Definir `PairwiseDistanceFn` e `ProblemMetadataRow`; encapsular o estado de probe de GPU em `backend.py` num objeto/callable tipado com método `.cache_clear()` explícito sem `# type: ignore[attr-defined]`.
+  + **How much:** Médio (~80 linhas).
+  + **Stakeholder Implications:** `mypy --strict src tests` verifica os contratos reais entre handlers, loaders, distâncias e backend GPU.
+  + **DoD:** `mypy src tests` e `ruff check src tests` passam com 0 erros e sem `# type: ignore` em `backend.py`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [pairwise.py](../../src/distances/pairwise.py#L103), [problem_type_handlers.py](../../src/loaders/problem_type_handlers.py#L20), [database_loader.py](../../src/loaders/database_loader.py#L178), [test_unit_problem_type_handlers.py](../../tests/loaders/test_unit_problem_type_handlers.py#L271).
+    - **Resumo:** `PairwiseDistanceFn` (`Protocol`) agora declara parâmetros *positional-only*, aceitando as funções escalares `routing_data` cujos parâmetros se chamam `a`/`b`; `ProblemMetadataRow` (`TypedDict`) percorre handler → `DatabaseLoader._load_metadata`/`_load_coordinates`/`_load_distance_matrix`/`_construct_problem`; `cast("Problem", ...)` redundante do fallback `TsplibLoader` removido e o handler de teste tipado com `ProblemMetadataRow`.
+    - **Atendimento ao DoD:** `mypy src tests` → `Success: no issues found in 115 source files`; `ruff check src tests` → `All checks passed!`; `backend.py` não contém diretiva `# type: ignore` (a única ocorrência é texto de docstring).
+- [ ] **Task 10.14: Correção de `BUG-13`, `BUG-14`, `BUG-15` e `BUG-16` em `gpu_accelerated_clean` (`DP10-11`, `DP10-16`, `DP10-17`, `DP10-18`)**
+  + **What:** Resolver os quatro defeitos de corretude e performance em `gpu_accelerated_clean/src/`:
+    1. `BUG-13` (`DP10-16`): em [matrix.py](../../src/distances/matrix.py#L126-L206), usar broadcast 2D direto para `n <= 2048` e broadcast em blocos de linhas (`chunk_size = 512`) para `n > 2048`, reutilizar constantes de `pairwise.py` e atualizar a docstring;
+    2. `BUG-14` (`DP10-17`): garantir que `ProblemContext.get_gpu_distances()` (e demais métodos `get_gpu_*`) utilize `cp = require_gpu()` diretamente (sem exigir `self.xp != np`, funcionando em pipelines híbridos CPU+GPU), centralizar `get_gpu_distance_operands(n, max_matrix_dimension)` em `ProblemContext`, e atualizar `GPUCostEvaluation`, `BatchGPUTwoOpt` e `BatchGPUMultiMoveTwoOpt` em [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py#L123-L127) e [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L432-L460) (`#L841-L869`) para delegar ao `ProblemContext` eliminando as 3 cópias duplicadas de `_get_distances_int32_gpu`, `_get_coords_gpu`, `_distance_operands` e `_uses_on_the_fly_distances`;
+    3. `BUG-15` (`DP10-18`): remover o `cp.cuda.Stream.null.synchronize()` redundante quando `input_on_gpu=True` em [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L327) e `#L580`;
+    4. `BUG-16` (`DP10-11`): verificar `not db_file.exists()` antes do bloco `try` em [database_loader.py](../../src/loaders/database_loader.py#L92-L111) e levantar `DatabaseConnectionError(self.db_path, FileNotFoundError(...))` diretamente sem auto-captura.
+  + **Why:** Elimina ~12% de overhead de sincronização por geração em entradas residentes na GPU, evita duplicação da matriz em VRAM e colisão de cache GPU em problemas sintéticos de mesmo nome, permite que estratégias GPU chamem `context.get_gpu_*` mesmo quando `context.xp == np`, reduz o pico de RAM em matrizes grandes (`n > 2048`) e limpa o fluxo de exceção do `DatabaseLoader`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [matrix.py](../../src/distances/matrix.py#L126-L206), [problem_context.py](../../src/protocols/problem_context.py#L285-L385), [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py#L120-L175), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L60-L85), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L430-L465), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L840-L875), [database_loader.py](../../src/loaders/database_loader.py#L92-L115).
+  + **When:** Independente ou logo após `Task 10.13`.
+  + **How:** Implementar as 4 correções, remover a duplicação de `_get_distances_int32_gpu`/`_get_coords_gpu`/`_distance_operands` entre `cost_evaluation.py` e `two_opt.py`, e adicionar testes unitários cobrindo: paridade de `compute_distance_matrix` em modo chunked (`n > 2048` ou parametrizado), invalidação de cache GPU e compartilhamento de matriz única em VRAM entre `GPUCostEvaluation`, `BatchGPUTwoOpt` e `BatchGPUMultiMoveTwoOpt` (inclusive quando `ProblemContext` foi criado com `xp=np` default), e preservação da causa `FileNotFoundError` em `DatabaseConnectionError`.
+  + **How much:** Médio (~90 linhas).
+  + **Stakeholder Implications:** Execução GPU mais rápida, menor consumo de VRAM/RAM (uma única matriz em VRAM compartilhada entre avaliação e busca local) e garantia de corretude em caches.
+  + **DoD:** Novos testes de regressão para `BUG-13` a `BUG-16` (incluindo `BatchGPUTwoOpt` e `BatchGPUMultiMoveTwoOpt`) verdes; `pytest tests -q` e `mypy src tests` limpos.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [matrix.py](../../src/distances/matrix.py#L147), [problem_context.py](../../src/protocols/problem_context.py#L305), [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py#L122), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L356), [database_loader.py](../../src/loaders/database_loader.py#L99), [test_unit_distance_matrix.py](../../tests/distances/test_unit_distance_matrix.py#L315), [test_unit_problem_context_gpu_distances.py](../../tests/protocols/test_unit_problem_context_gpu_distances.py#L64), [test_unit_cost_evaluation_gpu_cache.py](../../tests/algorithms/strategies/evaluation/test_unit_cost_evaluation_gpu_cache.py#L63), [test_unit_two_opt_synchronization.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_synchronization.py#L102), [test_unit_database_loader_errors.py](../../tests/loaders/test_unit_database_loader_errors.py#L22).
+    - **Resumo:** `BUG-13`, `BUG-15` e `BUG-16` resolvidos; `BUG-14` resolvido em `GPUCostEvaluation`.
+    - **Atendimento ao DoD:** **Parcial (reaberto na auditoria pós-Fase 10):** `BatchGPUTwoOpt._get_distances_int32_gpu` ([two_opt.py#L432](../../src/algorithms/strategies/local_search/two_opt.py#L432)) e `BatchGPUMultiMoveTwoOpt._get_distances_int32_gpu` ([two_opt.py#L841](../../src/algorithms/strategies/local_search/two_opt.py#L841)) ainda indexam por `self._cached_problem_name != prob_name` e chamam `context.get_cpu_distances()` + `cp.asarray(...)`, duplicando a matriz na VRAM e mantendo os helpers `_get_coords_gpu`/`_distance_operands`/`_uses_on_the_fly_distances` triplicados; além disso, `ProblemContext.get_gpu_*` ainda usa `self.xp` (falhando quando `self.xp == np` em vez de chamar `cp = require_gpu()`).
+- [x] **Task 10.15: Kernels CUDA Device de Distância Par-a-Par On-the-Fly (`pairwise_device.cuh`) e Flags de Compilação (`DP10-19`)**
+  + **What:** Criar `src/distances/kernels/pairwise_device.cuh` com as funções `__device__ __forceinline__` para todas as métricas TSPLIB95 baseadas em coordenadas (`EUC_2D`, `EUC_3D`, `MAN_2D`, `MAN_3D`, `MAX_2D`, `MAX_3D`, `CEIL_2D`, `ATT`, `GEO`) e o despachante `gpu_pairwise_distance(u, v, dist, coords, n, edge_type_code)` que lê `dist[u * n + v]` quando `dist != nullptr` e calcula on-the-fly quando `dist == nullptr`; atualizar [gpu_helpers.py](../../src/utils/gpu_helpers.py#L14-L54) para incluir `-I<src/distances/kernels>` em `cp.RawKernel(..., options=...)`.
+  + **Why:** Fornece as primitivas aritméticas fundamentais em GPU para cálculo de distâncias par-a-par diretamente em registradores e cache L1/L2, eliminando a dependência de matrizes densas $O(n^2)$ para $n > 10.000$.
+  + **Who:** Agente (`implementer`).
+  + **Where:**
+    - `src/distances/kernels/pairwise_device.cuh` *(novo)*
+    - [gpu_helpers.py](../../src/utils/gpu_helpers.py#L14-L54)
+    - `tests/distances/test_unit_gpu_pairwise_device.py` *(novo)*
+  + **When:** Após a `Task 10.14`.
+  + **How:**
+    1. Implementar `pairwise_device.cuh` espelhando exatamente a aritmética integral TSPLIB95 (`_nint`) de [pairwise.py](../../src/distances/pairwise.py);
+    2. Atualizar [gpu_helpers.py](../../src/utils/gpu_helpers.py) para incluir o diretório de kernels de distâncias no include path `-I` da compilação JIT de `RawKernel`;
+    3. Criar `tests/distances/test_unit_gpu_pairwise_device.py` executando um kernel de prova sobre coordenadas de teste e comparando a saída com [pairwise.py](../../src/distances/pairwise.py) para cada uma das 9 métricas.
+  + **How much:** Médio (~110 linhas).
+  + **Stakeholder Implications:** Garantia de paridade numérica bit-a-bit entre CPU e GPU em todas as métricas TSPLIB95 antes da integração nos operadores de busca.
+  + **DoD:** `pytest tests/distances/test_unit_gpu_pairwise_device.py -q` passa com 100% de paridade CPU/GPU; `mypy src tests` limpo.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [pairwise_device.cuh](../../src/distances/kernels/pairwise_device.cuh#L1), [gpu_helpers.py](../../src/utils/gpu_helpers.py#L14-L31), [pairwise.py](../../src/distances/pairwise.py#L136-L168), [test_unit_gpu_pairwise_device.py](../../tests/distances/test_unit_gpu_pairwise_device.py#L1), [probe_pairwise.cu](../../tests/distances/kernels/probe_pairwise.cu#L1).
+    - **Resumo:** Novo header device com as 9 métricas TSPLIB95 (`nint = (int)floor(x + 0.5)`, `CEIL_2D` sem `nint`, `GEO` truncando o grau), `enum GpuEdgeTypeCode` e o despachante `gpu_pairwise_distance` (matriz quando `dist != nullptr`, coordenadas caso contrário). `_kernel_compile_options` passou a injetar `-I<src/distances/kernels>` em todo `RawKernel`; `EDGE_TYPE_TO_CODE` e `get_edge_type_code` expõem os códigos no lado python.
+    - **Atendimento ao DoD:** `pytest tests/distances/test_unit_gpu_pairwise_device.py -q` → `10 passed` (matriz, coordenadas e escalar bit-a-bit nas 9 métricas, com o teste de regex garantindo paridade enum↔`dict`); `mypy src tests` → `116 source files` sem erros; `ruff check` limpo.
+    - **Artifacts:** 📝 [walkthrough_10.15-10.16.md](../../documentation/walkthroughs/walkthrough-10.15-10.16-pairwise-device-and-j-loop.md) — Walkthrough · 📚 [knowledge_device_pairwise_and_two_opt_j_loop.md](./knowledge-base/knowledge_device_pairwise_and_two_opt_j_loop.md) — Knowledge
+- [x] **Task 10.16: Otimizações Algorítmicas Exatas do Laço $j$ em CPU e GPU (Upper-Triangle, Carry-Over e Hoisting)**
+  + **What:** Aplicar as 3 otimizações exatas (lossless) do laço $j$ em CPU ([two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L70-L95): `CPUTwoOpt`, `CPUFirstImprovementTwoOpt`, `CPUMultiMoveTwoOpt`) e nos kernels CUDA ([cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu), [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu), [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu), [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu)):
+    1. Início no triângulo superior: `j >= i + 2` / `tile_start = i_base + 2` (~50% menos avaliações de pares);
+    2. Carry-over em registrador / variável local: `node_j = node_j1` (`c = d`), eliminando 1 leitura de nó por iteração;
+    3. Içamento (hoisting) dos nós da linha `(node_i, node_i1, d_ab)` para fora do laço interno $j$ (~1,91x de ganho medido em CPU).
+  + **Why:** Reduz pela metade a contagem de pares avaliados e elimina acessos redundantes à memória sem alterar a exatidão nem a solução ótima do 2-opt steepest descent.
+  + **Who:** Agente (`implementer`).
+  + **Where:**
+    - [cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu#L26-L65)
+    - [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu#L25-L60)
+    - [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L38-L120)
+    - [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L38-L160)
+    - [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L70-L95)
+    - [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py)
+  + **When:** Após a `Task 10.15`.
+  + **How:** Refatorar os laços interno e externo mantendo as mesmas condições de contorno de sub-segmento e verificar regressões na suíte de testes existente.
+  + **How much:** Médio (~90 linhas alteradas).
+  + **Stakeholder Implications:** Execução significativamente mais rápida de 2-opt em CPU e GPU mantendo exatidão formal de resultados.
+  + **DoD:** `pytest tests/algorithms/strategies/local_search -q` passa com 100% de sucesso sem qualquer desvio nas rotas otimizadas.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu#L26-L65), [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu#L25-L60), [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L38-L120), [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L38-L160), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L70-L95), [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py).
+    - **Resumo:** Os quatro kernels e os três 2-opt de CPU passaram a varrer apenas o triângulo superior (`j >= i + 2`), carregando os nós da linha `(node_i, node_i1, d_ab)` para registradores fora do laço `j` e reaproveitando o nó final da iteração anterior como `c` da seguinte (carry-over, `c = d`).
+    - **Justificativa Técnica:** A metade inferior do triângulo é simétrica à superior, logo avaliar `j < i + 2` repetia pares já visitados; hoisting e carry-over eliminam leituras redundantes de nós sem alterar um único delta, mantendo a exatidão do steepest descent.
+    - **Atendimento ao DoD:** `pytest tests/algorithms/strategies/local_search -q` verde e rota otimizada idêntica à versão anterior no caminho exaustivo; o cone local medido registrou ~1,91x de ganho em CPU.
+    - **Artifacts:** 📝 [walkthrough_10.15-10.16.md](../../documentation/walkthroughs/walkthrough-10.15-10.16-pairwise-device-and-j-loop.md) — Walkthrough · 📚 [knowledge_device_pairwise_and_two_opt_j_loop.md](./knowledge-base/knowledge_device_pairwise_and_two_opt_j_loop.md) — Knowledge
+- [x] **Task 10.17: Comutação Automática para Modo Coordenadas On-the-Fly em Avaliação e 2-Opt GPU (`n > 10.000`, `DP10-19`)**
+  + **What:** Integrar o despachante `gpu_pairwise_distance` de `pairwise_device.cuh` *(criado na Task 10.15)* nos kernels [cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu), [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) e [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu); atualizar [problem_context.py](../../src/protocols/problem_context.py), [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py) e [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py) para comutação automática para modo de coordenadas quando `n > 10.000` (ou `max_matrix_dimension`), passando `d_distances = nullptr` e o ponteiro `d_coords`.
+  + **Why:** Elimina o gargalo $O(n^2)$ de VRAM e cache L2 para problemas com $n > 10.000$, permitindo resolver instâncias massivas que não caberiam em matriz densa na GPU.
+  + **Who:** Agente (`implementer`).
+  + **Where:**
+    - [cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu)
+    - [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu)
+    - [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu)
+    - [problem_context.py](../../src/protocols/problem_context.py#L295-L360)
+    - [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py#L120-L185)
+    - [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L265-L335)
+    - [test_unit_cost_evaluation.py](../../tests/algorithms/strategies/evaluation/test_unit_cost_evaluation.py)
+    - [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py)
+  + **When:** Após a `Task 10.16`.
+  + **How:** Configurar parâmetros de kernel para aceitar `coords` e código de métrica TSPLIB95; adicionar testes unitários de equivalência exata entre modo matriz densa (`d_distances`) e modo coordenadas (`d_coords`).
+  + **How much:** Médio (~120 linhas).
+  + **Stakeholder Implications:** Instâncias com $n > 10.000$ rodam com uso mínimo de memória e sem necessidade de matriz $n \times n$.
+  + **DoD:** Testes de paridade demonstrando que o custo avaliado e as trocas 2-opt em modo coordenadas são rigorosamente idênticos ao modo matriz.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu#L30), [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L50), [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L22), [problem_context.py](../../src/protocols/problem_context.py#L336), [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py#L147), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L57), [test_unit_cost_evaluation.py](../../tests/algorithms/strategies/evaluation/test_unit_cost_evaluation.py#L126), [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py#L115).
+    - **Resumo:** Os três kernels recebem `coords`/`edge_type_code` e calculam arestas com `gpu_pairwise_distance`; as estratégias comutam para `d_distances = 0` acima de `max_matrix_dimension` (10.000, configurável), sem alocar a matriz $(n, n)$.
+    - **Justificativa Técnica:** A matriz densa cresce $O(n^2)$ e domina a VRAM; o modo coordenadas mantém a aritmética TSPLIB95 idêntica e reduz o custo a $O(n)$ por rota.
+    - **Atendimento ao DoD:** Testes de paridade densa versus on-the-fly em `EUC_2D` (berlin52) e `GEO` (burma14) comparam custos e rotas com `assert_array_equal`; contexto de coordenadas termina sem `_gpu_distances`.
+    - **Artifacts:** 📝 [walkthrough_10.17-10.18.md](../../documentation/walkthroughs/walkthrough-10.17-10.18-on-the-fly-and-tiling.md) — Walkthrough · 📚 [knowledge_on_the_fly_distances_and_shared_memory_tiling.md](./knowledge-base/knowledge_on_the_fly_distances_and_shared_memory_tiling.md) — Knowledge
+- [x] **Task 10.18: Tiling de Memória Compartilhada para 2-Opt GPU em Instâncias Grandes (`n > 11.520`, `DP10-19`)**
+  + **What:** Implementar suporte a janelamento em memória compartilhada com `s_tour_tile[2049]` (`TILE_SIZE = 2048`, $\approx 8\text{ KB}$) em [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) e [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu) quando $n > 11.520$ (mantendo o caminho direto `s_tour[n]` para $n \le 11.520$).
+  + **Why:** O limite de memória compartilhada por bloco da GTX 1050 é de 48 KB; carregar a rota inteira em shared memory falha com erro de lançamento de kernel para $n > 11.520$ ($11.520 \times 4\text{ B} = 45\text{ KB} + 3\text{ KB} = 48\text{ KB}$).
+  + **Who:** Agente (`implementer`).
+  + **Where:**
+    - [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L38-L120)
+    - [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L38-L160)
+    - [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L305-L345)
+    - [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py)
+  + **When:** Após a `Task 10.17`.
+  + **How:** Implementar a carga cooperativa em blocos de 2048 elementos com `__syncthreads()` e laço externo sobre tiles; testar com parâmetro de threshold reduzido para validar o janelamento em instâncias menores.
+  + **How much:** Médio (~90 linhas CUDA/python).
+  + **Stakeholder Implications:** Elimina falhas de lançamento de kernel CUDA em instâncias gigantes como `d15112` e `pla33810`.
+  + **DoD:** Teste de 2-opt executando sobre rota com $n > 11.520$ (ou com teto simulado de shared memory) completando com sucesso e resultado válido.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L43), [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L25), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L70), [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py#L165).
+    - **Resumo:** Com `n > max_shared_tour_cities` (11.520, configurável) o kernel usa `s_tour_tile[2049]` (`TILE_SIZE = 2048`, ~8 KB) e recarrega a janela cooperativamente; `TOUR_AT`/`TOUR_SET` leem e escrevem no tile ou, fora da janela, na memória global.
+    - **Justificativa Técnica:** O caminho `s_tour[n]` atinge o limite de 48 KB em $n = 11.520$; tratar a rota como fluxo mantém o lançamento válido para qualquer $n$ sem alterar a aritmética.
+    - **Atendimento ao DoD:** `max_shared_tour_cities = 4` e uma rota sintética de 2.100 cidades (dois tiles) produzem tours válidos idênticos ao caminho untiled.
+    - **Artifacts:** 📝 [walkthrough_10.17-10.18.md](../../documentation/walkthroughs/walkthrough-10.17-10.18-on-the-fly-and-tiling.md) — Walkthrough · 📚 [knowledge_on_the_fly_distances_and_shared_memory_tiling.md](./knowledge-base/knowledge_on_the_fly_distances_and_shared_memory_tiling.md) — Knowledge
+- [x] **Task 10.19: Modelo de Capacidade de VRAM e Validação Ativa com `VRAMInsufficientError` em `ProblemContext` (`DP10-19`)**
+  + **What:** Adicionar métodos `estimate_vram_bytes(pop_size: int) -> int` e `check_vram_capacity(pop_size: int) -> None` em [problem_context.py](../../src/protocols/problem_context.py), validando a memória exigida ($\mathrm{VRAM}_{\mathrm{total}}(n, P) = 4n^2 + 12Pn + 24P + 8n$ para modo matriz, ou $12Pn + 24P + 8n$ para modo coordenadas) contra `cp.cuda.Device().mem_info` e levantando [VRAMInsufficientError](../../src/data_models/exceptions.py#L210) quando insuficiente.
+  + **Why:** Elimina o status de código morto de `VRAMInsufficientError` e previne erros fatais de CUDA out-of-memory em tempo de execução.
+  + **Who:** Agente (`implementer`).
+  + **Where:**
+    - [problem_context.py](../../src/protocols/problem_context.py#L145-L365)
+    - [exceptions.py](../../src/data_models/exceptions.py#L210-L240)
+    - [test_unit_problem_context_gpu_guards.py](../../tests/protocols/test_unit_problem_context_gpu_guards.py)
+  + **When:** Após a `Task 10.18`.
+  + **How:** Calcular o total de bytes considerando tensores de distâncias, população, offspring e coordenadas; consultar `mem_info` e disparar a exceção formatada com `required_bytes` e `available_bytes`.
+  + **How much:** Baixo/Médio (~60 linhas).
+  + **Stakeholder Implications:** Falha limpa e previsível em vez de travamento do driver GPU em situações de VRAM insuficiente.
+  + **DoD:** Teste em `test_unit_problem_context_gpu_guards.py` confirmando o disparo de `VRAMInsufficientError` com atributos corretos quando a VRAM disponível é simulada como insuficiente.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [problem_context.py](../../src/protocols/problem_context.py#L395), [test_unit_problem_context_gpu_guards.py](../../tests/protocols/test_unit_problem_context_gpu_guards.py#L180).
+    - **Resumo:** `estimate_vram_bytes` soma `12Pn + 24P + 8dn` e acrescenta `4n²` apenas no modo matriz (decisão herdada de `uses_on_the_fly_distances`); `check_vram_capacity` compara contra `xp.cuda.Device().mem_info` ou contra um orçamento injetado e levanta `VRAMInsufficientError` com `required_bytes`/`available_bytes`; `get_gpu_distances()` valida `4n²` antes de alocar.
+    - **Justificativa Técnica:** A falha acontece antes do `cudaMalloc`, convertendo um out-of-memory fatal do driver em exceção tipada e recuperável; a decisão de memória fica numa única fonte (`uses_on_the_fly_distances`) em vez de duplicar a condição de limiar.
+    - **Atendimento ao DoD:** 12 casos novos no arquivo de guardas cobrem fórmula densa e on-the-fly, ausência de coordenadas, `pop_size` negativo, disparo e aceitação de orçamento, backend NumPy e leitura de `mem_info` via backend falso.
+    - **Artifacts:** 📝 [walkthrough-10.19-vram-capacity-guard.md](../../documentation/walkthroughs/walkthrough-10.19-vram-capacity-guard.md) — Walkthrough
+- [ ] **Task 10.20: Serviço de Lista de Candidatos $k$-Nearest Neighbor ($\mathcal{N}_k$) em Blocos no `ProblemContext` e Parâmetro `candidate_k` para Busca Local, Mutação e Inicialização (`DP10-20`, `BUG-19`)**
+  + **What:**
+    1. Implementar `compute_candidate_list` em [matrix.py](../../src/distances/matrix.py) usando avaliação em blocos de linhas (`chunk_size = 512` + `xp.argpartition`) para construir $\mathcal{N}_k \in \mathbb{Z}^{n \times k_{\text{eff}}}$ (`int32`, onde $k_{\text{eff}} = \min(k, n - 1)$) diretamente a partir de `distances` ou `coordinates` **sem jamais alocar a matriz completa $(n, n)$ quando $n > 2048$**;
+    2. Expor `get_cpu_candidate_list(k: int = 20)` e `get_gpu_candidate_list(k: int = 20)` com cache por `k` em [problem_context.py](../../src/protocols/problem_context.py) como um serviço compartilhado de contexto (e não um 7º estágio de estratégia);
+    3. Adicionar o parâmetro opcional `candidate_k: int | None = None` às estratégias compatíveis — Busca Local ([two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py), [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) e [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu)), Mutação Guiada ([swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py) e [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py)) e Inicialização ([random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py)) — consultando `context.get_cpu_candidate_list(candidate_k)` / `get_gpu_candidate_list(candidate_k)` e o vetor inverso $\text{pos}(\pi_i) = i$ para reduzir a busca de $\Theta(n^2)$ para $\Theta(n \cdot k)$ ([Reinelt, 1994](../../documentation/knowledge-base/analysis-gpu-distance-and-shared-memory-limits.md); [Helsgaun, 2000](../../documentation/knowledge-base/analysis-gpu-distance-and-shared-memory-limits.md));
+    4. Centralizar `_inverse_positions(route, max_node_id)` e `_proximity_index(...)` em [route_helpers.py](../../src/utils/route_helpers.py), dimensionando o vetor `positions` por `max(len(route), int(route.max()) + 1)` preenchido com `-1` (`BUG-19`) para suportar sub-rotas CVRP onde os IDs de clientes excedem `len(route) - 1`, e eliminar a duplicação de `_proximity_index` entre `SwapMutation` e `InversionMutation`.
+  + **Why:** Reduz o número de pares avaliados por passagem de $\frac{n(n-3)}{2}$ para $n \cdot k$ ($377\times$ menos avaliações em $n = 15.112, k = 20$), evita saltos aleatórios longos na mutação quando `candidate_k` está ativo, garante funcionamento seguro em sub-rotas CVRP (`BUG-19`), e centraliza a construção em blocos de $\mathcal{N}_k(u)$ e o mapa inverso sem duplicar lógica entre estratégias.
+  + **Who:** Agente (`implementer`).
+  + **Where (Blast Radius Completo):**
+    - [matrix.py](../../src/distances/matrix.py)
+    - [problem_context.py](../../src/protocols/problem_context.py)
+    - [route_helpers.py](../../src/utils/route_helpers.py)
+    - [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py)
+    - [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu)
+    - [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py)
+    - [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py)
+    - [random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py)
+    - [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py)
+    - [test_unit_problem_context.py](../../tests/protocols/test_unit_problem_context.py)
+  + **When:** Após a `Task 10.19`.
+  + **How:**
+    1. Em `distances/matrix.py`, implementar `compute_candidate_list(problem_or_coords, k=20, xp=np, chunk_size=512)` computando tiras de $512 \times n$ quando a matriz completa não estiver pré-alocada, mascarando a diagonal $u == v$ com valor máximo e extraindo os $k$ menores índices ordenados por distância via `xp.argpartition`;
+    2. Em `ProblemContext`, cachear `_cpu_candidate_lists: dict[int, np.ndarray]` e `_gpu_candidate_lists: dict[int, Any]`;
+    3. Em `route_helpers.py`, extrair `inverse_positions(route)` (alocando `np.full(max(len(route), int(route.max()) + 1), -1, dtype=np.int32)`) e `select_proximity_index(...)`, reutilizando-os em `two_opt.py`, `swap_mutation.py` e `inversion_mutation.py`, e aceitar `candidate_k` também em `BatchGPUMultiMoveTwoOpt`;
+    4. Adicionar testes unitários verificando: (a) invariantes de $\mathcal{N}_k$; (b) funcionamento de `candidate_k` em 2-opt (CPU e GPU) e mutação sobre permutações completas e sobre **sub-rotas CVRP esparsas** (ex.: `[0, 5, 12, 19, 0]`, `BUG-19`); e (c) validade da permutação do tour resultante.
+  + **How much:** Médio (~180 linhas entre python, CUDA e testes).
+  + **Stakeholder Implications:** Desbloqueia complexidade sub-quadrática $\Theta(n \cdot k)$ por passagem de busca local em CPU e GPU e disponibiliza $\mathcal{N}_k(u)$ no `ProblemContext` para TSP e sub-rotas CVRP.
+  + **DoD:** Testes de `get_cpu_candidate_list`, `get_gpu_candidate_list`, 2-opt e mutação com `candidate_k` (incluindo sub-rotas CVRP com `max(route) >= len(route)`) verdes; zero duplicação de `_proximity_index`; `mypy src tests` e `ruff check src tests` limpos.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [matrix.py](../../src/distances/matrix.py#L133), [backend.py](../../src/protocols/backend.py#L109), [problem_context.py](../../src/protocols/problem_context.py#L300), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L130), [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L88), [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L45), [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L45), [random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py#L36).
+    - **Resumo:** `compute_candidate_list` e cache no `ProblemContext` implementados; `candidate_k` integrado em `CPUTwoOpt`, `CPUFirstImprovementTwoOpt`, `CPUMultiMoveTwoOpt`, `BatchGPUTwoOpt`, `SwapMutation`, `InversionMutation` e `RandomPermutationInitialization`.
+    - **Atendimento ao DoD:** **Parcial (reaberto na auditoria pós-Fase 10):** (1) `_inverse_positions` ([two_opt.py#L88](../../src/algorithms/strategies/local_search/two_opt.py#L88)) aloca `np.empty(len(tour))` e levanta `IndexError` em sub-rotas CVRP onde `max(tour) >= len(tour)`, enquanto `_proximity_index` ([swap_mutation.py#L82](../../src/algorithms/strategies/mutation/swap_mutation.py#L82)) desativa silenciosamente `candidate_k` quando `int(route.max()) >= route.size` (`BUG-19`); (2) `_proximity_index` foi duplicado literalmente em `swap_mutation.py` e `inversion_mutation.py` em vez de viver em `route_helpers.py`; (3) `BatchGPUMultiMoveTwoOpt` não recebeu o parâmetro `candidate_k: int | None = None`.
+    - **Artifacts:** 📝 [walkthrough-10.20-candidate-lists.md](../../documentation/walkthroughs/walkthrough-10.20-candidate-lists.md) — Walkthrough · 📚 [knowledge_candidate_lists_and_inverse_positions.md](./knowledge-base/knowledge_candidate_lists_and_inverse_positions.md) — Knowledge
+- [ ] **Task 10.21: Limpeza e Atualização da Documentação e Scripts Auxiliares em `gpu_accelerated_clean` (`DP10-10`)**
+  + **What:** Executar as deleções aprovadas (Seção 5.C) e as edições de âncoras/caminhos obsoletos (Seção 5.D, incluindo `documents_tcc/how-to-tcc.md`) em `gpu_accelerated_clean`. (As tarefas correspondentes de documentação, exemplos e cobertura de `routing_data` ficam registradas no plano próprio de `routing_data/TODO.md` Batch 7).
+  + **Why:** Remove arquivos duplicados/obsoletos e sincroniza toda a documentação de `gpu_accelerated_clean` com a arquitetura real pós-integração (`DP10-10`).
+  + **Who:** Agente (`implementer`).
+  + **Where:** [README.md](../../README.md), [HARDWARE_SPECS.md](../../HARDWARE_SPECS.md), [notes_project_direction_questions.md](../../notes_project_direction_questions.md), [how-to-tcc.md](../how-to-tcc.md), `documentation/analysis/**`, `documentation/critical_analysis/**`.
+  + **When:** **Obrigatoriamente após** a conclusão das Tasks 10.6–10.20 (estabilização das mudanças de código e API).
+  + **How:** Remover os 5 arquivos aprovados para deleção em `gpu_accelerated_clean`, atualizar todas as referências restantes a `benchmarking_v2` / `benchmarks_v2` (incluindo `documents_tcc/how-to-tcc.md`) e validar com `python -m benchmark_scripts.check_docs`.
+  + **How much:** Baixo/Médio.
+  + **Stakeholder Implications:** Documentação de `gpu_accelerated_clean` livre de contradições internas e links quebrados.
+  + **DoD:** `python -m benchmark_scripts.check_docs` retorna 0; `grep -rn "benchmark.*_v2" README.md HARDWARE_SPECS.md documentation/ documents_tcc/how-to-tcc.md` retorna 0; nenhum dos 5 arquivos listados para deleção permanece no repositório.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** 5 Markdown deletados em `gpu_accelerated_clean`; 4 documentos atualizados (`README.md`, `HARDWARE_SPECS.md`, `notes_project_direction_questions.md`, `documentation/analysis/**`).
+    - **Resumo:** Caminhos de benchmarking em `README.md`, `HARDWARE_SPECS.md` e `documentation/analysis/**` atualizados para `src/benchmarking/`, `src/cli/`, `benchmark_scripts/` e `configs/`.
+    - **Atendimento ao DoD:** **Parcial (reaberto na auditoria pós-Fase 10):** [how-to-tcc.md](../how-to-tcc.md) ainda cita `benchmarks_v2` (identificado nos achados incidentais da execução anterior e pendente de limpeza). As pendências de documentação de `routing_data` foram movidas para `routing_data/TODO.md` (Batch 7).
+    - **Artifacts:**
+      + 📝 [walkthrough-10.21-docs-and-scripts-cleanup.md](../../documentation/walkthroughs/walkthrough-10.21-docs-and-scripts-cleanup.md) — Walkthrough
+      + 📚 [knowledge_tsplib_parser_module_map_and_doc_anchors.md](./knowledge-base/knowledge_tsplib_parser_module_map_and_doc_anchors.md) — Knowledge
+- [ ] **Task 10.22: Nova Coleta de Resultados em Coorte Única com `candidate_k` e `strategy_params` (`DP10-5`, `BUG-18`)**
+  + **What:** Configurar `candidate_k` nas variantes de [algorithms.json](../../configs/algorithms.json) e re-executar a coleta de `results_v3/selected_10` via [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py) (mantendo `REPETITIONS = 3`) após a conclusão das Tasks 10.12, 10.14, 10.20, 10.23 e 10.24.
+  + **Why:** Na primeira execução de `Task 10.22`, [orchestration.py](../../src/benchmarking/runner/orchestration.py#L465-L485) gravava apenas os nomes das classes em `results["strategies"]` sem os parâmetros de cada estratégia (`candidate_k`, `max_iterations`, `k`, `return_gpu`), fixava `construction_heuristic = "random_initialization"` (`BUG-18`), e [algorithms.json](../../configs/algorithms.json) ainda não incluía `candidate_k`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [algorithms.json](../../configs/algorithms.json), [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py), `results_v3/selected_10/checkpoints/`, `results_v3/selected_10/results.duckdb`.
+  + **When:** Última tarefa da Fase 10, após as Tasks 10.12, 10.14, 10.20, 10.21, 10.23 e 10.24.
+  + **How:** Atualizar `configs/algorithms.json` para incluir `candidate_k` nas estratégias compatíveis, re-executar `run_selected_problems.py` (`REPETITIONS = 3`), reimportar com `tsp-import-checkpoints` e validar com `tsp-validate-db` e `is_valid_checkpoint(f)` (sem precisar passar `expected_reps=3` manualmente após a Task 10.23).
+  + **How much:** Médio.
+  + **Stakeholder Implications:** Checkpoints e banco `results.duckdb` registram explicitamente `candidate_k` e todos os parâmetros das estratégias executadas.
+  + **DoD:** Todos os checkpoints em `results_v3/selected_10/checkpoints/` passam em `is_valid_checkpoint(f)` sem override de `expected_reps`, contêm `strategy_params` (incluindo `candidate_k`) em `algorithm_config`/`strategies`, e passam em `tsp-validate-db`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py#L1), `results_v3/selected_10/checkpoints/*.json`, `results_v3/selected_10/problem_statistics/*.json`, `results_v3/selected_10/results.duckdb`.
+    - **Resumo:** Primeira coleta de 39 checkpoints de 51 chaves (`raw_seeds == [42, 43, 44]`) executada e validada via `tsp-validate-db`.
+    - **Atendimento ao DoD:** **Parcial (reaberto na auditoria pós-Fase 10):** A coleta inicial rodou antes de configurar `candidate_k` em `configs/algorithms.json` e antes de `orchestration.py` registrar `strategy_params` nos checkpoints (`BUG-18`). Deve ser re-executada ao final da Fase 10.
+- [ ] **Task 10.23: Corrigir `expected_reps` Hardcoded em `checkpoint_io.py` (`BUG-17`) e Registrar `strategy_params` em `orchestration.py` (`BUG-18`)**
+  + **What:**
+    1. Em [checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L232) (`is_valid_checkpoint` e `can_resume_checkpoint`), alterar o parâmetro `expected_reps: int | None = None` para que, quando `None`, utilize `int(data["repetitions"])` do próprio checkpoint em vez do valor hardcoded `30`;
+    2. Em [orchestration.py](../../src/benchmarking/runner/orchestration.py#L465-L486), gravar os parâmetros reais de cada estratégia (`strategy_params`: `candidate_k`, `max_iterations`, `k`, `return_gpu`, `max_matrix_dimension`, `max_shared_tour_cities`) dentro de `results["algorithm_config"]["strategy_params"]` e derivar `results["construction_heuristic"]` da estratégia de inicialização configurada (em vez da string fixa `"random_initialization"`).
+  + **Why:** `expected_reps: int = 30` fazia `is_valid_checkpoint(f)` rejeitar qualquer checkpoint válido de `benchmark.json` (`15` reps) ou `selected_10` (`3` reps); e `orchestration.py` descartava todos os hiperparâmetros das estratégias ao salvar o checkpoint.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L232-L320), [orchestration.py](../../src/benchmarking/runner/orchestration.py#L460-L490), [test_unit_checkpoint_io.py](../../tests/benchmarking/test_unit_checkpoint_io.py).
+  + **When:** Fase 10, antes da `Task 10.22`.
+  + **How:** Atualizar `is_valid_checkpoint` e `orchestration.py` e adicionar testes unitários verificando que `is_valid_checkpoint(path)` aceita checkpoints com `repetitions = 3 == successful_runs` sem argumentos extras e que `strategy_params` é persistido.
+  + **How much:** Baixo (~45 linhas).
+  + **Stakeholder Implications:** Rastreabilidade completa dos parâmetros de cada estratégia nos checkpoints e no DuckDB.
+  + **DoD:** `pytest tests/benchmarking -q` passa integralmente; `is_valid_checkpoint` valida `results_v3/selected_10/checkpoints/*.json` com `expected_reps=None`.
+- [ ] **Task 10.24: Extrair Header CUDA Compartilhado `two_opt_common.cuh` (`DP10-19`)**
+  + **What:** Extrair as macros e funções device duplicadas (`TWO_OPT_TILE_SIZE`, `TOUR_AT`, `TOUR_SET`, `two_opt_delta` e `two_opt_consider`) de [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L43-L87) e [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L25-L70) para um header único `src/distances/kernels/two_opt_common.cuh` (ou `src/algorithms/strategies/local_search/kernels/two_opt_common.cuh` incluído via `-I` em [gpu_helpers.py](../../src/utils/gpu_helpers.py)).
+  + **Why:** Elimina ~50 linhas de código CUDA C++ duplicado entre os dois kernels de 2-opt em lote, garantindo fonte única de verdade para o cálculo de delta e acesso aos tiles de memória compartilhada.
+  + **Who:** Agente (`implementer`).
+  + **Where:** `src/distances/kernels/two_opt_common.cuh` *(novo)*, [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu), [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu), [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu).
+  + **When:** Fase 10, antes da `Task 10.22`.
+  + **How:** Mover as definições compartilhadas para `two_opt_common.cuh`, incluir `#include "two_opt_common.cuh"` nos kernels `.cu`, e validar com a suíte GPU.
+  + **How much:** Baixo (~50 linhas).
+  + **Stakeholder Implications:** Manutenção única da aritmética de delta 2-opt e do janelamento de shared memory na GPU.
+  + **DoD:** Zero duplicação de `TOUR_AT`/`TOUR_SET`/`two_opt_delta` entre `.cu`; `pytest tests/algorithms/strategies/local_search -q` 100% verde.
 
-### Backlog registrado (não executado)
+---
 
-Defeitos com evidência e teste de fixação em [table-of-symbols.plan.md](./table-of-symbols.plan.md#defeitos-bug). Nenhum foi corrigido nesta fase; os `xfail(strict=True)` permanecem como marcadores.
+## Fase 11: Unificação Arquitetural de Estratégias (Design B), Schemas de Configuração e Remoção de Constantes Hardcoded
 
-- [ ] **Task 10.6: Corrigir BUG-1 (`Problem.__eq__` sobre `ndarray`)** — **Where:** [problem.py](../../src/data_models/problem.py#L30); **DoD:** `test_problems_with_equal_content_compare_equal` passa sem `xfail`.
-- [ ] **Task 10.7: Corrigir BUG-2 (`resolve_rng` rejeitar `RandomState`)** — **Where:** [rng.py](../../src/utils/rng.py#L56); **DoD:** `test_resolve_rng_uses_seeded_problem_context_rng` passa sem `xfail`.
-- [ ] **Task 10.8: Corrigir BUG-3 (`mean_difference` em variância zero)** — **Where:** [statistics.py](../../src/benchmarking/analysis/statistics.py#L220); **DoD:** `test_paired_comparison_zero_variance_reports_true_mean_difference` passa sem `xfail`.
-- [ ] **Task 10.9: Corrigir BUG-4 (`is_valid_checkpoint` ignorar `raw_*`)** — **Where:** [checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py#L266); **DoD:** `test_validity_rejects_arrays_inconsistent_with_successful_runs` passa sem `xfail`.
-- [ ] **Task 10.10: Corrigir BUG-5 e BUG-6 (`_mutation_bounds` com `n > 3`)** — **Where:** [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py#L48), [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L48); **How:** extrair um `_mutation_bounds` compartilhado; **DoD:** ambos os testes de 3 nós passam sem `xfail`.
-- [ ] **Task 10.11: Nova coleta de resultados em coorte única** — **Why:** a pasta `selected_10` perdeu a coorte de 45 chaves e a remanescente antecede a correção de sementes da Task 8.11; **DoD:** todos os checkpoints com o mesmo schema e o mesmo esquema de sementes.
+### Decisões Fixadas da Fase 11
+
+- **DP11-1 (Arquitetura de Classes de Estratégia por Família + Prefixo de Slot e `StrategyBase` — Design B)**: Todas as classes de estratégia adotam nomenclatura prefixada pelo slot (`Initialization*`, `Selection*`, `Crossover*`, `Mutation*`, `LocalSearch*`, `Evaluation*`) e herdam de uma classe base compartilhada `StrategyBase` (que centraliza `h2d_bytes`, `d2h_bytes`, `kernel_launches`, `reset_metrics()`, `seed` e `rng`):
+  + **Initialization**: `InitializationRandom` (permutação uniforme Fisher–Yates $O(n)$) e `InitializationNearestNeighbor` (construção gulosa aleatorizada GRASP RCL $O(n \cdot k)$ sobre $\mathcal{N}_k$), separando a heurística construtiva da inicialização puramente aleatória;
+  + **Selection**: `SelectionTournament`, `SelectionRouletteWheel`, `SelectionGPUTournament`;
+  + **Crossover**: `CrossoverOrder`, `CrossoverPartiallyMapped`, `CrossoverGPUOrder`;
+  + **Mutation**: `MutationSwap(seed=None, candidate_k=None)`, `MutationInversion(seed=None, candidate_k=None)`, `MutationGPUSwap`, `MutationGPUInversion`;
+  + **LocalSearch**: Unificação das 6 classes atuais de 2-opt em apenas **duas** classes parametrizadas por `mode` — `LocalSearchCPUTwoOpt(max_iterations=10, mode: Literal["best", "first", "multi_move"] = "best", candidate_k=None)` e `LocalSearchGPUTwoOpt(max_iterations=10, mode: Literal["batch", "multi_move", "naive"] = "batch", threads_per_block=256, max_matrix_dimension=None, max_shared_tour_cities=11_520, candidate_k=None)` — mais `LocalSearchNoOp`;
+  + **Evaluation**: `EvaluationCPUCost`, `EvaluationGPUCost`.
+  + *(Aliases legados em `STRATEGY_REGISTRY` podem ser mantidos temporariamente ou migrados diretamente em `configs/*.json` e `tests/`).*
+- **DP11-2 (Remoção do Limite Estático de 16 Movimentos em `two_opt_multi_move.cu`, `BUG-20`)**: Substituir os arrays estáticos `int applied_start[16]; int applied_end[16];` e o laço `pass < 16` em [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L160) por alocação em memória compartilhada reutilizando os buffers de redução (`block_size` entradas) para permitir até `min(block_size, n // 2)` movimentos disjuntos por passagem, restaurando a paridade algorítmica com o `multi_move` em CPU.
+- **DP11-3 (Unificação do Limiar de Materialização de Matriz `max_matrix_dimension = 10_000`)**: Eliminar a discrepância entre `max_eager_matrix_dimension = 4000` ([tsplib_loader.py#L249](../../src/loaders/tsplib_loader.py#L249), [database_loader.py#L293](../../src/loaders/database_loader.py#L293)) e `max_matrix_dimension = 10_000` ([problem_context.py#L115](../../src/protocols/problem_context.py#L115)), centralizando uma única constante `DEFAULT_MAX_MATRIX_DIMENSION = 10_000` e deixando a materialização de matrizes de coordenadas sob responsabilidade exclusiva e lazy do `ProblemContext`.
+- **DP11-4 (Remoção de `KNOWN_OPTIMAL_COSTS` Hardcoded em `config_loader.py`)**: Remover o dicionário de ~110 ótimos hardcoded em [config_loader.py](../../src/benchmarking/runner/config_loader.py#L42-L160) e resolver o custo ótimo a partir da tabela `solutions` do DuckDB (`DatabaseManager.load_solution`) e de `configs/problems.json`.
+- **DP11-5 (JSON Schemas `$schema` e Arquivo de Exemplo Completo de Configuração)**: Criar `configs/schemas/algorithms.schema.json`, `configs/schemas/benchmark.schema.json` e `configs/schemas/problems.schema.json`, referenciá-los via `"$schema"` nos arquivos `configs/*.json`, e adicionar `configs/algorithms.full.example.json` documentando todas as estratégias, modos e hiperparâmetros disponíveis.
+
+### Tarefas da fase 11
+
+- [ ] **Task 11.1: Criar `StrategyBase` e Unificar Busca Local em `LocalSearchCPUTwoOpt` e `LocalSearchGPUTwoOpt` (`DP11-1`, `DP11-2`, `BUG-20`)**
+  + **What:**
+    1. Criar `StrategyBase` em `src/algorithms/strategies/base.py` encapsulando contadores de telemetria (`h2d_bytes`, `d2h_bytes`, `kernel_launches`, `reset_metrics()`) e semente/RNG (`seed`, `rng`);
+    2. Unificar `CPUTwoOpt`, `CPUFirstImprovementTwoOpt` e `CPUMultiMoveTwoOpt` em `LocalSearchCPUTwoOpt(max_iterations=10, mode="best" | "first" | "multi_move", candidate_k=None)` compartilhando um único gerador de pares candidatos e despachando apenas a regra de aceitação (`_step_best`, `_step_first`, `_step_multi_move`);
+    3. Unificar `BatchGPUTwoOpt`, `BatchGPUMultiMoveTwoOpt` e `NaiveGPUTwoOpt` em `LocalSearchGPUTwoOpt(max_iterations=10, mode="batch" | "multi_move" | "naive", ...)` compartilhando a resolução de operandos via `ProblemContext`;
+    4. Remover o limite hardcoded de 16 movimentos (`applied_start[16]`, `BUG-20`) em [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L160), permitindo até `block_size` movimentos disjuntos por passagem.
+  + **Why:** Elimina ~350 linhas de código duplicado em [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py), garante que todos os modos de 2-opt aceitem a mesma assinatura (LSP) e restaura a paridade entre CPU e GPU no modo `multi_move`.
+  + **Who:** Agente (`implementer`).
+  + **Where:** `src/algorithms/strategies/base.py` *(novo)*, [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py), [two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu), [configs/algorithms.json](../../configs/algorithms.json), `tests/algorithms/strategies/local_search/**`.
+  + **When:** Primeira tarefa da Fase 11.
+  + **How:** Implementar `StrategyBase`, refatorar `two_opt.py` e `two_opt_multi_move.cu`, atualizar `STRATEGY_REGISTRY` e `configs/algorithms.json`, e validar toda a suíte de busca local.
+  + **How much:** Médio/Alto (~200 linhas refatoradas).
+  + **Stakeholder Implications:** Arquitetura limpa, aderente a SRP/DRY/LSP, configurável via `"mode": "best" | "first" | "multi_move"` no JSON.
+  + **DoD:** `pytest tests/algorithms/strategies/local_search -q`, `mypy src tests` e `ruff check src tests` passam com 0 erros.
+- [ ] **Task 11.2: Padronizar Nomenclatura Prefixada por Slot (`Design B`) e Separar `InitializationNearestNeighbor` (`DP11-1`)**
+  + **What:**
+    1. Extrair a construção gulosa aleatorizada sobre $\mathcal{N}_k$ (GRASP RCL) de [random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py) para a classe dedicada `InitializationNearestNeighbor(k: int = 20, seed=None, return_gpu=False)`, mantendo `InitializationRandom(seed=None, return_gpu=False)` estritamente para permutações uniformes Fisher–Yates;
+    2. Padronizar os nomes das estratégias de todos os 6 slots com prefixo de slot (`InitializationRandom`, `InitializationNearestNeighbor`, `SelectionTournament`, `SelectionRouletteWheel`, `SelectionGPUTournament`, `CrossoverOrder`, `CrossoverPartiallyMapped`, `CrossoverGPUOrder`, `MutationSwap`, `MutationInversion`, `MutationGPUSwap`, `MutationGPUInversion`, `LocalSearchCPUTwoOpt`, `LocalSearchGPUTwoOpt`, `LocalSearchNoOp`, `EvaluationCPUCost`, `EvaluationGPUCost`) herdando de `StrategyBase`, atualizando [`strategies/__init__.py`](../../src/algorithms/strategies/__init__.py), [configs/algorithms.json](../../configs/algorithms.json), [configs/algorithms.archive.json](../../configs/algorithms.archive.json) e `tests/`.
+  + **Why:** O prefixo explicita imediatamente a qual dos 6 estágios do GA qualquer classe pertence, e separa formalmente a heurística construtiva GRASP ($O(n \cdot k)$) da inicialização aleatória uniforme ($O(n)$).
+  + **Who:** Agente (`implementer`).
+  + **Where:** `src/algorithms/strategies/**`, [configs/algorithms.json](../../configs/algorithms.json), [configs/algorithms.archive.json](../../configs/algorithms.archive.json), `tests/algorithms/**`.
+  + **When:** Após a `Task 11.1`.
+  + **How:** Renomear/estruturar as classes com herança de `StrategyBase`, atualizar `STRATEGY_REGISTRY` e os arquivos de configuração/teste.
+  + **How much:** Médio (~160 linhas).
+  + **Stakeholder Implications:** Nomenclatura uniforme e autoexplicativa em código, configs JSON e relatórios de benchmark.
+  + **DoD:** `pytest tests -m "not slow" -q`, `mypy src tests` e `ruff check src tests` verdes.
+- [ ] **Task 11.3: Unificar Limiares de Materialização de Matriz (`DP11-3`) e Remover `KNOWN_OPTIMAL_COSTS` Hardcoded (`DP11-4`)**
+  + **What:**
+    1. Unificar `max_eager_matrix_dimension` em [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L249) e [database_loader.py](../../src/loaders/database_loader.py#L293) com `DEFAULT_MAX_MATRIX_DIMENSION = 10_000` (ou deixar `Problem.distances = None` para instâncias baseadas em coordenadas e delegar 100% da materialização lazy ao `ProblemContext`);
+    2. Remover o dicionário hardcoded `KNOWN_OPTIMAL_COSTS` de [config_loader.py](../../src/benchmarking/runner/config_loader.py#L42-L160), lendo o custo ótimo diretamente da tabela `solutions` do banco DuckDB (`DatabaseManager.load_solution`) ou de [configs/problems.json](../../configs/problems.json).
+  + **Why:** Elimina a zona cinzenta $4.000 < n \le 10.000$ (onde o loader omitia a matriz mas o `ProblemContext` a alocava de surpresa no primeiro acesso) e elimina a duplicação de ~110 custos ótimos hardcoded em código python.
+  + **Who:** Agente (`implementer`).
+  + **Where:** [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L249), [database_loader.py](../../src/loaders/database_loader.py#L293), [problem_context.py](../../src/protocols/problem_context.py#L115), [config_loader.py](../../src/benchmarking/runner/config_loader.py#L42-L160), `tests/benchmarking/**`, `tests/loaders/**`.
+  + **When:** Após a `Task 11.2`.
+  + **How:** Substituir `KNOWN_OPTIMAL_COSTS` por consulta a `configs/problems.json` + `solutions` no DuckDB e alinhar o limiar de matriz entre loaders e `ProblemContext`.
+  + **How much:** Médio (~140 linhas removidas, ~50 adicionadas).
+  + **Stakeholder Implications:** Fonte única de verdade para custos ótimos e comportamento de memória previsível para qualquer dimensão $n$.
+  + **DoD:** `grep -rn "KNOWN_OPTIMAL_COSTS" src/` retorna 0; `pytest tests/loaders tests/benchmarking -q` e `mypy src tests` verdes.
+- [ ] **Task 11.4: Criar JSON Schemas (`$schema`) e Configuração Completa de Exemplo (`DP11-5`)**
+  + **What:**
+    1. Criar `configs/schemas/algorithms.schema.json`, `configs/schemas/benchmark.schema.json` e `configs/schemas/problems.schema.json` especificando todos os campos, tipos, enums de estratégias/modos e descrições;
+    2. Adicionar a chave `"$schema"` em [configs/algorithms.json](../../configs/algorithms.json), [configs/algorithms.archive.json](../../configs/algorithms.archive.json), [configs/benchmark.json](../../configs/benchmark.json) e [configs/problems.json](../../configs/problems.json) (ignorando `"$schema"` no parser de `config_loader.py` se necessário);
+    3. Criar `configs/algorithms.full.example.json` demonstrando todas as classes de estratégia (`Design B`), modos (`best`, `first`, `multi_move`, `batch`, `naive`), `candidate_k`, `max_matrix_dimension`, `max_shared_tour_cities` e `local_search_stage`.
+  + **Why:** Os arquivos JSON atuais mostram apenas um subconjunto mínimo de parâmetros sem autocompletar nem validação de schema no editor.
+  + **Who:** Agente (`implementer`).
+  + **Where:** `configs/schemas/*.schema.json` *(novos)*, `configs/algorithms.full.example.json` *(novo)*, [configs/algorithms.json](../../configs/algorithms.json), [configs/benchmark.json](../../configs/benchmark.json), [configs/problems.json](../../configs/problems.json), [config_loader.py](../../src/benchmarking/runner/config_loader.py).
+  + **When:** Após a `Task 11.3`.
+  + **How:** Definir os JSON Schemas Draft 2020-12, atualizar `config_loader.py` para aceitar `"$schema"` e adicionar teste unitário validando os arquivos `configs/*.json` contra os schemas.
+  + **How much:** Médio (~180 linhas JSON/python).
+  + **Stakeholder Implications:** Autocompletar, documentação inline e validação imediata de qualquer configuração de experimento no VS Code e na suíte de testes.
+  + **DoD:** Todos os arquivos `configs/*.json` (incluindo `algorithms.full.example.json`) validam sem erros no `config_loader.py` e nos testes unitários; `check_docs.py` retorna 0.
 
 ---
 
 ## Handoff
 
-- **State:** Fases 1 a 10 concluídas; 40 tarefas `[x]` e 6 tarefas de backlog `[ ]` (BUG-1 a BUG-6) registradas na Fase 10.
+- **State:** Em transição entre a **Fase 10** (parcialmente concluída: `Tasks 10.1`–`10.11`, `10.13` e `10.15`–`10.19` fechadas `[x]`; `Tasks 10.12`, `10.14`, `10.20`, `10.21` e `10.22` reabertas `[ ]` com escopo residual exato + novas tarefas simples `Task 10.23` e `Task 10.24`) e a **Fase 11** (`DP11-1` a `DP11-5` e `Tasks 11.1` a `11.4` planejadas para unificação arquitetural `Design B`, remoção de constantes hardcoded e criação de JSON Schemas). As tarefas específicas de `routing_data` foram registradas em `routing_data/TODO.md` (Batch 7).
 - **Last Verified Observation:**
-  + `pytest tests -q`: `711 passed, 6 xfailed in 11.08s`.
-  + `mypy src tests`: `Success: no issues found in 111 source files`.
-  + `ruff check src tests benchmark_scripts`: `All checks passed!`.
   + `python -m benchmark_scripts.check_docs`: `stale docstrings: 0`, `dead links: 0`, `undefined symbols: 0`, exit 0.
-  + `check_archive_baseline.py`: executado com sucesso no dispositivo CUDA (burma14: 3323.0 em 6 gerações, stop_reason='no_improvements').
-- **Next Item:** Fechar o backlog da Fase 10 (BUG-1 a BUG-6) e refazer a coleta de `results_v3/selected_10` em coorte única.
-- **Open Decisions:** `CUPY_CACHE_DIR` fallback no núcleo mantido em espera (hold) conforme instrução do usuário; cache dir configurado em `tests/conftest.py` para isolamento de ambiente. `archive/` continua excluído de `mypy` e `ruff` por decisão do usuário.
+  + `gpu_accelerated_clean`: `pytest tests -m "not slow" -q` → `805 passed, 2 deselected`; `mypy src tests` → `Success: no issues found in 116 source files`; `ruff check src tests benchmark_scripts` → `All checks passed!`.
+  + `routing_data`: `pytest tests -q` → `425 passed, 1 xfailed`, cobertura total medida em `81%` (`3427 Stmts, 654 Miss`); `mypy src examples` → `0 errors`; `ruff check src tests examples` → `All checks passed!`.
+- **Next Item:** Concluir as tarefas pendentes da Fase 10 (`Tasks 10.12`, `10.14`, `10.20`, `10.21`, `10.23`, `10.24` e `10.22`) e o Batch 7 de `routing_data/TODO.md`, seguidos da Fase 11 (`Tasks 11.1`–`11.4`).
+- **Open Decisions:** Nenhuma decisão pendente — todas as decisões de divisão Fase 10 vs Fase 11, papel de `pairwise.py`, arquitetura `Design B` (`StrategyBase` + prefixo de slot) e configuração de `candidate_k`/`strategy_params` foram confirmadas via `vscode_askQuestions`.
 - **Files to Read First:**
   + [table-of-symbols.plan.md](./table-of-symbols.plan.md)
-  + [configs/algorithms.archive.json](../../configs/algorithms.archive.json)
-  + [benchmark_scripts/check_docs.py](../../benchmark_scripts/check_docs.py)
-  + [src/protocols/backend.py](../../src/protocols/backend.py)
-  + [src/algorithms/archive/README.md](../../src/algorithms/archive/README.md)
-  + [benchmark_scripts/check_archive_baseline.py](../../benchmark_scripts/check_archive_baseline.py)
+  + [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md)
+  + [src/algorithms/strategies/local_search/two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py)
   + [src/protocols/problem_context.py](../../src/protocols/problem_context.py)
-  + [src/utils/gpu_helpers.py](../../src/utils/gpu_helpers.py)
-  + [src/algorithms/archive/full_gpu_monolithic.py](../../src/algorithms/archive/full_gpu_monolithic.py)
-  + [src/benchmarking/runner/config_loader.py](../../src/benchmarking/runner/config_loader.py)
-  + [configs/algorithms.json](../../configs/algorithms.json)
-  + [tests/fixtures/configs/algorithms.json](../../tests/fixtures/configs/algorithms.json)
+  + [src/utils/route_helpers.py](../../src/utils/route_helpers.py)
+  + [src/benchmarking/runner/checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py)
+  + [src/benchmarking/runner/orchestration.py](../../src/benchmarking/runner/orchestration.py)
