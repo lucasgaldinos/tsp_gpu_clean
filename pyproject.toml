@@ -30,7 +30,6 @@ dependencies = [
     "scikit-posthocs>=0.11.4",
     "pandoc-mermaid-filter>=0.1.0",
     "numba>=0.65.1",
-    "tsplib95>=0.6.1",
     "routing-data",
 ]
 
@@ -78,7 +77,6 @@ module = [
     "cupy",
     "cupy.*",
     "scikit_posthocs",
-    "tsplib95",
 ]
 ignore_missing_imports = true
 

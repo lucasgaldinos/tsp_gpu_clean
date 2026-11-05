@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json",
+  "title": "Algorithm variants configuration",
+  "description": "Declarative GA composition (Design B, DP11-1) or monolithic class loading. Every strategy class named here must exist in algorithms.strategies.STRATEGY_REGISTRY, and every parameter key must be accepted by the class constructor (DP11-5).",
+  "type": "object",
+  "required": ["default_params", "algorithm_configs"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference used by editors for completion and validation."
+    },
+    "default_params": {
+      "type": "object",
+      "description": "Genetic Algorithm defaults applied to every variant unless overridden.",
+      "required": ["population_size", "mutation_rate", "seed"],
+      "additionalProperties": false,
+      "properties": {
+        "population_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of individuals kept per generation."
+        },
+        "mutation_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Per-individual probability of applying the mutation operator."
+        },
+        "seed": {
+          "type": "integer",
+          "description": "Base random seed; repetitions offset it."
+        }
+      }
+    },
+    "algorithm_configs": {
+      "type": "object",
+      "description": "Variant name -> configuration. Variant names are the labels reported in checkpoints and statistics.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/algorithm_config"
+      }
+    }
+  },
+  "$defs": {
+    "algorithm_config": {
+      "type": "object",
+      "required": ["metaheuristic", "use_gpu", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "metaheuristic": {
+          "type": "string",
+          "description": "Metaheuristic identifier; `GeneticAlgorithm` selects the modular pipeline, any other value requires `class_module`/`class_name`.",
+          "examples": ["GeneticAlgorithm", "GeneticAlgorithmFullGPUMonolithic"]
+        },
+        "use_gpu": {
+          "type": "boolean",
+          "description": "Whether the variant needs CuPy/CUDA at run time (the benchmark skips GPU variants when no device is present)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable label copied into reports."
+        },
+        "class_module": {
+          "type": "string",
+          "description": "Dotted module path for monolithic variants resolved by `AlgorithmConfig.get_class()`.",
+          "examples": ["algorithms.archive.full_gpu_monolithic"]
+        },
+        "class_name": {
+          "type": "string",
+          "description": "Class name inside `class_module`.",
+          "examples": ["GeneticAlgorithmFullGPUMonolithic"]
+        },
+        "params": {
+          "type": "object",
+          "description": "Algorithm-level parameters. Modular pipelines accept `local_search_stage`, `population_size`, `mutation_rate` and `seed`.",
+          "properties": {
+            "local_search_stage": {
+              "$ref": "#/$defs/local_search_stage"
+            },
+            "population_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "mutation_rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "seed": {
+              "type": "integer"
+            },
+            "tournament_size": {
+              "type": "integer",
+              "minimum": 2,
+              "description": "Monolithic-only alias of the selection tournament size."
+            },
+            "two_opt_iterations": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Monolithic-only alias of the 2-opt pass cap."
+            }
+          },
+          "additionalProperties": true
+        },
+        "strategies": {
+          "type": "object",
+          "description": "Strategy slot -> class + parameters (Design B). Slots omitted from the pipeline stay `None`.",
+          "additionalProperties": false,
+          "properties": {
+            "initialization": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "selection": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "crossover": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "mutation": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "local_search": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "evaluation": {
+              "$ref": "#/$defs/strategy_slot"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "metaheuristic": {
+                "not": {
+                  "const": "GeneticAlgorithm"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": ["class_module", "class_name"]
+          }
+        }
+      ]
+    },
+    "local_search_stage": {
+      "type": "string",
+      "enum": ["post_crossover", "post_mutation", "post_evaluation", "post_evolution", "none"],
+      "description": "Where the local-search strategy runs inside the generation pipeline (`LocalSearchStage`)."
+    },
+    "strategy_slot": {
+      "type": "object",
+      "required": ["class"],
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "type": "string",
+          "description": "Key of `STRATEGY_REGISTRY`; the slot prefix identifies the stage.",
+          "enum": [
+            "InitializationRandom",
+            "InitializationNearestNeighbor",
+            "SelectionTournament",
+            "SelectionRouletteWheel",
+            "SelectionGPUTournament",
+            "CrossoverOrder",
+            "CrossoverPartiallyMapped",
+            "CrossoverGPUOrder",
+            "MutationSwap",
+            "MutationInversion",
+            "MutationGPUSwap",
+            "MutationGPUInversion",
+            "LocalSearchCPUTwoOpt",
+            "LocalSearchGPUTwoOpt",
+            "LocalSearchNoOp",
+            "EvaluationCPUCost",
+            "EvaluationGPUCost"
+          ]
+        },
+        "params": {
+          "type": "object",
+          "description": "Constructor keyword arguments for the strategy class. Shared keys: `seed`, `candidate_k`, `return_gpu`, `max_matrix_dimension`, `max_shared_tour_cities`, `mode`.",
+          "properties": {
+            "seed": {
+              "type": ["integer", "array", "null"],
+              "description": "Explicit seed override; the loader injects the run seed when omitted."
+            },
+            "return_gpu": {
+              "type": "boolean",
+              "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+            },
+            "candidate_k": {
+              "type": ["integer", "null"],
+              "minimum": 1,
+              "description": "Nearest-neighbour list width; `null` keeps the exhaustive scan (DP10-20)."
+            },
+            "k": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Tournament size (selection) or candidate-list width (initialization)."
+            },
+            "max_iterations": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "2-opt pass cap for the local-search strategies."
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["best", "first", "multi_move", "batch", "naive"],
+              "description": "Acceptance rule: `best`/`first`/`multi_move` on CPU; `batch`/`multi_move`/`naive` on GPU."
+            },
+            "threads_per_block": {
+              "type": "integer",
+              "minimum": 32,
+              "description": "CUDA threads per block for the GPU strategies."
+            },
+            "max_matrix_dimension": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+            },
+            "max_shared_tour_cities": {
+              "type": "integer",
+              "minimum": 2,
+              "description": "`n` above which the GPU 2-opt scans the tour tile by tile instead of caching it in shared memory (default 11 520)."
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

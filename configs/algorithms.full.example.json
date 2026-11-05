@@ -1,0 +1,295 @@
+{
+  "$schema": "./schemas/algorithms.schema.json",
+  "default_params": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "ExampleCPU_RoulettePMX_Best": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "CPU reference: roulette-wheel selection, PMX crossover, inversion mutation and best-improvement 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionRouletteWheel"
+        },
+        "crossover": {
+          "class": "CrossoverPartiallyMapped"
+        },
+        "mutation": {
+          "class": "MutationInversion",
+          "params": {
+            "candidate_k": 20
+          }
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "best",
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "ExampleCPU_TournamentOX_First": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "CPU first-improvement 2-opt refined after fitness evaluation",
+      "params": {
+        "local_search_stage": "post_evaluation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap",
+          "params": {
+            "candidate_k": 15
+          }
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "max_iterations": 5,
+            "mode": "first"
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "ExampleCPU_MultiMove": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "CPU multi-move 2-opt: every disjoint improving reversal per pass",
+      "params": {
+        "local_search_stage": "post_crossover"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "multi_move"
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "ExampleGPU_Batch": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "GPU-resident operators with batch 2-opt and on-the-fly distances above 10 000 cities",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationNearestNeighbor",
+          "params": {
+            "k": 20,
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "batch",
+            "threads_per_block": 256,
+            "candidate_k": 20,
+            "max_matrix_dimension": 10000,
+            "max_shared_tour_cities": 11520
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true,
+            "threads_per_block": 256,
+            "max_matrix_dimension": 10000
+          }
+        }
+      }
+    },
+    "ExampleGPU_MultiMove": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "GPU multi-move kernel with GPU inversion mutation",
+      "params": {
+        "local_search_stage": "post_evolution"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "multi_move",
+            "threads_per_block": 128,
+            "max_shared_tour_cities": 11520
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "ExampleGPU_Naive": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Naive GPU 2-opt with one transfer per route (baseline for the PCIe bottleneck)",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "naive"
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "ExampleNoLocalSearch": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Pure GA: no-op local search with the stage explicitly disabled",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationNearestNeighbor",
+          "params": {
+            "k": 10,
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp",
+          "params": {
+            "max_iterations": 0
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    }
+  }
+}

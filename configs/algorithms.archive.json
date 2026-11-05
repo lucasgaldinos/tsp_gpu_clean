@@ -1,4 +1,5 @@
 {
+  "$schema": "./schemas/algorithms.schema.json",
   "default_params": {
     "population_size": 256,
     "mutation_rate": 0.02,

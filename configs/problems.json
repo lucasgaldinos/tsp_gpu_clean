@@ -1,4 +1,6 @@
-[
+{
+  "$schema": "./schemas/problems.schema.json",
+  "problems": [
   {"name": "gr17", "optimal": 2085, "size": 17},
   {"name": "gr21", "optimal": 2707, "size": 21},
   {"name": "gr24", "optimal": 1272, "size": 24},
@@ -46,4 +48,5 @@
   {"name": "pcb442", "optimal": 50778, "size": 442},
   {"name": "rat783", "optimal": 8806, "size": 783},
   {"name": "pr1002", "optimal": 259045, "size": 1002}
-]
+  ]
+}

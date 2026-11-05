@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/benchmark.schema.json",
+  "title": "Benchmark execution configuration",
+  "description": "Execution parameters consumed by `load_benchmark_config` (`BenchmarkConfig`): repetitions, early-stopping patience, CPU/GPU split threshold and console layout (DP11-5).",
+  "type": "object",
+  "required": ["repetitions", "patience", "cpu_size_threshold", "skip_cpu_default"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference used by editors for completion and validation."
+    },
+    "repetitions": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Independent runs per (algorithm, instance) pair; one seed offset per repetition."
+    },
+    "patience": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Generations without improvement before early stopping; `null` uses the adaptive formula `2 * sqrt(n)`."
+    },
+    "cpu_size_threshold": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Instances up to this dimension may run the pure CPU baseline."
+    },
+    "skip_cpu_default": {
+      "type": "boolean",
+      "description": "Skip the CPU baseline by default when the instance exceeds `cpu_size_threshold`."
+    },
+    "incremental_runs": {
+      "type": "boolean",
+      "default": false,
+      "description": "Resume from existing checkpoints instead of restarting every pair."
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line_width": {
+          "type": "integer",
+          "minimum": 40,
+          "description": "Console separator width used by `BenchmarkConfig.separator`."
+        }
+      }
+    }
+  }
+}

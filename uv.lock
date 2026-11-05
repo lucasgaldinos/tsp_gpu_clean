@@ -795,7 +795,6 @@ dependencies = [
     { name = "scikit-posthocs" },
     { name = "scipy" },
     { name = "tabulate" },
-    { name = "tsplib95" },
 ]
 
 [package.optional-dependencies]
@@ -845,7 +844,6 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.15.3" },
     { name = "scipy-stubs", marker = "extra == 'dev'", specifier = ">=1.18.1.1" },
     { name = "tabulate", specifier = ">=0.9.0" },
-    { name = "tsplib95", specifier = ">=0.6.1" },
 ]
 provides-extras = ["dev"]
 
@@ -2068,15 +2066,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/32/2c/70e3b6bb2189cfd260280b7e1042bd622949a258663f95e887fada4ac1e6/nest_asyncio2-1.7.4.tar.gz", hash = "sha256:995b1409d926ec55e0876ea39a69bffdd8852cf1db3652c177e8c8ffdbcaf3cc", size = 16891, upload-time = "2026-10-07T22:31:50.507Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/09/ed/559d2915dce85794bc0c36064043da170da50cd98746dcbddd85d5932017/nest_asyncio2-1.7.4-py3-none-any.whl", hash = "sha256:86e77b52c3d1496b294af3c944b44213b9b82a12a5ee590c0acc4ca4692ef6c7", size = 8543, upload-time = "2026-10-07T22:31:49.245Z" },
-]
-
-[[package]]
-name = "networkx"
-version = "2.8.8"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cd/16/c44e8550012735b8f21b3df7f39e8ba5a987fb764ac017ad5f3589735889/networkx-2.8.8.tar.gz", hash = "sha256:230d388117af870fce5647a3c52401fcf753e94720e6ea6b4197a5355648885e", size = 1960828, upload-time = "2022-11-01T20:31:52.02Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/31/d2f89f1ae42718f8c8a9e440ebe38d7d5fe1e0d9eb9178ce779e365b3ab0/networkx-2.8.8-py3-none-any.whl", hash = "sha256:e435dfa75b1d7195c7b8378c3859f0445cd88c6b0375c181ed66823a9ceb7524", size = 2025192, upload-time = "2022-11-01T20:31:49.035Z" },
 ]
 
 [[package]]
@@ -3310,19 +3299,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2c/2e/a7fbfe268c8a3b32546930c0297c101d65a4a14c304ad5790a9f478f0e4e/traitlets-5.16.1.tar.gz", hash = "sha256:ed900c2b631aa3a112811139fa97b8d2c3bad5e989656bba4b7e52c7852c18c1", size = 166137, upload-time = "2026-08-03T08:32:36.848Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ad/66/0d785f0bc5e4315a96c989bb476d0fc07ea4f85132550c7b156ca2035d52/traitlets-5.16.1-py3-none-any.whl", hash = "sha256:f775618166caa0396c8e337099240f2bd3e5e917d203b2e6fbe21a58d3cb1f6b", size = 86211, upload-time = "2026-08-03T08:32:34.48Z" },
-]
-
-[[package]]
-name = "tsplib95"
-version = "0.6.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "networkx" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/47/af26fec37d59ec44dc2eddc1311768cb8c0e6ba292830c0a9d5084b95fdd/tsplib95-0.6.1.tar.gz", hash = "sha256:59ed1d08819b67aba333cf5f2275d76d311fc9a705da56a4a2dbd459db0ff937", size = 28677, upload-time = "2020-01-04T18:27:02.974Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/43/039c0621085202f19d6c12b06330bf109743083ce4024137b4713da9c40b/tsplib95-0.6.1-py2.py3-none-any.whl", hash = "sha256:03be32ee69c180712ed2926b2e0d68a509f587769bd8515d48d30d6c6ca2e5ec", size = 16224, upload-time = "2020-01-04T18:27:01.119Z" },
 ]
 
 [[package]]

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/problems.schema.json",
+  "title": "TSPLIB instance catalogue",
+  "description": "Instance catalogue consumed by `load_problems_config` (`ProblemConfig`). It is the single source of truth for optimal tour costs, replacing the hardcoded in-source optimal table (DP11-4, DP11-5).",
+  "type": "object",
+  "required": ["problems"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference used by editors for completion and validation."
+    },
+    "problems": {
+      "type": "array",
+      "description": "Instances evaluated by the benchmark. Order is preserved when `problem_names` is not supplied.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "optimal", "size"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "TSPLIB instance stem used to resolve the database row and the `.tsp` file.",
+            "examples": ["berlin52"]
+          },
+          "optimal": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Canonical optimal tour cost from TSPLIB95; every gap is computed against it."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of cities (dimension) of the instance."
+          }
+        }
+      }
+    }
+  }
+}
