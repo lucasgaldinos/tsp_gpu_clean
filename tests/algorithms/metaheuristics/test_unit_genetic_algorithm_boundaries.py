@@ -15,11 +15,11 @@ import pytest
 
 from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
-  CPUCostEvaluation,
-  OrderCrossover,
-  RandomPermutationInitialization,
-  SwapMutation,
-  TournamentSelection,
+  CrossoverOrder,
+  EvaluationCPUCost,
+  InitializationRandom,
+  MutationSwap,
+  SelectionTournament,
 )
 from protocols import ProblemContext
 
@@ -33,11 +33,11 @@ def _make_ga(population_size: int = 8) -> GeneticAlgorithm:
     population_size=population_size,
     mutation_rate=0.05,
     seed=42,
-    initialization=RandomPermutationInitialization(seed=42),
-    selection=TournamentSelection(k=3, seed=42),
-    crossover=OrderCrossover(seed=42),
-    mutation=SwapMutation(seed=42),
-    evaluation=CPUCostEvaluation(),
+    initialization=InitializationRandom(seed=42),
+    selection=SelectionTournament(k=3, seed=42),
+    crossover=CrossoverOrder(seed=42),
+    mutation=MutationSwap(seed=42),
+    evaluation=EvaluationCPUCost(),
   )
 
 

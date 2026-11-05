@@ -73,7 +73,7 @@ def test_load_all_configs_returns_expected_structure(fixture_configs: dict[str, 
   ]
   assert configs["algorithms"]["CPU"].use_gpu is False
   assert configs["algorithms"]["CPU"].metaheuristic == "GeneticAlgorithm"
-  assert configs["algorithms"]["CPU"].strategies["selection"]["class"] == "TournamentSelection"
+  assert configs["algorithms"]["CPU"].strategies["selection"]["class"] == "SelectionTournament"
 
 
 def test_load_all_configs_parses_benchmark_and_problem_values(fixture_configs: dict[str, Any]) -> None:
@@ -161,7 +161,7 @@ def test_load_all_configs_requires_each_file(tmp_path: Path, missing_name: str) 
   complete_configs = {
     "algorithms.json": {"algorithm_configs": {}},
     "benchmark.json": {"repetitions": 2, "patience": 5, "cpu_size_threshold": 100, "skip_cpu_default": False},
-    "problems.json": [],
+    "problems.json": {"problems": []},
   }
   for name, payload in complete_configs.items():
     if name != missing_name:
@@ -204,18 +204,25 @@ def test_load_benchmark_config_requires_each_field(tmp_path: Path) -> None:
     load_benchmark_config(tmp_path)
 
 
-def test_load_problems_config_rejects_non_array(tmp_path: Path) -> None:
-  """WHAT: problems.json containing an object instead of an array.
+@pytest.mark.parametrize(
+  "payload",
+  [
+    pytest.param([{"name": "burma14", "optimal": 3323, "size": 14}], id="bare-array"),
+    pytest.param({"name": "burma14"}, id="object-without-problems"),
+  ],
+)
+def test_load_problems_config_requires_problems_array(tmp_path: Path, payload: object) -> None:
+  """WHAT: problems.json that is not an object with a `problems` array.
 
-  WHY: The loader iterates the document; an object would iterate keys and produce
-  nonsense errors.
-  EXPECTED: `ValueError` mentioning the JSON array requirement.
+  WHY: The document carries `$schema` next to the array (`DP11-5`); any other shape
+  must fail loudly instead of iterating keys and producing nonsense errors.
+  EXPECTED: `ValueError` naming the expected object/array shape.
   """
   # Arrange
-  _write_json(tmp_path / "problems.json", {"name": "burma14"})
+  _write_json(tmp_path / "problems.json", payload)
 
   # Act / Assert
-  with pytest.raises(ValueError, match="JSON array"):
+  with pytest.raises(ValueError, match="'problems' array"):
     load_problems_config(tmp_path)
 
 
@@ -226,7 +233,7 @@ def test_load_problems_config_requires_each_field(tmp_path: Path) -> None:
   EXPECTED: `ValueError` with the entry index and field name.
   """
   # Arrange
-  _write_json(tmp_path / "problems.json", [{"name": "burma14", "size": 14}])
+  _write_json(tmp_path / "problems.json", {"problems": [{"name": "burma14", "size": 14}]})
 
   # Act / Assert
   with pytest.raises(ValueError, match=r"index 0 missing required field: optimal"):

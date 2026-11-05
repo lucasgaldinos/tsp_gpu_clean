@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../configs/schemas/benchmark.schema.json",
   "repetitions": 2,
   "patience": 5,
   "cpu_size_threshold": 100,

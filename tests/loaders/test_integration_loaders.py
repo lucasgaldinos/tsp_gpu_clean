@@ -25,7 +25,7 @@ if TYPE_CHECKING:
   from loaders.tsplib_loader import TsplibIngestionBundle
 
 
-def test_tsplib95_parse_and_bundle_to_problem(fixture_tsp_dir: Path) -> None:
+def test_parse_and_bundle_to_problem(fixture_tsp_dir: Path) -> None:
   """Verify parsing EUC_2D and EXPLICIT .tsp instances through `routing_data`."""
   bundle_euc: TsplibIngestionBundle = parse_tsplib_file(fixture_tsp_dir / "berlin52.tsp", problem_id=1)
   assert bundle_euc.problem.name == "berlin52"
@@ -137,4 +137,3 @@ def test_ingest_missing_directory_raises(tmp_path: Path) -> None:
   """Verify ingest_tsplib_directory_to_duckdb raises FileNotFoundError if source directory does not exist."""
   with pytest.raises(FileNotFoundError, match="TSPLIB source directory not found"):
     ingest_tsplib_directory_to_duckdb(tmp_path / "non_existent_tsp", tmp_path / "out.duckdb")
-

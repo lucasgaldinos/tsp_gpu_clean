@@ -1,4 +1,4 @@
-"""Unit tests for `CPUCostEvaluation`.
+"""Unit tests for `EvaluationCPUCost`.
 
 Tour cost drives every selection and survival decision in the GA. The tests pin the
 closed-loop cost on a hand-computable 4x4 EXPLICIT matrix, the agreement between the
@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.evaluation.cost_evaluation import CPUCostEvaluation, GPUCostEvaluation
+from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost, EvaluationGPUCost
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -65,7 +65,7 @@ def test_cpu_cost_evaluation_matches_hand_computed_cost(
   """
   # Arrange
   context = ProblemContext(_tiny_explicit_problem(), xp=np, seed=0)
-  evaluator = CPUCostEvaluation()
+  evaluator = EvaluationCPUCost()
 
   # Act
   cost = evaluator.evaluate(np.asarray(tour, dtype=np.int32), context)
@@ -83,7 +83,7 @@ def test_cpu_cost_evaluation_batch_matches_single_tours() -> None:
   """
   # Arrange
   context = ProblemContext(_tiny_explicit_problem(), xp=np, seed=0)
-  evaluator = CPUCostEvaluation()
+  evaluator = EvaluationCPUCost()
   tours = np.array([[0, 1, 2, 3], [0, 2, 1, 3], [1, 3, 2, 0]], dtype=np.int32)
   expected = np.array([21.0, 29.0, 18.0], dtype=np.float64)
 
@@ -109,7 +109,7 @@ def test_cpu_cost_evaluation_single_route_batch_shape() -> None:
   """
   # Arrange
   context = ProblemContext(_tiny_explicit_problem(), xp=np, seed=0)
-  evaluator = CPUCostEvaluation()
+  evaluator = EvaluationCPUCost()
 
   # Act
   costs = evaluator.evaluate_batch(np.array([0, 1, 2, 3], dtype=np.int32), context)
@@ -129,7 +129,7 @@ def test_cpu_cost_evaluation_does_not_mutate_routes() -> None:
   """
   # Arrange
   context = ProblemContext(_tiny_explicit_problem(), xp=np, seed=0)
-  evaluator = CPUCostEvaluation()
+  evaluator = EvaluationCPUCost()
   tours = np.array([[0, 1, 2, 3], [0, 2, 1, 3]], dtype=np.int32)
   original = tours.copy()
 
@@ -161,7 +161,7 @@ def test_gpu_cost_evaluation_coordinate_mode_matches_dense_matrix(
   fixture_name: str,
   request: pytest.FixtureRequest,
 ) -> None:
-  """WHAT: `GPUCostEvaluation` with the dense matrix versus on-the-fly coordinates.
+  """WHAT: `EvaluationGPUCost` with the dense matrix versus on-the-fly coordinates.
 
   WHY: above `max_matrix_dimension` a coordinate-based problem must not allocate the
   `(n, n)` matrix, yet its costs must stay bit-identical to the matrix path.
@@ -175,15 +175,15 @@ def test_gpu_cost_evaluation_coordinate_mode_matches_dense_matrix(
   tours = _random_tours(problem.dimension, 4, seed=11)
 
   dense_context = ProblemContext(problem, xp=cp, seed=0)
-  dense_costs = GPUCostEvaluation().evaluate_batch(tours, dense_context)
+  dense_costs = EvaluationGPUCost().evaluate_batch(tours, dense_context)
   assert dense_context._gpu_distances is not None, "the dense path must build the matrix"
 
   coords_context = ProblemContext(problem, xp=cp, seed=0)
-  coords_costs = GPUCostEvaluation(max_matrix_dimension=10).evaluate_batch(tours, coords_context)
+  coords_costs = EvaluationGPUCost(max_matrix_dimension=10).evaluate_batch(tours, coords_context)
 
   # Assert
   np.testing.assert_array_equal(np.asarray(dense_costs), np.asarray(coords_costs))
   assert coords_context._gpu_distances is None, "coordinate mode must not allocate the dense matrix"
   assert coords_context._cpu_distances is None, "coordinate mode must not build the CPU matrix"
-  expected = CPUCostEvaluation().evaluate_batch(tours, ProblemContext(problem, xp=np, seed=0))
+  expected = EvaluationCPUCost().evaluate_batch(tours, ProblemContext(problem, xp=np, seed=0))
   np.testing.assert_array_equal(np.asarray(coords_costs), expected)

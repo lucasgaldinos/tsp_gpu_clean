@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../configs/schemas/algorithms.schema.json",
   "default_params": {
     "population_size": 32,
     "mutation_rate": 0.05,
@@ -14,31 +15,32 @@
       },
       "strategies": {
         "initialization": {
-          "class": "RandomPermutationInitialization",
+          "class": "InitializationRandom",
           "params": {
             "return_gpu": false
           }
         },
         "selection": {
-          "class": "TournamentSelection",
+          "class": "SelectionTournament",
           "params": {
             "k": 3
           }
         },
         "crossover": {
-          "class": "OrderCrossover"
+          "class": "CrossoverOrder"
         },
         "mutation": {
-          "class": "SwapMutation"
+          "class": "MutationSwap"
         },
         "local_search": {
-          "class": "CPUTwoOpt",
+          "class": "LocalSearchCPUTwoOpt",
           "params": {
-            "max_iterations": 5
+            "max_iterations": 5,
+            "candidate_k": 20
           }
         },
         "evaluation": {
-          "class": "CPUCostEvaluation"
+          "class": "EvaluationCPUCost"
         }
       }
     },
@@ -51,31 +53,33 @@
       },
       "strategies": {
         "initialization": {
-          "class": "RandomPermutationInitialization",
+          "class": "InitializationRandom",
           "params": {
             "return_gpu": false
           }
         },
         "selection": {
-          "class": "TournamentSelection",
+          "class": "SelectionTournament",
           "params": {
             "k": 3
           }
         },
         "crossover": {
-          "class": "OrderCrossover"
+          "class": "CrossoverOrder"
         },
         "mutation": {
-          "class": "SwapMutation"
+          "class": "MutationSwap"
         },
         "local_search": {
-          "class": "NaiveGPUTwoOpt",
+          "class": "LocalSearchGPUTwoOpt",
           "params": {
-            "max_iterations": 5
+            "max_iterations": 5,
+            "mode": "naive",
+            "candidate_k": 20
           }
         },
         "evaluation": {
-          "class": "CPUCostEvaluation"
+          "class": "EvaluationCPUCost"
         }
       }
     },
@@ -88,31 +92,33 @@
       },
       "strategies": {
         "initialization": {
-          "class": "RandomPermutationInitialization",
+          "class": "InitializationRandom",
           "params": {
             "return_gpu": false
           }
         },
         "selection": {
-          "class": "TournamentSelection",
+          "class": "SelectionTournament",
           "params": {
             "k": 3
           }
         },
         "crossover": {
-          "class": "OrderCrossover"
+          "class": "CrossoverOrder"
         },
         "mutation": {
-          "class": "SwapMutation"
+          "class": "MutationSwap"
         },
         "local_search": {
-          "class": "BatchGPUTwoOpt",
+          "class": "LocalSearchGPUTwoOpt",
           "params": {
-            "max_iterations": 5
+            "max_iterations": 5,
+            "mode": "batch",
+            "candidate_k": 20
           }
         },
         "evaluation": {
-          "class": "GPUCostEvaluation",
+          "class": "EvaluationGPUCost",
           "params": {
             "return_gpu": false
           }
@@ -128,31 +134,33 @@
       },
       "strategies": {
         "initialization": {
-          "class": "RandomPermutationInitialization",
+          "class": "InitializationRandom",
           "params": {
             "return_gpu": true
           }
         },
         "selection": {
-          "class": "GPUTournamentSelection",
+          "class": "SelectionGPUTournament",
           "params": {
             "k": 3
           }
         },
         "crossover": {
-          "class": "GPUOrderCrossover"
+          "class": "CrossoverGPUOrder"
         },
         "mutation": {
-          "class": "GPUSwapMutation"
+          "class": "MutationGPUSwap"
         },
         "local_search": {
-          "class": "BatchGPUTwoOpt",
+          "class": "LocalSearchGPUTwoOpt",
           "params": {
-            "max_iterations": 5
+            "max_iterations": 5,
+            "mode": "batch",
+            "candidate_k": 20
           }
         },
         "evaluation": {
-          "class": "GPUCostEvaluation",
+          "class": "EvaluationGPUCost",
           "params": {
             "return_gpu": true
           }

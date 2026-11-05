@@ -1,21 +1,21 @@
 """Unit tests for the `ProblemContext` GPU accessor guards.
 
-The numpy-backend guard must fail fast without requiring a device; the device-marked
-parity case is skipped when CUDA is absent. CPU accessor contracts live in
+The accessors resolve the device through `require_gpu()` rather than `self.xp`
+(`DP10-17`), so a NumPy-preferred context still serves GPU kernels and a host without
+CUDA fails with `GPUUnavailableError`. CPU accessor contracts live in
 `test_unit_problem_context.py`.
 """
 
 from __future__ import annotations
 
 import dataclasses
-import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 
-from data_models.exceptions import VRAMInsufficientError
-from protocols.backend import BackendModule, cupy_backend, gpu_available
+from data_models.exceptions import GPUUnavailableError, VRAMInsufficientError
+from protocols.backend import cupy_backend, gpu_available
 from protocols.problem_context import ProblemContext
 
 GPU_AVAILABLE = gpu_available()
@@ -67,26 +67,37 @@ def _on_the_fly_bytes(n: int, pop_size: int, components: int) -> int:
 
 @pytest.mark.parametrize("method_name", ["get_gpu_distances", "get_gpu_coordinates", "get_gpu_demands"])
 @pytest.mark.parametrize("fixture_name", ["burma14_problem", "berlin52_problem"])
-def test_gpu_accessors_raise_value_error_on_numpy_backend(
+def test_gpu_accessors_on_numpy_backend_use_the_device(
   request: pytest.FixtureRequest,
   fixture_name: str,
   method_name: str,
 ) -> None:
-  """WHAT: GPU-only accessors invoked on a NumPy backend.
+  """WHAT: GPU-only accessors invoked on a context created with `xp=np`.
 
-  WHY: The guard must fail fast with an actionable message instead of returning a host
-  array or raising an obscure attribute error.
+  WHY: `DP10-17` resolves the device through `require_gpu()` instead of `self.xp`, so a
+  hybrid CPU+GPU pipeline can keep a NumPy-preferred context and still hand device
+  buffers to GPU kernels; without CUDA the failure must stay typed.
 
-  EXPECTED: `ValueError` naming the accessor and stating that CuPy is required.
+  EXPECTED: a CuPy array (or `None` demands) when a device is reachable, otherwise
+  `GPUUnavailableError` - never the old `ValueError`.
   """
   # Arrange
   problem: Problem = request.getfixturevalue(fixture_name)
   context = ProblemContext(problem, xp=np, seed=5)
-  expected_message = f"{method_name}() requires xp to be CuPy, not NumPy"
 
-  # Act / Assert
-  with pytest.raises(ValueError, match=re.escape(expected_message)):
-    getattr(context, method_name)()
+  if not GPU_AVAILABLE or cp is None:
+    with pytest.raises(GPUUnavailableError):
+      getattr(context, method_name)()
+    return
+
+  # Act
+  value = getattr(context, method_name)()
+
+  # Assert
+  if method_name == "get_gpu_demands":
+    assert value is None
+  else:
+    assert isinstance(value, cp.ndarray)
 
 
 @pytest.mark.gpu
@@ -275,10 +286,11 @@ def test_check_vram_capacity_accepts_exact_budget(berlin52_problem: Problem) -> 
 
 
 def test_check_vram_capacity_numpy_backend_returns_estimate(berlin52_problem: Problem) -> None:
-  """WHAT: `check_vram_capacity` with no budget on the NumPy backend.
+  """WHAT: `check_vram_capacity` with no injected budget on a NumPy-preferred context.
 
-  WHY: There is no device VRAM to inspect, so the check must degrade to the
-  estimate instead of touching CUDA.
+  WHY: The device is probed with `require_gpu()`; when no device exists there is no VRAM
+  budget to compare against, so the check degrades to the estimate instead of touching
+  CUDA or raising (`DP10-17`).
 
   EXPECTED: The estimate is returned and nothing is raised.
   """
@@ -287,11 +299,14 @@ def test_check_vram_capacity_numpy_backend_returns_estimate(berlin52_problem: Pr
   assert context.check_vram_capacity(8) == context.estimate_vram_bytes(8)
 
 
-def test_check_vram_capacity_reads_device_mem_info(berlin52_problem: Problem) -> None:
-  """WHAT: `check_vram_capacity` querying `xp.cuda.Device().mem_info`.
+def test_check_vram_capacity_reads_device_mem_info(
+  berlin52_problem: Problem,
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: `check_vram_capacity` querying `cuda.Device().mem_info` through the probe.
 
-  WHY: The production path reads free VRAM from CuPy when no budget is injected;
-  a fake backend exercises it without a GPU.
+  WHY: The production path resolves the device with `require_gpu()` (not `self.xp`), so
+  a NumPy-preferred context still validates the real budget (`DP10-17`).
 
   EXPECTED: The estimate is rejected when `mem_info` reports less free VRAM.
   """
@@ -299,7 +314,7 @@ def test_check_vram_capacity_reads_device_mem_info(berlin52_problem: Problem) ->
   context = ProblemContext(berlin52_problem, xp=np, seed=3)
   required_bytes = context.estimate_vram_bytes(32)
   free_bytes = required_bytes - 1
-  context.xp = cast("BackendModule", _FakeBackend(free_bytes))
+  monkeypatch.setattr("protocols.problem_context.require_gpu", lambda: _FakeBackend(free_bytes))
 
   # Act / Assert
   with pytest.raises(VRAMInsufficientError) as exc_info:

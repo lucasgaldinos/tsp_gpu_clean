@@ -13,20 +13,18 @@ import numpy as np
 import pytest
 
 from algorithms.strategies import (
-  BatchGPUMultiMoveTwoOpt,
-  CPUCostEvaluation,
-  CPUFirstImprovementTwoOpt,
-  CPUMultiMoveTwoOpt,
-  CPUTwoOpt,
-  GPUInversionMutation,
-  InversionMutation,
-  NoOpLocalSearch,
-  OrderCrossover,
-  PartiallyMappedCrossover,
-  RandomPermutationInitialization,
-  RouletteWheelSelection,
-  SwapMutation,
-  TournamentSelection,
+  CrossoverOrder,
+  CrossoverPartiallyMapped,
+  EvaluationCPUCost,
+  InitializationRandom,
+  LocalSearchCPUTwoOpt,
+  LocalSearchGPUTwoOpt,
+  LocalSearchNoOp,
+  MutationGPUInversion,
+  MutationInversion,
+  MutationSwap,
+  SelectionRouletteWheel,
+  SelectionTournament,
 )
 from protocols import (
   CrossoverStrategy,
@@ -56,12 +54,12 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
   customers: list[int] = list(range(burma14_problem.dimension))
   n = len(customers)
 
-  init_strat = RandomPermutationInitialization(seed=42)
+  init_strat = InitializationRandom(seed=42)
   assert isinstance(init_strat, InitializationStrategy)
   routes: Routes = init_strat.initialize(customers, population_size=10, context=context)
   assert routes.shape == (10, n)
 
-  eval_strat = CPUCostEvaluation()
+  eval_strat = EvaluationCPUCost()
   assert isinstance(eval_strat, EvaluationStrategy)
   fitness: Fitness = eval_strat.evaluate_batch(routes, context)
   assert fitness.shape == (10,)
@@ -69,7 +67,7 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
   assert np.isclose(single_cost, fitness[0])
 
   # Selection strategies
-  for sel in (TournamentSelection(k=3, seed=42), RouletteWheelSelection(seed=42)):
+  for sel in (SelectionTournament(k=3, seed=42), SelectionRouletteWheel(seed=42)):
     assert isinstance(sel, SelectionStrategy)
     one_parent: Route = sel.select(routes, fitness, context=context)
     assert one_parent.shape == (n,)
@@ -77,7 +75,7 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
     assert batch_parents.shape == (10, n)
 
   # Crossover strategies (1D pair and 2D batch)
-  for cx in (OrderCrossover(seed=42), PartiallyMappedCrossover(seed=42)):
+  for cx in (CrossoverOrder(seed=42), CrossoverPartiallyMapped(seed=42)):
     assert isinstance(cx, CrossoverStrategy)
     child_1d: Route = cx.crossover(routes[0], routes[1], context=context)
     assert child_1d.shape == (n,)
@@ -89,7 +87,7 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
       assert sorted(row.tolist()) == customers
 
   # Mutation strategies (1D route and 2D batch)
-  for mut in (SwapMutation(seed=42), InversionMutation(seed=42)):
+  for mut in (MutationSwap(seed=42), MutationInversion(seed=42)):
     assert isinstance(mut, MutationStrategy)
     mut_1d: RouteOrRoutes = mut.mutate_batch(routes[0], mutation_rate=1.0, context=context)
     assert mut_1d.shape == (n,)
@@ -101,7 +99,7 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
       assert sorted(row.tolist()) == customers
 
   # Local search strategies (1D route and 2D batch)
-  for ls in (CPUTwoOpt(max_iterations=5), NoOpLocalSearch()):
+  for ls in (LocalSearchCPUTwoOpt(max_iterations=5), LocalSearchNoOp()):
     assert isinstance(ls, LocalSearchStrategy)
     imp_1d: RouteOrRoutes = ls.improve_batch(routes[0], context)
     assert imp_1d.shape == (n,)
@@ -113,11 +111,11 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
 
 
 def test_inversion_mutation_cpu_and_gpu(burma14_problem: Problem) -> None:
-  """Verify dedicated InversionMutation and GPUInversionMutation strategies."""
+  """Verify dedicated MutationInversion and MutationGPUInversion strategies."""
   context = ProblemContext(burma14_problem, xp=np, seed=42)
   routes: np.ndarray = np.tile(np.arange(burma14_problem.dimension, dtype=np.int32), (8, 1))
 
-  cpu_mut = InversionMutation(seed=42)
+  cpu_mut = MutationInversion(seed=42)
   mutated_cpu = cpu_mut.mutate_batch(routes, mutation_rate=1.0, context=context)
   assert mutated_cpu.shape == routes.shape
   for r in mutated_cpu:
@@ -126,7 +124,7 @@ def test_inversion_mutation_cpu_and_gpu(burma14_problem: Problem) -> None:
   if GPU_AVAILABLE and cp is not None:
     gpu_context = ProblemContext(burma14_problem, xp=cp, seed=42)
     gpu_routes = cp.asarray(routes)
-    gpu_mut = GPUInversionMutation(seed=42)
+    gpu_mut = MutationGPUInversion(seed=42)
     mutated_gpu = gpu_mut.mutate_batch(gpu_routes, mutation_rate=1.0, context=gpu_context)
     assert mutated_gpu.shape == routes.shape
     host_routes = cp.asnumpy(mutated_gpu)
@@ -138,19 +136,19 @@ def test_two_opt_variants(burma14_problem: Problem) -> None:
   """Verify 2-opt search variants: First-Improvement, Multi-Move, and BatchGPUMultiMove."""
   context = ProblemContext(burma14_problem, xp=np, seed=42)
   assert context.get_cpu_distances().shape == (14, 14)
-  evaluator = CPUCostEvaluation()
+  evaluator = EvaluationCPUCost()
 
   # Inverted route gives suboptimal initial cost
   suboptimal_route = np.arange(burma14_problem.dimension - 1, -1, -1, dtype=np.int32)
   initial_cost = float(evaluator.evaluate(suboptimal_route, context=context))
 
-  fi_opt = CPUFirstImprovementTwoOpt(max_iterations=10)
+  fi_opt = LocalSearchCPUTwoOpt(max_iterations=10, mode="first")
   fi_route = fi_opt.improve(suboptimal_route, context=context)
   fi_cost = float(evaluator.evaluate(fi_route, context=context))
   assert fi_cost < initial_cost, "first-improvement 2-opt must strictly improve the reversed tour"
   assert sorted(fi_route.tolist()) == list(range(burma14_problem.dimension))
 
-  multi_opt = CPUMultiMoveTwoOpt(max_iterations=10)
+  multi_opt = LocalSearchCPUTwoOpt(max_iterations=10, mode="multi_move")
   multi_route = multi_opt.improve(suboptimal_route, context=context)
   multi_cost = float(evaluator.evaluate(multi_route, context=context))
   assert multi_cost < initial_cost, "multi-move 2-opt must strictly improve the reversed tour"
@@ -160,7 +158,7 @@ def test_two_opt_variants(burma14_problem: Problem) -> None:
     gpu_context = ProblemContext(burma14_problem, xp=cp, seed=42)
     routes_batch = np.tile(suboptimal_route, (4, 1))
     gpu_routes = cp.asarray(routes_batch)
-    gpu_multi_opt = BatchGPUMultiMoveTwoOpt(max_iterations=10)
+    gpu_multi_opt = LocalSearchGPUTwoOpt(max_iterations=10, mode="multi_move")
     gpu_improved = gpu_multi_opt.improve(gpu_routes, context=gpu_context)
     host_improved = cp.asnumpy(gpu_improved)
     for r in host_improved:
@@ -169,7 +167,7 @@ def test_two_opt_variants(burma14_problem: Problem) -> None:
 
 @pytest.mark.gpu
 def test_multi_move_two_opt_cpu_gpu_parity(burma14_problem: Problem) -> None:
-  """Verify `CPUMultiMoveTwoOpt` and `BatchGPUMultiMoveTwoOpt` agree route by route.
+  """Verify `LocalSearchCPUTwoOpt` and `LocalSearchGPUTwoOpt` agree route by route in multi-move mode.
 
   WHAT: Both implementations run on the same four reversed-tour routes.
   WHY: Equal costs alone can hide a permutation drift that changes crossover behavior;
@@ -182,12 +180,12 @@ def test_multi_move_two_opt_cpu_gpu_parity(burma14_problem: Problem) -> None:
   suboptimal_route = np.arange(burma14_problem.dimension - 1, -1, -1, dtype=np.int32)
   routes = np.tile(suboptimal_route, (4, 1)).astype(np.int32, copy=False)
 
-  cpu_improved = CPUMultiMoveTwoOpt(max_iterations=10).improve_batch(routes, cpu_context)
+  cpu_improved = LocalSearchCPUTwoOpt(max_iterations=10, mode="multi_move").improve_batch(routes, cpu_context)
   gpu_improved = cp.asnumpy(
-    BatchGPUMultiMoveTwoOpt(max_iterations=10).improve_batch(cp.asarray(routes), gpu_context)
+    LocalSearchGPUTwoOpt(max_iterations=10, mode="multi_move").improve_batch(cp.asarray(routes), gpu_context)
   )
 
-  evaluator = CPUCostEvaluation()
+  evaluator = EvaluationCPUCost()
   cpu_costs = [float(evaluator.evaluate(route, context=cpu_context)) for route in cpu_improved]
   gpu_costs = [float(evaluator.evaluate(route, context=cpu_context)) for route in gpu_improved]
 

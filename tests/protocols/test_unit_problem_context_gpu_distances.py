@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 from data_models.problem import Problem
+from distances.pairwise import get_edge_type_code
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
 
@@ -58,6 +59,21 @@ def _cupy() -> Any:
   if cp is None:
     pytest.skip("CuPy is not importable")
   return cp
+
+
+def _coordinate_problem(name: str) -> Problem:
+  """Build a 3-node `EUC_2D` problem whose matrix must be computed on demand."""
+  coordinates = np.array([[0.0, 0.0], [3.0, 4.0], [6.0, 8.0]], dtype=np.float64)
+  return Problem(
+    name=name,
+    dimension=3,
+    problem_type="TSP",
+    edge_type="EUC_2D",
+    coordinates=coordinates,
+    distances=None,
+    capacity=None,
+    demands=None,
+  )
 
 
 @pytest.mark.gpu
@@ -115,3 +131,55 @@ def test_get_gpu_distances_keeps_same_named_problems_isolated() -> None:
   np.testing.assert_array_equal(cupy.asnumpy(matrix_first), _FIRST_MATRIX.astype(np.int32))
   np.testing.assert_array_equal(cupy.asnumpy(matrix_second), _SECOND_MATRIX.astype(np.int32))
   assert not np.array_equal(cupy.asnumpy(matrix_first), cupy.asnumpy(matrix_second))
+
+
+@pytest.mark.gpu
+def test_get_gpu_distance_operands_reuses_the_context_matrix() -> None:
+  """WHAT: `get_gpu_distance_operands` on a context created with `xp=np`.
+
+  WHY: `DP10-17` lets GPU strategies request operands from a NumPy-preferred context;
+  returning a private copy would double the `(n, n)` allocation in VRAM.
+
+  EXPECTED: `(matrix, 0, 0)` where `matrix` is the very object `get_gpu_distances()`
+  caches, in ``int32``.
+  """
+  cupy: Any = _cupy()
+
+  # Arrange
+  context = ProblemContext(_explicit_problem("operands_matrix", _FIRST_MATRIX), xp=np, seed=4)
+
+  # Act
+  d_distances, d_coords, edge_type_code = context.get_gpu_distance_operands(3)
+
+  # Assert
+  assert isinstance(d_distances, cupy.ndarray)
+  assert d_distances.dtype == cupy.int32
+  assert d_distances is context.get_gpu_distances(), "operands must reuse the context matrix"
+  assert d_coords == 0
+  assert edge_type_code == 0
+
+
+@pytest.mark.gpu
+def test_get_gpu_distance_operands_switches_to_coordinates() -> None:
+  """WHAT: `get_gpu_distance_operands` above the matrix threshold.
+
+  WHY: coordinate mode must hand the kernel a `nullptr` matrix plus the context-owned
+  coordinates, so a large instance never allocates `(n, n)` in VRAM (`DP10-19`).
+
+  EXPECTED: `(0, coords, EUC_2D code)` with `coords is context.get_gpu_coordinates()`
+  and no distance matrix cached.
+  """
+  cupy: Any = _cupy()
+
+  # Arrange
+  context = ProblemContext(_coordinate_problem("operands_coords"), xp=np, seed=4, max_matrix_dimension=0)
+
+  # Act
+  d_distances, d_coords, edge_type_code = context.get_gpu_distance_operands(3)
+
+  # Assert
+  assert d_distances == 0
+  assert isinstance(d_coords, cupy.ndarray)
+  assert d_coords is context.get_gpu_coordinates()
+  assert edge_type_code == get_edge_type_code("EUC_2D")
+  assert context._gpu_distances is None, "coordinate mode must not materialize the matrix"

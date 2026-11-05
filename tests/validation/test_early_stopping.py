@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from benchmarking.runner.config_loader import KNOWN_TSPLIB_OPTIMALS, load_algorithms_config
+from benchmarking.runner.config_loader import load_algorithms_config, load_problems_config
 from protocols.backend import cupy_backend, gpu_available
 from protocols.problem_context import ProblemContext
 
@@ -28,7 +28,7 @@ def test_early_stopping_berlin52(berlin52_problem: Problem, fixture_config_dir: 
   """Verify early stopping and standardized stats across all GA variants on berlin52."""
   problem: Problem = berlin52_problem
 
-  optimal_cost = KNOWN_TSPLIB_OPTIMALS["berlin52"]
+  optimal_cost = next(cfg.optimal for cfg in load_problems_config(fixture_config_dir) if cfg.name == "berlin52")
   max_generations = 80
   patience = 14
   customers: list[int] = list(range(problem.dimension))

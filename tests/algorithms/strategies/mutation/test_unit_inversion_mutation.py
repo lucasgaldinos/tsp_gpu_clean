@@ -1,4 +1,4 @@
-"""Unit tests for `InversionMutation`.
+"""Unit tests for `MutationInversion`.
 
 Inversion mutation reverses a contiguous segment of a route. The tests pin the
 invariants the GA depends on: the permutation and its dtype survive, the parent array
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.mutation.inversion_mutation import InversionMutation
+from algorithms.strategies.mutation.inversion_mutation import MutationInversion
 from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ def test_mutation_preserves_permutation(mutation_rate: float, n_genes: int) -> N
   original = route.copy()
 
   # Act
-  mutated = InversionMutation(seed=3).mutate(route, mutation_rate=mutation_rate)
+  mutated = MutationInversion(seed=3).mutate(route, mutation_rate=mutation_rate)
 
   # Assert
   assert mutated.shape == route.shape
@@ -67,7 +67,7 @@ def test_mutation_batch_preserves_shape_and_permutations(
   input_routes = routes if as_batch else routes[0]
 
   # Act
-  mutated = InversionMutation(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
+  mutated = MutationInversion(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
 
   # Assert
   assert mutated.ndim == input_routes.ndim
@@ -89,7 +89,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
   route = np.array([0, 1, 0], dtype=np.int32)
 
   # Act
-  mutated = InversionMutation(seed=0).mutate(route, mutation_rate=1.0)
+  mutated = MutationInversion(seed=0).mutate(route, mutation_rate=1.0)
 
   # Assert
   assert mutated[0] == 0
@@ -98,7 +98,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
 
 
 def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Problem) -> None:
-  """WHAT: `InversionMutation(candidate_k=10)` on a full 52-city tour.
+  """WHAT: `MutationInversion(candidate_k=10)` on a full 52-city tour.
 
   WHY: proximity-guided cuts change how the segment is chosen; the reversal must still
   produce a permutation and leave the depot endpoints fixed (`DP10-20`).
@@ -111,10 +111,33 @@ def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Pro
   original = route.copy()
 
   # Act
-  mutated = InversionMutation(seed=6, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
+  mutated = MutationInversion(seed=6, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
   assert sorted(mutated.tolist()) == list(range(52))
   assert mutated[0] == route[0]
   assert mutated[-1] == route[-1]
+  np.testing.assert_array_equal(route, original)
+
+
+def test_candidate_k_inversion_supports_sparse_cvrp_sub_route(berlin52_problem: Problem) -> None:
+  """WHAT: `MutationInversion(candidate_k=3)` on `[0, 5, 12, 19, 8, 0]` (max id 19, 6 stops).
+
+  WHY: node ids above `len(route) - 1` used to disable candidate mode or raise
+  `IndexError`; the shared inverse map sizes itself by the largest id (`BUG-19`).
+
+  EXPECTED: a valid sub-route permutation with both depot endpoints untouched.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=22)
+  route = np.array([0, 5, 12, 19, 8, 0], dtype=np.int32)
+  original = route.copy()
+
+  # Act
+  mutated = MutationInversion(seed=8, candidate_k=3).mutate(route, mutation_rate=1.0, context=context)
+
+  # Assert
+  assert sorted(mutated.tolist()) == sorted(route.tolist())
+  assert mutated[0] == 0
+  assert mutated[-1] == 0
   np.testing.assert_array_equal(route, original)

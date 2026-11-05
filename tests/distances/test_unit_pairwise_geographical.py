@@ -10,8 +10,9 @@ from __future__ import annotations
 import math
 
 import pytest
+from converter.utils.cost import geographical
 
-from distances.pairwise import _to_radians_geo, compute_geographical
+from distances.pairwise import compute_geographical
 
 # Berlin (52.31N, 13.23E) -> Munich (48.08N, 11.34E) in TSPLIB DDD.MM format.
 GEO_BERLIN = (52.31, 13.23)
@@ -19,24 +20,31 @@ GEO_MUNICH = (48.08, 11.34)
 GEO_HAND_COMPUTED_KM = 504.718377149365722
 
 
-@pytest.mark.parametrize(
-  ("coordinate", "expected_radians"),
-  [
-    (52.31, 0.916588554814815),  # 52 deg 18.6 min
-    (13.23, 0.233583182962963),
-    (48.08, 0.840084971851852),
-    (11.34, 0.201876374814815),
-  ],
-)
-def test_geographical_degree_minute_conversion(coordinate: float, expected_radians: float) -> None:
-  """WHAT: DDD.MM values become radians via ``PI * (deg + 5 * min / 3) / 180``.
+def test_geographical_is_the_upstream_routing_data_function() -> None:
+  """WHAT: ``pairwise.compute_geographical`` is the ``routing_data`` implementation.
 
-  WHY: the fractional part of a TSPLIB GEO coordinate is minutes, not hundredths of a
-  degree; treating 52.31 as 52.31 degrees instead of 52 deg 18.6 min shifts every distance.
+  WHY: ``DP10-13`` moved every TSPLIB95 scalar formula into ``routing_data`` so the
+  solver and the ETL share one definition; a second local copy would drift silently
+  (it already did — the local copy existed only because upstream rounded the degree).
 
-  EXPECTED: each coordinate matches the hand-computed radian value to 1e-9 relative.
+  EXPECTED: object identity with ``converter.utils.cost.geographical``.
   """
-  assert _to_radians_geo(coordinate) == pytest.approx(expected_radians, rel=1e-9)
+  assert compute_geographical is geographical
+
+
+def test_fractional_part_of_a_geo_coordinate_is_minutes() -> None:
+  """WHAT: ``(0.00, 0.00) -> (0.60, 0.00)`` versus one full degree.
+
+  WHY: TSPLIB95 writes DDD.MM, so ``.60`` is sixty minutes — one degree — not six
+  tenths of a degree. Reading it as decimal degrees would make the two distances
+  differ by ~44 km, which no downstream test would notice.
+
+  EXPECTED: both pairs yield the same integer distance.
+  """
+  sixty_minutes = compute_geographical((0.0, 0.0), (0.60, 0.0))
+  one_degree = compute_geographical((0.0, 0.0), (1.00, 0.0))
+
+  assert sixty_minutes == one_degree
 
 
 def test_geographical_matches_hand_computed_value() -> None:

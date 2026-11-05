@@ -253,3 +253,42 @@ def test_validity_rejects_arrays_inconsistent_with_successful_runs(tmp_path: Pat
 
   # Assert
   assert valid is False
+
+
+def test_predicates_use_the_checkpoint_own_repetitions_when_no_target_is_given(tmp_path: Path) -> None:
+  """WHAT: a finished 3-repetition checkpoint judged without an explicit target.
+
+  WHY: `benchmark.json` configures 15 repetitions and `selected_10` drives 3, so a
+  hard-coded default of 30 (`BUG-17`) reported every real checkpoint as incomplete
+  and could never mark a short run as done.
+  EXPECTED: valid, not resumable, and 0 remaining against its own target.
+  """
+  # Arrange
+  path = _write_json(tmp_path / "selected_10.json", _payload(3))
+
+  # Act / Assert
+  assert is_valid_checkpoint(path) is True
+  assert can_resume_checkpoint(path) is False
+  assert get_remaining_repetitions(path, 3) == 0
+
+
+@pytest.mark.parametrize(
+  "repetitions",
+  [pytest.param(0, id="zero"), pytest.param(-1, id="negative"), pytest.param("three", id="string")],
+)
+def test_predicates_reject_an_unusable_repetitions_field(tmp_path: Path, repetitions: object) -> None:
+  """WHAT: checkpoints whose `repetitions` field cannot express a target.
+
+  WHY: inferring the target from the file is only sound when the field is a
+  positive integer; otherwise the file must be rejected rather than silently
+  accepted as complete.
+  EXPECTED: both predicates answer False.
+  """
+  # Arrange
+  payload = _payload(3)
+  payload["repetitions"] = repetitions
+  path = _write_json(tmp_path / "bad_reps.json", payload)
+
+  # Act / Assert
+  assert is_valid_checkpoint(path) is False
+  assert can_resume_checkpoint(path) is False

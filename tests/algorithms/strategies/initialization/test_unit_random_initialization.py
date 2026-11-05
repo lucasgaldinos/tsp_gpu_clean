@@ -1,9 +1,11 @@
-"""Unit tests for `RandomPermutationInitialization`.
+"""Unit tests for the initialization strategies.
 
 Population initialization is the entry point of every GA generation: the routes it
 emits are the ancestors of all later crossover and mutation products. The tests pin
 the output contract (shape, dtype, gene multiset) and seed reproducibility rather than
-a particular random sequence.
+a particular random sequence, and they keep the uniform `InitializationRandom`
+(`Theta(n)` Fisher-Yates) separate from the candidate-guided
+`InitializationNearestNeighbor` (`Theta(n * k)` GRASP construction).
 """
 
 from __future__ import annotations
@@ -13,7 +15,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.initialization.random_initialization import RandomPermutationInitialization
+from algorithms.strategies.initialization.random_initialization import (
+  InitializationNearestNeighbor,
+  InitializationRandom,
+)
 from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
@@ -36,7 +41,7 @@ def test_random_permutation_initialization_returns_valid_population(
   customers: list[int],
   population_size: int,
 ) -> None:
-  """WHAT: `RandomPermutationInitialization.initialize` output.
+  """WHAT: `InitializationRandom.initialize` output.
 
   WHY: Every GA generation descends from this population, so a duplicated or missing
   gene would corrupt all downstream routes.
@@ -45,7 +50,7 @@ def test_random_permutation_initialization_returns_valid_population(
   exactly the requested customer set.
   """
   # Arrange
-  strategy = RandomPermutationInitialization(seed=17)
+  strategy = InitializationRandom(seed=17)
 
   # Act
   population = strategy.initialize(customers, population_size)
@@ -70,15 +75,15 @@ def test_random_permutation_initialization_respects_seed() -> None:
   customers: list[int] = list(range(6))
 
   # Act
-  first = RandomPermutationInitialization(seed=123).initialize(customers, population_size=4)
-  second = RandomPermutationInitialization(seed=123).initialize(customers, population_size=4)
+  first = InitializationRandom(seed=123).initialize(customers, population_size=4)
+  second = InitializationRandom(seed=123).initialize(customers, population_size=4)
 
   # Assert
   np.testing.assert_array_equal(first, second)
 
 
 def test_candidate_k_builds_greedy_nearest_neighbour_tours(berlin52_problem: Problem) -> None:
-  """WHAT: `RandomPermutationInitialization(candidate_k=10)` with a context.
+  """WHAT: `InitializationNearestNeighbor(k=10)` with a context.
 
   WHY: `DP10-20` turns initialization into a randomized greedy nearest-neighbour
   construction guided by `N_k`; it must still emit permutations, and those tours must be
@@ -93,8 +98,8 @@ def test_candidate_k_builds_greedy_nearest_neighbour_tours(berlin52_problem: Pro
   customers = list(range(berlin52_problem.dimension))
 
   # Act
-  guided = RandomPermutationInitialization(seed=7, candidate_k=10).initialize(customers, 4, context)
-  uniform = RandomPermutationInitialization(seed=7).initialize(customers, 4, context)
+  guided = InitializationNearestNeighbor(k=10, seed=7).initialize(customers, 4, context)
+  uniform = InitializationRandom(seed=7).initialize(customers, 4, context)
 
   # Assert
   expected_genes = sorted(customers)
@@ -104,3 +109,20 @@ def test_candidate_k_builds_greedy_nearest_neighbour_tours(berlin52_problem: Pro
   best_uniform = min(_closed_cost(route, distances) for route in uniform)
   assert best_guided < best_uniform, "candidate-guided construction must beat uniform sampling"
 
+
+def test_nearest_neighbour_candidate_k_overrides_k() -> None:
+  """WHAT: `InitializationNearestNeighbor(k=3, candidate_k=10)`.
+
+  WHY: configurations written before the split used `candidate_k`; resolving it into a
+  single width keeps `self.k` and `self.candidate_k` from disagreeing, and a zero width
+  would make the greedy construction fall back on uniform draws.
+
+  EXPECTED: both attributes report 10, and a non-positive width is rejected.
+  """
+  strategy = InitializationNearestNeighbor(k=3, candidate_k=10)
+
+  assert strategy.k == 10
+  assert strategy.candidate_k == 10
+
+  with pytest.raises(ValueError, match="Candidate-list width"):
+    InitializationNearestNeighbor(k=0)

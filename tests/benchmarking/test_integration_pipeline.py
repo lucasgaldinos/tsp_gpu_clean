@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 
 from benchmarking import (
-  KNOWN_TSPLIB_OPTIMALS,
   ProblemConfig,
   StatisticalAnalyzer,
   build_problem_configs_from_duckdb,
@@ -18,6 +17,7 @@ from benchmarking import (
   compare_algorithms_by_group,
   generate_result_tables,
   load_all_configs,
+  load_problems_config,
   perform_cross_problem_analysis_stratified,
   run_comprehensive_benchmark,
   validate_configs,
@@ -37,9 +37,6 @@ FIXTURE_NAMES: tuple[str, ...] = ("burma14", "gr17", "bayg29", "att48", "berlin5
 def test_problem_configs_from_tsp_files(fixture_tsp_dir: Path) -> None:
   """Verify fixture .tsp files build valid ProblemConfigs and load properly via TsplibLoader."""
   tsp_file_paths: list[Path] = [fixture_tsp_dir / f"{name}.tsp" for name in FIXTURE_NAMES]
-  configs, path_map = build_problem_configs_from_tsp_files(tsp_file_paths)
-  assert len(configs) == 5
-
   expected: dict[str, tuple[int, float, str]] = {
     "burma14": (14, 3323.0, "GEO"),
     "gr17": (17, 2085.0, "EXPLICIT"),
@@ -47,6 +44,11 @@ def test_problem_configs_from_tsp_files(fixture_tsp_dir: Path) -> None:
     "att48": (48, 10628.0, "ATT"),
     "berlin52": (52, 7542.0, "EUC_2D"),
   }
+  configs, path_map = build_problem_configs_from_tsp_files(
+    tsp_file_paths,
+    known_optimals={name: optimal for name, (_size, optimal, _edge) in expected.items()},
+  )
+  assert len(configs) == 5
 
   assert {c.name for c in configs} == set(expected.keys())
 
@@ -64,14 +66,23 @@ def test_problem_configs_from_tsp_files(fixture_tsp_dir: Path) -> None:
       assert np.all(np.diag(mat) == 0)
 
 
-def test_problem_configs_from_duckdb(fixture_duckdb_path: Path) -> None:
-  """Verify building ProblemConfigs from DuckDB fixture database."""
+def test_problem_configs_from_duckdb(fixture_duckdb_path: Path, fixture_config_dir: Path) -> None:
+  """Verify building ProblemConfigs from DuckDB fixture database.
+
+  The fixture database carries no `solutions` rows, so the optimal costs must come from
+  the `configs/problems.json` catalogue that production orchestration passes as
+  `existing_configs` (`DP11-4`), not from a hardcoded table.
+  """
+  catalogue: list[ProblemConfig] = load_problems_config(fixture_config_dir)
   db_configs = build_problem_configs_from_duckdb(
     db_path=fixture_duckdb_path,
     problem_names=FIXTURE_NAMES,
+    existing_configs=catalogue,
   )
   assert len(db_configs) == 5
   assert [c.name for c in db_configs] == list(FIXTURE_NAMES)
+  catalogue_optimals = {cfg.name: cfg.optimal for cfg in catalogue}
+  assert [cfg.optimal for cfg in db_configs] == [catalogue_optimals[name] for name in FIXTURE_NAMES]
 
 
 def test_validate_configs_allows_none_patience(fixture_config_dir: Path) -> None:
@@ -185,9 +196,17 @@ def test_run_comprehensive_benchmark_fixture(
   )
   assert "gr17" in results
   assert "CPU" in results["gr17"]
-  assert results["gr17"]["CPU"]["mean_cost"] >= KNOWN_TSPLIB_OPTIMALS["gr17"]
+  assert results["gr17"]["CPU"]["mean_cost"] >= 2085.0
   assert (tmp_path / "tables" / "gr17_smoke.md").exists()
   assert (tmp_path / "tables" / "gr17_smoke.tex").exists()
+
+  # `BUG-18`: a checkpoint must describe the strategy parameters it actually ran.
+  algorithm_config = results["gr17"]["CPU"]["algorithm_config"]
+  strategy_params = algorithm_config["strategy_params"]
+  assert strategy_params["initialization"]["class"] == "InitializationRandom"
+  assert strategy_params["selection"]["k"] == 3, "configured tournament size must survive into the checkpoint"
+  assert strategy_params["local_search"]["max_iterations"] >= 1
+  assert results["gr17"]["CPU"]["construction_heuristic"] == "InitializationRandom"
 
 
 def test_compare_algorithms_and_grouping() -> None:
@@ -344,5 +363,3 @@ def test_strategy_override_reaches_instance(fixture_config_dir: Path) -> None:
   # Monolithic strategy-override mapping is covered by the opt-in archive config
   # (`configs/algorithms.archive.json`), which the suite no longer loads: no test
   # executes archive code.
-
-

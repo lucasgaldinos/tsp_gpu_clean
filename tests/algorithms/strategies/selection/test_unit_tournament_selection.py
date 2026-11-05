@@ -1,4 +1,4 @@
-"""Unit tests for `TournamentSelection`.
+"""Unit tests for `SelectionTournament`.
 
 Tournament selection samples `k` competitors and keeps the cheapest. The tests pin the
 contract the GA relies on: every winner is a real population member, `k` larger than
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.selection.tournament_selection import TournamentSelection
+from algorithms.strategies.selection.tournament_selection import SelectionTournament
 
 if TYPE_CHECKING:
   from collections.abc import Callable
@@ -36,7 +36,7 @@ def test_tournament_select_returns_population_member(
   # Arrange
   population = make_population(4, 6, seed=77)
   fitness = np.array([10.0, 30.0, 20.0, 40.0], dtype=np.float64)
-  strategy = TournamentSelection(k=k, seed=seed)
+  strategy = SelectionTournament(k=k, seed=seed)
 
   # Act
   selected = strategy.select(population, fitness)
@@ -63,7 +63,7 @@ def test_tournament_select_batch_returns_population_members(
   # Arrange
   population = make_population(4, 6, seed=77)
   fitness = np.array([10.0, 30.0, 20.0, 40.0], dtype=np.float64)
-  strategy = TournamentSelection(k=3, seed=8)
+  strategy = SelectionTournament(k=3, seed=8)
 
   # Act
   parents = strategy.select_batch(population, fitness, num_parents=num_parents)
@@ -86,7 +86,7 @@ def test_tournament_handles_single_member_population() -> None:
   # Arrange
   population = np.arange(4, dtype=np.int32).reshape(1, 4)
   fitness = np.array([7.0], dtype=np.float64)
-  strategy = TournamentSelection(k=3, seed=6)
+  strategy = SelectionTournament(k=3, seed=6)
 
   # Act
   selected = strategy.select(population, fitness)
@@ -108,4 +108,4 @@ def test_tournament_rejects_non_positive_tournament_size(k: int) -> None:
   EXPECTED: `ValueError` naming the minimum valid size.
   """
   with pytest.raises(ValueError, match="Tournament size k must be >= 1"):
-    TournamentSelection(k=k, seed=0)
+    SelectionTournament(k=k, seed=0)

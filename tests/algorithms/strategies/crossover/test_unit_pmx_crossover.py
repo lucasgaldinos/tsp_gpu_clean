@@ -1,4 +1,4 @@
-"""Unit tests for `PartiallyMappedCrossover`.
+"""Unit tests for `CrossoverPartiallyMapped`.
 
 PMX copies a slice from the first parent and repairs duplicates through the partial
 mapping induced by the second parent. The tests pin the invariants cost evaluation
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.crossover.pmx_crossover import PartiallyMappedCrossover
+from algorithms.strategies.crossover.pmx_crossover import CrossoverPartiallyMapped
 
 if TYPE_CHECKING:
   from collections.abc import Callable
@@ -33,7 +33,7 @@ def test_crossover_returns_permutation_of_parent_genes(n_genes: int) -> None:
   base = np.arange(n_genes, dtype=np.int32)
   parent1 = rng.permutation(base).astype(np.int32, copy=False)
   parent2 = rng.permutation(base).astype(np.int32, copy=False)
-  strategy = PartiallyMappedCrossover(seed=11)
+  strategy = CrossoverPartiallyMapped(seed=11)
 
   # Act
   child = strategy.crossover(parent1, parent2)
@@ -58,7 +58,7 @@ def test_crossover_preserves_depot_endpoints() -> None:
   parent2 = np.array([0, 4, 2, 1, 3, 0], dtype=np.int32)
 
   # Act
-  child = PartiallyMappedCrossover(seed=21).crossover(parent1, parent2)
+  child = CrossoverPartiallyMapped(seed=21).crossover(parent1, parent2)
 
   # Assert
   assert child.shape == parent1.shape
@@ -83,7 +83,7 @@ def test_crossover_batch_returns_permutation_rows(
   population = make_population(num_routes, 6, seed=7)
 
   # Act
-  offspring = PartiallyMappedCrossover(seed=5).crossover_batch(population)
+  offspring = CrossoverPartiallyMapped(seed=5).crossover_batch(population)
 
   # Assert
   assert offspring.shape == population.shape

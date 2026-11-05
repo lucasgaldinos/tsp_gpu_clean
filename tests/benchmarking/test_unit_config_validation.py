@@ -1,7 +1,7 @@
 """Unit tests for config validation in `benchmarking.runner.config_loader`.
 
-WHAT: Covers every `validate_configs` warning branch, the `KNOWN_TSPLIB_OPTIMALS`
-hit/miss paths, `build_problem_configs_from_tsp_files` and the adaptive
+WHAT: Covers every `validate_configs` warning branch, the `known_optimals`
+hit/miss paths of `build_problem_configs_from_tsp_files` and the adaptive
 generation/patience formulas.
 WHY: The runner trusts these checks before executing a benchmark; a missed
 warning or a wrong lookup turns into a silently misconfigured or mislabelled run.
@@ -19,7 +19,6 @@ import pytest
 
 from benchmarking.runner.algorithm_runner import adaptive_generations, adaptive_patience
 from benchmarking.runner.config_loader import (
-  KNOWN_TSPLIB_OPTIMALS,
   AlgorithmConfig,
   ProblemConfig,
   build_problem_configs_from_tsp_files,
@@ -224,50 +223,23 @@ def test_validate_configs_accumulates_warnings_in_rule_order(fixture_configs: di
 
 
 # ============================================================================
-# KNOWN_TSPLIB_OPTIMALS
+# build_problem_configs_from_tsp_files
 # ============================================================================
 
 
-@pytest.mark.parametrize(
-  ("name", "expected"),
-  [
-    pytest.param("burma14", 3323.0, id="burma14"),
-    pytest.param("att48", 10628.0, id="att48"),
-    pytest.param("berlin52", 7542.0, id="berlin52"),
-    pytest.param("kroA100", 21282.0, id="kroA100"),
-  ],
-)
-def test_known_tsplib_optimals_hit(name: str, expected: float) -> None:
-  """WHAT: Known-optimal lookup for benchmark instances.
-
-  WHY: Gap percentages are computed against these constants; a wrong value
-  silently shifts every reported gap.
-  EXPECTED: the canonical TSPLIB95 optimal tour cost.
-  """
-  # Act / Assert
-  assert KNOWN_TSPLIB_OPTIMALS[name] == expected
-
-
-def test_known_tsplib_optimals_miss_returns_none() -> None:
-  """WHAT: Lookup of an unknown problem name.
-
-  WHY: Callers use `in` / `.get` to decide whether to raise; the miss path must
-  stay distinguishable from a stored zero.
-  EXPECTED: `not in` and `.get(...) is None`.
-  """
-  # Act / Assert
-  assert "definitely_not_a_tsplib_instance" not in KNOWN_TSPLIB_OPTIMALS
-  assert KNOWN_TSPLIB_OPTIMALS.get("definitely_not_a_tsplib_instance") is None
-
-
 def test_build_problem_configs_uses_known_optimal(fixture_tsp_dir: Path) -> None:
-  """WHAT: Building configs from a fixture `.tsp` with a known optimal.
+  """WHAT: Building configs from a fixture `.tsp` with a supplied optimal cost.
 
-  WHY: This is the "lookup hit" path used by the real benchmark entry point.
+  WHY: This is the "lookup hit" path used by the real benchmark entry point, which
+  derives the map from `configs/problems.json` (`DP11-4`).
   EXPECTED: burma14 with optimal 3323.0 and size 14.
   """
   # Act
-  configs, path_map = build_problem_configs_from_tsp_files(["burma14"], tsp_dir=fixture_tsp_dir)
+  configs, path_map = build_problem_configs_from_tsp_files(
+    ["burma14"],
+    tsp_dir=fixture_tsp_dir,
+    known_optimals={"burma14": 3323.0},
+  )
 
   # Assert
   assert configs == [ProblemConfig(name="burma14", optimal=3323.0, size=14)]
@@ -276,7 +248,7 @@ def test_build_problem_configs_uses_known_optimal(fixture_tsp_dir: Path) -> None
 
 
 def test_build_problem_configs_prefers_existing_config(fixture_tsp_dir: Path) -> None:
-  """WHAT: `existing_configs` takes precedence over `KNOWN_TSPLIB_OPTIMALS`.
+  """WHAT: `existing_configs` takes precedence over `known_optimals`.
 
   WHY: Experiments may pin a custom reference cost; the override must win.
   EXPECTED: optimal 999.0 from the supplied config.
@@ -289,6 +261,7 @@ def test_build_problem_configs_prefers_existing_config(fixture_tsp_dir: Path) ->
     ["burma14"],
     existing_configs=existing,
     tsp_dir=fixture_tsp_dir,
+    known_optimals={"burma14": 3323.0},
   )
 
   # Assert
@@ -296,11 +269,11 @@ def test_build_problem_configs_prefers_existing_config(fixture_tsp_dir: Path) ->
 
 
 def test_build_problem_configs_unknown_optimal_raises(fixture_tsp_dir: Path, tmp_path: Path) -> None:
-  """WHAT: Building configs for a problem absent from `KNOWN_TSPLIB_OPTIMALS`.
+  """WHAT: Building configs for a problem absent from `known_optimals`.
 
   WHY: The "lookup miss" must raise instead of producing a config with a fake
   optimal cost.
-  EXPECTED: `KeyError` naming the known-optimal registry.
+  EXPECTED: `KeyError` naming the known-optimal source.
   """
   # Arrange
   source_text = (fixture_tsp_dir / "burma14.tsp").read_text()
@@ -309,7 +282,7 @@ def test_build_problem_configs_unknown_optimal_raises(fixture_tsp_dir: Path, tmp
 
   # Act / Assert
   with pytest.raises(KeyError, match="Known optimal tour cost not found"):
-    build_problem_configs_from_tsp_files([renamed])
+    build_problem_configs_from_tsp_files([renamed], known_optimals={"burma14": 3323.0})
 
 
 # ============================================================================

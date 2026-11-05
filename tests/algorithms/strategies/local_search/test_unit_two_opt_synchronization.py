@@ -1,6 +1,7 @@
 """Synchronization contract for the batch GPU 2-opt strategies.
 
-`BatchGPUTwoOpt.improve_batch` and `BatchGPUMultiMoveTwoOpt.improve_batch` must not issue
+`LocalSearchGPUTwoOpt.improve_batch` in both grid modes (`batch` and `multi_move`)
+must not issue
 an explicit ``cp.cuda.Stream.null.synchronize()`` (``BUG-15`` / ``DP10-18``): a GPU-resident
 result stays stream-ordered for the caller's next CuPy operation, and the host-returning
 branch synchronizes implicitly inside ``d_population.get()``. The tests intercept the
@@ -15,13 +16,14 @@ import numpy as np
 import pytest
 
 from algorithms.strategies import local_search
-from algorithms.strategies.local_search import BatchGPUMultiMoveTwoOpt, BatchGPUTwoOpt
+from algorithms.strategies.local_search import LocalSearchGPUTwoOpt
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
 
 cp = cupy_backend()
 
 if TYPE_CHECKING:
+  from algorithms.strategies.local_search import TwoOptGPUMode
   from data_models.problem import Problem
 
 _BATCH_SIZE: int = 3
@@ -77,9 +79,14 @@ class _CountingBackend:
 
 @pytest.fixture
 def sync_counter(monkeypatch: pytest.MonkeyPatch) -> dict[str, int]:
-  """Replace the `two_opt` module's CuPy handle with a synchronization-counting proxy."""
+  """Make the `two_opt` module's `require_gpu` return a synchronization-counting proxy.
+
+  The strategy resolves the device through `require_gpu()` instead of a module-level
+  CuPy import (`DP9-2`), so the counting proxy is injected at that seam.
+  """
   counter: dict[str, int] = {"null_stream_synchronize": 0}
-  monkeypatch.setattr(local_search.two_opt, "cp", _CountingBackend(_cupy(), counter))
+  counting_backend = _CountingBackend(_cupy(), counter)
+  monkeypatch.setattr(local_search.two_opt, "require_gpu", lambda: counting_backend)
   return counter
 
 
@@ -98,9 +105,9 @@ def route_batch() -> np.ndarray:
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize("strategy_type", [BatchGPUTwoOpt, BatchGPUMultiMoveTwoOpt])
+@pytest.mark.parametrize("mode", ["batch", "multi_move"])
 def test_gpu_resident_batch_does_not_synchronize(
-  strategy_type: type[BatchGPUTwoOpt | BatchGPUMultiMoveTwoOpt],
+  mode: TwoOptGPUMode,
   device_context: ProblemContext,
   route_batch: np.ndarray,
   sync_counter: dict[str, int],
@@ -117,7 +124,7 @@ def test_gpu_resident_batch_does_not_synchronize(
   # Arrange
   cupy: Any = _cupy()
   device_batch = cupy.asarray(route_batch, dtype=cupy.int32)
-  strategy = strategy_type(max_iterations=2)
+  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode=mode)
 
   # Act
   improved = strategy.improve_batch(device_batch, context=device_context)
@@ -132,9 +139,9 @@ def test_gpu_resident_batch_does_not_synchronize(
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize("strategy_type", [BatchGPUTwoOpt, BatchGPUMultiMoveTwoOpt])
+@pytest.mark.parametrize("mode", ["batch", "multi_move"])
 def test_host_batch_returns_improved_routes_without_explicit_sync(
-  strategy_type: type[BatchGPUTwoOpt | BatchGPUMultiMoveTwoOpt],
+  mode: TwoOptGPUMode,
   device_context: ProblemContext,
   route_batch: np.ndarray,
   sync_counter: dict[str, int],
@@ -148,7 +155,7 @@ def test_host_batch_returns_improved_routes_without_explicit_sync(
   permutations, and a closed-tour cost no worse than the input population.
   """
   # Arrange
-  strategy = strategy_type(max_iterations=2)
+  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode=mode)
   distances = device_context.get_cpu_distances()
 
   def closed_cost(tour: np.ndarray) -> int:

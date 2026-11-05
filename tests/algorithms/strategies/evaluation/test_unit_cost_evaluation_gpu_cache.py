@@ -1,4 +1,4 @@
-"""Unit tests for the GPU distance cache in `GPUCostEvaluation`.
+"""Unit tests for the GPU distance cache in `EvaluationGPUCost`.
 
 The evaluator keeps its own device matrix when no `ProblemContext` is supplied. That
 fallback cache is keyed by the full problem identity ``(name, dimension, edge_type,
@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.evaluation.cost_evaluation import GPUCostEvaluation
+from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -72,7 +72,7 @@ def test_fallback_cache_invalidates_on_same_named_problem_swap() -> None:
   cupy: Any = _cupy()
 
   # Arrange
-  evaluator = GPUCostEvaluation()
+  evaluator = EvaluationGPUCost()
   problem_first = _explicit_problem("same_name", _FIRST_MATRIX)
   problem_second = _explicit_problem("same_name", _SECOND_MATRIX)
 
@@ -101,7 +101,7 @@ def test_context_takes_precedence_over_the_fallback_cache() -> None:
   cupy: Any = _cupy()
 
   # Arrange
-  evaluator = GPUCostEvaluation()
+  evaluator = EvaluationGPUCost()
   context = ProblemContext(_explicit_problem("context_owned", _FIRST_MATRIX), xp=cupy, seed=2)
 
   # Act

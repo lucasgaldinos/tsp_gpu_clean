@@ -1,7 +1,8 @@
 """Unit tests verifying structural parity and import contracts for algorithm configurations.
 
 Compares production `configs/algorithms.json` against the test fixture
-`tests/fixtures/configs/algorithms.json` to prevent schema/contract drift.
+`tests/fixtures/configs/algorithms.json` to prevent schema/contract drift, and
+validates the `$schema` documents plus the complete example configuration (`DP11-5`).
 """
 
 from __future__ import annotations
@@ -11,10 +12,16 @@ import json
 from pathlib import Path
 
 from algorithms.strategies import STRATEGY_REGISTRY
+from benchmarking.runner.config_loader import load_algorithms_config
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = PROJECT_ROOT / "configs"
 PROD_ALGORITHMS_JSON = PROJECT_ROOT / "configs" / "algorithms.json"
 FIXTURE_ALGORITHMS_JSON = PROJECT_ROOT / "tests" / "fixtures" / "configs" / "algorithms.json"
+SCHEMA_DIR = CONFIG_DIR / "schemas"
+SCHEMA_NAMES: tuple[str, ...] = ("algorithms.schema.json", "benchmark.schema.json", "problems.schema.json")
+CONFIG_NAMES: tuple[str, ...] = ("algorithms.json", "algorithms.archive.json", "benchmark.json", "problems.json")
+DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 
 
 def _load_raw_configs() -> tuple[dict[str, object], dict[str, object]]:
@@ -108,3 +115,56 @@ def test_production_variants_importable() -> None:
       assert s_cls_name in STRATEGY_REGISTRY, (
         f"Strategy '{s_cls_name}' for slot '{slot}' not found in STRATEGY_REGISTRY"
       )
+
+
+def test_schema_documents_exist_as_draft_2020_12() -> None:
+  """WHAT: The three `configs/schemas/*.schema.json` documents.
+
+  WHY: The `$schema` keys added to every config resolve against these files; a
+  missing or malformed document turns editor validation into noise (`DP11-5`).
+  EXPECTED: Each file exists, parses as JSON, and declares Draft 2020-12.
+  """
+  for schema_name in SCHEMA_NAMES:
+    schema_path = SCHEMA_DIR / schema_name
+    assert schema_path.is_file(), f"missing schema: {schema_path}"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    assert schema["$schema"] == DRAFT_2020_12, f"{schema_name} must declare Draft 2020-12"
+    assert schema["type"] == "object", f"{schema_name} must describe an object document"
+
+
+def test_every_config_declares_a_schema_path() -> None:
+  """WHAT: The `$schema` key of each production configuration file.
+
+  WHY: Without it the editor cannot resolve completions or flag unknown keys.
+  EXPECTED: A relative `./schemas/<name>.schema.json` reference pointing at an existing file.
+  """
+  for config_name in CONFIG_NAMES:
+    config = json.loads((CONFIG_DIR / config_name).read_text(encoding="utf-8"))
+    schema_ref = config["$schema"]
+    assert isinstance(schema_ref, str) and schema_ref.startswith("./schemas/"), (
+      f"{config_name} must reference ./schemas/, got {schema_ref!r}"
+    )
+    assert (CONFIG_DIR / schema_ref).is_file(), f"{config_name} references a missing schema"
+
+
+def test_example_config_instantiates_every_variant() -> None:
+  """WHAT: `configs/algorithms.full.example.json` loaded through the real loader.
+
+  WHY: The example is the human-facing catalogue of every `Design B` class, mode and
+  knob; it is only useful while it still instantiates (`DP11-5`).
+  EXPECTED: At least six variants, all strategy classes in `STRATEGY_REGISTRY`, every
+  variant builds a `GeneticAlgorithm` without raising, and all five modes appear.
+  """
+  ga_params, algorithms = load_algorithms_config(CONFIG_DIR, config_name="algorithms.full.example.json")
+
+  assert len(algorithms) >= 6
+  modes: set[str] = set()
+  for name, cfg in algorithms.items():
+    for slot, spec in cfg.strategies.items():
+      assert spec["class"] in STRATEGY_REGISTRY, f"unknown class in {name}.{slot}"
+      mode = (spec.get("params") or {}).get("mode")
+      if mode is not None:
+        modes.add(str(mode))
+    assert cfg.instantiate(ga_params) is not None, f"variant {name} failed to instantiate"
+
+  assert modes == {"best", "first", "multi_move", "batch", "naive"}

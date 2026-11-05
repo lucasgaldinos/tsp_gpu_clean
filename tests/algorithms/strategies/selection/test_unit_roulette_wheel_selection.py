@@ -1,4 +1,4 @@
-"""Unit tests for `RouletteWheelSelection`.
+"""Unit tests for `SelectionRouletteWheel`.
 
 Roulette-wheel selection samples parents with probability proportional to inverse
 cost. The tests pin the contract the GA relies on: selected routes are real population
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.selection.roulette_wheel_selection import RouletteWheelSelection
+from algorithms.strategies.selection.roulette_wheel_selection import SelectionRouletteWheel
 
 if TYPE_CHECKING:
   from collections.abc import Callable
@@ -34,7 +34,7 @@ def test_roulette_wheel_select_returns_population_member(
   # Arrange
   population = make_population(4, 6, seed=99)
   fitness = np.array([5.0, 10.0, 15.0, 20.0], dtype=np.float64)
-  strategy = RouletteWheelSelection(seed=seed)
+  strategy = SelectionRouletteWheel(seed=seed)
 
   # Act
   selected = strategy.select(population, fitness)
@@ -57,7 +57,7 @@ def test_roulette_wheel_favours_lower_cost_routes(make_population: Callable[...,
   # Arrange
   population = make_population(4, 6, seed=5)
   fitness = np.array([1000.0, 1.0, 1000.0, 1000.0], dtype=np.float64)
-  strategy = RouletteWheelSelection(seed=42)
+  strategy = SelectionRouletteWheel(seed=42)
 
   # Act
   wins = sum(int(np.array_equal(strategy.select(population, fitness), population[1])) for _ in range(50))
@@ -82,7 +82,7 @@ def test_roulette_wheel_select_batch_returns_population_members(
   # Arrange
   population = make_population(4, 6, seed=99)
   fitness = np.array([5.0, 10.0, 15.0, 20.0], dtype=np.float64)
-  strategy = RouletteWheelSelection(seed=8)
+  strategy = SelectionRouletteWheel(seed=8)
 
   # Act
   parents = strategy.select_batch(population, fitness, num_parents=num_parents)
@@ -105,7 +105,7 @@ def test_roulette_wheel_handles_single_member_population() -> None:
   # Arrange
   population = np.arange(4, dtype=np.int32).reshape(1, 4)
   fitness = np.array([42.0], dtype=np.float64)
-  strategy = RouletteWheelSelection(seed=2)
+  strategy = SelectionRouletteWheel(seed=2)
 
   # Act
   selected = strategy.select(population, fitness)

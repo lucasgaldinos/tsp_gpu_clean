@@ -1,4 +1,4 @@
-"""Unit tests for `SwapMutation`.
+"""Unit tests for `MutationSwap`.
 
 Swap mutation exchanges two positions of a route. The tests pin the invariants the GA
 depends on: the permutation and its dtype survive, the parent array is never mutated
@@ -12,8 +12,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.mutation.swap_mutation import SwapMutation
+from algorithms.strategies.mutation.swap_mutation import MutationSwap
 from protocols.problem_context import ProblemContext
+from utils.route_helpers import select_proximity_index
 
 if TYPE_CHECKING:
   from collections.abc import Callable
@@ -38,7 +39,7 @@ def test_mutation_preserves_permutation(mutation_rate: float, n_genes: int) -> N
   original = route.copy()
 
   # Act
-  mutated = SwapMutation(seed=3).mutate(route, mutation_rate=mutation_rate)
+  mutated = MutationSwap(seed=3).mutate(route, mutation_rate=mutation_rate)
 
   # Assert
   assert mutated.shape == route.shape
@@ -66,7 +67,7 @@ def test_mutation_batch_preserves_shape_and_permutations(
   input_routes = routes if as_batch else routes[0]
 
   # Act
-  mutated = SwapMutation(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
+  mutated = MutationSwap(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
 
   # Assert
   assert mutated.ndim == input_routes.ndim
@@ -88,7 +89,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
   route = np.array([0, 1, 0], dtype=np.int32)
 
   # Act
-  mutated = SwapMutation(seed=0).mutate(route, mutation_rate=1.0)
+  mutated = MutationSwap(seed=0).mutate(route, mutation_rate=1.0)
 
   # Assert
   assert mutated[0] == 0
@@ -97,7 +98,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
 
 
 def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem) -> None:
-  """WHAT: `SwapMutation(candidate_k=10)` on a full 52-city tour.
+  """WHAT: `MutationSwap(candidate_k=10)` on a full 52-city tour.
 
   WHY: proximity-guided mutation changes how `idx2` is drawn; it must still exchange two
   interior positions and leave every gene exactly once (`DP10-20`).
@@ -110,7 +111,7 @@ def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem)
   original = route.copy()
 
   # Act
-  mutated = SwapMutation(seed=4, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
+  mutated = MutationSwap(seed=4, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
   assert sorted(mutated.tolist()) == list(range(52))
@@ -120,7 +121,7 @@ def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem)
 
 
 def test_proximity_index_selects_a_candidate_neighbour(berlin52_problem: Problem) -> None:
-  """WHAT: `_proximity_index` on a full tour with `candidate_k=10`.
+  """WHAT: `select_proximity_index` on a full tour with `candidate_k=10`.
 
   WHY: the second swap position must be the tour position of a real `N_k` neighbour of
   the first city, in the mutable interior, and different from the first index.
@@ -130,16 +131,38 @@ def test_proximity_index_selects_a_candidate_neighbour(berlin52_problem: Problem
   # Arrange
   context = ProblemContext(berlin52_problem, xp=np, seed=12)
   route = np.random.default_rng(13).permutation(np.arange(52, dtype=np.int32)).astype(np.int32, copy=False)
-  strategy = SwapMutation(seed=5, candidate_k=10)
+  rng = np.random.default_rng(5)
   first_index = 9
   candidates = context.get_cpu_candidate_list(10)
 
   # Act
-  second_index = strategy._proximity_index(route, 1, len(route) - 1, first_index, strategy.rng, context)
+  second_index = select_proximity_index(route, first_index, 1, len(route) - 1, candidates, rng)
 
   # Assert
-  assert second_index is not None
   assert second_index != first_index
   assert 1 <= second_index <= len(route) - 2
   neighbours = {int(neighbor) for neighbor in candidates[int(route[first_index])]}
   assert int(route[second_index]) in neighbours
+
+
+def test_candidate_k_swap_supports_sparse_cvrp_sub_route(berlin52_problem: Problem) -> None:
+  """WHAT: `MutationSwap(candidate_k=3)` on `[0, 5, 12, 19, 8, 0]` (max id 19, 6 stops).
+
+  WHY: node ids above `len(route) - 1` used to disable candidate mode or raise
+  `IndexError`; the shared inverse map sizes itself by the largest id (`BUG-19`).
+
+  EXPECTED: a valid sub-route permutation with both depot endpoints untouched.
+  """
+  # Arrange
+  context = ProblemContext(berlin52_problem, xp=np, seed=21)
+  route = np.array([0, 5, 12, 19, 8, 0], dtype=np.int32)
+  original = route.copy()
+
+  # Act
+  mutated = MutationSwap(seed=7, candidate_k=3).mutate(route, mutation_rate=1.0, context=context)
+
+  # Assert
+  assert sorted(mutated.tolist()) == sorted(route.tolist())
+  assert mutated[0] == 0
+  assert mutated[-1] == 0
+  np.testing.assert_array_equal(route, original)

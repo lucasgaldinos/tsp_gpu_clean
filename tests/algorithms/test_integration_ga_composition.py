@@ -13,12 +13,12 @@ import pytest
 
 from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
-  CPUCostEvaluation,
-  CPUTwoOpt,
-  OrderCrossover,
-  RandomPermutationInitialization,
-  SwapMutation,
-  TournamentSelection,
+  CrossoverOrder,
+  EvaluationCPUCost,
+  InitializationRandom,
+  LocalSearchCPUTwoOpt,
+  MutationSwap,
+  SelectionTournament,
 )
 from benchmarking.runner.config_loader import load_algorithms_config
 from protocols import ProblemContext
@@ -71,12 +71,12 @@ def test_ga_composable_local_search_stages(burma14_problem: Problem, stage: str)
     population_size=16,
     mutation_rate=0.05,
     seed=42,
-    initialization=RandomPermutationInitialization(seed=42),
-    selection=TournamentSelection(k=3, seed=42),
-    crossover=OrderCrossover(seed=42),
-    mutation=SwapMutation(seed=42),
-    evaluation=CPUCostEvaluation(),
-    local_search=CPUTwoOpt(max_iterations=4),
+    initialization=InitializationRandom(seed=42),
+    selection=SelectionTournament(k=3, seed=42),
+    crossover=CrossoverOrder(seed=42),
+    mutation=MutationSwap(seed=42),
+    evaluation=EvaluationCPUCost(),
+    local_search=LocalSearchCPUTwoOpt(max_iterations=4),
     local_search_stage=stage,  # type: ignore[arg-type]
   )
   best_tour, stats = ga.evolve(context, customers, max_generations=6, patience=10)
@@ -93,11 +93,11 @@ def test_ga_rejects_unknown_local_search_stage() -> None:
       population_size=16,
       mutation_rate=0.05,
       local_search_stage="unknown_stage",  # type: ignore[arg-type]
-      initialization=RandomPermutationInitialization(),
-      selection=TournamentSelection(),
-      crossover=OrderCrossover(),
-      mutation=SwapMutation(),
-      evaluation=CPUCostEvaluation(),
+      initialization=InitializationRandom(),
+      selection=SelectionTournament(),
+      crossover=CrossoverOrder(),
+      mutation=MutationSwap(),
+      evaluation=EvaluationCPUCost(),
     )
 
 
@@ -109,11 +109,11 @@ def test_ga_init_does_not_mutate_global_numpy_rng_state() -> None:
     population_size=16,
     mutation_rate=0.05,
     seed=99999,
-    initialization=RandomPermutationInitialization(seed=99999),
-    selection=TournamentSelection(seed=99999),
-    crossover=OrderCrossover(seed=99999),
-    mutation=SwapMutation(seed=99999),
-    evaluation=CPUCostEvaluation(),
+    initialization=InitializationRandom(seed=99999),
+    selection=SelectionTournament(seed=99999),
+    crossover=CrossoverOrder(seed=99999),
+    mutation=MutationSwap(seed=99999),
+    evaluation=EvaluationCPUCost(),
   )
   state_after = np.random.get_state()
   assert state_before[0] == state_after[0]
@@ -130,8 +130,7 @@ def _assert_stats_contract(stats: dict[str, Any], max_generations: int) -> None:
   the initial one, non-negative transfer counters, and a documented `stop_reason`.
   """
   assert stats["best_fitness"] <= stats["initial_fitness"], (
-    f"best_fitness {stats['best_fitness']} is worse than initial_fitness "
-    f"{stats['initial_fitness']}"
+    f"best_fitness {stats['best_fitness']} is worse than initial_fitness {stats['initial_fitness']}"
   )
   assert 0 <= stats["generations_completed"] <= max_generations
   assert len(stats["convergence_history"]) == stats["generations_completed"] + 1, (
@@ -139,9 +138,7 @@ def _assert_stats_contract(stats: dict[str, Any], max_generations: int) -> None:
     f"{len(stats['convergence_history'])} points for "
     f"{stats['generations_completed']} completed generations"
   )
-  assert stats["stop_reason"] in DOCUMENTED_STOP_REASONS, (
-    f"undocumented stop_reason {stats['stop_reason']!r}"
-  )
+  assert stats["stop_reason"] in DOCUMENTED_STOP_REASONS, f"undocumented stop_reason {stats['stop_reason']!r}"
   for counter in ("h2d_bytes", "d2h_bytes", "kernel_launches"):
     assert stats[counter] >= 0, f"{counter} must be non-negative, got {stats[counter]}"
 
@@ -154,13 +151,11 @@ def test_benchmark_algorithms_json_loads_all_classes(fixture_config_dir: Path) -
   for name, cfg in alg_configs.items():
     resolved_cls = cfg.get_class()
     assert resolved_cls.__name__ == cfg.metaheuristic, (
-      f"{name} resolves class {resolved_cls.__name__}, "
-      f"but its metaheuristic field is {cfg.metaheuristic!r}"
+      f"{name} resolves class {resolved_cls.__name__}, but its metaheuristic field is {cfg.metaheuristic!r}"
     )
     instance = cfg.instantiate(ga_params)
     assert type(instance).__name__ == cfg.metaheuristic, (
-      f"{name} instantiated {type(instance).__name__}, "
-      f"but its metaheuristic field is {cfg.metaheuristic!r}"
+      f"{name} instantiated {type(instance).__name__}, but its metaheuristic field is {cfg.metaheuristic!r}"
     )
 
 

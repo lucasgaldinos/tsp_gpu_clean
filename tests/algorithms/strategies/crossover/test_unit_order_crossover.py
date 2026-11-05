@@ -1,4 +1,4 @@
-"""Unit tests for `OrderCrossover`.
+"""Unit tests for `CrossoverOrder`.
 
 Order crossover copies a slice from the first parent and fills the remaining positions
 in the order the second parent visits the missing genes. The tests pin the invariants
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.crossover.order_crossover import OrderCrossover
+from algorithms.strategies.crossover.order_crossover import CrossoverOrder
 
 if TYPE_CHECKING:
   from collections.abc import Callable
@@ -33,7 +33,7 @@ def test_crossover_returns_permutation_of_parent_genes(n_genes: int) -> None:
   base = np.arange(n_genes, dtype=np.int32)
   parent1 = rng.permutation(base).astype(np.int32, copy=False)
   parent2 = rng.permutation(base).astype(np.int32, copy=False)
-  strategy = OrderCrossover(seed=11)
+  strategy = CrossoverOrder(seed=11)
 
   # Act
   child = strategy.crossover(parent1, parent2)
@@ -58,7 +58,7 @@ def test_crossover_preserves_depot_endpoints() -> None:
   parent2 = np.array([0, 4, 2, 1, 3, 0], dtype=np.int32)
 
   # Act
-  child = OrderCrossover(seed=21).crossover(parent1, parent2)
+  child = CrossoverOrder(seed=21).crossover(parent1, parent2)
 
   # Assert
   assert child.shape == parent1.shape
@@ -83,7 +83,7 @@ def test_crossover_batch_returns_permutation_rows(
   population = make_population(num_routes, 6, seed=7)
 
   # Act
-  offspring = OrderCrossover(seed=5).crossover_batch(population)
+  offspring = CrossoverOrder(seed=5).crossover_batch(population)
 
   # Assert
   assert offspring.shape == population.shape

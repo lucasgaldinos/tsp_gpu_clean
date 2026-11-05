@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
+from data_models.exceptions import GPUUnavailableError
+from protocols.backend import gpu_available
 from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
@@ -209,18 +211,27 @@ def test_cpu_candidate_list_is_cached_per_k(berlin52_problem: Problem) -> None:
   assert first.shape[1] == 10
 
 
-def test_gpu_candidate_list_requires_cupy_backend(berlin52_problem: Problem) -> None:
-  """WHAT: `get_gpu_candidate_list` on a NumPy-backed context.
+def test_gpu_candidate_list_on_numpy_backend_uses_the_device(berlin52_problem: Problem) -> None:
+  """WHAT: `get_gpu_candidate_list` on a NumPy-preferred context.
 
-  WHY: silently returning a host array would make a GPU strategy send a NumPy array into
-  a CUDA launch; the guard must fail loudly instead.
+  WHY: `DP10-17` resolves the device through `require_gpu()` instead of `self.xp`, so a
+  hybrid pipeline can request the device table from a CPU-preferred context; without
+  CUDA the failure must stay typed rather than silently returning a host array.
 
-  EXPECTED: `ValueError` naming the accessor.
+  EXPECTED: a CuPy `int32` table when a device is reachable, otherwise
+  `GPUUnavailableError`.
   """
   # Arrange
   context = ProblemContext(berlin52_problem, xp=np, seed=17)
 
   # Act / Assert
-  with pytest.raises(ValueError, match="get_gpu_candidate_list"):
-    context.get_gpu_candidate_list(5)
+  if not gpu_available():
+    with pytest.raises(GPUUnavailableError):
+      context.get_gpu_candidate_list(5)
+    return
+
+  candidates = context.get_gpu_candidate_list(5)
+  assert candidates.dtype.itemsize == 4, "the device table must stay int32"
+  assert candidates.shape == (berlin52_problem.dimension, 5)
+  assert context.get_gpu_candidate_list(5) is candidates
 
