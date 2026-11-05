@@ -83,14 +83,15 @@ class CheckpointManager:
     """
     return self.problem_stats_dir / f"{problem_name}_stats.json"
 
-  def is_valid_checkpoint(self, problem_name: str, algorithm_name: str, expected_reps: int = 30) -> bool:
+  def is_valid_checkpoint(self, problem_name: str, algorithm_name: str, expected_reps: int | None = None) -> bool:
     """
     Validate checkpoint file integrity and completeness.
 
     Args:
         problem_name: Name of TSP problem
         algorithm_name: Name of algorithm
-        expected_reps: Expected number of repetitions (default: 30)
+        expected_reps: Expected number of repetitions; ``None`` reads the
+            checkpoint's own ``repetitions`` field
 
     Returns:
         True if checkpoint is valid and complete
@@ -98,7 +99,7 @@ class CheckpointManager:
     filepath = self.get_checkpoint_path(problem_name, algorithm_name)
     return is_valid_checkpoint(filepath, expected_reps)
 
-  def can_resume_checkpoint(self, problem_name: str, algorithm_name: str, expected_reps: int = 30) -> bool:
+  def can_resume_checkpoint(self, problem_name: str, algorithm_name: str, expected_reps: int | None = None) -> bool:
     """
     Check if checkpoint exists and can be extended with more repetitions.
 
@@ -229,9 +230,39 @@ def load_checkpoint(filepath: Path) -> dict[str, Any]:
     return cast("dict[str, Any]", json.load(f))
 
 
-def is_valid_checkpoint(filepath: Path, expected_reps: int = 30) -> bool:
+def _resolve_expected_reps(data: dict[str, Any], expected_reps: int | None) -> int | None:
+  """Return the repetition target a checkpoint must reach, or ``None`` if unknown.
+
+  ``benchmark.json`` configures a run-specific count (15 in the chapter benchmark,
+  3 in ``selected_10``), so a hard-coded default of 30 marked every real
+  checkpoint as incomplete. When the caller names no target, the checkpoint's own
+  ``repetitions`` field is the only honest source. A missing, non-integer or
+  non-positive value means the file cannot be judged and must not be accepted.
+
+  Args:
+      data: Decoded checkpoint payload.
+      expected_reps: Caller-supplied target, or ``None`` to read it from ``data``.
+
+  Returns:
+      The repetition target, or ``None`` when it cannot be determined.
+  """
+  if expected_reps is not None:
+    return expected_reps
+
+  reps: Any = data.get("repetitions")
+  if isinstance(reps, bool) or not isinstance(reps, int) or reps <= 0:
+    return None
+  return reps
+
+
+def is_valid_checkpoint(filepath: Path, expected_reps: int | None = None) -> bool:
   """
   Validate checkpoint file integrity and completeness.
+
+  Args:
+      filepath: Path to the checkpoint JSON.
+      expected_reps: Target repetitions; when ``None``, the value recorded in the
+          checkpoint's own ``repetitions`` field is used.
   """
   if not filepath.exists():
     return False
@@ -255,8 +286,13 @@ def is_valid_checkpoint(filepath: Path, expected_reps: int = 30) -> bool:
       logging.warning(f"Checkpoint {filepath.name} missing required fields")
       return False
 
-    if data["successful_runs"] < expected_reps:
-      logging.debug(f"Checkpoint {filepath.name} incomplete: {data['successful_runs']}/{expected_reps} successful runs")
+    target_reps: int | None = _resolve_expected_reps(data, expected_reps)
+    if target_reps is None:
+      logging.warning(f"Checkpoint {filepath.name} has no usable 'repetitions' value")
+      return False
+
+    if data["successful_runs"] < target_reps:
+      logging.debug(f"Checkpoint {filepath.name} incomplete: {data['successful_runs']}/{target_reps} successful runs")
       return False
 
     raw_times = data["raw_times"]
@@ -300,9 +336,14 @@ def ensure_checkpoint_dirs(
   return checkpoint_path, stats_path
 
 
-def can_resume_checkpoint(filepath: Path, expected_reps: int = 30) -> bool:
+def can_resume_checkpoint(filepath: Path, expected_reps: int | None = None) -> bool:
   """
   Check if checkpoint can be resumed and extended.
+
+  Args:
+      filepath: Path to the checkpoint JSON.
+      expected_reps: Target repetitions; when ``None``, the value recorded in the
+          checkpoint's own ``repetitions`` field is used.
   """
   if not filepath.exists():
     return False
@@ -323,7 +364,12 @@ def can_resume_checkpoint(filepath: Path, expected_reps: int = 30) -> bool:
     if not all(field in data for field in required_fields):
       return False
 
-    if data["successful_runs"] >= expected_reps:
+    target_reps: int | None = _resolve_expected_reps(data, expected_reps)
+    if target_reps is None:
+      logging.warning(f"Checkpoint {filepath.name} has no usable 'repetitions' value")
+      return False
+
+    if data["successful_runs"] >= target_reps:
       return False
 
     raw_times = data["raw_times"]

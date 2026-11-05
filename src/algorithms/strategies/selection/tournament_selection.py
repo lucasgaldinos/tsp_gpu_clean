@@ -10,18 +10,14 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
+from protocols.algorithm_strategies import SelectionStrategy
+from protocols.backend import require_gpu
 from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
-from utils.rng import make_rng, resolve_rng
-from utils.route_helpers import ensure_routes_batch
+from utils.rng import resolve_rng
+from utils.route_helpers import ensure_routes_batch, is_gpu_array
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from ..base import StrategyBase
 
 if TYPE_CHECKING:
   from numpy.random import Generator
@@ -30,7 +26,7 @@ if TYPE_CHECKING:
   from protocols.types import Fitness, Route, Routes, SeedLike
 
 
-class TournamentSelection:
+class SelectionTournament(StrategyBase, SelectionStrategy):
   """
   Tournament selection strategy for single-route and batch parent selection.
 
@@ -48,18 +44,8 @@ class TournamentSelection:
     """
     if k < 1:
       raise ValueError(f"Tournament size k must be >= 1, got {k}")
+    super().__init__(seed)
     self.k: int = k
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
 
   def select(
     self,
@@ -113,7 +99,8 @@ class TournamentSelection:
     pop_size: int = len(pop_batch)
     n_select: int = pop_size if num_parents is None else num_parents
 
-    is_gpu: bool = CUPY_AVAILABLE and cp is not None and isinstance(pop_batch, cp.ndarray)
+    is_gpu: bool = is_gpu_array(pop_batch)
+    cp: Any = require_gpu() if is_gpu else None
     xp: Any = cp if is_gpu else np
 
     fit_arr = xp.asarray(fitness, dtype=xp.float64)
@@ -133,7 +120,7 @@ class TournamentSelection:
     return pop_batch[winners_np].copy()
 
 
-class GPUTournamentSelection:
+class SelectionGPUTournament(StrategyBase, SelectionStrategy):
   """
   Modular GPU CUDA kernel tournament selection strategy (`tournament_selection.cu`).
 
@@ -150,19 +137,9 @@ class GPUTournamentSelection:
     """
     if k < 1:
       raise ValueError(f"Tournament size k must be >= 1, got {k}")
+    super().__init__(seed)
     self.k: int = k
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
     self._kernel: Any = None
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
 
   def _get_kernel(self) -> Any:
     """Lazily compile and return the `tournament_selection_kernel` CUDA kernel."""
@@ -194,23 +171,26 @@ class GPUTournamentSelection:
   ) -> Routes:
     """
     Select `num_parents` routes `(num_parents, n_cities)` on GPU via CUDA kernel.
+
+    Raises:
+        GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
+            strategy never delegates to `SelectionTournament`, because a CPU run must
+            not be reported as the GPU kernel's result (`DP9-2`).
     """
-    if not CUPY_AVAILABLE or cp is None:
-      fallback = TournamentSelection(k=self.k, seed=self.seed)
-      return fallback.select_batch(routes, fitness, num_parents=num_parents, context=context)
+    cp = require_gpu()
 
     pop_batch, _ = ensure_routes_batch(routes)
     pop_size, n_cities = pop_batch.shape
     n_select = pop_size if num_parents is None else num_parents
 
-    input_on_gpu: bool = isinstance(pop_batch, cp.ndarray)
+    input_on_gpu: bool = is_gpu_array(pop_batch)
     if input_on_gpu:
       d_pop = cp.ascontiguousarray(pop_batch, dtype=cp.int32)
     else:
       d_pop = cp.asarray(pop_batch, dtype=cp.int32)
       self.h2d_bytes += int(d_pop.nbytes)
 
-    if isinstance(fitness, cp.ndarray):
+    if is_gpu_array(fitness):
       d_fit = cp.ascontiguousarray(fitness, dtype=cp.float64)
     else:
       d_fit = cp.asarray(fitness, dtype=cp.float64)
@@ -249,5 +229,4 @@ class GPUTournamentSelection:
     return cast("Routes", cp.asnumpy(d_parents))
 
 
-__all__: list[str] = ["GPUTournamentSelection", "TournamentSelection"]
-
+__all__: list[str] = ["SelectionGPUTournament", "SelectionTournament"]

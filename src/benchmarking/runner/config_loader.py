@@ -37,106 +37,6 @@ if TYPE_CHECKING:
 
   from protocols.types import LocalSearchStage
 
-# Canonical TSPLIB95 optimal tour costs (from Reinelt 1991 / TSPLIB95 FAQ)
-KNOWN_TSPLIB_OPTIMALS: dict[str, float] = {
-  "burma14": 3323.0,
-  "ulysses16": 6859.0,
-  "gr17": 2085.0,
-  "gr21": 2707.0,
-  "ulysses22": 7013.0,
-  "gr24": 1272.0,
-  "fri26": 937.0,
-  "bayg29": 1610.0,
-  "bays29": 2020.0,
-  "dantzig42": 699.0,
-  "swiss42": 1273.0,
-  "att48": 10628.0,
-  "gr48": 5046.0,
-  "hk48": 11461.0,
-  "eil51": 426.0,
-  "berlin52": 7542.0,
-  "brazil58": 25395.0,
-  "st70": 675.0,
-  "eil76": 538.0,
-  "pr76": 108159.0,
-  "gr96": 55209.0,
-  "rat99": 1211.0,
-  "kroA100": 21282.0,
-  "kroB100": 22141.0,
-  "kroC100": 20749.0,
-  "kroD100": 21294.0,
-  "kroE100": 22068.0,
-  "rd100": 7910.0,
-  "eil101": 629.0,
-  "lin105": 14379.0,
-  "pr107": 44303.0,
-  "gr120": 6942.0,
-  "pr124": 59030.0,
-  "bier127": 118282.0,
-  "ch130": 6110.0,
-  "pr136": 96772.0,
-  "gr137": 69853.0,
-  "pr144": 58537.0,
-  "ch150": 6528.0,
-  "kroA150": 26524.0,
-  "kroB150": 26130.0,
-  "pr152": 73682.0,
-  "u159": 42080.0,
-  "si175": 21407.0,
-  "brg180": 1950.0,
-  "rat195": 2323.0,
-  "d198": 15780.0,
-  "kroA200": 29368.0,
-  "kroB200": 29437.0,
-  "ts225": 126643.0,
-  "tsp225": 3916.0,
-  "pr226": 80369.0,
-  "gil262": 2378.0,
-  "pr264": 49135.0,
-  "a280": 2579.0,
-  "pr299": 48191.0,
-  "lin318": 42029.0,
-  "linhp318": 41345.0,
-  "rd400": 15281.0,
-  "fl417": 11861.0,
-  "gr431": 171414.0,
-  "pr439": 107217.0,
-  "pcb442": 50778.0,
-  "d493": 35002.0,
-  "att532": 27686.0,
-  "ali535": 202339.0,
-  "si535": 48450.0,
-  "pa561": 2763.0,
-  "u574": 36905.0,
-  "rat575": 6773.0,
-  "p654": 34643.0,
-  "d657": 48912.0,
-  "gr666": 294358.0,
-  "u724": 41910.0,
-  "rat783": 8806.0,
-  "dsj1000": 18659688.0,
-  "pr1002": 259045.0,
-  "si1032": 92650.0,
-  "u1060": 224094.0,
-  "vm1084": 239297.0,
-  "pcb1173": 56892.0,
-  "d1291": 50801.0,
-  "rl1304": 252948.0,
-  "rl1323": 270199.0,
-  "nrw1379": 56638.0,
-  "fl1400": 20127.0,
-  "u1432": 152970.0,
-  "fl1577": 22249.0,
-  "d1655": 62128.0,
-  "vm1748": 336556.0,
-  "u1817": 57201.0,
-  "rl1889": 316536.0,
-  "d2103": 80450.0,
-  "u2152": 64253.0,
-  "u2319": 234256.0,
-  "pr2392": 378032.0,
-}
-
 # =============================================================================
 # Configuration Data Classes
 # =============================================================================
@@ -457,6 +357,9 @@ def load_problems_config(config_dir: Path) -> list[ProblemConfig]:
   """
   Load problems.json containing TSP problem definitions.
 
+  The document is an object with a `$schema` reference and a `problems` array, so
+  editors validate it against `configs/schemas/problems.schema.json` (`DP11-5`).
+
   Args:
       config_dir: Path to configuration directory
 
@@ -471,13 +374,17 @@ def load_problems_config(config_dir: Path) -> list[ProblemConfig]:
   with open(config_path) as f:
     data = json.load(f)
 
-  if not isinstance(data, list):
-    raise ValueError("problems.json must contain a JSON array")
+  if not isinstance(data, dict):
+    raise ValueError("problems.json must contain a JSON object with a 'problems' array")
+
+  entries = data.get("problems")
+  if not isinstance(entries, list):
+    raise ValueError("problems.json must contain a JSON object with a 'problems' array")
 
   problems = []
   required_fields: list[str] = ["name", "optimal", "size"]
 
-  for idx, problem_dict in enumerate(data):
+  for idx, problem_dict in enumerate(entries):
     for field in required_fields:
       if field not in problem_dict:
         raise ValueError(f"Problem at index {idx} missing required field: {field}")
@@ -597,6 +504,7 @@ def build_problem_configs_from_tsp_files(
   tsp_files: Sequence[str | Path],
   existing_configs: Sequence[ProblemConfig] | None = None,
   tsp_dir: str | Path | None = None,
+  known_optimals: Mapping[str, float] | None = None,
 ) -> tuple[list[ProblemConfig], dict[str, Path]]:
   """
   Build ProblemConfig instances directly from .tsp file paths using `routing_data`.
@@ -605,11 +513,16 @@ def build_problem_configs_from_tsp_files(
       tsp_files: Sequence of paths to .tsp files (or problem names when `tsp_dir` is supplied).
       existing_configs: Optional list of already loaded ProblemConfig instances.
       tsp_dir: Optional base directory to resolve bare problem names against.
+      known_optimals: Optional name -> optimal tour cost map, normally derived from
+          `configs/problems.json` (`{cfg.name: cfg.optimal}`). This function performs no
+          file I/O beyond the `.tsp` parse, so the reference costs stay a caller concern
+          (`DP11-4`).
 
   Returns:
       Tuple of ProblemConfig list and path map dictionary.
   """
   existing_map: dict[str, ProblemConfig] = {cfg.name: cfg for cfg in (existing_configs or [])}
+  optimal_map: Mapping[str, float] = known_optimals or {}
   base_dir: Path | None = Path(tsp_dir) if tsp_dir is not None else None
 
   resolved_configs: list[ProblemConfig] = []
@@ -635,14 +548,14 @@ def build_problem_configs_from_tsp_files(
 
     if name in existing_map:
       optimal: float = existing_map[name].optimal
-    elif name in KNOWN_TSPLIB_OPTIMALS:
-      optimal = KNOWN_TSPLIB_OPTIMALS[name]
-    elif candidate.stem in KNOWN_TSPLIB_OPTIMALS:
-      optimal = KNOWN_TSPLIB_OPTIMALS[candidate.stem]
+    elif name in optimal_map:
+      optimal = float(optimal_map[name])
+    elif candidate.stem in optimal_map:
+      optimal = float(optimal_map[candidate.stem])
     else:
       raise KeyError(
         f"Known optimal tour cost not found for '{name}' ({candidate}). "
-        f"Add it to KNOWN_TSPLIB_OPTIMALS or problems.json."
+        f"Add it to configs/problems.json and pass it via `known_optimals`."
       )
 
     resolved_configs.append(ProblemConfig(name=name, optimal=float(optimal), size=dimension))
@@ -660,7 +573,8 @@ def build_problem_configs_from_duckdb(
 
   Queries the normalized DuckDB schema:
   - `problems` joined with `tsp_problems` for dimension and name
-  - `solutions` for optimal cost, falling back to `existing_configs` or `KNOWN_TSPLIB_OPTIMALS`.
+  - `solutions` for the optimal cost, falling back to `existing_configs` (loaded from
+    `configs/problems.json`) when the database carries no optimal solution (`DP11-4`).
 
   Args:
       db_path: Path to DuckDB database file.
@@ -715,11 +629,10 @@ def build_problem_configs_from_duckdb(
         optimal = float(solution_cost)
       elif name in existing_map:
         optimal = existing_map[name].optimal
-      elif name in KNOWN_TSPLIB_OPTIMALS:
-        optimal = KNOWN_TSPLIB_OPTIMALS[name]
       else:
         raise KeyError(
-          f"Optimal tour cost not found for '{name}' in solutions table, existing_configs, or KNOWN_TSPLIB_OPTIMALS."
+          f"Optimal tour cost not found for '{name}' in the DuckDB `solutions` table or "
+          f"`existing_configs` (configs/problems.json)."
         )
       resolved_configs.append(ProblemConfig(name=name, optimal=optimal, size=dimension))
 

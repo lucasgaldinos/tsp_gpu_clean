@@ -42,6 +42,7 @@ from data_models.exceptions import (
 )
 from data_models.problem import VALID_EDGE_TYPES, Problem
 from distances.matrix import compute_distance_matrix
+from protocols.problem_context import DEFAULT_MAX_MATRIX_DIMENSION
 
 if TYPE_CHECKING:
   from types import TracebackType
@@ -241,7 +242,7 @@ def parse_tsplib_file(tsp_path: str | Path, problem_id: int = 1) -> TsplibIngest
 
 def bundle_to_problem(
   bundle: TsplibIngestionBundle,
-  max_eager_matrix_dimension: int = 4000,
+  max_eager_matrix_dimension: int = DEFAULT_MAX_MATRIX_DIMENSION,
 ) -> Problem:
   """
   Convert a `TsplibIngestionBundle` into a validated `Problem` domain model.
@@ -249,9 +250,9 @@ def bundle_to_problem(
   Args:
       bundle: Parsed TSPLIB ingestion bundle.
       max_eager_matrix_dimension: Maximum dimension for eager O(N^2) distance
-          matrix materialization on coordinate-based problems. Above this
-          threshold, `distances` is left as `None` for lazy computation via
-          `ProblemContext`.
+          matrix materialization on coordinate-based problems. Defaults to
+          `DEFAULT_MAX_MATRIX_DIMENSION` so loaders and `ProblemContext` share one
+          threshold (`DP11-3`); above it `distances` stays `None` for lazy computation.
 
   Returns:
       Immutable `Problem` instance.

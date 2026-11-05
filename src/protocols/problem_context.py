@@ -41,7 +41,7 @@ Example:
     >>> distances_cpu = context.get_cpu_distances()  # Allocated here
     >>>
     >>> # P-Task algorithm: Use GPU distances explicitly
-    >>> if CUPY_AVAILABLE:
+    >>> if gpu_available():
     ...   distances_gpu = context.get_gpu_distances()  # Transfers to GPU
 
 References:
@@ -51,18 +51,24 @@ References:
     - Phase 5 Cleanup: Removed eager @property accessors (distances, demands, coordinates)
 """
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Final
 
 import numpy as np
 
-from data_models.exceptions import VRAMInsufficientError
+from data_models.exceptions import GPUUnavailableError, VRAMInsufficientError
 from data_models.problem import Problem
 from distances.matrix import compute_candidate_list, compute_distance_matrix
+from distances.pairwise import get_edge_type_code
 from protocols.backend import BackendModule, CupyArray, require_gpu
 from utils.rng import make_rng
 
 if TYPE_CHECKING:
   from numpy.random import Generator
+
+#: Single threshold shared by every component that may materialize an `(n, n)` matrix.
+#: Above it, coordinate-based problems are served on the fly (`DP11-3`): the loaders stop
+#: building an eager matrix and `ProblemContext` keeps the edges in registers instead of VRAM.
+DEFAULT_MAX_MATRIX_DIMENSION: Final[int] = 10_000
 
 
 class ProblemContext:
@@ -112,7 +118,7 @@ class ProblemContext:
     problem: Problem,
     xp: BackendModule,
     seed: int | list[int] | None = None,
-    max_matrix_dimension: int = 10_000,
+    max_matrix_dimension: int = DEFAULT_MAX_MATRIX_DIMENSION,
   ) -> None:
     """
     Initialize ProblemContext with lazy computation strategy.
@@ -274,25 +280,21 @@ class ProblemContext:
     """
     Get demands on GPU (lazy computation with caching).
 
-    Transfers from CPU cache if available, otherwise from problem data.
-    Only valid when xp is CuPy.
+    Transfers from CPU cache if available, otherwise from problem data. The device
+    is resolved through `require_gpu()`, so a context created with the default
+    `xp=np` still serves GPU kernels in a hybrid CPU+GPU pipeline (`DP10-17`).
 
     Returns:
         Demands as CuPy array on GPU, or None if no demands
 
     Raises:
-        ValueError: If xp is NumPy (not CuPy)
+        GPUUnavailableError: If CuPy is not installed or no CUDA device is accessible.
     """
-    if self.xp == np:
-      raise ValueError("get_gpu_demands() requires xp to be CuPy, not NumPy")
+    cp = require_gpu()
 
     if self._gpu_demands is None and self.problem.demands is not None:
-      if self._cpu_demands is not None:
-        # Transfer from CPU cache
-        self._gpu_demands = self.xp.asarray(self._cpu_demands)
-      else:
-        # Transfer from problem data
-        self._gpu_demands = self.xp.asarray(self.problem.demands)
+      source = self._cpu_demands if self._cpu_demands is not None else self.problem.demands
+      self._gpu_demands = cp.asarray(source)
     return self._gpu_demands
 
   def get_gpu_distances(self) -> CupyArray | None:
@@ -303,11 +305,16 @@ class ProblemContext:
     when first requested. If CPU cache exists, transfers from there.
     Otherwise, computes directly on GPU or transfers from problem data.
 
+    The device is resolved through `require_gpu()` rather than `self.xp`, so GPU
+    strategies can request the matrix from a context created with `xp=np` in a
+    hybrid CPU+GPU pipeline (`DP10-17`).
+
     Returns:
         Distance matrix as CuPy array on GPU, shape (n, n)
 
     Raises:
-        ValueError: If xp is NumPy (not CuPy) or no data to compute from
+        GPUUnavailableError: If CuPy is not installed or no CUDA device is accessible.
+        ValueError: If the problem has no distances or coordinates to compute from.
 
     Example:
         >>> # Context with GPU hint
@@ -318,8 +325,7 @@ class ProblemContext:
         >>> # Subsequent calls: returns cached GPU matrix (stays in VRAM)
         >>> same_dist = context.get_gpu_distances()
     """
-    if self.xp == np:
-      raise ValueError("get_gpu_distances() requires xp to be CuPy, not NumPy")
+    cp = require_gpu()
 
     if self._gpu_distances is None:
       # Fail before the allocation, not inside CUDA: a `(n, n)` `int32` matrix is
@@ -334,15 +340,15 @@ class ProblemContext:
       # an implicit dtype conversion (``BUG-14`` / ``DP10-17``).
       if self._cpu_distances is not None:
         # Transfer from CPU cache (most efficient if CPU was used first)
-        self._gpu_distances = self.xp.asarray(self._cpu_distances, dtype=self.xp.int32)
+        self._gpu_distances = cp.asarray(self._cpu_distances, dtype=cp.int32)
       elif self.problem.distances is not None:
         # Transfer EXPLICIT matrix to GPU
-        self._gpu_distances = self.xp.asarray(self.problem.distances, dtype=self.xp.int32)
+        self._gpu_distances = cp.asarray(self.problem.distances, dtype=cp.int32)
       elif self.problem.coordinates is not None:
         # Compute from coordinates on GPU
-        coords_gpu = self.xp.asarray(self.problem.coordinates)
-        self._gpu_distances = self.xp.asarray(
-          compute_distance_matrix(coords_gpu, self.problem.edge_type, self.xp), dtype=self.xp.int32
+        coords_gpu = cp.asarray(self.problem.coordinates)
+        self._gpu_distances = cp.asarray(
+          compute_distance_matrix(coords_gpu, self.problem.edge_type, cp), dtype=cp.int32
         )
       else:
         raise ValueError(
@@ -354,22 +360,20 @@ class ProblemContext:
     """
     Get coordinates on GPU (lazy with caching).
 
+    The device is resolved through `require_gpu()`, so a context created with the
+    default `xp=np` still serves GPU kernels (`DP10-17`).
+
     Returns:
         Coordinates as CuPy array on GPU, or None if not available
 
     Raises:
-        ValueError: If xp is NumPy (not CuPy)
+        GPUUnavailableError: If CuPy is not installed or no CUDA device is accessible.
     """
-    if self.xp == np:
-      raise ValueError("get_gpu_coordinates() requires xp to be CuPy, not NumPy")
+    cp = require_gpu()
 
     if self._gpu_coordinates is None and self.problem.coordinates is not None:
-      if self._cpu_coordinates is not None:
-        # Transfer from CPU cache
-        self._gpu_coordinates = self.xp.asarray(self._cpu_coordinates)
-      else:
-        # Transfer from problem data
-        self._gpu_coordinates = self.xp.asarray(self.problem.coordinates)
+      source = self._cpu_coordinates if self._cpu_coordinates is not None else self.problem.coordinates
+      self._gpu_coordinates = cp.asarray(source)
     return self._gpu_coordinates
 
   def get_cpu_candidate_list(self, k: int = 20) -> np.ndarray:
@@ -412,7 +416,9 @@ class ProblemContext:
     """Get the `k`-NN candidate list `N_k` on GPU (lazy computation with caching).
 
     The table is built on CPU (blocked, `O(chunk_size * n)` peak) and transferred
-    once as `int32`; `N_k` itself is only `4 * n * k` bytes (`DP10-20`).
+    once as `int32`; `N_k` itself is only `4 * n * k` bytes (`DP10-20`). The device
+    is resolved through `require_gpu()`, so a NumPy-backed context still serves GPU
+    kernels in a hybrid pipeline (`DP10-17`).
 
     Args:
         k: Requested neighbours per node; clamped to `min(k, n - 1)`.
@@ -421,14 +427,13 @@ class ProblemContext:
         Candidate list as a CuPy array on GPU, shape `(n, min(k, n - 1))`.
 
     Raises:
-        ValueError: If xp is NumPy (not CuPy).
+        GPUUnavailableError: If CuPy is not installed or no CUDA device is accessible.
     """
-    if self.xp == np:
-      raise ValueError("get_gpu_candidate_list() requires xp to be CuPy, not NumPy")
+    cp = require_gpu()
 
     cached = self._gpu_candidate_lists.get(k)
     if cached is None:
-      cached = self.xp.asarray(self.get_cpu_candidate_list(k), dtype=self.xp.int32)
+      cached = cp.asarray(self.get_cpu_candidate_list(k), dtype=cp.int32)
       self._gpu_candidate_lists[k] = cached
     return cached
 
@@ -454,6 +459,35 @@ class ProblemContext:
       and self.problem.coordinates is not None
     )
 
+  def get_gpu_distance_operands(
+    self,
+    n: int,
+    max_matrix_dimension: int | None = None,
+  ) -> tuple[Any, Any, int]:
+    """Return `(d_distances, d_coords, edge_type_code)` for one GPU kernel launch.
+
+    The dense matrix and the coordinates are both owned and cached by this context,
+    so every strategy that asks for operands binds the exact same VRAM buffers
+    instead of uploading a private copy per strategy (`DP10-17`). Coordinate mode
+    passes `0` for `d_distances` (a CUDA `nullptr`) and never materializes the
+    `(n, n)` matrix (`DP10-19`).
+
+    Args:
+        n: Number of cities in the batch being launched.
+        max_matrix_dimension: Threshold override; falls back to the context value.
+
+    Returns:
+        Tuple `(d_distances, d_coords, edge_type_code)`: the device matrix with
+        `d_coords = 0` and code `0` in matrix mode, or `d_distances = 0`, the device
+        coordinates and the TSPLIB95 metric code in coordinate mode.
+
+    Raises:
+        GPUUnavailableError: If no CUDA device with CuPy is reachable.
+    """
+    if self.uses_on_the_fly_distances(n, max_matrix_dimension):
+      return 0, self.get_gpu_coordinates(), get_edge_type_code(self.problem.edge_type)
+    return self.get_gpu_distances(), 0, 0
+
   def _coordinate_bytes(self) -> int:
     """Return VRAM bytes for the coordinate buffer (`8 * d * n`, `float64`)."""
     n = self.dimension
@@ -462,16 +496,18 @@ class ProblemContext:
     return 8 * components * n
 
   def _query_free_vram_bytes(self) -> int | None:
-    """Return free device VRAM in bytes, or `None` on the NumPy backend.
+    """Return free device VRAM in bytes, or `None` when no GPU is reachable.
 
-    CuPy ships no type information, so `BackendModule` cannot declare `cuda`;
-    this is the project's documented third-party `Any` boundary
-    (`protocols/backend.py`).
+    The probe goes through `require_gpu()` instead of `self.xp`, so a context
+    created with the default `xp=np` validates against the real device before a
+    `(n, n)` allocation (`DP10-17`). Without a device there is no VRAM budget and
+    the check degrades to returning the estimate.
     """
-    if self.xp == np:
+    try:
+      cp = require_gpu()
+    except GPUUnavailableError:
       return None
-    cuda: Any = cast("Any", self.xp).cuda
-    free_bytes, _total_bytes = cuda.Device().mem_info
+    free_bytes, _total_bytes = cp.cuda.Device().mem_info
     return int(free_bytes)
 
   def _raise_if_insufficient(self, required_bytes: int, available_bytes: int | None, operation: str) -> None:

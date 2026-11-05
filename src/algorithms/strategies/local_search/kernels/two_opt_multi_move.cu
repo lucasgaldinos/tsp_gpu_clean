@@ -24,87 +24,46 @@
  *     for GPU Execution." GPGPU-8, pp. 99-108.
  */
 
-#include "pairwise_device.cuh"
+#include "two_opt_common.cuh"
 
-//: Tour positions cached per shared-memory tile when `n` exceeds the full-tour budget.
-#define TWO_OPT_TILE_SIZE 2048
-
-// Accessor macros used by the tiled scan (`Task 10.18`). When `tiled` is false the
-// whole tour lives in `s_tour[n]`; otherwise only `s_tour[TWO_OPT_TILE_SIZE + 1]`
-// holds the current window and out-of-window reads fall back to global memory.
-#define TOUR_AT(idx) \
-    (tiled ? (((idx) >= tile_start && (idx) <= tile_end) ? s_tour[(idx) - tile_start] : tour[(idx)]) : s_tour[(idx)])
-
-#define TOUR_SET(idx, value) \
-    do { \
-        int _pos = (idx); \
-        int _val = (value); \
-        if (!tiled) { \
-            s_tour[_pos] = _val; \
-        } else { \
-            tour[_pos] = _val; \
-            if (_pos >= tile_start && _pos <= tile_end) { \
-                s_tour[_pos - tile_start] = _val; \
-            } \
-        } \
-    } while (0)
-
-// Exact 2-opt delta for breaking edges (a, b) and (c, d).
-// `row_a`/`row_b` alias `distances` rows in dense-matrix mode; the coordinate mode
-// evaluates `gpu_pairwise_distance` on the fly (`DP10-19`).
-static __device__ __forceinline__ int two_opt_delta(
-    int a, int b, int d_ab, int c, int d,
-    const int *row_a, const int *row_b,
-    const int *distances, const double *coords, int n, int edge_type_code, bool use_matrix) {
-    if (use_matrix) {
-        int old_dist = d_ab + distances[(size_t)c * (size_t)n + (size_t)d];
-        int new_dist = row_a[c] + row_b[d];
-        return new_dist - old_dist;
-    }
-    int old_dist = d_ab + gpu_pairwise_distance(c, d, nullptr, coords, n, edge_type_code);
-    int new_dist = gpu_pairwise_distance(a, c, nullptr, coords, n, edge_type_code)
-                 + gpu_pairwise_distance(b, d, nullptr, coords, n, edge_type_code);
-    return new_dist - old_dist;
-}
-
-// Keep the steepest (most negative) delta of this thread.
-static __device__ __forceinline__ void two_opt_consider(
-    int i, int j, int delta, int *s_deltas, int *s_swap_i, int *s_swap_j, int tid) {
-    if (delta < s_deltas[tid]) {
-        s_deltas[tid] = delta;
-        s_swap_i[tid] = i;
-        s_swap_j[tid] = j;
-    }
-}
-
-extern "C" __global__
-void two_opt_multi_move_batch_kernel(
-    int* __restrict__ population,             // [population_size, n]
-    const int* __restrict__ distances,        // [n, n], or nullptr for coordinate mode
-    const double* __restrict__ coords,        // Row-major coordinates (ignored if distances != nullptr)
+extern "C" __global__ void two_opt_multi_move_batch_kernel(
+    int *__restrict__ population,      // [population_size, n]
+    const int *__restrict__ distances, // [n, n], or nullptr for coordinate mode
+    const double *__restrict__ coords, // Row-major coordinates (ignored if distances != nullptr)
     const int n,
     const int population_size,
-    const int edge_type_code,                 // `GpuEdgeTypeCode` for the coordinate mode
-    const int tour_tile_size                  // 0 = full-tour shared memory, else tile width (2048)
-) {
+    const int edge_type_code,           // `GpuEdgeTypeCode` for the coordinate mode
+    const int tour_tile_size,           // 0 = full-tour shared memory, else tile width (2048)
+    const int *__restrict__ candidates, // [n, cand_k] nearest-neighbour table, or nullptr
+    const int cand_k,                   // 0 = exhaustive scan, else neighbours per node
+    int *__restrict__ positions         // [population_size, n] inverse-map scratch
+)
+{
     int route_id = blockIdx.x;
     int tid = threadIdx.x;
     int block_size = blockDim.x;
 
-    if (route_id >= population_size) return;
+    if (route_id >= population_size)
+        return;
 
     extern __shared__ int shared_mem[];
     const bool tiled = tour_tile_size > 0;
     const bool use_matrix = distances != nullptr;
+    // Candidate mode never caches the tour: the `j` scan becomes `Theta(n * k)` over
+    // `pos[candidates[tour[i] * cand_k + r]]`, which needs global-memory tour reads
+    // (`DP10-20`). It is only enabled on the untiled path.
+    const bool use_candidates = !tiled && candidates != nullptr && cand_k > 0 && positions != nullptr;
 
-    int* s_tour = shared_mem;                              // [n] or [tour_tile_size + 1]
-    int* s_deltas = tiled ? &s_tour[tour_tile_size + 1] : &s_tour[n];  // [block_size]
-    int* s_swap_i = &s_deltas[block_size];                 // [block_size]
-    int* s_swap_j = &s_swap_i[block_size];                 // [block_size]
+    int *s_tour = shared_mem;                                         // [n] or [tour_tile_size + 1]
+    int *s_deltas = tiled ? &s_tour[tour_tile_size + 1] : &s_tour[n]; // [block_size]
+    int *s_swap_i = &s_deltas[block_size];                            // [block_size]
+    int *s_swap_j = &s_swap_i[block_size];                            // [block_size]
 
-    int* tour = &population[route_id * n];
-    if (!tiled) {
-        for (int idx = tid; idx < n; idx += block_size) {
+    int *tour = &population[route_id * n];
+    if (!tiled && !use_candidates)
+    {
+        for (int idx = tid; idx < n; idx += block_size)
+        {
             s_tour[idx] = tour[idx];
         }
         __syncthreads();
@@ -117,9 +76,47 @@ void two_opt_multi_move_batch_kernel(
     int tile_start = 0;
     int tile_end = -1;
 
-    if (!tiled) {
+    if (use_candidates)
+    {
+        // Inverse tour map: `pos[tour[idx]] = idx` in one O(n) pass (`DP10-20`).
+        int *pos = positions + (route_id * n);
+        for (int idx = tid; idx < n; idx += block_size)
+        {
+            pos[tour[idx]] = idx;
+        }
+        __syncthreads();
+
+        for (int i = tid; i < n - 2; i += block_size)
+        {
+            // Hoisted row endpoints and current edge cost (`Task 10.16`).
+            int a = tour[i];
+            int b = tour[i + 1];
+            const int *row_a = use_matrix ? distances + (size_t)a * (size_t)n : nullptr;
+            const int *row_b = use_matrix ? distances + (size_t)b * (size_t)n : nullptr;
+            int d_ab = use_matrix
+                           ? row_a[b]
+                           : gpu_pairwise_distance(a, b, nullptr, coords, n, edge_type_code);
+
+            for (int r = 0; r < cand_k; ++r)
+            {
+                int j = pos[candidates[(size_t)a * (size_t)cand_k + (size_t)r]];
+                if (j <= i + 1 || (i == 0 && j == n - 1))
+                    continue;
+                int c = tour[j];
+                int d = tour[(j + 1) % n];
+                two_opt_consider(
+                    i, j,
+                    two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, n, edge_type_code,
+                                  use_matrix),
+                    s_deltas, s_swap_i, s_swap_j, tid);
+            }
+        }
+    }
+    else if (!tiled)
+    {
         // Full-tour scan: upper triangle only, hoisted row endpoints + carry-over.
-        for (int i = tid; i < n - 2; i += block_size) {
+        for (int i = tid; i < n - 2; i += block_size)
+        {
             int a = s_tour[i];
             int b = s_tour[i + 1];
             const int *row_a = use_matrix ? distances + (size_t)a * (size_t)n : nullptr;
@@ -130,9 +127,11 @@ void two_opt_multi_move_batch_kernel(
             // Carry-over: `c` of iteration `j + 1` is `d` of iteration `j`
             int c = s_tour[i + 2];
 
-            for (int j = i + 2; j < n; ++j) {
+            for (int j = i + 2; j < n; ++j)
+            {
                 int d = s_tour[(j + 1) % n];
-                if (!(i == 0 && j == n - 1)) {
+                if (!(i == 0 && j == n - 1))
+                {
                     two_opt_consider(
                         i, j,
                         two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, n, edge_type_code,
@@ -142,12 +141,15 @@ void two_opt_multi_move_batch_kernel(
                 c = d;
             }
         }
-    } else {
+    }
+    else
+    {
         // Windowed scan (`Task 10.18` refinement): the block owns the rows
         // `[i_base, i_base + block_size)` and walks the `j` windows from `i_base + 2`,
         // so every inner-loop `j` read hits shared memory `s_tour[j - window_start]`.
         const int stride = tour_tile_size;
-        for (int i_base = 0; i_base < n - 2; i_base += block_size) {
+        for (int i_base = 0; i_base < n - 2; i_base += block_size)
+        {
             const int row = i_base + tid;
             const bool active = row < n - 2;
             // Hoisted row endpoints stay in registers across every `j` window.
@@ -156,7 +158,8 @@ void two_opt_multi_move_batch_kernel(
             int d_ab = 0;
             const int *row_a = nullptr;
             const int *row_b = nullptr;
-            if (active) {
+            if (active)
+            {
                 a = tour[row];
                 b = tour[row + 1];
                 row_a = use_matrix ? distances + (size_t)a * (size_t)n : nullptr;
@@ -166,16 +169,20 @@ void two_opt_multi_move_batch_kernel(
                            : gpu_pairwise_distance(a, b, nullptr, coords, n, edge_type_code);
             }
 
-            for (int window_start = i_base + 2; window_start < n; window_start += stride) {
+            for (int window_start = i_base + 2; window_start < n; window_start += stride)
+            {
                 int window_end = window_start + stride;
-                if (window_end > n) window_end = n;
+                if (window_end > n)
+                    window_end = n;
                 const int window_len = window_end - window_start;
 
                 __syncthreads();
-                for (int idx = window_start + tid; idx < window_end; idx += block_size) {
+                for (int idx = window_start + tid; idx < window_end; idx += block_size)
+                {
                     s_tour[idx - window_start] = tour[idx];
                 }
-                if (tid == 0) {
+                if (tid == 0)
+                {
                     // One extra slot holds the `j + 1` endpoint; it wraps to `tour[0]`
                     // on the last window (`tour[(idx) % n]`).
                     s_tour[window_len] = tour[window_end % n];
@@ -183,11 +190,14 @@ void two_opt_multi_move_batch_kernel(
                 __syncthreads();
 
                 int j_begin = row + 2 > window_start ? row + 2 : window_start;
-                if (active && j_begin < window_end) {
+                if (active && j_begin < window_end)
+                {
                     int c = s_tour[j_begin - window_start];
-                    for (int j = j_begin; j < window_end; ++j) {
+                    for (int j = j_begin; j < window_end; ++j)
+                    {
                         int d = s_tour[j - window_start + 1];
-                        if (!(row == 0 && j == n - 1)) {
+                        if (!(row == 0 && j == n - 1))
+                        {
                             two_opt_consider(
                                 row, j,
                                 two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, n, edge_type_code,
@@ -209,59 +219,97 @@ void two_opt_multi_move_batch_kernel(
 
     // Thread 0 greedily selects and applies all mutually disjoint improving moves
     // collected across the threads of the block in steepest-descent order.
-    if (tid == 0) {
-        int applied_start[16];
-        int applied_end[16];
-        int num_applied = 0;
+    //
+    // The bound is `min(block_size, n / 2)` -- at most one disjoint reversal per two
+    // tour positions and at most one candidate per thread -- instead of a hardcoded
+    // 16 (`BUG-20` / `DP11-2`). No bookkeeping arrays are needed: an applied move has
+    // its own delta zeroed, and every remaining candidate whose reversed segment
+    // touches the applied one is zeroed in place as soon as the move is applied.
+    if (tid == 0)
+    {
+        // Every thread contributes at most one candidate, so `block_size` bounds the
+        // number of selectable moves; a reversal always covers at least two positions,
+        // so `n / 2` bounds the number of disjoint reversals a tour can absorb.
+        const int max_moves = block_size < (n / 2) ? block_size : (n / 2);
 
-        for (int pass = 0; pass < 16; pass++) {
+        for (int applied = 0; applied < max_moves; applied++)
+        {
             int best_t = -1;
             int best_d = 0;
-            for (int t = 0; t < block_size; t++) {
-                if (s_deltas[t] < best_d) {
-                    int cand_i = s_swap_i[t];
-                    int cand_j = s_swap_j[t];
-                    bool conflict = false;
-                    for (int k = 0; k < num_applied; k++) {
-                        // Two moves (i1, j1) and (i2, j2) conflict if [i1, j1] and [i2, j2] overlap
-                        if (!(cand_j < applied_start[k] || cand_i > applied_end[k])) {
-                            conflict = true;
-                            break;
-                        }
-                    }
-                    if (!conflict) {
-                        best_d = s_deltas[t];
-                        best_t = t;
-                    }
+            for (int t = 0; t < block_size; t++)
+            {
+                if (s_deltas[t] < best_d)
+                {
+                    best_d = s_deltas[t];
+                    best_t = t;
                 }
             }
 
-            if (best_t < 0) break;
+            if (best_t < 0)
+                break;
 
-            int swap_i = s_swap_i[best_t];
-            int swap_j = s_swap_j[best_t];
-            s_deltas[best_t] = 0;  // Mark consumed
+            const int swap_i = s_swap_i[best_t];
+            const int swap_j = s_swap_j[best_t];
+            s_deltas[best_t] = 0; // Mark consumed
 
             int left = swap_i + 1;
             int right = swap_j;
-            while (left < right) {
-                int tmp = TOUR_AT(left);
-                TOUR_SET(left, TOUR_AT(right));
-                TOUR_SET(right, tmp);
-                left++;
-                right--;
+            if (use_candidates)
+            {
+                // Candidate mode never cached the tour: edit global memory directly.
+                while (left < right)
+                {
+                    int tmp = tour[left];
+                    tour[left] = tour[right];
+                    tour[right] = tmp;
+                    left++;
+                    right--;
+                }
+            }
+            else
+            {
+                while (left < right)
+                {
+                    int tmp = TOUR_AT(left);
+                    TOUR_SET(left, TOUR_AT(right));
+                    TOUR_SET(right, tmp);
+                    left++;
+                    right--;
+                }
             }
 
-            applied_start[num_applied] = swap_i;
-            applied_end[num_applied] = swap_j;
-            num_applied++;
+            // Reversed segment of the move just applied: tour positions
+            // [seg_start, seg_end] = [swap_i + 1, swap_j]. A reversal only permutes
+            // positions inside that segment, so a candidate whose four break positions
+            // stay outside it keeps a valid delta; every other candidate is dropped.
+            const int seg_start = swap_i + 1;
+            const int seg_end = swap_j;
+            for (int t = 0; t < block_size; t++)
+            {
+                if (s_deltas[t] >= 0)
+                    continue;
+                int ms = s_swap_i[t] + 1;
+                int me = s_swap_j[t];
+                if (ms > me)
+                {
+                    const int tmp = ms;
+                    ms = me;
+                    me = tmp;
+                }
+                if (!(me + 1 < seg_start || seg_end + 1 < ms))
+                {
+                    s_deltas[t] = 0; // Conflicting candidate eliminated on the fly
+                }
+            }
         }
     }
     __syncthreads();
 
-    // Write back to global memory (the tiled path already wrote through TOUR_SET)
-    if (!tiled) {
-        for (int idx = tid; idx < n; idx += block_size) {
+    // Write back to global memory (the tiled and candidate paths already wrote through)
+    if (!tiled && !use_candidates)
+    {
+        for (int idx = tid; idx < n; idx += block_size)
+        {
             tour[idx] = s_tour[idx];
         }
     }

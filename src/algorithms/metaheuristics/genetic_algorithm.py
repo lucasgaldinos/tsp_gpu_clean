@@ -31,6 +31,7 @@ from protocols.algorithm_strategies import (
   MutationStrategy,
   SelectionStrategy,
 )
+from protocols.backend import cupy_backend, require_gpu
 from protocols.types import (
   Fitness,
   LocalSearchStage,
@@ -38,14 +39,7 @@ from protocols.types import (
   Routes,
 )
 from utils.phase_timer import PhaseTimer
-
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from utils.route_helpers import is_gpu_array
 
 if TYPE_CHECKING:
   from collections.abc import Sequence
@@ -398,8 +392,8 @@ class GeneticAlgorithm:
 
     Combines `old_pop` and `new_pop` `(2N, n_cities)` and keeps top `N` routes.
     """
-    is_gpu: bool = CUPY_AVAILABLE and cp is not None and isinstance(old_pop, cp.ndarray)
-    xp: Any = cp if is_gpu else np
+    is_gpu: bool = is_gpu_array(old_pop)
+    xp: Any = cupy_backend() if is_gpu else np
 
     combined_pop = xp.vstack([old_pop, new_pop])
     combined_fitness = xp.concatenate([xp.asarray(old_fitness), xp.asarray(new_fitness)])
@@ -409,7 +403,8 @@ class GeneticAlgorithm:
   @staticmethod
   def _extract_best(population: Routes, fitness: Fitness) -> tuple[Route, float]:
     """Return `(best_route_np, best_cost_float)` from population and fitness."""
-    if CUPY_AVAILABLE and cp is not None and isinstance(fitness, cp.ndarray):
+    if is_gpu_array(fitness):
+      cp = require_gpu()
       best_idx = int(cp.argmin(fitness).get())
       best_cost = float(fitness[best_idx].get())
     else:
@@ -417,8 +412,8 @@ class GeneticAlgorithm:
       best_cost = float(fitness[best_idx])
 
     best_route_raw = population[best_idx]
-    if CUPY_AVAILABLE and cp is not None and isinstance(best_route_raw, cp.ndarray):
-      best_route: Route = cp.asnumpy(best_route_raw).astype(np.int32)
+    if is_gpu_array(best_route_raw):
+      best_route: Route = require_gpu().asnumpy(best_route_raw).astype(np.int32)
     else:
       best_route = np.asarray(best_route_raw, dtype=np.int32).copy()
     return best_route, best_cost

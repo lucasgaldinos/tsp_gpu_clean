@@ -45,13 +45,6 @@ if TYPE_CHECKING:
 if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"), os.W_OK):
   os.environ["CUPY_CACHE_DIR"] = os.path.join(tempfile.gettempdir(), "cupy_cache")
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-
 from benchmarking.analysis.aggregate_statistics import (
   perform_cross_problem_analysis_stratified,
 )
@@ -79,6 +72,28 @@ from benchmarking.runner.config_loader import (
 )
 from loaders.database_loader import DatabaseLoader
 from loaders.tsplib_loader import TsplibLoader
+from protocols.backend import cupy_backend
+
+
+def _release_gpu_memory() -> None:
+  """Return cached CuPy memory blocks to the driver; a no-op without a CUDA device."""
+  cp = cupy_backend()
+  if cp is not None:
+    cp.get_default_memory_pool().free_all_blocks()
+
+#: Public strategy attributes recorded in every checkpoint (`BUG-18`). They are
+#: the knobs that change search behaviour, so a checkpoint without them cannot
+#: be reproduced from its own metadata.
+_STRATEGY_PARAM_ATTRS: tuple[str, ...] = (
+  "k",
+  "max_iterations",
+  "candidate_k",
+  "return_gpu",
+  "max_matrix_dimension",
+  "max_shared_tour_cities",
+  "threads_per_block",
+  "mode",
+)
 
 # =============================================================================
 # Helper Functions
@@ -397,8 +412,8 @@ def run_comprehensive_benchmark(
             if existing_checkpoint is not None:
               problem_results[problem_name][alg_name] = existing_checkpoint
 
-            if alg_config.use_gpu and CUPY_AVAILABLE:
-              cp.get_default_memory_pool().free_all_blocks()
+            if alg_config.use_gpu:
+              _release_gpu_memory()
 
             continue
           else:
@@ -452,6 +467,36 @@ def run_comprehensive_benchmark(
           return "None"
         return getattr(strat, "__name__", type(strat).__name__)
 
+      def _get_strategy_params(
+        slot: str,
+        *,
+        instance: Any = algorithm_instance,
+        config: AlgorithmConfig = alg_config,
+      ) -> dict[str, Any]:
+        """Configured + live parameters of one strategy slot.
+
+        The JSON config is the declared intent, but the instance is what actually
+        runs: the CLI can override `candidate_k`, `max_iterations` or `mode`, and
+        without recording them a checkpoint cannot be reproduced or compared
+        (`BUG-18`). Configured values seed the dict; public attributes read back
+        from the instance win. The instance and its config are bound as default
+        arguments because the enclosing loop deletes `algorithm_instance` and
+        reuses `alg_config` on the next iteration.
+        """
+        strat: Any = getattr(instance, slot, None)
+        if strat is None:
+          return {}
+
+        spec: dict[str, Any] = config.strategies.get(slot) or {}
+        configured: dict[str, Any] = dict(spec.get("params") or {})
+        params: dict[str, Any] = {"class": _get_strat_name(strat)}
+        params.update(configured)
+        for attr in _STRATEGY_PARAM_ATTRS:
+          value: Any = getattr(strat, attr, None)
+          if value is not None:
+            params[attr] = value
+        return params
+
       results["problem_name"] = problem_name
       results["problem_size"] = problem_size
       results["problem_type"] = getattr(problem, "problem_type", "TSP")
@@ -485,7 +530,13 @@ def run_comprehensive_benchmark(
         "evaluation": _get_strat_name(getattr(algorithm_instance, "evaluation", None)),
       }
 
-      results["construction_heuristic"] = "random_initialization"
+      results["algorithm_config"]["strategy_params"] = {
+        slot: params
+        for slot in ("initialization", "selection", "crossover", "mutation", "local_search", "evaluation")
+        if (params := _get_strategy_params(slot))
+      }
+
+      results["construction_heuristic"] = _get_strat_name(getattr(algorithm_instance, "initialization", None))
 
       checkpoint_path = checkpoint_manager.get_checkpoint_path(problem_name, alg_name)
       save_checkpoint_atomic(checkpoint_path, results)
@@ -493,8 +544,8 @@ def run_comprehensive_benchmark(
 
       del algorithm_instance
       gc.collect()
-      if alg_config.use_gpu and CUPY_AVAILABLE:
-        cp.get_default_memory_pool().free_all_blocks()
+      if alg_config.use_gpu:
+        _release_gpu_memory()
 
     logging.info(f"\n{'─' * 80}")
     logging.info(f"STATISTICS FOR {problem_name}")

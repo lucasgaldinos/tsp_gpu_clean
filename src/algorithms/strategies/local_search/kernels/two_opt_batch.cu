@@ -46,58 +46,7 @@
  *     for GPU Execution." GPGPU-8, pp. 99-108.
  */
 
-#include "pairwise_device.cuh"
-
-//: Tour positions cached per shared-memory tile when `n` exceeds the full-tour budget.
-#define TWO_OPT_TILE_SIZE 2048
-
-// Accessor macros used by the tiled scan (`Task 10.18`). When `tiled` is false the
-// whole tour lives in `s_tour[n]`; otherwise only `s_tour[TWO_OPT_TILE_SIZE + 1]`
-// holds the current window and out-of-window reads fall back to global memory.
-#define TOUR_AT(idx) \
-    (tiled ? (((idx) >= tile_start && (idx) <= tile_end) ? s_tour[(idx) - tile_start] : tour[(idx)]) : s_tour[(idx)])
-
-#define TOUR_SET(idx, value) \
-    do { \
-        int _pos = (idx); \
-        int _val = (value); \
-        if (!tiled) { \
-            s_tour[_pos] = _val; \
-        } else { \
-            tour[_pos] = _val; \
-            if (_pos >= tile_start && _pos <= tile_end) { \
-                s_tour[_pos - tile_start] = _val; \
-            } \
-        } \
-    } while (0)
-
-// Exact 2-opt delta for breaking edges (node_i, node_i1) and (node_j, node_j1).
-// `row_i`/`row_i1` alias `dist` rows in dense-matrix mode; the coordinate mode
-// evaluates `gpu_pairwise_distance` on the fly (`DP10-19`).
-static __device__ __forceinline__ int two_opt_delta(
-    int node_i, int node_i1, int d_ab, int node_j, int node_j1,
-    const int *row_i, const int *row_i1,
-    const int *dist, const double *coords, int n, int edge_type_code, bool use_matrix) {
-    if (use_matrix) {
-        int old_dist = d_ab + dist[(size_t)node_j * (size_t)n + (size_t)node_j1];
-        int new_dist = row_i[node_j] + row_i1[node_j1];
-        return new_dist - old_dist;
-    }
-    int old_dist = d_ab + gpu_pairwise_distance(node_j, node_j1, nullptr, coords, n, edge_type_code);
-    int new_dist = gpu_pairwise_distance(node_i, node_j, nullptr, coords, n, edge_type_code)
-                 + gpu_pairwise_distance(node_i1, node_j1, nullptr, coords, n, edge_type_code);
-    return new_dist - old_dist;
-}
-
-// Keep the steepest (most negative) delta of this thread.
-static __device__ __forceinline__ void two_opt_consider(
-    int i, int j, int delta, int *s_deltas, int *s_swap_i, int *s_swap_j, int tid) {
-    if (delta < s_deltas[tid]) {
-        s_deltas[tid] = delta;
-        s_swap_i[tid] = i;
-        s_swap_j[tid] = j;
-    }
-}
+#include "two_opt_common.cuh"
 
 extern "C" __global__
 void two_opt_batch_kernel(

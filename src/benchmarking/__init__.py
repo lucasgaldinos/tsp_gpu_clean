@@ -26,7 +26,6 @@ from benchmarking.database import (
   validate_benchmark_data,
 )
 from benchmarking.runner import (
-  KNOWN_TSPLIB_OPTIMALS,
   AlgorithmConfig,
   BenchmarkConfig,
   CheckpointManager,
@@ -51,7 +50,6 @@ from benchmarking.runner import (
 __all__: list[str] = [
   "ALL_RUNS_BY_ID",
   "COUNT_RUNS",
-  "KNOWN_TSPLIB_OPTIMALS",
   "TABLE_RUNS",
   "AlgorithmConfig",
   "BenchmarkConfig",

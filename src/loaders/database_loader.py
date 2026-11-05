@@ -39,6 +39,7 @@ from data_models.exceptions import (
   UnsupportedProblemTypeError,
 )
 from data_models.problem import Problem
+from protocols.problem_context import DEFAULT_MAX_MATRIX_DIMENSION
 
 from .problem_type_handlers import (
   PROBLEM_TYPE_HANDLERS,
@@ -68,6 +69,7 @@ class DatabaseLoader:
     db_path: str | Path,
     fallback_tsp_dir: str | Path | None = None,
     handlers: Mapping[str, ProblemTypeHandler] | None = None,
+    max_eager_matrix_dimension: int = DEFAULT_MAX_MATRIX_DIMENSION,
   ) -> None:
     """
     Initialize database loader with path to DuckDB file.
@@ -78,9 +80,13 @@ class DatabaseLoader:
             `TsplibLoader` when the database file has not been created yet.
         handlers: Optional mapping from problem formulation type to handler instance.
             Defaults to PROBLEM_TYPE_HANDLERS.
+        max_eager_matrix_dimension: Maximum dimension for eager O(N^2) distance matrix
+            materialization on coordinate-based problems; above it `distances` stays
+            `None` and `ProblemContext` computes lazily (`DP11-3`).
     """
     self.db_path = str(db_path)
     self.fallback_tsp_dir = Path(fallback_tsp_dir) if fallback_tsp_dir is not None else None
+    self.max_eager_matrix_dimension: int = max_eager_matrix_dimension
     self.conn: duckdb.DuckDBPyConnection | None = None
     self._tsplib_fallback: TsplibLoader | None = None
     self.handlers: dict[str, ProblemTypeHandler] = (
@@ -284,7 +290,7 @@ class DatabaseLoader:
     depots: np.ndarray | None = None,
   ) -> Problem:
     """Assemble validated Problem instance from loaded data."""
-    if distances is None and coordinates is not None:
+    if distances is None and coordinates is not None and metadata["dimension"] <= self.max_eager_matrix_dimension:
       from distances.matrix import compute_distance_matrix
 
       distances = compute_distance_matrix(coordinates, metadata["edge_type"])

@@ -28,15 +28,8 @@ import numpy as np
 if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"), os.W_OK):
   os.environ["CUPY_CACHE_DIR"] = os.path.join(tempfile.gettempdir(), "cupy_cache")
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
-
 from data_models.problem import Problem
+from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
 
 # =============================================================================
@@ -152,7 +145,7 @@ def run_single_algorithm(
     run_seed: Any | int = seed_base + offset + rep
     results["seeds"].append(run_seed)
 
-    xp = cp if use_gpu and CUPY_AVAILABLE else np
+    xp: Any = cupy_backend() if use_gpu else np
     context = ProblemContext(problem, xp=xp, seed=run_seed)
 
     current_algo = algorithm_factory(run_seed) if callable(algorithm_factory) else algorithm_instance
@@ -306,8 +299,9 @@ def run_single_algorithm(
 
 
 def cleanup_gpu_memory() -> None:
-  """Free all GPU memory blocks."""
-  if CUPY_AVAILABLE and cp is not None:
+  """Free all GPU memory blocks (no-op when no CUDA device is reachable)."""
+  cp = cupy_backend()
+  if cp is not None:
     cp.get_default_memory_pool().free_all_blocks()
     logging.debug("GPU memory pool freed")
 

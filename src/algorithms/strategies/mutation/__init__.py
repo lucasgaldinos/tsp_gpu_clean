@@ -1,11 +1,11 @@
 """Mutation strategies for routing algorithms."""
 
-from .inversion_mutation import GPUInversionMutation, InversionMutation
-from .swap_mutation import GPUSwapMutation, SwapMutation
+from .inversion_mutation import MutationGPUInversion, MutationInversion
+from .swap_mutation import MutationGPUSwap, MutationSwap
 
 __all__: list[str] = [
-  "GPUInversionMutation",
-  "GPUSwapMutation",
-  "InversionMutation",
-  "SwapMutation",
+  "MutationGPUInversion",
+  "MutationGPUSwap",
+  "MutationInversion",
+  "MutationSwap",
 ]

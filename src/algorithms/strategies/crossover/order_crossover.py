@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from protocols.algorithm_strategies import CrossoverStrategy
+from protocols.backend import require_gpu
 from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
-from utils.rng import make_rng, resolve_rng
+from utils.rng import resolve_rng
 from utils.route_helpers import (
   ensure_routes_batch,
   is_gpu_array,
@@ -20,13 +22,7 @@ from utils.route_helpers import (
   to_cpu_batch,
 )
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from ..base import StrategyBase
 
 if TYPE_CHECKING:
   from numpy.random import Generator
@@ -40,7 +36,7 @@ def _has_depot_endpoints(route: np.ndarray) -> bool:
   return len(route) > 2 and int(route[0]) == int(route[-1])
 
 
-class OrderCrossover:
+class CrossoverOrder(StrategyBase, CrossoverStrategy):
   """
   Order Crossover (OX) strategy for TSP permutations and depot-bounded tours.
 
@@ -50,17 +46,7 @@ class OrderCrossover:
 
   def __init__(self, seed: SeedLike = None) -> None:
     """Initialize OX crossover with optional RNG seed."""
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
+    super().__init__(seed)
 
   def _ox_core(
     self,
@@ -139,7 +125,7 @@ class OrderCrossover:
     return restore_routes_shape(offspring, was_1d, to_gpu=was_gpu)
 
 
-class GPUOrderCrossover:
+class CrossoverGPUOrder(StrategyBase, CrossoverStrategy):
   """
   Modular GPU CUDA kernel Order Crossover strategy (`order_crossover.cu`).
 
@@ -148,18 +134,8 @@ class GPUOrderCrossover:
 
   def __init__(self, seed: SeedLike = None) -> None:
     """Initialize GPU Order Crossover strategy."""
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
+    super().__init__(seed)
     self._kernel: Any = None
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
 
   def _get_kernel(self) -> Any:
     """Lazily compile and return the `order_crossover_kernel` CUDA kernel."""
@@ -178,7 +154,7 @@ class GPUOrderCrossover:
     context: ProblemContext | None = None,
   ) -> Route:
     """Recombine two 1D parent routes."""
-    cpu_ox = OrderCrossover(seed=self.seed)
+    cpu_ox = CrossoverOrder(seed=self.seed)
     return cpu_ox.crossover(parent1, parent2, context=context)
 
   @time_strategy
@@ -189,10 +165,13 @@ class GPUOrderCrossover:
   ) -> RouteOrRoutes:
     """
     Recombine a 2D batch of routes `(N, n_cities)` in parallel on GPU.
+
+    Raises:
+        GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
+            strategy never delegates to `CrossoverOrder`, so a CPU batch is never
+            reported as the GPU kernel's offspring (`DP9-2`).
     """
-    if not CUPY_AVAILABLE or cp is None:
-      cpu_ox = OrderCrossover(seed=self.seed)
-      return cpu_ox.crossover_batch(routes, context=context)
+    cp = require_gpu()
 
     batch, was_1d = ensure_routes_batch(routes)
     num_routes, n_cities = batch.shape
@@ -240,5 +219,4 @@ class GPUOrderCrossover:
     return restore_routes_shape(cp.asnumpy(d_offspring), was_1d)
 
 
-__all__: list[str] = ["GPUOrderCrossover", "OrderCrossover"]
-
+__all__: list[str] = ["CrossoverGPUOrder", "CrossoverOrder"]

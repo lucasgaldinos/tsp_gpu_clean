@@ -4,83 +4,74 @@ Modular evolutionary operator strategies for TSP and routing optimization.
 All route-transforming operators (`CrossoverStrategy`, `MutationStrategy`,
 `LocalSearchStrategy`, `EvaluationStrategy`) accept `RouteOrRoutes`
 (`(n_cities,)` or `(N, n_cities)`), enabling arbitrary pipeline ordering.
+
+Every class name is prefixed with the slot it fills (`Initialization*`, `Selection*`,
+`Crossover*`, `Mutation*`, `LocalSearch*`, `Evaluation*`) and every class derives from
+`StrategyBase`, so the registry key reads as "which slot, which variant" (`DP11-1`).
 """
 
+from .base import StrategyBase
 from .crossover import (
-  GPUOrderCrossover,
-  OrderCrossover,
-  PartiallyMappedCrossover,
+  CrossoverGPUOrder,
+  CrossoverOrder,
+  CrossoverPartiallyMapped,
 )
 from .evaluation import (
-  CPUCostEvaluation,
-  GPUCostEvaluation,
+  EvaluationCPUCost,
+  EvaluationGPUCost,
 )
-from .initialization import RandomPermutationInitialization
-from .local_search import (
-  BatchGPUMultiMoveTwoOpt,
-  BatchGPUTwoOpt,
-  CPUFirstImprovementTwoOpt,
-  CPUMultiMoveTwoOpt,
-  CPUTwoOpt,
-  NaiveGPUTwoOpt,
-  NoOpLocalSearch,
-)
+from .initialization import InitializationNearestNeighbor, InitializationRandom
+from .local_search import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt, LocalSearchNoOp
 from .mutation import (
-  GPUInversionMutation,
-  GPUSwapMutation,
-  InversionMutation,
-  SwapMutation,
+  MutationGPUInversion,
+  MutationGPUSwap,
+  MutationInversion,
+  MutationSwap,
 )
 from .selection import (
-  GPUTournamentSelection,
-  RouletteWheelSelection,
-  TournamentSelection,
+  SelectionGPUTournament,
+  SelectionRouletteWheel,
+  SelectionTournament,
 )
 
 STRATEGY_REGISTRY: dict[str, type] = {
-  "BatchGPUMultiMoveTwoOpt": BatchGPUMultiMoveTwoOpt,
-  "BatchGPUTwoOpt": BatchGPUTwoOpt,
-  "CPUCostEvaluation": CPUCostEvaluation,
-  "CPUFirstImprovementTwoOpt": CPUFirstImprovementTwoOpt,
-  "CPUMultiMoveTwoOpt": CPUMultiMoveTwoOpt,
-  "CPUTwoOpt": CPUTwoOpt,
-  "GPUCostEvaluation": GPUCostEvaluation,
-  "GPUInversionMutation": GPUInversionMutation,
-  "GPUOrderCrossover": GPUOrderCrossover,
-  "GPUSwapMutation": GPUSwapMutation,
-  "GPUTournamentSelection": GPUTournamentSelection,
-  "InversionMutation": InversionMutation,
-  "NaiveGPUTwoOpt": NaiveGPUTwoOpt,
-  "NoOpLocalSearch": NoOpLocalSearch,
-  "OrderCrossover": OrderCrossover,
-  "PartiallyMappedCrossover": PartiallyMappedCrossover,
-  "RandomPermutationInitialization": RandomPermutationInitialization,
-  "RouletteWheelSelection": RouletteWheelSelection,
-  "SwapMutation": SwapMutation,
-  "TournamentSelection": TournamentSelection,
+  "CrossoverGPUOrder": CrossoverGPUOrder,
+  "CrossoverOrder": CrossoverOrder,
+  "CrossoverPartiallyMapped": CrossoverPartiallyMapped,
+  "EvaluationCPUCost": EvaluationCPUCost,
+  "EvaluationGPUCost": EvaluationGPUCost,
+  "InitializationNearestNeighbor": InitializationNearestNeighbor,
+  "InitializationRandom": InitializationRandom,
+  "LocalSearchCPUTwoOpt": LocalSearchCPUTwoOpt,
+  "LocalSearchGPUTwoOpt": LocalSearchGPUTwoOpt,
+  "LocalSearchNoOp": LocalSearchNoOp,
+  "MutationGPUInversion": MutationGPUInversion,
+  "MutationGPUSwap": MutationGPUSwap,
+  "MutationInversion": MutationInversion,
+  "MutationSwap": MutationSwap,
+  "SelectionGPUTournament": SelectionGPUTournament,
+  "SelectionRouletteWheel": SelectionRouletteWheel,
+  "SelectionTournament": SelectionTournament,
 }
 
 __all__: list[str] = [
   "STRATEGY_REGISTRY",
-  "BatchGPUMultiMoveTwoOpt",
-  "BatchGPUTwoOpt",
-  "CPUCostEvaluation",
-  "CPUFirstImprovementTwoOpt",
-  "CPUMultiMoveTwoOpt",
-  "CPUTwoOpt",
-  "GPUCostEvaluation",
-  "GPUInversionMutation",
-  "GPUOrderCrossover",
-  "GPUSwapMutation",
-  "GPUTournamentSelection",
-  "InversionMutation",
-  "NaiveGPUTwoOpt",
-  "NoOpLocalSearch",
-  "OrderCrossover",
-  "PartiallyMappedCrossover",
-  "RandomPermutationInitialization",
-  "RouletteWheelSelection",
-  "SwapMutation",
-  "TournamentSelection",
+  "CrossoverGPUOrder",
+  "CrossoverOrder",
+  "CrossoverPartiallyMapped",
+  "EvaluationCPUCost",
+  "EvaluationGPUCost",
+  "InitializationNearestNeighbor",
+  "InitializationRandom",
+  "LocalSearchCPUTwoOpt",
+  "LocalSearchGPUTwoOpt",
+  "LocalSearchNoOp",
+  "MutationGPUInversion",
+  "MutationGPUSwap",
+  "MutationInversion",
+  "MutationSwap",
+  "SelectionGPUTournament",
+  "SelectionRouletteWheel",
+  "SelectionTournament",
+  "StrategyBase",
 ]
-

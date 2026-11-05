@@ -8,9 +8,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from protocols.algorithm_strategies import CrossoverStrategy
 from utils.phase_timer import time_strategy
-from utils.rng import make_rng, resolve_rng
+from utils.rng import resolve_rng
 from utils.route_helpers import restore_routes_shape, to_cpu_batch
+
+from ..base import StrategyBase
 
 if TYPE_CHECKING:
   from numpy.random import Generator
@@ -24,24 +27,14 @@ def _has_depot_endpoints(route: np.ndarray) -> bool:
   return len(route) > 2 and int(route[0]) == int(route[-1])
 
 
-class PartiallyMappedCrossover:
+class CrossoverPartiallyMapped(StrategyBase, CrossoverStrategy):
   """
   Partially Mapped Crossover (PMX) strategy for TSP permutations and depot-bounded tours.
   """
 
   def __init__(self, seed: SeedLike = None) -> None:
     """Initialize PMX crossover with optional RNG seed."""
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
+    super().__init__(seed)
 
   def _pmx_core(
     self,
@@ -121,4 +114,4 @@ class PartiallyMappedCrossover:
     return restore_routes_shape(offspring, was_1d, to_gpu=was_gpu)
 
 
-__all__: list[str] = ["PartiallyMappedCrossover"]
+__all__: list[str] = ["CrossoverPartiallyMapped"]

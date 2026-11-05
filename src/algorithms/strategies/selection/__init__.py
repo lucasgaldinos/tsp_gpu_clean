@@ -1,10 +1,10 @@
 """Selection strategies for routing algorithms."""
 
-from .roulette_wheel_selection import RouletteWheelSelection
-from .tournament_selection import GPUTournamentSelection, TournamentSelection
+from .roulette_wheel_selection import SelectionRouletteWheel
+from .tournament_selection import SelectionGPUTournament, SelectionTournament
 
 __all__: list[str] = [
-  "GPUTournamentSelection",
-  "RouletteWheelSelection",
-  "TournamentSelection",
+  "SelectionGPUTournament",
+  "SelectionRouletteWheel",
+  "SelectionTournament",
 ]

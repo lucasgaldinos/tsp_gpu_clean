@@ -19,7 +19,6 @@ from benchmarking.runner.checkpoint_io import (
   save_checkpoint_atomic,
 )
 from benchmarking.runner.config_loader import (
-  KNOWN_TSPLIB_OPTIMALS,
   AlgorithmConfig,
   BenchmarkConfig,
   GAParams,
@@ -35,7 +34,6 @@ from benchmarking.runner.config_loader import (
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 
 __all__: list[str] = [
-  "KNOWN_TSPLIB_OPTIMALS",
   "AlgorithmConfig",
   "BenchmarkConfig",
   "CheckpointManager",

@@ -13,16 +13,10 @@ import time
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
+from protocols.backend import cupy_backend, gpu_available
+
 if TYPE_CHECKING:
   from collections.abc import Callable
-
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
 
 
 class PhaseTimer:
@@ -37,7 +31,7 @@ class PhaseTimer:
         use_cuda_events: Whether to synchronize and measure with CUDA events.
     """
     self.enabled = enabled
-    self.use_cuda_events = use_cuda_events and CUPY_AVAILABLE
+    self.use_cuda_events = use_cuda_events and gpu_available()
     self._totals_ms: dict[str, float] = defaultdict(float)
     self._counts: dict[str, int] = defaultdict(int)
 
@@ -54,7 +48,8 @@ class PhaseTimer:
       return func(*args, **kwargs)
 
     elapsed_ms: float
-    if self.use_cuda_events and cp is not None:
+    cp = cupy_backend() if self.use_cuda_events else None
+    if cp is not None:
       start_evt = cp.cuda.Event()
       end_evt = cp.cuda.Event()
       start_evt.record()
@@ -101,8 +96,9 @@ def time_strategy[**P, R](func: Callable[P, R]) -> Callable[P, R]:
   @functools.wraps(func)
   def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
     self_obj: Any = args[0] if args else None
+    cp = cupy_backend()
     use_cuda = False
-    if CUPY_AVAILABLE and cp is not None:
+    if cp is not None:
       if getattr(self_obj, "use_gpu_events", False):
         use_cuda = True
       else:

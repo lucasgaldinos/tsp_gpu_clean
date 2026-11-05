@@ -10,24 +10,21 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from protocols.algorithm_strategies import MutationStrategy
+from protocols.backend import require_gpu
 from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
-from utils.rng import make_rng, resolve_rng
+from utils.rng import resolve_rng
 from utils.route_helpers import (
   _mutation_bounds,
   ensure_routes_batch,
   is_gpu_array,
   restore_routes_shape,
+  select_proximity_index,
   to_cpu_batch,
 )
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from ..base import StrategyBase
 
 if TYPE_CHECKING:
   from numpy.random import Generator
@@ -36,7 +33,7 @@ if TYPE_CHECKING:
   from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-class SwapMutation:
+class MutationSwap(StrategyBase, MutationStrategy):
   """
   Swap Mutation strategy for single routes and 2D route batches.
 
@@ -44,7 +41,7 @@ class SwapMutation:
   """
 
   def __init__(self, seed: SeedLike = None, candidate_k: int | None = None) -> None:
-    """Initialize SwapMutation with optional RNG seed.
+    """Initialize MutationSwap with optional RNG seed.
 
     Args:
         seed: Optional random seed override.
@@ -52,51 +49,8 @@ class SwapMutation:
             position of a random candidate neighbour of the first city instead of a
             uniform draw (`DP10-20`). `None` keeps the uniform behaviour.
     """
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
+    super().__init__(seed)
     self.candidate_k: int | None = candidate_k
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
-
-  def _proximity_index(
-    self,
-    route: np.ndarray,
-    low: int,
-    high: int,
-    idx1: int,
-    rng: Generator,
-    context: ProblemContext | None,
-  ) -> int | None:
-    """Return the tour position of a random candidate neighbour of `route[idx1]`.
-
-    Candidates are visited in a random order so repeated calls explore different
-    neighbours; positions outside the mutable interior (depot endpoints) and the first
-    index itself are skipped. Returns `None` when no candidate is usable, letting the
-    caller fall back to a uniform interior draw (`DP10-20`).
-    """
-    if self.candidate_k is None or self.candidate_k <= 0 or context is None:
-      return None
-    if route.size == 0 or int(route.max()) >= route.size:
-      return None
-    candidates = context.get_cpu_candidate_list(self.candidate_k)
-    node = int(route[idx1])
-    if node >= candidates.shape[0]:
-      return None
-
-    positions = np.empty(route.size, dtype=np.int32)
-    positions[route] = np.arange(route.size, dtype=np.int32)
-    for r in rng.permutation(int(candidates.shape[1])):
-      idx2 = int(positions[candidates[node, int(r)]])
-      if idx2 != idx1 and low <= idx2 < high:
-        return idx2
-    return None
 
   def mutate(
     self,
@@ -113,12 +67,11 @@ class SwapMutation:
     rng: Generator = resolve_rng(context, self.rng)
 
     if float(rng.random()) < mutation_rate:
-      idx2: int | None = None
-      idx1: int = -1
       if self.candidate_k is not None and self.candidate_k > 0 and context is not None:
         idx1 = int(rng.integers(low, high))
-        idx2 = self._proximity_index(mutated, low, high, idx1, rng, context)
-      if idx2 is None:
+        candidates = context.get_cpu_candidate_list(self.candidate_k)
+        idx2 = select_proximity_index(mutated, idx1, low, high, candidates, rng)
+      else:
         first, second = rng.choice(np.arange(low, high), size=2, replace=False)
         idx1, idx2 = int(first), int(second)
       mutated[idx1], mutated[idx2] = mutated[idx2], mutated[idx1]
@@ -142,7 +95,7 @@ class SwapMutation:
     return restore_routes_shape(out, was_1d, to_gpu=was_gpu)
 
 
-class GPUSwapMutation:
+class MutationGPUSwap(StrategyBase, MutationStrategy):
   """
   Modular GPU CUDA kernel Swap Mutation strategy (`swap_mutation.cu`).
 
@@ -151,18 +104,8 @@ class GPUSwapMutation:
 
   def __init__(self, seed: SeedLike = None) -> None:
     """Initialize GPU Swap Mutation strategy."""
-    self.seed: SeedLike = seed
-    self.rng: Generator = make_rng(seed)
+    super().__init__(seed)
     self._kernel: Any = None
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
 
   def _get_kernel(self) -> Any:
     """Lazily compile and return the `swap_mutation_kernel` CUDA kernel."""
@@ -190,10 +133,14 @@ class GPUSwapMutation:
     mutation_rate: float,
     context: ProblemContext | None = None,
   ) -> RouteOrRoutes:
-    """Mutate a 1D route or 2D batch `(N, n_cities)` on GPU via `swap_mutation.cu`."""
-    if not CUPY_AVAILABLE or cp is None:
-      cpu_mut = SwapMutation(seed=self.seed)
-      return cpu_mut.mutate_batch(routes, mutation_rate, context=context)
+    """Mutate a 1D route or 2D batch `(N, n_cities)` on GPU via `swap_mutation.cu`.
+
+    Raises:
+        GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
+            strategy never delegates to `MutationSwap`, so a CPU batch is never
+            reported as the GPU kernel's offspring (`DP9-2`).
+    """
+    cp = require_gpu()
 
     batch, was_1d = ensure_routes_batch(routes)
     num_routes, n_cities = batch.shape
@@ -243,5 +190,4 @@ class GPUSwapMutation:
     return restore_routes_shape(cp.asnumpy(d_routes), was_1d)
 
 
-__all__: list[str] = ["GPUSwapMutation", "SwapMutation"]
-
+__all__: list[str] = ["MutationGPUSwap", "MutationSwap"]

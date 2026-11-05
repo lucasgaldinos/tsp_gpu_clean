@@ -1,5 +1,15 @@
 """
 Initialization strategies for generating initial populations of routes.
+
+Two constructions with different cost models (`DP11-1`):
+
+- `InitializationRandom`: uniform Fisher-Yates permutations, `Theta(n)` per route.
+- `InitializationNearestNeighbor`: randomized greedy nearest-neighbour tours guided by
+  the `k`-NN candidate list (GRASP restricted candidate list), `Theta(n * k)` per route.
+
+Keeping them apart makes the construction cost explicit in the configuration: a run that
+asks for the uniform baseline cannot silently pay the candidate-guided price, and the
+`candidate_k=None` fallback inside a single class disappears.
 """
 
 from __future__ import annotations
@@ -8,16 +18,12 @@ from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
+from protocols.algorithm_strategies import InitializationStrategy
+from protocols.backend import require_gpu
 from utils.phase_timer import time_strategy
-from utils.rng import make_rng, resolve_rng
+from utils.rng import resolve_rng
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from ..base import StrategyBase
 
 if TYPE_CHECKING:
   from collections.abc import Sequence
@@ -28,44 +34,99 @@ if TYPE_CHECKING:
   from protocols.types import Routes, SeedLike
 
 
-class RandomPermutationInitialization:
+class InitializationRandom(StrategyBase, InitializationStrategy):
   """
-  Initialize a population of routes `(population_size, n_cities)` as random permutations.
+  Uniform random permutation initialization.
 
-  Works with both CPU (NumPy) and GPU (CuPy) backends while maintaining
-  deterministic reproducibility via the provided seed or `context.rng`.
+  Each route is an independent Fisher-Yates shuffle of `customers`, so the population is
+  a uniform sample of the `n!` feasible tours. Deterministic reproducibility comes from
+  the explicit seed or `context.rng`.
+  """
+
+  def __init__(self, seed: SeedLike = None, return_gpu: bool = False) -> None:
+    """
+    Initialize the uniform permutation strategy.
+
+    Args:
+        seed: Optional random seed override (int, `SeedSequence`, existing
+            `numpy.random.Generator`, zero-argument callable, or `None`).
+        return_gpu: If True, return the routes batch on GPU (`cp.ndarray`); a machine
+            without a CUDA device raises `GPUUnavailableError` instead of silently
+            returning a host array (`DP9-2`).
+    """
+    super().__init__(seed)
+    self.return_gpu: bool = return_gpu
+
+  @time_strategy
+  def initialize(
+    self,
+    customers: Sequence[int],
+    population_size: int,
+    context: ProblemContext | None = None,
+  ) -> Routes:
+    """
+    Generate `population_size` uniform random permutations of `customers`.
+
+    Args:
+        customers: Sequence of customer node indices to visit.
+        population_size: Number of routes in the population batch.
+        context: Optional `ProblemContext` providing a seeded RNG.
+
+    Returns:
+        2D routes array of shape `(population_size, len(customers))` with dtype `int32`.
+
+    Raises:
+        GPUUnavailableError: When `return_gpu=True` and no CUDA device is reachable.
+    """
+    customers_array: np.ndarray = np.asarray(customers, dtype=np.int32)
+    rng: Generator = resolve_rng(context, self.rng)
+
+    population: np.ndarray = np.empty((population_size, len(customers)), dtype=np.int32)
+    for i in range(population_size):
+      population[i] = rng.permutation(customers_array)
+
+    if self.return_gpu:
+      cp = require_gpu()
+      self.h2d_bytes += int(population.nbytes)
+      return cast("Routes", cp.asarray(population, dtype=cp.int32))
+    return population
+
+
+class InitializationNearestNeighbor(StrategyBase, InitializationStrategy):
+  """
+  Randomized greedy nearest-neighbour (GRASP RCL) initialization over `N_k`.
+
+  Each route starts at a uniformly drawn customer and then repeatedly picks the first
+  still-unvisited entry of a randomly permuted `N_k` row. Restricting the draw to the
+  candidate list turns the naive `Theta(n^2)` nearest-neighbour scan into
+  `Theta(n * k)` while keeping the tour greedy -- the randomization of the candidate
+  order is what restores diversity across the population.
   """
 
   def __init__(
     self,
+    k: int = 20,
     seed: SeedLike = None,
     return_gpu: bool = False,
     candidate_k: int | None = None,
   ) -> None:
     """
-    Initialize random permutation strategy.
+    Initialize the candidate-guided nearest-neighbour strategy.
 
     Args:
-        seed: Optional random seed override (int, Generator, callable, or None).
-        return_gpu: If True and CuPy is available, return the initial routes
-            batch directly on GPU (`cp.ndarray`).
-        candidate_k: When set and a `context` is provided, tours are built as
-            randomized greedy nearest-neighbour tours guided by the `k`-NN candidate
-            list (`DP10-20`); `None` keeps uniform random permutations.
+        k: Candidate-list width: how many nearest neighbours each step may choose from.
+        seed: Optional random seed override.
+        return_gpu: If True and CuPy is available, return the routes batch on GPU.
+        candidate_k: Alias for `k`; when provided it overrides `k`, so a configuration
+            written against the old `candidate_k` key keeps working unchanged.
     """
-    self.seed: SeedLike = seed
-    self.return_gpu = return_gpu
-    self.candidate_k: int | None = candidate_k
-    self.rng = make_rng(seed)
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
+    super().__init__(seed)
+    resolved_k: int = k if candidate_k is None else candidate_k
+    if resolved_k < 1:
+      raise ValueError(f"Candidate-list width k must be >= 1, got {resolved_k}")
+    self.k: int = resolved_k
+    self.candidate_k: int = resolved_k
+    self.return_gpu: bool = return_gpu
 
   @staticmethod
   def _greedy_candidate_tour(
@@ -118,34 +179,33 @@ class RandomPermutationInitialization:
     context: ProblemContext | None = None,
   ) -> Routes:
     """
-    Generate `population_size` random route permutations of `customers`.
+    Generate `population_size` randomized greedy nearest-neighbour tours of `customers`.
 
     Args:
         customers: Sequence of customer node indices to visit.
         population_size: Number of routes in the population batch.
-        context: Optional `ProblemContext` providing a seeded RNG and, when
-            `candidate_k` is set, the `k`-NN candidate list.
+        context: `ProblemContext` owning the cached `k`-NN candidate list. Required:
+            the construction has no distances of its own.
 
     Returns:
         2D routes array of shape `(population_size, len(customers))` with dtype `int32`.
     """
-    n_cities: int = len(customers)
+    if context is None:
+      raise ValueError("InitializationNearestNeighbor requires a ProblemContext to read the k-NN candidate list")
+
     customers_array: np.ndarray = np.asarray(customers, dtype=np.int32)
     rng: Generator = resolve_rng(context, self.rng)
+    candidates: np.ndarray = context.get_cpu_candidate_list(self.candidate_k)
 
-    use_candidates: bool = self.candidate_k is not None and self.candidate_k > 0 and context is not None
-    candidates: np.ndarray | None = None
-    if use_candidates and context is not None and self.candidate_k is not None:
-      candidates = context.get_cpu_candidate_list(self.candidate_k)
-
-    population: np.ndarray = np.empty((population_size, n_cities), dtype=np.int32)
+    population: np.ndarray = np.empty((population_size, len(customers)), dtype=np.int32)
     for i in range(population_size):
-      if candidates is not None:
-        population[i] = self._greedy_candidate_tour(customers_array, candidates, rng)
-      else:
-        population[i] = rng.permutation(customers_array)
+      population[i] = self._greedy_candidate_tour(customers_array, candidates, rng)
 
-    if self.return_gpu and CUPY_AVAILABLE and cp is not None:
+    if self.return_gpu:
+      cp = require_gpu()
       self.h2d_bytes += int(population.nbytes)
       return cast("Routes", cp.asarray(population, dtype=cp.int32))
     return population
+
+
+__all__: list[str] = ["InitializationNearestNeighbor", "InitializationRandom"]

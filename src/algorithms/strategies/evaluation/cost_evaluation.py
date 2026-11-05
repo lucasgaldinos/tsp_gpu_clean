@@ -10,27 +10,19 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from distances.pairwise import get_edge_type_code
+from protocols.algorithm_strategies import EvaluationStrategy
+from protocols.backend import require_gpu
 from protocols.types import Fitness
 from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
-from utils.route_helpers import ensure_routes_batch, to_cpu_batch
+from utils.route_helpers import ensure_routes_batch, is_gpu_array, to_cpu_batch
 
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from ..base import StrategyBase
 
 if TYPE_CHECKING:
   from data_models.problem import Problem
   from protocols.problem_context import ProblemContext
   from protocols.types import Fitness, Route, RouteOrRoutes
-
-#: Default `n` above which coordinate-based problems skip the dense `(n, n)` matrix.
-_DEFAULT_MAX_MATRIX_DIMENSION: int = 10_000
 
 
 def _next_power_of_2(value: int) -> int:
@@ -41,7 +33,7 @@ def _next_power_of_2(value: int) -> int:
   return max(1, min(power, 256))
 
 
-class CPUCostEvaluation:
+class EvaluationCPUCost(StrategyBase, EvaluationStrategy):
   """
   CPU tour cost evaluation strategy using `context.get_cpu_distances()`.
 
@@ -51,15 +43,7 @@ class CPUCostEvaluation:
 
   def __init__(self) -> None:
     """Initialize CPU cost evaluation strategy."""
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
+    super().__init__()
 
   def evaluate(self, route: Route, context: ProblemContext) -> float:
     """Compute total closed-loop tour cost for a single 1D route `(n_cities,)`."""
@@ -79,7 +63,7 @@ class CPUCostEvaluation:
     return costs
 
 
-class GPUCostEvaluation:
+class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
   """
   GPU batch tour cost evaluation strategy (`cost_calculator.cu`).
 
@@ -107,6 +91,7 @@ class GPUCostEvaluation:
         max_matrix_dimension: Threshold above which coordinate-based problems use
             on-the-fly distances. `None` defers to the context's value.
     """
+    super().__init__()
     self.return_gpu: bool = return_gpu
     self.threads_per_block: int = _next_power_of_2(threads_per_block)
     self.max_matrix_dimension: int | None = max_matrix_dimension
@@ -115,15 +100,10 @@ class GPUCostEvaluation:
     self._cached_problem_key: tuple[str, int, str, int] | None = None
     self._cached_coords_gpu: Any = None
     self._cached_coords_key: tuple[str, int, str, int] | None = None
-    self.h2d_bytes: int = 0
-    self.d2h_bytes: int = 0
-    self.kernel_launches: int = 0
 
   def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    self.h2d_bytes = 0
-    self.d2h_bytes = 0
-    self.kernel_launches = 0
+    """Reset transfer and kernel launch counters, dropping the mirrored VRAM cache."""
+    super().reset_metrics()
     self._cached_distances_gpu = None
     self._cached_problem_key = None
     self._cached_coords_gpu = None
@@ -164,56 +144,69 @@ class GPUCostEvaluation:
         source = compute_distance_matrix(problem.coordinates, problem.edge_type)
       else:
         raise ValueError(f"Problem '{problem.name}' has no distances or coordinates")
+      cp = require_gpu()
       self._cached_distances_gpu = cp.asarray(source, dtype=cp.int32)
       self._cached_problem_key = problem_key
     return self._cached_distances_gpu
 
   def _get_coords_gpu(self, context: ProblemContext) -> Any:
-    """Get or cache `float64` contiguous coordinates on GPU for the coordinate mode."""
-    problem = context.problem
-    problem_key = (problem.name, problem.dimension, problem.edge_type, id(problem))
-    if self._cached_coords_gpu is None or self._cached_coords_key != problem_key:
-      coords = context.get_gpu_coordinates()
-      if coords is None:
-        raise ValueError(f"Problem '{problem.name}' has no coordinates for the on-the-fly distance mode")
-      self._cached_coords_gpu = cp.ascontiguousarray(coords, dtype=cp.float64)
+    """Return the context-owned `float64` coordinates for the coordinate mode.
+
+    `ProblemContext.get_gpu_coordinates()` caches one buffer per problem instance,
+    so counting the upload here is only bookkeeping for this strategy (`DP10-17`).
+    """
+    coords = context.get_gpu_coordinates()
+    if coords is None:
+      raise ValueError(f"Problem '{context.problem.name}' has no coordinates for the on-the-fly distance mode")
+    problem_key = (context.problem.name, context.problem.dimension, context.problem.edge_type, id(context.problem))
+    if self._cached_coords_gpu is not coords:
+      self.h2d_bytes += int(coords.nbytes)
+      self._cached_coords_gpu = coords
       self._cached_coords_key = problem_key
-      self.h2d_bytes += int(self._cached_coords_gpu.nbytes)
-    return self._cached_coords_gpu
+    return coords
 
   def _distance_operands(self, context: ProblemContext, n: int) -> tuple[Any, Any, int]:
     """Return `(d_distances, d_coords, edge_type_code)` for one kernel launch.
 
-    Coordinate mode passes `0` for `d_distances` (a CUDA `nullptr`) and never
-    materializes the dense matrix, so memory stays `O(n)` instead of `O(n^2)`.
+    The dense/on-the-fly decision and the VRAM buffers are owned by
+    `ProblemContext.get_gpu_distance_operands`, so the evaluator and the local-search
+    kernels bind the exact same matrix (`BUG-14` / `DP10-17`). Coordinate mode passes
+    `0` for `d_distances` (a CUDA `nullptr`) and never materializes `(n, n)`.
     """
-    threshold = self.max_matrix_dimension
-    if threshold is None:
-      threshold = getattr(context, "max_matrix_dimension", _DEFAULT_MAX_MATRIX_DIMENSION)
-    if context.uses_on_the_fly_distances(n, threshold):
-      return 0, self._get_coords_gpu(context), get_edge_type_code(context.problem.edge_type)
-    return self._get_distances_int32_gpu(context), 0, 0
+    d_distances, d_coords, edge_type_code = context.get_gpu_distance_operands(n, self.max_matrix_dimension)
+    if isinstance(d_distances, int):
+      self._get_coords_gpu(context)
+    else:
+      problem_key = (context.problem.name, context.problem.dimension, context.problem.edge_type, id(context.problem))
+      if self._cached_distances_gpu is not d_distances:
+        self.h2d_bytes += int(d_distances.nbytes)
+      self._cached_distances_gpu = d_distances
+      self._cached_problem_key = problem_key
+    return d_distances, d_coords, edge_type_code
 
   def evaluate(self, route: Route, context: ProblemContext) -> float:
     """Compute total closed-loop tour cost for a single 1D route `(n_cities,)`."""
     costs: Fitness = self.evaluate_batch(route, context)
-    if CUPY_AVAILABLE and cp is not None and isinstance(costs, cp.ndarray):
-      return float(cp.asnumpy(costs)[0])
+    if is_gpu_array(costs):
+      return float(require_gpu().asnumpy(costs)[0])
     return float(costs[0])
 
   @time_strategy
   def evaluate_batch(self, routes: RouteOrRoutes, context: ProblemContext) -> Fitness:
     """
     Compute 1D cost array `(N,)` on GPU for a 1D route or 2D batch `(N, n_cities)`.
+
+    Raises:
+        GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
+            strategy never delegates to `EvaluationCPUCost`, so a CPU batch is never
+            reported as the GPU kernel's fitness (`DP9-2`).
     """
-    if not CUPY_AVAILABLE or cp is None:
-      cpu_eval = CPUCostEvaluation()
-      return cpu_eval.evaluate_batch(routes, context)
+    cp = require_gpu()
 
     batch, _ = ensure_routes_batch(routes)
     batch_size, n = batch.shape
 
-    input_on_gpu: bool = isinstance(batch, cp.ndarray)
+    input_on_gpu: bool = is_gpu_array(batch)
     if input_on_gpu:
       d_population = cp.ascontiguousarray(batch, dtype=cp.int32)
     else:
@@ -250,4 +243,4 @@ class GPUCostEvaluation:
     return cast("Fitness", costs_cpu)
 
 
-__all__: list[str] = ["CPUCostEvaluation", "GPUCostEvaluation"]
+__all__: list[str] = ["EvaluationCPUCost", "EvaluationGPUCost"]

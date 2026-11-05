@@ -21,7 +21,6 @@ References:
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING, Protocol
 
 from converter.utils.cost import (
@@ -35,6 +34,9 @@ from converter.utils.cost import (
 )
 from converter.utils.cost import (
   euclidean_3d as compute_euclidean_3d,
+)
+from converter.utils.cost import (
+  geographical as compute_geographical,
 )
 from converter.utils.cost import (
   manhattan_2d as compute_manhattan_2d,
@@ -63,41 +65,6 @@ PI = 3.141592
 
 #: Earth radius in km used by the TSPLIB95 geographical distance.
 EARTH_RADIUS_KM = 6378.388
-
-
-def _to_radians_geo(coord_val: float) -> float:
-  """Convert a TSPLIB95 DDD.MM coordinate to radians.
-
-  The spec truncates the degree part (``deg = (int) x[i]``) and treats the
-  fractional part as minutes, so ``52.31`` is 52 deg 18.6 min. Rounding the
-  degree instead (as a naive ``nint`` would) shifts every GEO distance whose
-  minutes are ``>= 30`` -- burma14 d(1,3) reads 560 instead of the canonical
-  510 -- so this conversion deliberately stays with truncation.
-  """
-  deg: int = int(coord_val)
-  minutes: float = coord_val - deg
-  return PI * (deg + 5.0 * minutes / 3.0) / 180.0
-
-
-def compute_geographical(coord1: Sequence[float], coord2: Sequence[float]) -> int:
-  """Compute the TSPLIB95 geographical distance (spherical law of cosines).
-
-  GEO keeps its own implementation here rather than re-exporting
-  ``converter.utils.cost.geographical``: that function rounds the degree part
-  instead of truncating it (``routing_data`` register defect), which changes
-  canonical lengths such as burma14 d(1,3) from 510 to 560.
-  """
-  lat1: float = _to_radians_geo(coord1[0])
-  lon1: float = _to_radians_geo(coord1[1])
-  lat2: float = _to_radians_geo(coord2[0])
-  lon2: float = _to_radians_geo(coord2[1])
-
-  q1: float = math.cos(lon1 - lon2)
-  q2: float = math.cos(lat1 - lat2)
-  q3: float = math.cos(lat1 + lat2)
-  acos_arg: float = 0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)
-  acos_arg = max(-1.0, min(1.0, acos_arg))
-  return int(EARTH_RADIUS_KM * math.acos(acos_arg) + 1.0)
 
 
 class PairwiseDistanceFn(Protocol):
@@ -219,7 +186,6 @@ __all__ = [
   "PI",
   "PairwiseDistanceFn",
   "_nint",
-  "_to_radians_geo",
   "compute_att",
   "compute_ceiling_2d",
   "compute_euclidean_2d",

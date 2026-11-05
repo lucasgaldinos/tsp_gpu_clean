@@ -1,5 +1,5 @@
 """Initialization strategy exports."""
 
-from .random_initialization import RandomPermutationInitialization
+from .random_initialization import InitializationNearestNeighbor, InitializationRandom
 
-__all__ = ["RandomPermutationInitialization"]
+__all__ = ["InitializationNearestNeighbor", "InitializationRandom"]
