@@ -2,27 +2,27 @@
   "algorithm": "FullGPUModular",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.007623878000079761,
-  "std_time": 0.00047315996780844863,
-  "min_time": 0.007241755999984889,
-  "max_time": 0.008290657000088686,
-  "mean_cost": 1616.0,
-  "std_cost": 4.320493798938574,
+  "mean_time": 0.00807825633576916,
+  "std_time": 0.0004678828351317984,
+  "min_time": 0.0076016460079699755,
+  "max_time": 0.008714057999895886,
+  "mean_cost": 1619.0,
+  "std_cost": 6.48074069840786,
   "best_cost": 1610.0,
-  "worst_cost": 1620.0,
+  "worst_cost": 1625.0,
   "mean_initial_cost": 1907.0,
   "std_initial_cost": 55.93448548674303,
-  "mean_gap": 0.37267080745341613,
-  "std_gap": 0.2683536521079859,
+  "mean_gap": 0.5590062111801242,
+  "std_gap": 0.4025304781619789,
   "best_gap": 0.0,
-  "mean_improvement": 15.18532015717678,
+  "mean_improvement": 15.027214808893703,
   "mean_generations": 1.0,
   "std_generations": 0.0,
   "min_generations": 1.0,
   "max_generations": 1.0,
-  "mean_h2d_mb": 0.047688,
+  "mean_h2d_mb": 0.055692,
   "mean_d2h_mb": 0.0,
-  "total_transfer_mb": 0.047688,
+  "total_transfer_mb": 0.055692,
   "mean_kernels": 25.0,
   "best_tour": [
     10,
@@ -88,6 +88,44 @@
       18
     ],
     [
+      13,
+      16,
+      21,
+      10,
+      18,
+      24,
+      6,
+      22,
+      26,
+      15,
+      12,
+      23,
+      7,
+      0,
+      27,
+      11,
+      5,
+      8,
+      25,
+      2,
+      28,
+      4,
+      20,
+      1,
+      19,
+      9,
+      3,
+      14,
+      17
+    ],
+    [
+      23,
+      0,
+      27,
+      11,
+      5,
+      8,
+      4,
       25,
       2,
       28,
@@ -109,53 +147,15 @@
       7,
       26,
       15,
-      12,
-      23,
-      0,
-      27,
-      5,
-      11,
-      8,
-      4
-    ],
-    [
-      20,
-      4,
-      28,
-      2,
-      25,
-      8,
-      11,
-      5,
-      27,
-      0,
-      12,
-      15,
-      23,
-      7,
-      26,
-      22,
-      6,
-      24,
-      18,
-      10,
-      21,
-      16,
-      13,
-      17,
-      14,
-      3,
-      9,
-      19,
-      1
+      12
     ]
   ],
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.007241755999984889,
-    0.007339221000165708,
-    0.008290657000088686
+    0.0076016460079699755,
+    0.008714057999895886,
+    0.007919064999441616
   ],
   "raw_initial_costs": [
     1906.0,
@@ -164,13 +164,13 @@
   ],
   "raw_costs": [
     1610.0,
-    1618.0,
-    1620.0
+    1622.0,
+    1625.0
   ],
   "raw_gaps": [
     0.0,
-    0.4968944099378882,
-    0.6211180124223602
+    0.7453416149068323,
+    0.9316770186335404
   ],
   "raw_generations": [
     1,
@@ -192,7 +192,7 @@
   "optimal_cost": 1610.0,
   "max_generations_configured": 312,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:22:54.333309",
+  "timestamp": "2026-11-05T14:03:57.707027",
   "problem_metadata": {
     "problem_id": 4,
     "name": "bayg29",
@@ -222,15 +222,44 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": true
+      },
+      "selection": {
+        "class": "SelectionGPUTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverGPUOrder"
+      },
+      "mutation": {
+        "class": "MutationGPUSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "batch",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationGPUCost",
+        "return_gpu": true,
+        "threads_per_block": 256
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "GPUTournamentSelection",
-    "crossover": "GPUOrderCrossover",
-    "mutation": "GPUSwapMutation",
-    "local_search": "BatchGPUTwoOpt",
-    "evaluation": "GPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionGPUTournament",
+    "crossover": "CrossoverGPUOrder",
+    "mutation": "MutationGPUSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

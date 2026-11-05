@@ -2,29 +2,37 @@
   "algorithm": "CPU",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 14.206758079333364,
-  "std_time": 2.1121171244463466,
-  "min_time": 11.234292108999853,
-  "max_time": 15.947731447000024,
-  "mean_cost": 7543.666666666667,
-  "std_cost": 2.357022603955158,
+  "mean_time": 3.9989758113370044,
+  "std_time": 0.05554061913923561,
+  "min_time": 3.920508327006246,
+  "max_time": 4.041256025011535,
+  "mean_cost": 7578.0,
+  "std_cost": 25.45584412271571,
   "best_cost": 7542.0,
-  "worst_cost": 7547.0,
-  "mean_initial_cost": 14546.333333333334,
-  "std_initial_cost": 204.1508157112177,
-  "mean_gap": 0.02209847078582162,
-  "std_gap": 0.03125195709301456,
+  "worst_cost": 7596.0,
+  "mean_initial_cost": 20355.0,
+  "std_initial_cost": 1308.3427175884256,
+  "mean_gap": 0.477326968973747,
+  "std_gap": 0.3375211366045573,
   "best_gap": 0.0,
-  "mean_improvement": 48.13011199258015,
-  "mean_generations": 3.6666666666666665,
+  "mean_improvement": 62.61743429841854,
+  "mean_generations": 9.666666666666666,
   "std_generations": 0.4714045207910317,
-  "min_generations": 3.0,
-  "max_generations": 4.0,
+  "min_generations": 9.0,
+  "max_generations": 10.0,
   "mean_h2d_mb": 0.0,
   "mean_d2h_mb": 0.0,
   "total_transfer_mb": 0.0,
   "mean_kernels": 0.0,
   "best_tour": [
+    10,
+    51,
+    13,
+    12,
+    46,
+    25,
+    26,
+    27,
     11,
     24,
     3,
@@ -68,18 +76,18 @@
     9,
     42,
     32,
-    50,
-    10,
-    51,
-    13,
-    12,
-    46,
-    25,
-    26,
-    27
+    50
   ],
   "raw_best_tours": [
     [
+      10,
+      51,
+      13,
+      12,
+      46,
+      25,
+      26,
+      27,
       11,
       24,
       3,
@@ -123,6 +131,10 @@
       9,
       42,
       32,
+      50
+    ],
+    [
+      32,
       50,
       10,
       51,
@@ -131,20 +143,24 @@
       46,
       25,
       26,
-      27
-    ],
-    [
+      27,
+      11,
+      24,
+      3,
+      5,
+      14,
+      4,
       23,
       47,
-      37,
+      45,
       36,
+      37,
       39,
       38,
       35,
       34,
       33,
       43,
-      45,
       15,
       28,
       49,
@@ -169,38 +185,22 @@
       7,
       8,
       9,
-      42,
-      32,
-      50,
-      10,
-      51,
-      13,
-      12,
-      46,
-      25,
-      26,
-      27,
-      11,
-      24,
-      3,
-      5,
-      14,
-      4
+      42
     ],
     [
       19,
       49,
       28,
       15,
-      45,
       43,
       33,
       34,
       35,
       38,
-      36,
       39,
       37,
+      36,
+      45,
       47,
       23,
       4,
@@ -245,33 +245,33 @@
   "problem_type": "TSP",
   "edge_type": "EUC_2D",
   "raw_times": [
-    15.947731447000024,
-    15.438250682000216,
-    11.234292108999853
+    3.920508327006246,
+    4.041256025011535,
+    4.0351630819932325
   ],
   "raw_initial_costs": [
-    14476.0,
-    14824.0,
-    14339.0
+    20244.0,
+    22010.0,
+    18811.0
   ],
   "raw_costs": [
     7542.0,
-    7542.0,
-    7547.0
+    7596.0,
+    7596.0
   ],
   "raw_gaps": [
     0.0,
-    0.0,
-    0.06629541235746486
+    0.7159904534606205,
+    0.7159904534606205
   ],
   "raw_generations": [
-    4,
-    4,
-    3
+    9,
+    10,
+    10
   ],
   "raw_stop_reasons": [
     "hit_optimal",
-    "hit_optimal",
+    "within_1pct_optimal",
     "within_1pct_optimal"
   ],
   "raw_seeds": [
@@ -284,7 +284,7 @@
   "optimal_cost": 7542.0,
   "max_generations_configured": 749,
   "backend": "CPU",
-  "timestamp": "2026-11-04T11:23:43.303936",
+  "timestamp": "2026-11-05T14:04:14.645483",
   "problem_metadata": {
     "problem_id": 1,
     "name": "berlin52",
@@ -314,15 +314,40 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": false
+      },
+      "selection": {
+        "class": "SelectionTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverOrder"
+      },
+      "mutation": {
+        "class": "MutationSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchCPUTwoOpt",
+        "max_iterations": 10,
+        "candidate_k": 20,
+        "mode": "first"
+      },
+      "evaluation": {
+        "class": "EvaluationCPUCost"
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "TournamentSelection",
-    "crossover": "OrderCrossover",
-    "mutation": "SwapMutation",
-    "local_search": "CPUTwoOpt",
-    "evaluation": "CPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionTournament",
+    "crossover": "CrossoverOrder",
+    "mutation": "MutationSwap",
+    "local_search": "LocalSearchCPUTwoOpt",
+    "evaluation": "EvaluationCPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

@@ -2,10 +2,10 @@
   "algorithm": "HybridNaive",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.12509743833318984,
-  "std_time": 0.017149889210886518,
-  "min_time": 0.11137479699982578,
-  "max_time": 0.1492776759996559,
+  "mean_time": 0.10666181233439904,
+  "std_time": 0.0010215407059836622,
+  "min_time": 0.10533048700017389,
+  "max_time": 0.10781327100994531,
   "mean_cost": 2085.0,
   "std_cost": 0.0,
   "best_cost": 2085.0,
@@ -105,9 +105,9 @@
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.11137479699982578,
-    0.11463984200008781,
-    0.1492776759996559
+    0.10781327100994531,
+    0.10533048700017389,
+    0.10684167899307795
   ],
   "raw_initial_costs": [
     2085.0,
@@ -144,7 +144,7 @@
   "optimal_cost": 2085.0,
   "max_generations_configured": 140,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:24:18.823809",
+  "timestamp": "2026-11-05T14:04:46.857324",
   "problem_metadata": {
     "problem_id": 38,
     "name": "gr17",
@@ -174,15 +174,42 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": false
+      },
+      "selection": {
+        "class": "SelectionTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverOrder"
+      },
+      "mutation": {
+        "class": "MutationSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "naive",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationCPUCost"
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "TournamentSelection",
-    "crossover": "OrderCrossover",
-    "mutation": "SwapMutation",
-    "local_search": "NaiveGPUTwoOpt",
-    "evaluation": "CPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionTournament",
+    "crossover": "CrossoverOrder",
+    "mutation": "MutationSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationCPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

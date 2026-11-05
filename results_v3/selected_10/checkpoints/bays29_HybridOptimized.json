@@ -2,29 +2,38 @@
   "algorithm": "HybridOptimized",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.013273790999998406,
-  "std_time": 0.001223034038954183,
-  "min_time": 0.012359192000076291,
-  "max_time": 0.015002447999904689,
-  "mean_cost": 2022.0,
-  "std_cost": 2.8284271247461903,
+  "mean_time": 0.015428838664471792,
+  "std_time": 0.0009753720132594565,
+  "min_time": 0.014678874998935498,
+  "max_time": 0.016806412997539155,
+  "mean_cost": 2022.6666666666667,
+  "std_cost": 2.494438257849294,
   "best_cost": 2020.0,
   "worst_cost": 2026.0,
-  "mean_initial_cost": 2410.6666666666665,
-  "std_initial_cost": 61.266267680964184,
-  "mean_gap": 0.099009900990099,
-  "std_gap": 0.14002114478941535,
+  "mean_initial_cost": 2408.0,
+  "std_initial_cost": 60.404194114868105,
+  "mean_gap": 0.13201320132013203,
+  "std_gap": 0.12348704246778684,
   "best_gap": 0.0,
-  "mean_improvement": 16.064942433168635,
+  "mean_improvement": 15.946151976066048,
   "mean_generations": 1.0,
   "std_generations": 0.0,
   "min_generations": 1.0,
   "max_generations": 1.0,
-  "mean_h2d_mb": 0.06612,
+  "mean_h2d_mb": 0.074124,
   "mean_d2h_mb": 0.063488,
-  "total_transfer_mb": 0.129608,
+  "total_transfer_mb": 0.137612,
   "mean_kernels": 22.0,
   "best_tour": [
+    9,
+    19,
+    1,
+    2,
+    28,
+    25,
+    4,
+    8,
+    11,
     5,
     27,
     0,
@@ -44,19 +53,20 @@
     16,
     17,
     14,
-    3,
-    9,
-    19,
-    1,
-    2,
-    28,
-    25,
-    4,
-    8,
-    11
+    3
   ],
   "raw_best_tours": [
     [
+      3,
+      9,
+      19,
+      1,
+      2,
+      28,
+      25,
+      4,
+      8,
+      11,
       5,
       27,
       0,
@@ -72,20 +82,10 @@
       18,
       10,
       21,
-      13,
       16,
+      13,
       17,
-      14,
-      3,
-      9,
-      19,
-      1,
-      2,
-      28,
-      25,
-      4,
-      8,
-      11
+      14
     ],
     [
       9,
@@ -119,56 +119,56 @@
       3
     ],
     [
-      21,
-      13,
-      16,
-      17,
-      14,
-      3,
-      9,
-      19,
-      20,
-      1,
-      2,
-      28,
-      25,
-      4,
-      8,
-      11,
-      5,
-      27,
-      0,
       7,
-      23,
-      12,
-      15,
-      26,
-      22,
-      6,
-      24,
+      0,
+      27,
+      5,
+      11,
+      8,
+      4,
+      25,
+      28,
+      2,
+      1,
+      20,
+      19,
+      9,
+      3,
+      14,
+      17,
+      16,
+      13,
+      21,
+      10,
       18,
-      10
+      24,
+      6,
+      22,
+      26,
+      15,
+      12,
+      23
     ]
   ],
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.01245973300001424,
-    0.015002447999904689,
-    0.012359192000076291
+    0.014801227996940725,
+    0.016806412997539155,
+    0.014678874998935498
   ],
   "raw_initial_costs": [
-    2433.0,
+    2425.0,
     2472.0,
     2327.0
   ],
   "raw_costs": [
-    2020.0,
+    2022.0,
     2020.0,
     2026.0
   ],
   "raw_gaps": [
-    0.0,
+    0.09900990099009901,
     0.0,
     0.297029702970297
   ],
@@ -178,7 +178,7 @@
     1
   ],
   "raw_stop_reasons": [
-    "hit_optimal",
+    "within_1pct_optimal",
     "hit_optimal",
     "within_1pct_optimal"
   ],
@@ -192,7 +192,7 @@
   "optimal_cost": 2020.0,
   "max_generations_configured": 312,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:23:00.458436",
+  "timestamp": "2026-11-05T14:04:02.423288",
   "problem_metadata": {
     "problem_id": 83,
     "name": "bays29",
@@ -222,15 +222,44 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": false
+      },
+      "selection": {
+        "class": "SelectionTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverOrder"
+      },
+      "mutation": {
+        "class": "MutationSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "batch",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationGPUCost",
+        "return_gpu": false,
+        "threads_per_block": 256
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "TournamentSelection",
-    "crossover": "OrderCrossover",
-    "mutation": "SwapMutation",
-    "local_search": "BatchGPUTwoOpt",
-    "evaluation": "GPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionTournament",
+    "crossover": "CrossoverOrder",
+    "mutation": "MutationSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

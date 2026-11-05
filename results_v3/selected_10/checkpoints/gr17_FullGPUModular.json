@@ -2,10 +2,10 @@
   "algorithm": "FullGPUModular",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.007165788333319749,
-  "std_time": 0.00030348281206264027,
-  "min_time": 0.006737290999808465,
-  "max_time": 0.00740113800020481,
+  "mean_time": 0.007419949334386426,
+  "std_time": 0.0006415088493197604,
+  "min_time": 0.006795919995056465,
+  "max_time": 0.008302262998768128,
   "mean_cost": 2085.0,
   "std_cost": 0.0,
   "best_cost": 2085.0,
@@ -20,9 +20,9 @@
   "std_generations": 0.0,
   "min_generations": 1.0,
   "max_generations": 1.0,
-  "mean_h2d_mb": 0.030984,
+  "mean_h2d_mb": 0.034316,
   "mean_d2h_mb": 0.0,
-  "total_transfer_mb": 0.030984,
+  "total_transfer_mb": 0.034316,
   "mean_kernels": 25.0,
   "best_tour": [
     5,
@@ -105,9 +105,9 @@
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.00740113800020481,
-    0.006737290999808465,
-    0.00735893599994597
+    0.008302262998768128,
+    0.006795919995056465,
+    0.007161665009334683
   ],
   "raw_initial_costs": [
     2085.0,
@@ -144,7 +144,7 @@
   "optimal_cost": 2085.0,
   "max_generations_configured": 140,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:24:19.006031",
+  "timestamp": "2026-11-05T14:04:47.010240",
   "problem_metadata": {
     "problem_id": 38,
     "name": "gr17",
@@ -174,15 +174,44 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": true
+      },
+      "selection": {
+        "class": "SelectionGPUTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverGPUOrder"
+      },
+      "mutation": {
+        "class": "MutationGPUSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "batch",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationGPUCost",
+        "return_gpu": true,
+        "threads_per_block": 256
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "GPUTournamentSelection",
-    "crossover": "GPUOrderCrossover",
-    "mutation": "GPUSwapMutation",
-    "local_search": "BatchGPUTwoOpt",
-    "evaluation": "GPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionGPUTournament",
+    "crossover": "CrossoverGPUOrder",
+    "mutation": "MutationGPUSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

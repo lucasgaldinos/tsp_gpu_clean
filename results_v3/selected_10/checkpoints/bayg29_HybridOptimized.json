@@ -2,10 +2,10 @@
   "algorithm": "HybridOptimized",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.016126963000109146,
-  "std_time": 0.0021988749506107077,
-  "min_time": 0.013759442000264244,
-  "max_time": 0.01905677900003866,
+  "mean_time": 0.020927809663893033,
+  "std_time": 0.003822118369967499,
+  "min_time": 0.015921770987915806,
+  "max_time": 0.025196492002578452,
   "mean_cost": 1611.6666666666667,
   "std_cost": 2.3570226039551585,
   "best_cost": 1610.0,
@@ -20,9 +20,9 @@
   "std_generations": 0.0,
   "min_generations": 1.0,
   "max_generations": 1.0,
-  "mean_h2d_mb": 0.06612,
+  "mean_h2d_mb": 0.074124,
   "mean_d2h_mb": 0.063488,
-  "total_transfer_mb": 0.129608,
+  "total_transfer_mb": 0.137612,
   "mean_kernels": 22.0,
   "best_tour": [
     13,
@@ -153,9 +153,9 @@
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.01556466800002454,
-    0.013759442000264244,
-    0.01905677900003866
+    0.025196492002578452,
+    0.021665166001184843,
+    0.015921770987915806
   ],
   "raw_initial_costs": [
     1906.0,
@@ -192,7 +192,7 @@
   "optimal_cost": 1610.0,
   "max_generations_configured": 312,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:22:54.253141",
+  "timestamp": "2026-11-05T14:03:57.639688",
   "problem_metadata": {
     "problem_id": 4,
     "name": "bayg29",
@@ -222,15 +222,44 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": false
+      },
+      "selection": {
+        "class": "SelectionTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverOrder"
+      },
+      "mutation": {
+        "class": "MutationSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "batch",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationGPUCost",
+        "return_gpu": false,
+        "threads_per_block": 256
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "TournamentSelection",
-    "crossover": "OrderCrossover",
-    "mutation": "SwapMutation",
-    "local_search": "BatchGPUTwoOpt",
-    "evaluation": "GPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionTournament",
+    "crossover": "CrossoverOrder",
+    "mutation": "MutationSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

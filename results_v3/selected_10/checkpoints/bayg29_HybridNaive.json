@@ -2,10 +2,10 @@
   "algorithm": "HybridNaive",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.1554011813333697,
-  "std_time": 0.005083771454905997,
-  "min_time": 0.14913413800013586,
-  "max_time": 0.1615859690000434,
+  "mean_time": 0.16086807166963504,
+  "std_time": 0.010269231295250803,
+  "min_time": 0.14691472600679845,
+  "max_time": 0.17133240499242675,
   "mean_cost": 1611.6666666666667,
   "std_cost": 2.3570226039551585,
   "best_cost": 1610.0,
@@ -153,9 +153,9 @@
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.1615859690000434,
-    0.15548343699992984,
-    0.14913413800013586
+    0.16435708400967997,
+    0.17133240499242675,
+    0.14691472600679845
   ],
   "raw_initial_costs": [
     1906.0,
@@ -192,7 +192,7 @@
   "optimal_cost": 1610.0,
   "max_generations_configured": 312,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:22:54.139811",
+  "timestamp": "2026-11-05T14:03:57.522547",
   "problem_metadata": {
     "problem_id": 4,
     "name": "bayg29",
@@ -222,15 +222,42 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": false
+      },
+      "selection": {
+        "class": "SelectionTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverOrder"
+      },
+      "mutation": {
+        "class": "MutationSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "naive",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationCPUCost"
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "TournamentSelection",
-    "crossover": "OrderCrossover",
-    "mutation": "SwapMutation",
-    "local_search": "NaiveGPUTwoOpt",
-    "evaluation": "CPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionTournament",
+    "crossover": "CrossoverOrder",
+    "mutation": "MutationSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationCPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }

@@ -2,10 +2,10 @@
   "algorithm": "HybridOptimized",
   "repetitions": 3,
   "successful_runs": 3,
-  "mean_time": 0.013295782666773448,
-  "std_time": 0.0002306488370156685,
-  "min_time": 0.013094968000132212,
-  "max_time": 0.013618796000173461,
+  "mean_time": 0.014416014004382305,
+  "std_time": 0.0005757528292855718,
+  "min_time": 0.013616349999210797,
+  "max_time": 0.014948662006645463,
   "mean_cost": 1272.0,
   "std_cost": 0.0,
   "best_cost": 1272.0,
@@ -20,24 +20,19 @@
   "std_generations": 0.0,
   "min_generations": 1.0,
   "max_generations": 1.0,
-  "mean_h2d_mb": 0.05376,
+  "mean_h2d_mb": 0.059904,
   "mean_d2h_mb": 0.053248,
-  "total_transfer_mb": 0.107008,
+  "total_transfer_mb": 0.113152,
   "mean_kernels": 22.0,
   "best_tour": [
-    0,
-    11,
-    3,
-    22,
-    8,
     12,
     13,
     19,
     1,
     14,
     18,
-    17,
     21,
+    17,
     16,
     9,
     4,
@@ -48,62 +43,29 @@
     6,
     2,
     10,
-    15
+    15,
+    0,
+    11,
+    3,
+    22,
+    8
   ],
   "raw_best_tours": [
     [
-      0,
-      11,
-      3,
-      22,
-      8,
       12,
       13,
       19,
       1,
       14,
       18,
-      17,
       21,
+      17,
       16,
       9,
       4,
       20,
       7,
       23,
-      5,
-      6,
-      2,
-      10,
-      15
-    ],
-    [
-      10,
-      2,
-      6,
-      5,
-      23,
-      7,
-      20,
-      4,
-      9,
-      16,
-      21,
-      17,
-      18,
-      14,
-      1,
-      19,
-      13,
-      12,
-      8,
-      22,
-      3,
-      11,
-      0,
-      15
-    ],
-    [
       5,
       6,
       2,
@@ -113,6 +75,37 @@
       11,
       3,
       22,
+      8
+    ],
+    [
+      10,
+      2,
+      6,
+      5,
+      23,
+      7,
+      20,
+      4,
+      9,
+      16,
+      21,
+      17,
+      18,
+      14,
+      1,
+      19,
+      13,
+      12,
+      8,
+      22,
+      3,
+      11,
+      0,
+      15
+    ],
+    [
+      3,
+      22,
       8,
       12,
       13,
@@ -127,15 +120,22 @@
       4,
       20,
       7,
-      23
+      23,
+      5,
+      6,
+      2,
+      10,
+      15,
+      0,
+      11
     ]
   ],
   "problem_type": "TSP",
   "edge_type": "EXPLICIT",
   "raw_times": [
-    0.013618796000173461,
-    0.013173584000014671,
-    0.013094968000132212
+    0.014948662006645463,
+    0.013616349999210797,
+    0.014683030007290654
   ],
   "raw_initial_costs": [
     1387.0,
@@ -172,7 +172,7 @@
   "optimal_cost": 1272.0,
   "max_generations_configured": 235,
   "backend": "GPU",
-  "timestamp": "2026-11-04T11:24:26.953126",
+  "timestamp": "2026-11-05T14:04:51.681171",
   "problem_metadata": {
     "problem_id": 71,
     "name": "gr24",
@@ -202,15 +202,44 @@
     "population_size": 256,
     "mutation_rate": 0.02,
     "seed": 42,
-    "local_search_stage": "post_mutation"
+    "local_search_stage": "post_mutation",
+    "strategy_params": {
+      "initialization": {
+        "class": "InitializationRandom",
+        "return_gpu": false
+      },
+      "selection": {
+        "class": "SelectionTournament",
+        "k": 5
+      },
+      "crossover": {
+        "class": "CrossoverOrder"
+      },
+      "mutation": {
+        "class": "MutationSwap"
+      },
+      "local_search": {
+        "class": "LocalSearchGPUTwoOpt",
+        "max_iterations": 10,
+        "mode": "batch",
+        "candidate_k": 20,
+        "max_shared_tour_cities": 11520,
+        "threads_per_block": 256
+      },
+      "evaluation": {
+        "class": "EvaluationGPUCost",
+        "return_gpu": false,
+        "threads_per_block": 256
+      }
+    }
   },
   "strategies": {
-    "initialization": "RandomPermutationInitialization",
-    "selection": "TournamentSelection",
-    "crossover": "OrderCrossover",
-    "mutation": "SwapMutation",
-    "local_search": "BatchGPUTwoOpt",
-    "evaluation": "GPUCostEvaluation"
+    "initialization": "InitializationRandom",
+    "selection": "SelectionTournament",
+    "crossover": "CrossoverOrder",
+    "mutation": "MutationSwap",
+    "local_search": "LocalSearchGPUTwoOpt",
+    "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "random_initialization"
+  "construction_heuristic": "InitializationRandom"
 }
