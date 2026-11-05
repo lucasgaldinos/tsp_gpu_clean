@@ -1,0 +1,19 @@
+flowchart TD
+    Start(["Início: Circuito C"]) --> Init["varredura ← 0"]
+    Init --> CheckIter{"varredura < κ?"}
+    CheckIter -->|Não| End(["Fim: Retorna C"])
+    CheckIter -->|Sim| ResetBest["melhor_Δ ← 0<br/>melhor_i ← -1<br/>melhor_j ← -1"]
+    ResetBest --> LoopI["Para i = 0 até n-2"]
+    LoopI --> LoopJ["Para j = i+2 até n-1"]
+    LoopJ --> CalcDelta["Calcular ΔC = (c_ij + c_i+1,j+1)<br/>- (c_i,i+1 + c_j,j+1)"]
+    CalcDelta --> CheckDelta{"ΔC < melhor Δ?"}
+    CheckDelta -->|Sim| StoreBest["Guardar melhor par<br/>(i,j) e melhor_Δ"]
+    CheckDelta -->|Não| NextJ
+    StoreBest --> NextJ["Próximo j"]
+    NextJ -->|Mais j| LoopJ
+    NextJ -->|Fim j| NextI["Próximo i"]
+    NextI -->|Mais i| LoopI
+    NextI -->|Fim i| ApplyBest{"melhor_Δ < 0?"}
+    ApplyBest -->|Sim| Apply["Reverter segmento<br/>(melhor_i+1..melhor_j)<br/>varredura ← varredura + 1"]
+    ApplyBest -->|Não| End
+    Apply --> CheckIter

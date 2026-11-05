@@ -1,0 +1,195 @@
+\chapter{Resultados}\label{cap4-resultados}
+
+\begin{quote}
+  \textbf{\textcolor{red}{Aviso: resultados provisórios (\emph{placeholder}).}}\label{obs-placeholder}
+  \textbf{Os valores numéricos apresentados neste capítulo não devem ser tomados como resultados finais.}
+  Eles foram obtidos antes da correção de dois defeitos metodológicos descritos ao longo do capítulo: (i) a assimetria no critério de parada da busca local \(2\)-opt da variante Totalmente em GPU (\hyperref[obs-fullgpu-iteracoes]{Observação (1)}), que favoreceu essa variante em qualidade de solução; e (ii) a aritmética das distâncias então vigente, cujos valores de \emph{gap} não são aritmeticamente válidos sob a convenção inteira da TSPLIB adotada na versão final (\hyperref[obs-aritmetica]{Observação (3)}).
+  As tabelas são mantidas como \emph{placeholders} para preservar a estrutura da análise e serão substituídas após a re-execução dos experimentos com os parâmetros normalizados, conforme a \hyperref[obs-ajustes]{Seção 1.3}.
+\end{quote}
+
+Este capítulo apresenta os resultados experimentais obtidos a partir da execução das quatro variantes do algoritmo memético GA+\(2\)-opt (CPU, híbrida ingênua, híbrida otimizada e totalmente em GPU) sobre o conjunto de 38 instâncias da TSPLIB.
+A análise é dividida em três partes principais:
+
+\begin{enumerate}
+  \def\labelenumi{\arabic{enumi}.}
+  \tightlist
+  \item
+        uma avaliação detalhada por instância, destacando o comportamento para
+        diferentes tamanhos de problema;
+  \item
+        uma análise agregada, focada nas métricas de ganho de performance e
+        qualidade média das soluções; e
+  \item
+        a aplicação dos testes estatísticos descritos no Capítulo 3 para
+        validar as diferenças de desempenho observadas.
+\end{enumerate}
+
+\section{Resultados Experimentais}\label{sec-41-resultados-experimentais}
+
+Os experimentos foram conduzidos conforme o protocolo definido na Seção 3.3, com 26 repetições independentes para cada par algoritmo-instância.
+Para as instâncias pequenas (\(n_{coords} \le 100\)), todas as quatro variantes foram executadas.
+Para instâncias médias e grandes (\(n_{coords} > 100\)), a variante puramente em CPU foi omitida devido ao tempo de execução proibitivo, mantendo-se a comparação entre as três variantes aceleradas por GPU.
+
+As métricas primárias coletadas foram:
+
+\begin{itemize}
+  \tightlist
+  \item
+        \textbf{Tempo Médio de Execução (s):} Tempo total para completar a execução por repetição.
+  \item
+        \textbf{Gap Médio (\%):} Desvio percentual do custo da melhor solução encontrada em relação ao ótimo conhecido da instância.
+  \item
+        \textbf{Ganho de Performance:} Razão entre o tempo de execução da variante de referência (CPU ou híbrida ingênua) e a variante avaliada.
+\end{itemize}
+
+\section{Análise por Instância}\label{sec-42-analise-por-instancia}
+
+A Tabela\textasciitilde{}\ref{tbl:results-detailed} apresenta os resultados detalhados para uma seleção representativa de instâncias, cobrindo as três faixas de tamanho definidas.
+
+\begin{longtable}[]{@{}
+    >{\raggedright\arraybackslash}p{0.10\linewidth}
+    >{\centering\arraybackslash}p{0.11\linewidth}
+    >{\raggedright\arraybackslash}p{0.19\linewidth}
+    >{\centering\arraybackslash}p{0.16\linewidth}
+    >{\centering\arraybackslash}p{0.11\linewidth}
+    >{\centering\arraybackslash}p{0.12\linewidth}
+    >{\centering\arraybackslash}p{0.10\linewidth}@{}}
+  \caption{Resultados detalhados por instância (seleção representativa)
+    \label{tbl:results-detailed}}                                                                                 \\
+  \toprule
+  Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
+  \midrule
+  \endfirsthead
+  \toprule
+  Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  \textbf{berlin52} & 52             & CPU               & \(7554{,}65 \pm 22{,}93\)     & \(0{,}17\)            & \(25{,}82\)     & \(1{,}00\times\)  \\
+                    & 52             & Híbrida Ingênua   & \(7547{,}31 \pm 14{,}45\)     & \(0{,}07\)            & \(0{,}57\)      & \(45{,}3\times\)  \\
+                    & 52             & Híbrida Otimizada & \(7557{,}85 \pm 23{,}91\)     & \(0{,}21\)            & \(0{,}11\)      & \(234{,}7\times\) \\
+                    & 52             & Totalmente em GPU & \(7542{,}00 \pm 0{,}00\)      & \(0{,}00\)            & \(0{,}25\)      & \(103{,}3\times\) \\
+  \midrule
+  \textbf{kroA100}  & 100            & CPU               & \(21382{,}88 \pm 62{,}04\)    & \(0{,}47\)            & \(185{,}08\)    & \(1{,}00\times\)  \\
+                    & 100            & Híbrida Ingênua   & \(21382{,}38 \pm 63{,}30\)    & \(0{,}47\)            & \(1{,}81\)      & \(102{,}3\times\) \\
+                    & 100            & Híbrida Otimizada & \(21364{,}23 \pm 65{,}23\)    & \(0{,}39\)            & \(0{,}30\)      & \(616{,}9\times\) \\
+                    & 100            & Totalmente em GPU & \(21285{,}23 \pm 4{,}90\)     & \(0{,}02\)            & \(1{,}37\)      & \(135{,}1\times\) \\
+  \midrule
+  \textbf{pr1002}   & 1002           & Híbrida Ingênua   & \(279875{,}50 \pm 3210{,}15\) & \(8{,}04\)            & \(696{,}05\)    & \(1{,}00\times\)  \\
+                    & 1002           & Híbrida Otimizada & \(279184{,}62 \pm 2789{,}63\) & \(7{,}77\)            & \(374{,}50\)    & \(1{,}86\times\)  \\
+                    & 1002           & Totalmente em GPU & \(269776{,}77 \pm 743{,}93\)  & \(4{,}14\)            & \(758{,}40\)    & \(0{,}92\times\)  \\
+\end{longtable}
+
+Para instâncias pequenas como \texttt{berlin52} e \texttt{kroA100}, observa-se um ganho de performance massivo da variante \textbf{híbrida otimizada} em relação à CPU, chegando a mais de \(600\times\) no caso de \texttt{kroA100}.
+Isso demonstra a eficiência da paralelização em lote do \(2\)-opt, que amortiza o custo de lançamento de \emph{kernels}.
+A variante \textbf{totalmente em GPU}, embora muito mais rápida que a CPU, apresenta um \emph{overhead} inicial maior que a híbrida otimizada para problemas muito pequenos, devido à gestão de memória residente.
+
+Para instâncias grandes como \texttt{pr1002}, o cenário muda.
+A variante \textbf{híbrida otimizada} mantém a liderança em tempo de execução, com \(1{,}86\times\) sobre a ingênua, mas a variante \textbf{totalmente em GPU} destaca-se na \textbf{qualidade da solução}, obtendo \emph{gap} médio de \(4{,}14\%\) contra \(7{,}77\%\) da otimizada.
+Curiosamente, o tempo da totalmente em GPU em instâncias muito grandes aproxima-se ou até excede o da variante ingênua em alguns casos.
+Na ausência de dados empíricos extraídos por ferramentas de \emph{profiling} de \emph{hardware}, as causas exatas dessa degradação de velocidade em instâncias grandes permanecem em aberto.
+Os fatores podem estar relacionados tanto à natureza do algoritmo genético escolhido quanto a limitações arquiteturais da GPU, e a investigação detalhada dessas hipóteses constitui trabalho futuro (ver \hyperref[sec-64-trabalhos-futuros]{Seção 6.4}).
+Ainda assim, a permanência dos dados no dispositivo evita as barreiras de latência do barramento PCIe, favorecendo uma exploração ininterrupta que converge estatisticamente para melhores ótimos locais.
+
+\begin{warning}[Observação (1) — validade parcial dos resultados da variante totalmente em GPU]\label{obs-fullgpu-iteracoes}
+  A variante totalmente em GPU operou com \(50\) iterações de busca local, em vez das \(10\) das demais variantes, e o seu operador \(2\)-opt é de \emph{first-improvement}, enquanto os das outras são de \emph{best-improvement}.
+  Os valores desta seção não isolam, portanto, o efeito da residência dos dados na GPU.
+  Ver a \hyperref[obs-ajustes]{Seção 1.3}.
+\end{warning}
+
+\section{Análise Agregada e Trade-offs}\label{sec-43-analise-agregada}
+
+Ao agregar os resultados de todas as 38 instâncias, emergem padrões claros de desempenho que caracterizam o \emph{trade-off} entre velocidade e qualidade.
+
+\begin{longtable}[]{@{}
+    >{\raggedright\arraybackslash}p{0.26\linewidth}
+    >{\centering\arraybackslash}p{0.24\linewidth}
+    >{\centering\arraybackslash}p{0.24\linewidth}
+    >{\centering\arraybackslash}p{0.22\linewidth}@{}}
+  \caption{Médias agregadas sobre todas as 38 instâncias
+    \label{tbl:results-aggregated}}                                           \\
+  \toprule
+  Algoritmo         & Tempo médio (s) & \emph{Gap} médio (\%)         & Ganho de perf. mediano    \\
+  \midrule
+  \endfirsthead
+  \toprule
+  Algoritmo         & Tempo médio (s) & \emph{Gap} médio (\%)         & Ganho de perf. mediano    \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  Híbrida Ingênua   & \(47{,}08\)     & \(1{,}28 \pm 1{,}68\)         & \(1{,}00\times\)          \\
+  Híbrida Otimizada & \(18{,}94\)     & \(1{,}30 \pm 1{,}78\)         & \(\mathbf{5{,}69\times}\) \\
+  Totalmente em GPU & \(43{,}51\)     & \(\mathbf{0{,}88 \pm 1{,}14}\) & \(1{,}21\times\)          \\
+\end{longtable}
+
+% TODO (Ação 1.1): TABELAS INVALIDADAS — Resultados NÃO FINAIS (placeholder).
+% (a) assimetria no critério de parada da FullGPU: 50 iterações de 2-opt vs 10
+%     nas demais (parâmetro não propagado ao kernel; corrigido no código);
+% (b) aritmética de distâncias anterior à conversão para int32, o que torna os
+%     valores de gap aritmeticamente inválidos.
+% Ação: re-executar os experimentos com parâmetros normalizados e aritmética
+% inteira, então substituir as tabelas. Ver Observações (1) em §4.2 e (2) em §4.3.
+
+A análise da Tabela\textasciitilde{}\ref{tbl:results-aggregated} revela duas conclusões que dependem inteiramente dos valores agregados:
+
+\begin{warning}[Observação (2) — as duas conclusões abaixo ainda não valem]\label{obs-conclusoes-agregadas}
+  Os números que as sustentam vêm da execução descrita na \hyperref[obs-ajustes]{Seção 1.3}.
+  A aritmética é tratada na \hyperref[obs-aritmetica]{Observação (3)}.
+\end{warning}
+
+\begin{enumerate}
+  \def\labelenumi{\arabic{enumi}.}
+  \tightlist
+  \item
+        \textbf{Híbrida Otimizada é a campeã de velocidade:} Com um ganho de performance mediano por instância de \(5{,}69\times\) sobre a versão ingênua, esta variante comprova que a estratégia de processamento em lote (\emph{batch processing}) é a mais eficaz para reduzir o tempo total de execução.
+        Ao enviar a população inteira para a GPU de uma só vez, minimiza-se a latência de comunicação PCIe, gargalo crítico em arquiteturas híbridas.
+  \item
+        \textbf{Totalmente em GPU é a campeã de qualidade:} com \emph{gap} médio de \(0{,}88\% \pm 1{,}14\), a versão totalmente residente em GPU supera as variantes híbridas (\(1{,}28\%\) e \(1{,}30\%\), respectivamente).
+        Ver a \hyperref[obs-erro-iteracoes]{Observação (4)} sobre o que essa vantagem pode representar.
+\end{enumerate}
+
+Para validar estatisticamente as diferenças de qualidade (Gap) entre as variantes implementadas em GPU (para todas as 38 instâncias), aplicou-se o teste não-paramétrico de Friedman.
+O teste rejeitou a hipótese nula com alta confiança (\(p \approx 6{,}9 \times 10^{-5}\)), confirmando que há diferença global significativa no ranqueamento de desempenho.
+Em seguida, o pós-teste de Nemenyi determinou pareadamente quais diferenças são reais: a variante totalmente em GPU mostrou-se estatisticamente superior à híbrida ingênua (\(p \approx 0{,}00028\)) e à híbrida otimizada (\(p \approx 0{,}00071\)).
+Contudo, não houve diferença estatística significativa entre as duas versões híbridas (\(p \approx 0{,}97\), ver a \hyperref[obs-aritmetica]{Observação (3)}).
+
+\begin{warning}[Observação (3) — os valores de \emph{gap} foram calculados com a aritmética antiga]\label{obs-aritmetica}
+  Os \emph{gaps} da Tabela~\ref{tbl:results-aggregated} foram calculados antes da mudança para distâncias inteiras (\hyperref[sec-311-hardware-software]{Seção 3.1.1}), e não são comparáveis aos que a convenção atual produz.
+  A ordem de qualidade entre as variantes pode mudar quando os experimentos forem refeitos; os testes de Friedman e Nemenyi acima descrevem os dados antigos, não a arquitetura.
+\end{warning}
+
+\section{Melhor Algoritmo por Categoria de Tamanho}\label{sec-44-melhor-algoritmo}
+
+A Tabela\textasciitilde{}\ref{tbl:best-algorithm} segmenta o desempenho "vencedor" por faixa de tamanho da instância, considerando o critério de menor \emph{gap} (qualidade).
+
+\begin{longtable}[]{@{}llc@{}}
+  \caption{Melhor algoritmo por faixa de tamanho, pelo critério de menor \emph{gap}
+    \label{tbl:best-algorithm}} \\
+  \toprule
+  Categoria                            & Melhor algoritmo  & \emph{Gap} médio      \\
+  \midrule
+  \endfirsthead
+  \toprule
+  Categoria                            & Melhor algoritmo  & \emph{Gap} médio      \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  Pequeno (\(n_{coords} \le 100\))     & Totalmente em GPU & \(0{,}23\%\)          \\
+  Médio (\(100 < n_{coords} \le 400\)) & Totalmente em GPU & \(0{,}79\%\)          \\
+  Grande (\(n_{coords} > 400\))        & Totalmente em GPU & \(2{,}83\%\)          \\
+\end{longtable}
+
+A dominância da variante \textbf{Totalmente em GPU} em todas as categorias de tamanho reforça a observação de que a arquitetura residente é superior para a qualidade da solução final.
+Mesmo que a variante \textbf{Híbrida Otimizada} seja mais rápida, ela tende a ficar presa em ótimos locais ligeiramente piores com mais frequência.
+Isso sugere que, para aplicações onde a qualidade da rota é crítica e o tempo de resposta é secundário (mas ainda deve ser razoável), a abordagem Totalmente em GPU é a recomendada.
+Para cenários de tempo real ou onde o \emph{throughput} é prioritário, a Híbrida Otimizada é a escolha ideal.
+
+\begin{warning}[Observação (4) — esta conclusão vem do erro das 50 iterações]\label{obs-erro-iteracoes}
+  A vantagem de qualidade da variante totalmente em GPU é o que se espera de uma variante que rodou \(50\) iterações de busca local em vez de \(10\) (ver a \hyperref[obs-fullgpu-iteracoes]{Observação (1)}).
+  Ver a \hyperref[obs-ajustes]{Seção 1.3}.
+\end{warning}
+
+

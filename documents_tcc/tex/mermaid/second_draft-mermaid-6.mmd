@@ -1,0 +1,27 @@
+    flowchart TD
+    Start(["Início: Escolher Teste Estatístico"]) --> DataType{Tipo de Dado?}
+
+    DataType -->|Contínuo| SampleSize{Tamanho da Amostra?}
+    DataType -->|Ordinal/Rankeado| NonParam[Testes Não-Paramétricos]:::nonparametric
+    DataType -->|Categórico| ChiSquare[Testes Qui-Quadrado]:::other
+
+    SampleSize -->|n < 20<br/>Amostra Pequena| SmallN[Obrigatório<br/>Teste de Normalidade]:::warning
+    SampleSize -->|20 <= n < 30<br/>Zona Cinzenta| MediumN[Recomendado<br/>Teste de Normalidade]:::decision
+    SampleSize -->|n >= 30<br/>Amostra Grande| LargeN[TCL Aplica-se<br/>Teste Recomendado]:::decision
+
+    SmallN --> Normality{Shapiro-Wilk<br/>p >= 0.05?}:::decision
+    MediumN --> Normality
+    LargeN --> Normality
+
+    Normality -->|Normal| Parametric[Testes Paramétricos]:::parametric
+    Normality -->|Não-Normal| NonParam
+
+    Parametric --> Groups{Número de Grupos?}:::decision
+    Groups -->|1 grupo| OneSample[Teste t de uma amostra]:::parametric
+    Groups -->|2 grupos| TwoSample[Pareado ou Independente?]:::decision
+    Groups -->|>=3 grupos| ANOVA[ANOVA / Kruskal-Wallis]:::parametric
+
+    NonParam --> GroupsNP{Número de Grupos?}:::decision
+    GroupsNP -->|2 pareados| Wilcoxon[Wilcoxon Signed-Rank]:::nonparametric
+    GroupsNP -->|2 independentes| MannWhitney[Mann-Whitney U]:::nonparametric
+    GroupsNP -->|>=3 grupos| Friedman[Friedman / Kruskal-Wallis]:::nonparametric

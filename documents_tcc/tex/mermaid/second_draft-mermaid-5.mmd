@@ -1,0 +1,51 @@
+    classDiagram
+    direction TB
+
+    class Orchestration {
+        +run_benchmark()
+        +manage_checkpoints()
+      }
+
+    class GeneticAlgorithmBase {
+        <<Abstract>>
+        #population_size: int
+        #mutation_rate: float
+        #tournament_size: int
+        #two_opt_iterations: int
+        +evolve()
+        #_initialize_population()
+        #_select_parents()
+        #_create_offspring()
+        #_survival_selection()
+        #_improve_population()*
+        #_evaluate_population()*
+      }
+
+    class GeneticAlgorithmCPU {
+        #_improve_population()
+        #_evaluate_population()
+      }
+
+    class GeneticAlgorithmHybridNaive {
+        #_improve_population()
+        #_evaluate_population()
+      }
+
+    class GeneticAlgorithmHybridOptimized {
+        #_improve_population()
+        #_evaluate_population()
+      }
+
+    class GeneticAlgorithmFullGPU {
+        #_improve_population()
+        #_evaluate_population()
+      }
+
+    Orchestration --> GeneticAlgorithmBase : Instantiates & Runs
+
+    GeneticAlgorithmBase <|-- GeneticAlgorithmCPU
+    GeneticAlgorithmBase <|-- GeneticAlgorithmHybridNaive
+    GeneticAlgorithmBase <|-- GeneticAlgorithmHybridOptimized
+    GeneticAlgorithmBase <|-- GeneticAlgorithmFullGPU
+
+    note for GeneticAlgorithmBase "Padrão Template Method:<br>Define fluxo fixo (evolve),<br>subclasses implementam backends<br>de execução específicos (*)"

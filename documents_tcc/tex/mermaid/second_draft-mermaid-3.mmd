@@ -1,0 +1,14 @@
+flowchart TD
+    Start(["Início"]) --> Init["Gerar população inicial P(0)<br/>(qualquer tipo de heurística construtica)"]
+    Init --> Eval0["Avaliar f(x_i) para cada<br/>indivíduo em P(0)"]
+    Eval0 --> SetT["gen ← 0"]
+    SetT --> CheckStop{"Critério de<br/>parada?"}
+    CheckStop -->|Sim| Output(["Fim: Retorna melhor solução"])
+    CheckStop -->|Não| Selection["Seleção por torneio<br/>(k_trnmt) de pais"]
+    Selection --> Crossover["Cruzamento (OX)<br/>gerar descendentes"]
+    Crossover --> Mutation["Mutação (swap)<br/>taxa p_mut"]
+    Mutation --> LocalSearch["Busca Local: aplicar<br/>n_2opt varreduras best-improvement<br/>de 2-opt a cada descendente<br/>(ℒ(x, n_2opt))"]
+    LocalSearch --> EvalNew["Avaliar f(x_i) dos<br/>descendentes refinados"]
+    EvalNew --> Replace["Substituição: formar P(gen+1)<br/>com elitismo (melhores de P(gen)<br/>+ descendentes)"]
+    Replace --> IncT["gen ← gen + 1"]
+    IncT --> CheckStop

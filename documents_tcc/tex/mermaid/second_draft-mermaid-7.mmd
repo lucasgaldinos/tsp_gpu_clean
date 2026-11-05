@@ -1,0 +1,33 @@
+    flowchart TD
+    %% Nodes
+    Start([Início: Análise de Resultados])
+
+    subgraph S1 ["Estrato 1: Pequenos (n_coords < 100)"]
+    S1_Test[Friedman Test]
+    S1_Result{p = 0.086}
+    S1_Conc[Inconclusivo<br/>Poder Estatístico Baixo]
+    end
+
+    subgraph S2 ["Estrato 2: Todos GPU-Only"]
+    S2_Test[Friedman Test]
+    S2_Result{p < 0.001}
+    S2_Nemenyi[Nemenyi Post-Hoc]
+    S2_Conc["Totalmente em GPU > híbridas<br/>(Diferença Significativa)"]
+    end
+
+    subgraph Perf [Performance & Speedup]
+    Speedup_HO[Híbrida Otimizada: ~5.69×]
+    Speedup_FG[Totalmente em GPU: ~1.2x]
+    Tradeoff[Trade-off: Híbrida Otimizada = Velocidade<br/>Totalmente em GPU = Qualidade]
+    end
+
+    %% Flow
+    Start --> S1
+    S1_Test --> S1_Result -->|Não Sig.| S1_Conc
+
+    Start --> S2
+    S2_Test --> S2_Result -->|Sig.| S2_Nemenyi --> S2_Conc
+
+    S2_Conc -.-> Tradeoff
+    Speedup_HO --> Tradeoff
+    Speedup_FG --> Tradeoff

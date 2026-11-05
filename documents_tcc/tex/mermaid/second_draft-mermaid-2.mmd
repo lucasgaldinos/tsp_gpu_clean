@@ -1,0 +1,13 @@
+flowchart TD
+    Start(["Início"]) --> InitPop["Gerar população inicial P(0)<br/>aleatória ou heurística"]
+    InitPop --> Eval0["Avaliar aptidão f(x_i)<br/>para cada indivíduo"]
+    Eval0 --> SetT["t ← 0"]
+    SetT --> CheckStop{"Critério de<br/>parada<br/>satisfeito?"}
+    CheckStop -->|Sim| Output(["Fim: Retorna<br/>melhor solução"])
+    CheckStop -->|Não| Selection["Seleção: escolher pais<br/>de P(t) com base em f(x_i)"]
+    Selection --> Crossover["Cruzamento: combinar pares<br/>de pais (taxa p_c) gerando<br/>descendentes"]
+    Crossover --> Mutation["Mutação: perturbar indivíduos<br/>(taxa p_mut) para diversidade"]
+    Mutation --> EvalNew["Avaliar aptidão dos<br/>novos indivíduos"]
+    EvalNew --> Replace["Substituição: formar P(t+1)<br/>combinando P(t) e descendentes<br/>(com ou sem elitismo)"]
+    Replace --> IncT["t ← t + 1"]
+    IncT --> CheckStop

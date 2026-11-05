@@ -1,0 +1,168 @@
+\chapter{Introdução}\label{cap1-introducao}
+
+\section{Contexto e motivação}\label{sec-11-contexto-e-motivacao}
+
+O Problema do Caixeiro Viajante (Traveling Salesman Problem -- TSP) é um dos problemas mais estudados em otimização combinatória \autocite{cook2012pursuit}.
+Tem esse nome devido à sua história clássica: um vendedor precisa visitar um conjunto de cidades, passando por cada uma exatamente uma vez, e deseja minimizar a distância total percorrida.
+
+O objetivo é encontrar um ciclo hamiltoniano (ciclo no qual se deve passar por todos os vértices uma vez e retornar ao vértice original).
+Apesar de sua formulação simples, o TSP é NP-difícil (classe de problemas para os quais não se conhece algoritmo polinomial eficiente) e, na sua formulação de decisão: ``existe um tour com custo menor ou igual a \(B\)?'', é NP-completo: não se conhece algoritmo em tempo polinomial que o resolva em geral, embora seja fácil verificar o custo de uma solução candidata. \textcite{cook2012pursuit} argumenta que essa combinação de simplicidade, dificuldade teórica e rica estrutura geométrica faz do TSP um estudo de caso central tanto para a teoria da complexidade quanto para desenvolvimento de métodos exatos e heurísticos.
+
+Na prática, variantes do TSP aparecem em domínios como roteirização de veículos, planejamento de inspeções, manufatura e testes de circuitos, genômica e astronomia, entre outros \autocite{cook2012pursuit}.
+Exemplos clássicos incluem o posicionamento e ordenamento de furos em placas de circuito impresso, logística e problemas de mapeamento genético.
+Mesmo quando modelos reais são mais complexos (com janelas de tempo, múltiplos veículos ou restrições de capacidade), é comum validar ideias de projeto e análise de algoritmos primeiro em instâncias clássicas do TSP, justamente pela ampla disponibilidade de referências, testes padronizados e de soluções ótimas conhecidas.
+
+Paralelamente, a evolução do hardware trouxe processadores gráficos (GPUs) como plataforma acessível para computação de alto desempenho (HPC) \autocite{nvidia2024cuda} e com a popularização e acessibilidade, pesquisas nestas áreas cresceram rapidamente.
+Modelos de Inteligência Artificial Generativa, por exemplo, dependem fortemente desse tipo de hardware.
+
+GPUs oferecem milhares de núcleos relativamente simples, organizados em um modelo de execução massivamente paralelo normalmente descrito, em CUDA, como SIMT (\emph{Single Instruction, Multiple Threads}) \autocite{flynn1972taxonomy,nvidia2024cuda}.
+Isso não significa que CPUs sejam arquiteturas ``SIMD por natureza'': CPUs modernas continuam sendo predominantemente MIMD (\emph{Multiple Instruction, Multiple Data}) no nível de núcleos e \emph{threads}, embora cada núcleo possa explorar extensões vetoriais SIMD (como SSE e AVX) para acelerar operações sobre vários dados por instrução.
+Em troca de um controle mais restrito nos fluxos de processo e memória, as GPUs entregam grande largura de banda de memória e alta taxa de operações aritméticas por segundo (FLOPs), desde que o problema ofereça operações semelhantes que possam ser executadas em paralelo.
+Isso torna GPUs particularmente atrativas para tarefas como o cálculo de matrizes, a avaliação de grandes populações de soluções e a aplicação de movimentos de vizinhança independentes em heurísticas de melhoria.
+
+Do ponto de vista das meta-heurísticas, \textcite{crainic2003parallel} propõem uma taxonomia de paralelização que distingue estratégias baseadas em decomposição de dados, decomposição de domínio e múltiplas trajetórias cooperativas.
+A discussão detalhada dessas categorias e sua adequação a arquiteturas de GPU é apresentada na \hyperref[sec-261-taxonomia-paralelizacao]{Seção 2.6.1}.
+
+O projeto desta monografia foca principalmente em algoritmos do tipo 1, explorando paralelismo de dados em vizinhanças de \(2\)-opt e na avaliação de populações em algoritmos genéticos, em linha com estudos recentes sobre heurísticas para TSP em GPU \autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}.
+
+Ainda assim, nem todo algoritmo se beneficia automaticamente de uma migração para GPU.
+Inicializações de kernels, movimentação de dados entre CPU e GPU podem anular ganhos de paralelismo, especialmente em problemas de porte pequeno ou em implementações que realizam pouco trabalho por inicializações de kernel \autocite{van2013gpu,luong2013gpu}. Limitações de memória (VRAM) devem ser cuidadosamente calculadas para que a memória total ocupada não passe do limite do hardware.
+Nesses cenários, uma comparação direta entre versões em CPU e GPU exige, ainda, cuidados extras: deve-se isolar o impacto da plataforma de execução sem confundir o efeito com mudanças na lógica do algoritmo.
+Ao longo deste trabalho, esses desafios são documentados explicitamente em estudos de caso, onde kernels são chamados de forma não cautelosa e versões otimizadas (Capítulos \hyperref[cap3-materiais-metodos]{3} e \hyperref[cap4-resultados]{4}), bem como em notas técnicas específicas sobre \emph{overhead} de lançamentos de kernel e padrões de redução em GPU.
+
+Este trabalho insere-se nesse contexto, investigando como acelerar, utilizando GPU, um Algoritmo Genético (Genetic Algorithm -- GA) híbrido com \(2\)-opt para o TSP, de forma controlada e estatisticamente fundamentada, usando instâncias clássicas da biblioteca TSPLIB \autocite{reinelt1991tsplib} e um protocolo experimental com um número adequado de repetições \(n_{reps}\) e testes estatísticos apropriados (detalhado no \hyperref[cap3-materiais-metodos]{Capítulo 3}).
+A combinação entre GA e busca local é um exemplo de algoritmo memético amplamente estudado na literatura \autocite{larranaga1999genetic,goldberg1989genetic}, em que operadores evolutivos globais são complementados por heurísticas de melhoria como \(2\)-opt \autocite{croes1958method} ou Lin--Kernighan \autocite{lin1973efficient}.
+Neste Trabalho de Conclusão de Curso, será utilizada a nomenclatura em inglês para alguns termos técnicos como ``\(2\)-opt'', ``TSPLIB'', ``GPU'', ``CPU'' e ``GA''.
+
+\section{Problema de pesquisa}\label{sec-12-problema-de-pesquisa}
+
+Muitos estudos em computação de alto desempenho comparam algoritmos em CPU e GPU utilizando implementações que diferem não apenas na plataforma de execução, mas também em detalhes relevantes da lógica do algoritmo (por exemplo, operadores distintos, parâmetros diferentes ou vizinhanças não equivalentes) \autocite{schulz2013gpu,van2013gpu,benaini2018genetic}.
+Isso torna difícil atribuir ganhos de desempenho exclusivamente ao uso da GPU, uma vez que alterações no desenho algorítmico ou na parametrização podem, por si só, explicar diferenças observadas.
+Neste trabalho, os parâmetros e operadores são mantidos fixos entre as variantes, e as diferenças de desempenho observadas são discutidas à luz do protocolo experimental apresentado no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+Neste trabalho, busquei implementar as variantes do algoritmo sob as mesmas condições.
+A estrutura dos algoritmos é projetada para ser idêntica e otimizada tanto para CPU quanto para GPU, de forma justa, para todos os Algoritmos Genéticos e para o algoritmo de busca local \(2\)-opt, variando apenas a forma como cada ``módulo'' estrutural do algoritmo é executado (em CPU ou em GPU) e o grau de paralelismo utilizado.
+A pergunta central pode ser formulada da seguinte forma:
+
+\begin{quote}
+      \textbf{Como comparar, de forma fiel, o impacto de diferentes estratégias de paralelização utilizando GPU no desempenho de um algoritmo memético (GA+\(2\)-opt) para o Problema do Caixeiro Viajante?}
+\end{quote}
+
+Responder a essa pergunta exige, ao mesmo tempo, um desenho experimental cuidadoso de hiperparâmetros e validade estatística (número significativo de instâncias de problema, número adequado de repetições, métricas de qualidade e tempo).
+Os parâmetros básicos do GA — como tamanho de população \(n_{pop}\), taxa de mutação \(p_{\text{mut}}\), tamanho do torneio \(k_{\text{trnmt}}\), número de iterações de \(2\)-opt por indivíduo \(n_{2\text{-opt}}\) e número de repetições por combinação algoritmo--instância \(n_{reps}\) — são escolhidos com base em recomendações da literatura de algoritmos evolutivos \autocite{eiben2015introduction,goldberg1989genetic} e em análises específicas documentadas nos relatórios técnicos do projeto.
+Esses valores e sua motivação são apresentados em detalhe no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+\section{Objetivo geral}\label{sec-13-objetivo-geral}
+
+O objetivo geral deste trabalho é investigar e quantificar o impacto de diferentes estratégias de paralelização em processadores gráficos, com foco em:
+
+\begin{warning}[Ajustes no texto final]\label{obs-ajustes}
+      Os resultados e a análise apresentados nos \hyperref[cap4-resultados]{Capítulos 4}, \hyperref[sec:discussao]{5} e \hyperref[cap6-conclusoes]{6} vêm de uma execução anterior a dois ajustes.
+      O primeiro: a variante totalmente em GPU rodou \(50\) iterações de busca local por indivíduo, porque o parâmetro que as define não chegava até o \emph{kernel}, em vez das \(10\) iterações usadas pelas demais variantes; ver a \hyperref[obs-fullgpu-iteracoes]{Observação (1)} do \hyperref[cap4-resultados]{Capítulo 4}.
+      O segundo: os operadores \(2\)-opt das variantes não são idênticos entre si, e um mesmo número de iterações não corresponde ao mesmo trabalho em todas elas; os detalhes estão na \hyperref[sec-5311-semantica-operadores]{Seção 5.3.1}.
+      Os valores e as conclusões podem mudar; a estrutura da análise, não.
+\end{warning}
+
+\begin{itemize}
+      \tightlist
+      \item
+            \textbf{Tempo de execução}: medir e comparar o tempo requerido para cada variante do algoritmo memético GA+\(2\)-opt;
+      \item
+            \textbf{Qualidade das soluções}: avaliar o custo final das rotas obtidas e o \emph{gap} relativo ao ótimo conhecido, validando a viabilidade da solução;
+      \item
+            \textbf{Manutenção de estrutura algorítmica comum}: garantir que as quatro variantes (CPU, Híbrida Ingênua, Híbrida Otimizada e Totalmente em GPU) partam do mesmo GA memético, com os mesmos operadores e hiperparâmetros globais, diferindo apenas na plataforma de execução e no grau de paralelismo;
+      \item
+            \textbf{Metodologia estatística padronizada}: aplicar testes de hipótese apropriados (testes de normalidade, pareados e rankings) conforme recomendado por \textcite{demsar2006statistical};
+      \item
+            \textbf{Alinhamento com taxonomia de paralelização}: situar as estratégias adotadas no contexto da taxonomia proposta por \textcite{crainic2003parallel} e aprofundada em \textcite{crainic2010parallel}.
+\end{itemize}
+
+\section{Objetivos específicos}\label{sec-14-objetivos-especificos}
+
+Para viabilizar o objetivo geral, definem-se os seguintes objetivos específicos:
+
+\begin{enumerate}
+      \def\labelenumi{\arabic{enumi}.}
+      \item
+            \textbf{Implementar quatro variações de um Algoritmo Genético híbrido com \(2\)-opt para o TSP}:
+
+            \begin{itemize}
+                  \tightlist
+                  \item
+                        uma versão executada puramente na CPU (\textbf{CPU}), em que todas as operações (seleção, cruzamento, mutação, \(2\)-opt e cálculo de custo) são executadas com NumPy, servindo como base em CPU para as comparações.
+                        Na prática, essa versão é utilizada como base principalmente para instâncias de menor porte (por exemplo, com \(n_{coords} \leq 100\)); para instâncias maiores, a comparação de tempo passa a considerar como referência a versão híbrida, conforme discutido no Capítulo 3.
+                  \item
+                        uma versão híbrida com \(2\)-opt executada na GPU e avaliação em CPU (\textbf{Híbrida Ingênua}), que inicia kernels \textbf{individualmente} para cada rota e transfere as soluções (ou circuitos) completos entre CPU e GPU a cada iteração;
+                  \item
+                        uma versão híbrida otimizada (\textbf{Híbrida Otimizada}), em que \(2\)-opt e o cálculo de custos são executados em GPU em lote (\emph{batch}), reduzindo o número de lançamentos de kernel e o volume de dados transferidos;
+                  \item
+                        uma versão totalmente em GPU (\textbf{Totalmente em GPU}), na qual população, operadores genéticos, busca local e avaliação permanecem residentes na GPU durante toda a evolução.
+            \end{itemize}
+
+            Os nomes utilizados aqui seguem as implementações \texttt{GeneticAlgorithmCPU}, \texttt{GeneticAlgorithmHybridNaive}, \texttt{GeneticAlgorithmHybridOptimized} e \texttt{GeneticAlgorithmFullGPU} do framework experimental, cujos detalhes arquiteturais são apresentados no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+            Na literatura, o termo ``naive'' (ingênuo) é frequentemente utilizado para descrever implementações simples que não exploram otimizações avançadas.
+      \item
+            \textbf{Selecionar um conjunto de instâncias da TSPLIB} com diferentes faixas de tamanho (pequenas \(n_{coords} \leq 100\), médias \(100 < n_{coords} \leq 400\) e grandes \(n_{coords} > 400\)).
+            Essa seleção visa demonstrar os ganhos de desempenho que podem ser atingidos e garantir diversidade suficiente para analisar ganhos em escala.
+            A divisão de faixas adotada é inspirada em estudos prévios com a TSPLIB \autocite{reinelt1991tsplib}, mas levemente ajustada para refletir o foco deste trabalho nas instâncias pequenas, médias e grandes selecionadas.
+            O ajuste consiste em adotar explicitamente o número de coordenadas \(n_{coords} = 100\) e \(n_{coords} = 400\) como limites entre as faixas, em linha com o limiar prático utilizado para a comparação CPU/GPU e com a distribuição de tamanhos das instâncias efetivamente utilizadas nos experimentos.
+      \item
+            \textbf{Definir um protocolo experimental reprodutível}, incluindo número de repetições por instância e algoritmo, critérios de parada, parâmetros do GA e limites práticos impostos pela capacidade de memória da GPU.
+            O desenho desse protocolo segue recomendações da literatura de comparação de algoritmos e de testes estatísticos \autocite{demsar2006statistical} e é detalhado no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+      \item
+            \textbf{Aplicar um conjunto de testes estatísticos apropriados} para comparação de algoritmos, incluindo testes de normalidade (Shapiro--Wilk), testes pareados paramétricos (teste \emph{t-pareado}) e não paramétricos (Wilcoxon), análise de rankings em múltiplas instâncias (teste de Friedman com pós-teste de Nemenyi) e medidas de tamanho de efeito (Cohen \(d\)), conforme recomendado por \textcite{demsar2006statistical} e literatura correlata de teste de hipóteses.
+            A metodologia estatística completa é apresentada no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+      \item
+            \textbf{Analisar os resultados obtidos}, discutindo as possíveis condições em que cada variante algorítmica é vantajosa — como por exemplo, tamanho da instância \(n_{coords}\), relação entre custos de comunicação e custo computacional, acesso à memória e volume de dados transferidos entre CPU e GPU nas direções host-to-device (H2D ou CPU \(\to\) GPU) e device-to-host (D2H GPU \(\to\) CPU) \autocite{nvidia2024cuda} —, limites práticos do uso de GPUs para o contexto de recursos limitados (paralelismo em uma placa gráfica já defasada e limitada) e as implicações para o projeto de algoritmos de roteamento em cenários reais, seguindo as taxonomias de paralelização de meta-heurísticas propostas por \textcite{crainic2003parallel} e complementadas por \textcite{alba2005parallel}, além de estudos de caso em problemas de roteamento utilizando GPUs \autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}.
+\end{enumerate}
+
+\section{Justificativa}\label{sec-15-justificativa}
+
+Do ponto de vista científico, o TSP continua sendo um problema de referência para avaliar novas ideias em heurísticas e meta-heurísticas \autocite{cook2012pursuit}.
+A vasta disponibilidade de estudos, instâncias utilizadas em larga escala e muitas soluções ótimas conhecidas, em particular as fornecidas pela TSPLIB \autocite{reinelt1991tsplib}, na qual o projeto se baseia, permite medir o desempenho de diferentes algoritmos tanto em termos de qualidade quanto em tempo de execução.
+Ao longo deste trabalho, será utilizada a notação \(n_{coords}\) para o número de coordenadas (cidades) de cada instância, \(n_{pop}\) para o tamanho da população do GA, \(n_{reps}\) para o número de repetições por combinação algoritmo--instância, \(T\) para tempos de execução médios e \(B_{\mathrm{H2D}}\), \(B_{\mathrm{D2H}}\) para os volumes totais de dados transferidos entre CPU e GPU nas direções host-to-device e device-to-host, respectivamente.
+Os detalhes de como esses elementos se relacionam com os limites de memória de cada variante são discutidos no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
+
+No campo da computação de alto desempenho, diferentes trabalhos relatam ganhos relevantes ao portar heurísticas de melhoria e algoritmos evolutivos para GPU, inclusive em variantes do TSP \autocite{schulz2013gpu,tsp_gpu,fujimoto2011highly}.
+Esses resultados indicam que GPUs são um hardware promissor para esse tipo de algoritmo, mas também evidenciam um problema recorrente: em muitas comparações, as versões em CPU e GPU diferem não apenas na plataforma de execução, mas também em detalhes de implementação e parametrização, o que dificulta isolar o efeito específico da paralelização.
+
+Além disso, para que conclusões sobre desempenho sejam confiáveis, não basta observar poucos experimentos isolados.
+É necessário adotar um desenho experimental com múltiplas repetições, tanto para instâncias quanto para, medidas de dispersão e testes de hipótese adequados, como discutido na literatura de comparação de algoritmos \autocite{demsar2006statistical}.
+Neste trabalho, esses cuidados são incorporados ao experimento, de modo que as diferenças observadas entre variantes em CPU e GPU possam ser atribuídas, com maior segurança, às estratégias de paralelização avaliadas.
+
+Este trabalho justifica-se por combinar três elementos que, em conjunto, fortalecem a contribuição científica:
+
+\begin{enumerate}
+      \def\labelenumi{\arabic{enumi}.}
+      \tightlist
+      \item
+            \textbf{Implementação de heurísticas clássicas em GPU} (particularmente \(2\)-opt e operadores do AG), explorando o paralelismo de forma explícita.
+      \item
+            \textbf{Comparação entre variantes funcionalmente equivalentes do algoritmo em CPU e GPU}, mantendo fixos operadores, parâmetros e critérios de parada, de modo a isolar o efeito da plataforma de execução.
+            Algumas variações dentro deste contexto são esperadas, mas de modo geral o algoritmo segue a mesma estrutura.
+            Sempre há a possibilidade de haver pequenas variações, mas o autor busca manter, ao máximo, a consistência entre as variantes.
+      \item
+            \textbf{Aplicação de metodologia estatística rigorosa}, com múltiplas repetições por instância, testes de hipótese adequados e medidas de tamanho de efeito.
+\end{enumerate}
+
+Os capítulos seguintes discutem em que condições cada variante é vantajosa, quais os limites práticos do uso de GPUs e recursos limitados e como os resultados dialogam com estudos prévios de heurísticas em GPU.
+
+\section{Organização do trabalho}\label{sec-16-organizacao}
+
+Este texto está organizado da seguinte forma:
+
+\begin{itemize}
+      \tightlist
+      \item
+            \textbf{Capítulo 2 -- Fundamentação Teórica / Revisão Bibliográfica}: apresenta os conceitos básicos de otimização combinatória e do TSP, revisa heurísticas de construção e melhoria (com ênfase em \(2\)-opt), discute algoritmos genéticos e meta-heurísticas híbridas, introduz princípios de computação em GPU e paralelização de meta-heurísticas, e resume abordagens estatísticas para comparação de algoritmos.
+      \item
+            \textbf{Capítulo 3 -- Materiais e Métodos}: descreve o ambiente computacional, a arquitetura do framework desenvolvido (incluindo abstrações de \emph{backend} e de alternância entre CPU e GPU), os detalhes do Algoritmo Genético híbrido com \(2\)-opt nas quatro variantes consideradas, o conjunto de instâncias TSPLIB utilizado, os parâmetros experimentais e o protocolo estatístico adotado.
+      \item
+            \textbf{Capítulo 4 -- Resultados}: apresenta os resultados numéricos dos experimentos, incluindo estatísticas por instância, análises agregadas por faixa de tamanho, medidas de ganho de performance e qualidade das soluções, além da interpretação dos testes estatísticos aplicados.
+      \item
+            \textbf{Capítulo 5 -- Discussão}: interpreta criticamente os resultados à luz da literatura, discute as implicações dos achados para o projeto de algoritmos de roteamento em GPU e analisa limitações do estudo.
+      \item
+            \textbf{Capítulo 6 -- Conclusões e Trabalhos Futuros}: sintetiza as principais contribuições do trabalho, responde explicitamente aos objetivos propostos e indica possíveis extensões, como a aplicação do framework a problemas de roteirização mais complexos.
+      \item Elementos pós-textuais, como referências, glossário, apêndices técnicos e anexos com tabelas completas de resultados, são apresentados ao final do documento, conforme normas da instituição.
+\end{itemize}
+

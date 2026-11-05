@@ -1,0 +1,15 @@
+% Temporary support for Pandoc-generated list/table constructs that still exist
+% in the document body. Remove this file after the remaining generated lists and
+% longtables are normalized.
+
+% Pandoc list/table helpers still referenced by generated content.
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{tocdepth}{4}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{}
+\urlstyle{same}

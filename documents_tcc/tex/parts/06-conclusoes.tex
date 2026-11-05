@@ -1,0 +1,80 @@
+\chapter{Conclusões e Trabalhos Futuros}\label{cap6-conclusoes}
+
+Este capítulo responde explicitamente aos objetivos formulados nas \hyperref[sec-13-objetivo-geral]{Seções 1.3} e \hyperref[sec-14-objetivos-especificos]{1.4}, sintetiza as contribuições do trabalho, registra suas limitações e delimita as extensões identificadas.
+
+\begin{warning}[Resultados provisórios]\label{obs-conclusoes-provisorias}
+  Os números desta seção vêm da execução descrita na \hyperref[obs-ajustes]{Seção 1.3}.
+  As conclusões de natureza metodológica não dependem deles.
+\end{warning}
+
+\section{Conclusões}\label{sec-61-conclusoes}
+
+A investigação partiu da premissa de que comparações entre CPU e GPU frequentemente confundem o efeito da plataforma de execução com diferenças de implementação e parametrização, e buscou isolar esse efeito mantendo fixos os operadores, os parâmetros globais e os critérios de parada.
+O encadeamento dos objetivos específicos pode ser sintetizado como segue.
+
+\begin{itemize}
+  \tightlist
+  \item
+        \textbf{Implementação das quatro variantes (Objetivo 1).} Foram implementadas e comparadas quatro variantes de um Algoritmo Genético híbrido com busca local \(2\)-opt: execução puramente em CPU, híbrida ingênua (transferência por indivíduo), híbrida otimizada (processamento em lote) e totalmente residente em GPU.
+        Todas partem da mesma estrutura de operadores e diferem apenas no local de execução e no grau de paralelismo empregado, conforme o envelope de comparação discutido na \hyperref[sec-32-arquitetura-variantes]{Seção 3.2}.
+  \item
+        \textbf{Seleção de instâncias (Objetivo 2).} O estudo cobriu \(38\) instâncias da TSPLIB, na faixa de \(51\) a \(1002\) cidades, organizadas em três categorias de tamanho (pequenas, médias e grandes), com diversidade suficiente para observar mudanças de comportamento em escala.
+  \item
+        \textbf{Protocolo experimental reprodutível (Objetivo 3).} O protocolo adotou múltiplas repetições independentes por par algoritmo--instância, sementes registradas, critérios de parada explícitos (tolerância de \(1\%\) em relação ao ótimo conhecido, paciência proporcional a \(\sqrt{n_{coords}}\) e limite máximo de gerações) e limites práticos impostos pela capacidade de memória do dispositivo, conforme detalhado na \hyperref[sec-33-selecao-instancias]{Seção 3.3}.
+  \item
+        \textbf{Avaliação estatística (Objetivo 4).} A comparação empregou verificação de normalidade (Shapiro--Wilk), testes pareados paramétricos e não paramétricos, análise de rankings por meio do teste de Friedman com pós-teste de Nemenyi e medidas de tamanho de efeito, seguindo a recomendação metodológica da literatura de comparação de algoritmos \autocite{demsar2006statistical}.
+        O teste de Friedman rejeitou a hipótese nula de desempenho equivalente entre as variantes aceleradas
+        (\(p \approx 6{,}9 \times 10^{-5}\)).
+  \item
+        \textbf{Análise das condições de vantagem (Objetivo 5).} A resposta à questão de pesquisa é que \emph{não existe uma variante dominante}, mas um \emph{trade-off} estruturado pela razão entre custo de comunicação e custo computacional.
+        A variante \textbf{híbrida otimizada} entregou o menor tempo de execução, com ganho de performance mediano de \(5{,}69\times\) sobre a híbrida ingênua e ganhos de até \(616{,}9\times\) sobre a CPU em instâncias pequenas.
+        A variante \textbf{totalmente em GPU} entregou o melhor refinamento de rota, com \emph{gap} médio de \(0{,}88\%\), resultado que acompanha o eixo de memória descrito na \hyperref[sec-51-sintese-achados]{Seção 5.1}.
+        A vantagem de tempo da variante em lote já está estabelecida pela \hyperref[obs-aritmetica]{Observação (3)} do \hyperref[cap4-resultados]{Capítulo 4}, e a de qualidade depende da \hyperref[obs-erro-iteracoes]{Observação (4)}.
+\end{itemize}
+
+Do ponto de vista do comportamento de memória, a conclusão é que a minimização do tráfego entre hospedeiro e dispositivo é o fator primordial de desempenho, e que essa minimização tem um custo: a estratégia mais eficiente em comunicação é justamente a que concentra população e matriz de distâncias na VRAM, tornando a capacidade de memória do dispositivo — e não sua capacidade de cálculo — o fator limitante do porte das instâncias tratáveis.
+
+\section{Contribuições}\label{sec-62-contribuicoes}
+
+As contribuições deste trabalho podem ser agrupadas em quatro frentes:
+
+\begin{itemize}
+  \tightlist
+  \item
+        \textbf{Contribuição empírica.} Uma comparação controlada de quatro estratégias de paralelização sobre o \emph{mesmo} núcleo algorítmico (GA+\(2\)-opt), isolando o efeito da organização da execução e do tráfego de dados daquele decorrente de escolhas de operadores e parâmetros.
+  \item
+        \textbf{Contribuição metodológica.} Um protocolo experimental reprodutível que combina múltiplas repetições, sementes registradas, critérios de parada explícitos e um tratamento estatístico adequado a comparações múltiplas com controle de erro tipo I.
+  \item
+        \textbf{Contribuição de artefato.} Um \emph{framework} modular organizado em três camadas (algoritmos, orquestração e análise), no qual as variantes são intercambiáveis por meio de uma mesma abstração de \emph{backends}, o que permite estender o estudo a outros problemas de roteamento sem reescrever a infraestrutura experimental.
+  \item
+        \textbf{Contribuição analítica.} A caracterização quantitativa do \emph{trade-off} entre tempo, qualidade e memória em hardware de entrada, explicitando em que faixas de tamanho cada estratégia de paralelização é vantajosa e em que ponto a restrição de memória passa a determinar a viabilidade da solução.
+\end{itemize}
+
+\section{Limitações}\label{sec-63-limitacoes}
+
+As limitações deste trabalho estão detalhadas na \hyperref[sec-53-ameacas-validade]{Seção 5.3} e, em síntese, envolvem cinco frentes: a assimetria paramétrica no limite de iterações da busca local entre variantes, que compromete a leitura do resultado de qualidade; a ausência de instrumentação de desempenho por \emph{kernel}, que mantém as explicações arquiteturais como hipóteses; a execução em um único dispositivo de entrada, que restringe a validade externa; a ausência de linha de base em CPU para instâncias com \(n_{coords} > 100\), que desloca as comparações para o interior do conjunto de variantes aceleradas; e a limitação das métricas a tempo total e qualidade final.
+A primeira dessas limitações é a mais relevante, porque afeta diretamente uma das conclusões principais do estudo.
+
+\section{Trabalhos Futuros}\label{sec-64-trabalhos-futuros}
+
+As extensões identificadas são formuladas a seguir como questões de pesquisa, e não como tarefas de implementação:
+
+\begin{itemize}
+  \tightlist
+  \item
+        \textbf{Os resultados de qualidade se mantêm após a normalização paramétrica?} A re-execução dos experimentos com o limite de iterações da busca local igualado entre as quatro variantes é a extensão prioritária, pois determina se a vantagem de qualidade da variante residente é efeito da arquitetura ou do orçamento de busca mais generoso.
+        Dependendo do resultado, a ordenação de qualidade pode se manter, diminuir ou inverter.
+  \item
+        \textbf{É possível identificar os gargalos reais sem distorcer as medições?} A instrumentação por eventos CUDA, na camada de \emph{software}, permite cronometrar fases específicas do ciclo evolutivo sem a intrusividade das ferramentas de \emph{profiling} por contadores de hardware. A questão é se esse nível de instrumentação é suficiente para separar limitações arquiteturais de limitações do próprio núcleo algorítmico \autocite{kirk2010programming}.
+  \item
+        \textbf{Qual o efeito da divergência de execução intra-grupo sobre a vazão?} O operador de cruzamento por ordem (OX) é sequencial e dependente de dados, o que pode serializar a execução dentro dos grupos de \(32\) \emph{threads}.
+        Cabe investigar se a comunicação direta entre \emph{threads} por registradores reduz essa divergência e qual o impacto mensurável na vazão efetiva \autocite{nvidia2024cuda,harris2007optimizing}.
+  \item
+        \textbf{Qual o efeito de padronizar a aritmética das distâncias?} A substituição do cálculo em ponto flutuante pela convenção inteira da TSPLIB, com arredondamento pela função \texttt{nint}, eliminaria variabilidade numérica e permitiria verificar em que medida diferenças residuais de qualidade são artefato de precisão, e não de estratégia de busca \autocite{reinelt1991tsplib}.
+  \item
+        \textbf{Quais variantes algorítmicas são mais adequadas à arquitetura paralela massiva?} A exploração de operadores alternativos para cada fase do algoritmo memético — cruzamento (PMX, CX), mutação adaptativa e buscas locais mais agressivas (Or-opt, \(3\)-opt) — é um caminho direto para estreitar a lacuna de qualidade frente ao estado da arte
+        \autocite{larranaga1999genetic,fujimoto2011highly}.
+  \item
+        \textbf{Como o método se comporta em grafos direcionados?} O movimento \(2\)-opt empregado neste trabalho pressupõe simetria entre pares de cidades, pois a reversão de um segmento do circuito preserva o custo apenas quando \(c_{ij} = c_{ji}\) (\hyperref[sec-221-2opt]{Seção 2.2.1}). A extensão ao Problema do Caixeiro Viajante Assimétrico (ATSP) exige operadores de vizinhança alternativos, como \emph{Or-opt} e movimentos de \(3\)-opt, e constitui uma extensão natural do \emph{framework}, com implicações distintas para o paralelismo, uma vez que depende de lógica de reversão sensível à orientação das arestas.
+\end{itemize}
+

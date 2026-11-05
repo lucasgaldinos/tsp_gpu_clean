@@ -1,0 +1,141 @@
+\chapter{Discussão}\label{sec:discussao}
+
+Este capítulo interpreta os resultados apresentados no \hyperref[cap4-resultados]{Capítulo 4} à luz da questão de pesquisa formulada na \hyperref[sec-12-problema-de-pesquisa]{Seção 1.2} e das taxonomias de paralelização discutidas na \hyperref[sec-26-gpu-metaheuristicas]{Seção 2.6}.
+A discussão está organizada em quatro partes: síntese dos achados e resposta à questão de pesquisa; comparação com o estado da arte; ameaças à validade e limitações do estudo; e implicações práticas para o projeto de algoritmos de roteamento em GPU.
+
+\section{Síntese dos achados}\label{sec-51-sintese-achados}
+
+A questão de pesquisa indaga como comparar, de forma fiel, o impacto de diferentes estratégias de paralelização em GPU sobre o desempenho de um algoritmo memético para o TSP. Os resultados permitem uma resposta em duas partes.
+A primeira é que o fator determinante não é o uso da GPU em si, mas \textbf{onde} e \textbf{como} o tráfego de dados entre hospedeiro e dispositivo é organizado: as três variantes aceleradas diferem entre si de forma sistemática, apesar de compartilharem a mesma estrutura algorítmica.
+A segunda é que esse efeito é \textbf{multidimensional}: as variantes não se ordenam em uma única escala de mérito, mas trocam posição conforme a métrica considerada.
+
+Sob a ótica do \textbf{tempo de execução}, a variante \textbf{Híbrida Otimizada} é consistentemente superior, com ganho de performance mediano por instância de \(5{,}69\times\) sobre a Híbrida Ingênua e tempo médio agregado de \(18{,}94\) segundos, contra \(47{,}08\) segundos da Ingênua.
+Esse resultado é coerente com a hipótese de que o processamento em lote amortiza a latência de transferência: ao enviar a população inteira em uma única chamada, o custo de comunicação deixa de ser proporcional ao número de indivíduos por geração.
+
+\begin{warning}[Resultados provisórios]\label{obs-discussao-provisoria}
+  Os números discutidos aqui vêm da execução descrita na \hyperref[obs-ajustes]{Seção 1.3}.
+  A limitação específica da variante totalmente em GPU está na \hyperref[obs-fullgpu-iteracoes]{Observação (1)} do \hyperref[cap4-resultados]{Capítulo 4}, e a aritmética dos \emph{gaps}, na \hyperref[obs-aritmetica]{Observação (3)}.
+\end{warning}
+
+Sob a ótica da \textbf{qualidade da solução}, a variante \textbf{Totalmente em GPU} ocupou a primeira posição em todas as faixas de tamanho, com \emph{gap} médio agregado de \(0{,}88\%\) contra \(1{,}28\%\) e \(1{,}30\%\) das variantes híbridas.
+O teste de Friedman rejeitou a hipótese nula de desempenho equivalente (\(p \approx 6{,}9 \times 10^{-5}\)), e o pós-teste de Nemenyi apontou superioridade da Totalmente em GPU sobre a Ingênua (\(p \approx 0{,}00028\)) e sobre a Otimizada (\(p \approx 0{,}00071\)), sem diferença significativa entre as duas híbridas (\(p \approx 0{,}97\)).
+
+Essa vantagem de qualidade deve ser lida com cuidado por causa da assimetria paramétrica da \hyperref[sec-531-assimetria-parametrica]{Seção 5.3.1}: o orçamento de busca local maior já produz \emph{gap} menor por si só.
+Como a variante Híbrida Otimizada também evita transferências repetidas, via processamento em lote, e mesmo assim não alcança a mesma qualidade, o número de iterações parece ser o fator determinante, e não a permanência dos dados na GPU.
+
+Um segundo eixo de análise, exigido pelo enquadramento do problema, é o do \textbf{comportamento de memória}, que é distinto do tempo de execução e não se reduz a ele. A Tabela~\ref{tbl:memory-axis} sintetiza o perfil de transferência e a pegada de memória de cada variante.
+Como a matriz de distâncias é armazenada completa e em inteiros de 32 bits, ocupando \(n_{coords}^2 \times 4\) bytes, e a população tem tamanho fixo de \(256\) indivíduos, o termo quadrático da matriz domina o termo linear da população já em instâncias pequenas.
+O fator que limita o porte das instâncias tratáveis em um dispositivo de \(4\) GB é, portanto, o armazenamento quadrático das distâncias (\hyperref[sec-311-hardware-software]{Seção 3.1.1}), e não o operador de busca local.
+O ponto central é que velocidade e capacidade disputam o mesmo recurso físico: a estratégia que minimiza o tempo de comunicação é justamente a que concentra o estado na memória do dispositivo.
+
+Cabe registrar que esse gargalo de memória não é uma barreira sem soluções na literatura moderna, e as principais alternativas são conhecidas.
+A mais direta é o \textbf{armazenamento triangular compactado}, que explora a simetria do TSP e reduz a matriz de \(n(n-1)/2\) entradas, exatamente metade do custo.
+Uma segunda família de abordagens troca memória por computação, \textbf{recalculando distâncias sob demanda} em vez de materializá-las, o que troca o consumo quadrático por um fator constante de trabalho aritmético.
+Uma terceira linha trabalha com \textbf{particionamento da vizinhança} \emph{(neighbourhood splitting)}: Schulz e colaboradores descrevem explicitamente o uso de memória como o critério que determina o tamanho do subconjunto de movimentos avaliado por vez, relatando limiares concretos em que a busca \emph{k}-opt deixa de caber e precisa ser fatiada \autocite{schulz2013gpu}.
+Por fim, estratégias de \textbf{transferência em blocos} permitem processar instâncias cujo estado completo não caberia simultaneamente na memória do dispositivo.
+
+\begin{longtable}[]{@{}
+    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2222}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3889}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3889}}@{}}
+  \caption{Eixo de memória e comunicação por variante (análise estrutural,
+    não medida experimental)
+    \label{tbl:memory-axis}}\tabularnewline
+  \toprule\noalign{}
+  Variante                   & Perfil de transferência por geração
+                             & Estado residente no dispositivo                                                                            \\
+  \midrule\noalign{}
+  \endfirsthead
+  \toprule\noalign{}
+  Variante                   & Perfil de transferência por geração
+                             & Estado residente no dispositivo                                                                            \\
+  \midrule\noalign{}
+  \endhead
+  \bottomrule\noalign{}
+  \endlastfoot
+  \textbf{CPU}               & nenhuma                                                       & nenhum                                     \\
+  \textbf{Híbrida-Ingênua}   & \(O(n_{coords})\) por indivíduo, em ambas as direções         & apenas o indivíduo em execução             \\
+  \textbf{Híbrida-Otimizada} & \(O(n_{pop} \cdot n_{coords})\) por geração, agrupada em lote & o lote avaliado                            \\
+  \textbf{Totalmente em GPU} & \(O(n_{coords}^2)\) uma única vez, na inicialização           & população e matriz de distâncias completas \\
+\end{longtable}
+
+A ordem de grandeza da penalidade de comunicação é dada pelo contraste entre a largura de banda do barramento PCIe (\(\approx 16\) GB/s) e a da memória interna do dispositivo (\(\approx 112\) GB/s) (\hyperref[sec-311-hardware-software]{Seção 3.1.1}): uma transferência que atravesse o barramento custa cerca de sete vezes o mesmo volume movido internamente.
+Essa razão explica por que a variante Ingênua, mesmo executando a busca local em GPU, não se distancia das demais variantes em tempo, e por que a Otimizada, ao reduzir o número de travessias, converte a capacidade de cálculo do dispositivo em ganho efetivo.
+
+\section{Comparação com o estado da arte}\label{sec-52-comparacao-estado-arte}
+
+Embora as abordagens paralelas desenvolvidas tenham alcançado alta velocidade de execução, é importante situar as limitações do GA+\(2\)-opt implementado frente ao estado da arte contemporâneo no TSP.
+Algoritmos dedicados e altamente especializados, notadamente o algoritmo LKH-3 \autocite{helsgaun2000effective} e o algoritmo genético baseado em Edge Assembly Crossover (EAX) \autocite{nagata2013powerful}, rotineiramente atingem \(0\%\) de \emph{gap} (garantindo a solução ótima) na esmagadora maioria das instâncias padrão da TSPLIB.
+
+O GA+\(2\)-opt aqui explorado adota operadores canônicos e uma arquitetura base focada na investigação didática das relações de custo-benefício da programação paralela.
+Consequentemente, este trabalho foca na comparação entre as variantes do mesmo algoritmo (analisando os ganhos estruturais de cada estratégia de implantação), e não na competição isolada por poder de refinamento contra as meta-heurísticas de última geração que utilizam buscas como \(5\)-opt ou estratégias dinâmicas complexas de vizinhança.
+Uma investigação futura poderia avaliar a integração de operadores mais sofisticados (como o LK-move) às implementações em GPU, visando estreitar essa lacuna de qualidade.
+
+Essa delimitação é relevante para a leitura correta dos resultados: o \emph{gap} de \(0{,}88\%\) a \(1{,}30\%\) reportado no \hyperref[cap4-resultados]{Capítulo 4} não deve ser lido como uma medida de competitividade do estado da arte, mas como um indicador \emph{relativo} da capacidade de refinamento de cada estratégia de paralelização dado o mesmo núcleo algorítmico.
+A contribuição do trabalho está na comparação controlada entre variantes, não no desempenho absoluto frente a resolvedores especializados.
+
+\section{Ameaças à validade e limitações}\label{sec-53-ameacas-validade}
+
+\subsection{Assimetria paramétrica entre variantes}\label{sec-531-assimetria-parametrica}
+
+A limitação mais severa deste estudo é a divergência no limite de iterações da busca local \(2\)-opt entre as variantes: a versão totalmente em GPU foi executada nos experimentos originais com \(50\) varreduras por indivíduo, enquanto as variantes em CPU e híbridas utilizaram \(10\) (\hyperref[sec-321-ga-base]{Seção 3.2.1}).
+Essa assimetria beneficia diretamente a variante que obteve o melhor \emph{gap} e, portanto, compromete a interpretação desse resultado como efeito da residência dos dados na GPU.
+
+\subsection{Assimetria de semântica entre os operadores \texorpdfstring{\(2\)-opt}{2-opt}}\label{sec-5311-semantica-operadores}
+
+Além do limite de iterações, há uma diferença que a normalização do parâmetro \textbf{não} corrige, porque está na definição dos operadores.
+Os quatro \emph{kernels} de busca local não fazem o mesmo trabalho: a variante \textbf{Totalmente em GPU} varre a vizinhança até não haver melhoria, aceitando a primeira melhoria encontrada (\emph{first-improvement}); a implementação em \textbf{CPU} avalia a varredura completa e aplica a melhor melhoria (\emph{best-improvement}); e as variantes \textbf{híbridas} executam uma única passada por chamada de \emph{kernel}.
+Ou seja, um mesmo valor de \(n_{2\text{-opt}}\) representa quantidades diferentes de avaliações e trajetórias de descida distintas.
+
+% TODO Ask about this later. Didn't understand exactly what's happening.
+
+Essa diferença é mais difícil de contornar do que a anterior, porque decorre do modo como cada operador foi implementado, e não de um parâmetro mal propagado.
+Para o desenho experimental deste trabalho, a consequência prática é que as variantes compartilham a estrutura algorítmica, e a comparação entre elas mede também a diferença entre os operadores — não apenas o efeito de executar na CPU ou na GPU.
+
+Um efeito correlato, também de natureza estrutural, é que a variante Totalmente em GPU contabiliza um número de gerações bem maior que a Híbrida Otimizada em instâncias do mesmo porte, o que reflete diferenças na forma de contar gerações no dispositivo e no hospedeiro.
+Esse fator concorre com os anteriores na explicação das diferenças de tempo e de qualidade observadas.
+
+\subsection{Instrumentação de desempenho ausente}\label{sec-532-instrumentacao}
+
+A análise baseia-se exclusivamente em medições macroscópicas de tempo total de execução, sem instrumentação por \emph{kernel}.
+Ferramentas de \emph{profiling} de hardware como o \emph{NVIDIA Nsight Compute}, embora capazes de fornecer contadores detalhados (ocupação, pressão de registradores, divergência de \emph{warps}), serializam a execução dos kernels e exigem múltiplos passes de repetição, distorcendo o tempo real em algoritmos iterativos de longa duração como o GA aqui implementado \autocite{nvidia2024cuda}.
+Como consequência, as explicações arquiteturais oferecidas no \hyperref[cap4-resultados]{Capítulo 4} para a degradação de desempenho em instâncias grandes — pressão de registradores e divergência de \emph{warps} — permanecem como hipóteses plausíveis, porém não verificadas. Uma abordagem menos intrusiva, baseada em temporizadores via primitivas de eventos CUDA na camada Python/CuPy, é o caminho natural para instrumentação futura.
+
+\subsection{Hardware único e validade externa}\label{sec-533-hardware-unico}
+
+Todos os experimentos foram conduzidos em um único dispositivo, uma \textbf{NVIDIA GeForce GTX 1050 Mobile} com \(4\) GB de memória (\hyperref[sec-311-hardware-software]{Seção 3.1.1}).
+Trata-se de uma arquitetura de entrada, com número reduzido de multiprocessadores e largura de banda de memória limitada.
+Embora essa escolha tenha sido metodologicamente vantajosa por tornar as ineficiências de implementação mais evidentes do que seriam em aceleradores de alto desempenho, ela restringe a generalidade das conclusões: os limiares de \(n_{coords}\) em que a estratégia em lote deixa de compensar as transferências, e o ponto em que a variante residente passa a sofrer degradação, são específicos deste dispositivo e não devem ser extrapolados para GPUs de data center sem verificação empírica.
+
+\subsection{Linha de base incompleta}\label{sec-534-baseline-incompleta}
+
+A variante puramente em CPU foi executada apenas para instâncias com \(n_{coords} \le 100\), devido ao tempo proibitivo de execução nas demais (\hyperref[sec-33-selecao-instancias]{Seção 3.3}).
+Por consequência, para instâncias médias e grandes não existe referência em CPU no conjunto de dados, e as comparações de ganho de performance tomam a Híbrida-Ingênua como base. Isso impede quantificar o ganho absoluto da aceleração em GPU para \(n_{coords} > 100\) e desloca o sentido das comparações para o interior do conjunto de variantes aceleradas.
+
+\subsection{Métricas e critérios de parada}\label{sec-535-metricas-criterios}
+
+As métricas adotadas são limitadas a tempo total de execução e qualidade da solução final.
+Não foram medidos consumo energético, uso de memória ao longo da execução nem tempo por fase do algoritmo, de modo que não é possível atribuir as diferenças observadas a componentes específicos do ciclo evolutivo. Além disso, os critérios de parada dependem de parâmetros de paciência e de limite de gerações proporcionais a \(n_{coords}\) (\hyperref[sec-321-ga-base]{Seção 3.2.1}), o que faz com que instâncias maiores recebam orçamento computacional proporcionalmente maior; comparações entre faixas de tamanho devem ser lidas com essa ressalva.
+Por fim, a equivalência entre variantes é \emph{estrutural}, e não bit a bit: diferenças na associatividade de reduções em ponto flutuante e condições de contorno de hardware impedem determinismo perfeito entre CPU e GPU (\hyperref[sec-32-arquitetura-variantes]{Seção 3.2}).
+
+\section{Implicações práticas}\label{sec-54-implicacoes-praticas}
+
+Do ponto de vista de quem projeta ou emprega algoritmos de roteamento em GPU, os resultados sugerem uma regra de decisão orientada por aplicação, e não por uma hierarquia única de variantes:
+
+\begin{itemize}
+  \tightlist
+  \item
+        \textbf{Quando a latência domina} — cenários interativos, planejamento com restrição de tempo de resposta ou execução de muitas instâncias em sequência — a \textbf{Híbrida Otimizada} é a escolha indicada.
+        Ela oferece o menor tempo de execução observado, com ganhos de até \(616{,}9\times\) sobre a CPU em instâncias pequenas, ao custo de manter o estado principal no hospedeiro e pagar uma transferência em lote por geração.
+  \item
+        \textbf{Quando a qualidade da rota domina} — e o tempo de resposta, embora relevante, é secundário — a variante \textbf{Totalmente em GPU} é a candidata natural, por concentrar o estado no dispositivo e evitar travessias do barramento durante a evolução.
+  \item
+        \textbf{Quando a instância cresce} — aproximando-se do teto de memória do dispositivo — a variante residente perde vantagem, e a estratégia em lote passa a ser a única que preserva simultaneamente tempo competitivo e uso de memória controlado.
+        Nesse regime, a decisão deixa de ser sobre velocidade e passa a ser sobre viabilidade.
+\end{itemize}
+
+Um corolário prático é que a escolha da estratégia de paralelização deve ser tratada como parte do projeto do algoritmo, e não como um detalhe de implementação.
+As variantes compartilham a mesma estrutura algorítmica e diferem sobretudo na organização da execução e do tráfego de dados, o que mostra que essas decisões de arquitetura merecem atenção explícita em estudos comparativos de meta-heurísticas em GPU.
+Vale lembrar que essa atribuição é aproximada: como a \hyperref[sec-5311-semantica-operadores]{Seção 5.3.1} descreve, os operadores de busca local não são idênticos entre as variantes, de modo que parte das diferenças observadas vem também deles.
+
+
