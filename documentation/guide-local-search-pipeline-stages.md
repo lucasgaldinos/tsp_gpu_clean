@@ -389,14 +389,8 @@ from algorithms.metaheuristics.genetic_algorithm import (
   SelectionStep,
   SurvivalStep,
 )
-
-try:
-  import cupy as cp
-
-  CUPY_AVAILABLE = True
-except ImportError:
-  CUPY_AVAILABLE = False
-  cp = None
+from protocols.backend import cupy_backend
+from utils.route_helpers import is_gpu_array
 
 if TYPE_CHECKING:
   from protocols.algorithm_strategies import EvaluationStrategy, LocalSearchStrategy
@@ -422,8 +416,8 @@ class EliteOnlyLocalSearchStep:
     pop_size: int = int(state.population.shape[0])
     k: int = min(self.elite_count, pop_size)
 
-    is_gpu: bool = CUPY_AVAILABLE and cp is not None and isinstance(state.fitness, cp.ndarray)
-    xp: Any = cp if is_gpu else np
+    is_gpu: bool = is_gpu_array(state.fitness)
+    xp: Any = cupy_backend() if is_gpu else np
 
     elite_indices = xp.argsort(state.fitness)[:k]
     elite_routes = state.population[elite_indices]
