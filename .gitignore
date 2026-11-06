@@ -41,3 +41,22 @@ datasets/
 
 # Agent hook audit logs
 .github/hooks/logs/
+
+# Core LaTeX auxiliary files
+*.aux
+*.bcf
+*.lof
+*.log
+*.lot
+*.toc
+
+# Bibliography auxiliary files
+*.bbl
+*.blg
+*.run.xml
+
+# latexmk tracking and stdout log files
+*.fdb_latexmk
+*.fls
+*.stdout.log
+

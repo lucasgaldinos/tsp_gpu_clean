@@ -144,7 +144,70 @@ This group covers institutional constraints and execution planning.
 - Use [documentation/diagrams/flowchart_ga_loop_variants.md](./documentation/diagrams/flowchart_ga_loop_variants.md) as the high-level visual explanation of the shared GA loop and the CPU/GPU divergence points.
 - Use [documentation/diagrams/class_diagram_genetic_algorithms.md](./documentation/diagrams/class_diagram_genetic_algorithms.md) as the architecture reference for the GA family and its shared abstractions.
 - These two files can replace the placeholder note in the planning document that asks for a Mermaid diagram.
+- There's on Voudouris, a description where he does the search only on a neighborhood. Don't know if GLS is also K-nearest neighbours.
 
 ## Recommended next pass on the notes
 
 - Use this synthesis file as the stable project-level question map that turns scattered notes into a coherent planning structure.
+- Major changes done must be checked in the text.
+- Do not invent anything else.
+- In terms of algorithms, already did what could be done.
+- Add where things changed in the document.
+
+## Findings
+
+- new 2-opt optimizations
+- changing how the current operations are being done
+
+  ```py
+  import time, numpy as np
+  from pathlib import Path
+  from protocols.problem_context import ProblemContext
+  from protocols.backend import cupy_backend
+  from algorithms.strategies import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt
+  from loaders.tsplib_loader import TsplibLoader
+
+  cp = cupy_backend()
+  cases = [('berlin52',52),('kroA100',100),('ch150',150),('pr264',264),('lin318',318)]
+  print(f"{'instance':10s} {'backend':8s} {'ck=20':>9s} {'ck=None':>9s} {'speedup':>8s}")
+  for name, n in cases:
+      with TsplibLoader(Path('datasets/tsp')) as l:
+          prob = l.load(Path(f'datasets/tsp/{name}.tsp'))
+      xp = np
+      ctx = ProblemContext(prob, xp=xp, seed=42)
+      pop = np.stack([np.random.default_rng(42+i).permutation(n) for i in range(64)]).astype(np.int32)
+      row = {}
+      for ck in (20, None):
+          ls = LocalSearchCPUTwoOpt(max_iterations=10, candidate_k=ck)
+          ls.improve_batch(pop.copy(), ctx)          # warm-up
+          t = time.perf_counter(); ls.improve_batch(pop.copy(), ctx); row[ck] = time.perf_counter()-t
+      print(f"{name:10s} {'cpu':8s} {row[20]:8.3f}s {row[None]:8.3f}s {row[None]/row[20]:7.2f}x")
+      if cp is not None:
+          gctx = ProblemContext(prob, xp=cp, seed=42)
+          gpop = cp.asarray(pop)
+          row = {}
+          for ck in (20, None):
+              ls = LocalSearchGPUTwoOpt(mode='batch', max_iterations=10, candidate_k=ck)
+              ls.improve_batch(gpop.copy(), gctx); cp.cuda.Stream.null.synchronize()
+              t = time.perf_counter(); ls.improve_batch(gpop.copy(), gctx); cp.cuda.Stream.null.synchronize(); row[ck] = time.perf_counter()-t
+          print(f"{name:10s} {'gpu':8s} {row[20]:8.3f}s {row[None]:8.3f}s {row[None]/row[20]:7.2f}x")
+  ```
+
+- Why?
+
+  ```txt
+  instance   backend      ck=20   ck=None  speedup
+  berlin52   cpu         0.935s    0.924s    0.99x
+  berlin52   gpu         0.001s    0.001s    0.79x
+  kroA100    cpu         1.590s    4.250s    2.67x
+  kroA100    gpu         0.002s    0.003s    1.51x
+  ch150      cpu         3.122s    8.066s    2.58x
+  ch150      gpu         0.003s    0.005s    2.03x
+  pr264      cpu         4.808s   39.513s    8.22x
+  pr264      gpu         0.004s    0.016s    3.72x
+  lin318     cpu         5.811s   45.798s    7.88x
+  lin318     gpu         0.006s    0.023s    4.05x
+  ```
+
+- Guided local search vs Busca local dirigida.
+- the 2048 size for tiles and this memory optimizations that allowed better times and results.
