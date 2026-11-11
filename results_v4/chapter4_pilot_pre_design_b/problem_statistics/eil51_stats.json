@@ -1,0 +1,234 @@
+{
+  "problem_info": {
+    "name": "eil51",
+    "size": 51,
+    "optimal_cost": 426.0,
+    "problem_id": 13,
+    "tsplib_name": "eil51",
+    "problem_type": "TSP",
+    "dimension": 51,
+    "edge_type": "EUC_2D",
+    "edge_weight_type": "EUC_2D",
+    "edge_weight_format": null,
+    "is_symmetric": true,
+    "comment": "51-city problem (Christofides/Eilon)",
+    "capacity": null,
+    "has_coordinates": true,
+    "has_display_coords": false,
+    "has_explicit_matrix": false,
+    "has_solution": false,
+    "source_file": "datasets_raw/problems/tsp/eil51.tsp",
+    "file_checksum": "66c05ad077ffd64d5778e358bbd16be049f8c8ae880cbd24f034487331d1ccce"
+  },
+  "algorithms": {
+    "CPU": {
+      "mean_time": 36.001062031666514,
+      "std_time": 3.664436329970838,
+      "mean_initial_cost": 821.4666666666667,
+      "std_initial_cost": 17.629016484824735,
+      "mean_cost": 428.73333333333335,
+      "std_cost": 1.1234866364235145,
+      "mean_gap": 0.6416275430359938,
+      "std_gap": 0.26372925737641184,
+      "mean_generations": 4.066666666666666,
+      "std_generations": 0.44221663871405326,
+      "success_rate": 1.0,
+      "backend": "CPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": "RandomPermutationInitialization",
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation",
+        "local_search": "CPUTwoOpt",
+        "evaluation": "CPUCostEvaluation"
+      }
+    },
+    "HybridNaive": {
+      "mean_time": 0.4865083884001554,
+      "std_time": 0.072510290707243,
+      "mean_initial_cost": 821.8,
+      "std_initial_cost": 17.417232845661793,
+      "mean_cost": 428.53333333333336,
+      "std_cost": 1.1469767022723503,
+      "mean_gap": 0.594679186228482,
+      "std_gap": 0.26924335734092736,
+      "mean_generations": 4.066666666666666,
+      "std_generations": 0.573488351136175,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": "RandomPermutationInitialization",
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation",
+        "local_search": "NaiveGPUTwoOpt",
+        "evaluation": "CPUCostEvaluation"
+      }
+    },
+    "HybridOptimized": {
+      "mean_time": 0.11863317993411329,
+      "std_time": 0.02287410479625705,
+      "mean_initial_cost": 821.8,
+      "std_initial_cost": 17.417232845661793,
+      "mean_cost": 428.53333333333336,
+      "std_cost": 1.1469767022723503,
+      "mean_gap": 0.594679186228482,
+      "std_gap": 0.26924335734092736,
+      "mean_generations": 4.066666666666666,
+      "std_generations": 0.573488351136175,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": "RandomPermutationInitialization",
+        "selection": "TournamentSelection",
+        "crossover": "OrderCrossover",
+        "mutation": "SwapMutation",
+        "local_search": "BatchGPUTwoOpt",
+        "evaluation": "GPUCostEvaluation"
+      }
+    },
+    "FullGPUModular": {
+      "mean_time": 0.023217259400795835,
+      "std_time": 0.002181990815241827,
+      "mean_initial_cost": 821.8,
+      "std_initial_cost": 17.417232845661793,
+      "mean_cost": 427.73333333333335,
+      "std_cost": 1.1234866364235145,
+      "mean_gap": 0.40688575899843504,
+      "std_gap": 0.26372925737641184,
+      "mean_generations": 4.0,
+      "std_generations": 0.5163977794943222,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": "RandomPermutationInitialization",
+        "selection": "GPUTournamentSelection",
+        "crossover": "GPUOrderCrossover",
+        "mutation": "GPUSwapMutation",
+        "local_search": "BatchGPUTwoOpt",
+        "evaluation": "GPUCostEvaluation"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "eil51",
+    "optimal_cost": 426.0,
+    "baseline_algorithm": "CPU",
+    "friedman_test": {
+      "statistic": 4.617391304347816,
+      "p_value": 0.20205523426967176,
+      "significant": false,
+      "post_hoc_required": false
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "CPU vs HybridNaive",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.505387170505958,
+        "mean_difference": 0.2,
+        "ci_95_lower": -0.642455486878597,
+        "ci_95_upper": 1.042455486878597,
+        "cohens_d": 0.17019258867934295,
+        "normality_p_value_a": 0.03536054771468849,
+        "normality_p_value_b": 0.022737552380480103,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "CPU vs HybridOptimized",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.505387170505958,
+        "mean_difference": 0.2,
+        "ci_95_lower": -0.642455486878597,
+        "ci_95_upper": 1.042455486878597,
+        "cohens_d": 0.17019258867934295,
+        "normality_p_value_a": 0.03536054771468849,
+        "normality_p_value_b": 0.022737552380480103,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "CPU vs FullGPUModular",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.03623505525620926,
+        "mean_difference": 1.0,
+        "ci_95_lower": 0.13699379838138348,
+        "ci_95_upper": 1.8630062016186164,
+        "cohens_d": 0.8599050062177275,
+        "normality_p_value_a": 0.03536054771468849,
+        "normality_p_value_b": 0.008082549124429546,
+        "p_value_corrected": 0.21741033153725553,
+        "significant_after_correction": false,
+        "effect_interpretation": "large"
+      },
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "no_test_needed",
+        "p_value": 1.0,
+        "mean_difference": 0.0,
+        "ci_95_lower": 0.0,
+        "ci_95_upper": 0.0,
+        "cohens_d": 0.0,
+        "normality_p_value_a": 1.0,
+        "normality_p_value_b": 1.0,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPUModular",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.09118779772105347,
+        "mean_difference": 0.8,
+        "ci_95_lower": -0.09294590486921428,
+        "ci_95_upper": 1.6929459048692144,
+        "cohens_d": 0.6807703547174203,
+        "normality_p_value_a": 0.022737552380480103,
+        "normality_p_value_b": 0.008082549124429546,
+        "p_value_corrected": 0.4559389886052673,
+        "significant_after_correction": false,
+        "effect_interpretation": "medium"
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPUModular",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.09118779772105347,
+        "mean_difference": 0.8,
+        "ci_95_lower": -0.09294590486921428,
+        "ci_95_upper": 1.6929459048692144,
+        "cohens_d": 0.6807703547174203,
+        "normality_p_value_a": 0.022737552380480103,
+        "normality_p_value_b": 0.008082549124429546,
+        "p_value_corrected": 0.4559389886052673,
+        "significant_after_correction": false,
+        "effect_interpretation": "medium"
+      }
+    ]
+  }
+}

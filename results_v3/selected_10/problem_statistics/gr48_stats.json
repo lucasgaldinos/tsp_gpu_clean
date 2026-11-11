@@ -22,18 +22,80 @@
   },
   "algorithms": {
     "CPU": {
-      "mean_time": 3.4818321486673085,
-      "std_time": 0.3168516813148606,
-      "mean_initial_cost": 15040.666666666666,
-      "std_initial_cost": 382.84577689833395,
-      "mean_cost": 5073.333333333333,
-      "std_cost": 18.263503375736963,
-      "mean_gap": 0.5416831813978069,
-      "std_gap": 0.36194021751361416,
-      "mean_generations": 9.0,
-      "std_generations": 0.816496580927726,
+      "mean_time": 9.220785842405167,
+      "std_time": 0.32646142880864837,
+      "mean_initial_cost": 17665.9,
+      "std_initial_cost": 466.4633854870069,
+      "mean_cost": 5063.1,
+      "std_cost": 12.809761902549164,
+      "mean_gap": 0.33888228299643275,
+      "std_gap": 0.25385972854833855,
+      "mean_generations": 4.0,
+      "std_generations": 0.0,
       "success_rate": 1.0,
       "backend": "CPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 23.786892206408083,
+          "calls": 4.0,
+          "mean_ms": 5.946723051602021
+        },
+        "evaluation": {
+          "total_ms": 1.0856019973289222,
+          "calls": 5.0,
+          "mean_ms": 0.21712039946578443
+        },
+        "host_sync": {
+          "total_ms": 0.11510661279316992,
+          "calls": 9.0,
+          "mean_ms": 0.012789623643685546
+        },
+        "initialization": {
+          "total_ms": 1.9553309946786612,
+          "calls": 1.0,
+          "mean_ms": 1.9553309946786612
+        },
+        "local_search": {
+          "total_ms": 9192.33125509927,
+          "calls": 4.0,
+          "mean_ms": 2298.0828137748176
+        },
+        "mutation": {
+          "total_ms": 0.5598665040452033,
+          "calls": 4.0,
+          "mean_ms": 0.13996662601130083
+        },
+        "selection": {
+          "total_ms": 0.4032771015772596,
+          "calls": 4.0,
+          "mean_ms": 0.1008192753943149
+        },
+        "survival": {
+          "total_ms": 0.3176175057888031,
+          "calls": 4.0,
+          "mean_ms": 0.07940437644720078
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 0.2574578996107495,
+        "evaluation": 0.011758433443439584,
+        "host_sync": 0.0012476368633593416,
+        "initialization": 0.02131361428950858,
+        "local_search": 99.69183770178036,
+        "mutation": 0.006065337248302871,
+        "selection": 0.004372610509752616,
+        "survival": 0.0034433588417345008
+      },
+      "phase_share_cv_pct": {
+        "crossover": 11.319571557045858,
+        "evaluation": 9.732445222895397,
+        "host_sync": 7.751802382920612,
+        "initialization": 48.84989683055323,
+        "local_search": 0.032916932430924,
+        "mutation": 8.509154935837921,
+        "selection": 9.946946427257153,
+        "survival": 6.128932724551707
+      },
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
@@ -58,7 +120,7 @@
             "class": "LocalSearchCPUTwoOpt",
             "max_iterations": 10,
             "candidate_k": 20,
-            "mode": "first"
+            "mode": "best"
           },
           "evaluation": {
             "class": "EvaluationCPUCost"
@@ -75,18 +137,80 @@
       }
     },
     "HybridNaive": {
-      "mean_time": 0.3806656609958736,
-      "std_time": 0.0038377613343814933,
-      "mean_initial_cost": 9674.0,
-      "std_initial_cost": 14.445299120013633,
-      "mean_cost": 5072.333333333333,
-      "std_cost": 6.79869268479038,
-      "mean_gap": 0.5218655040295944,
-      "std_gap": 0.1347342981528018,
-      "mean_generations": 3.0,
+      "mean_time": 0.36643453940341714,
+      "std_time": 0.01431734179761934,
+      "mean_initial_cost": 17665.9,
+      "std_initial_cost": 466.4633854870069,
+      "mean_cost": 5058.1,
+      "std_cost": 7.020683727387241,
+      "mean_gap": 0.23979389615537058,
+      "std_gap": 0.1391336450136195,
+      "mean_generations": 4.0,
       "std_generations": 0.0,
       "success_rate": 1.0,
       "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 20.184647804126143,
+          "calls": 4.0,
+          "mean_ms": 5.046161951031536
+        },
+        "evaluation": {
+          "total_ms": 1.0098059952724725,
+          "calls": 5.0,
+          "mean_ms": 0.2019611990544945
+        },
+        "host_sync": {
+          "total_ms": 0.1064982934622094,
+          "calls": 9.0,
+          "mean_ms": 0.011833143718023267
+        },
+        "initialization": {
+          "total_ms": 1.752214299631305,
+          "calls": 1.0,
+          "mean_ms": 1.752214299631305
+        },
+        "local_search": {
+          "total_ms": 341.9802241929574,
+          "calls": 4.0,
+          "mean_ms": 85.49505604823935
+        },
+        "mutation": {
+          "total_ms": 0.514890905469656,
+          "calls": 4.0,
+          "mean_ms": 0.128722726367414
+        },
+        "selection": {
+          "total_ms": 0.3630887978943065,
+          "calls": 4.0,
+          "mean_ms": 0.09077219947357662
+        },
+        "survival": {
+          "total_ms": 0.29838450136594474,
+          "calls": 4.0,
+          "mean_ms": 0.07459612534148619
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 5.5045213137306614,
+        "evaluation": 0.2760157132557119,
+        "host_sync": 0.02908386844788461,
+        "initialization": 0.4807835512475688,
+        "local_search": 93.32661408061298,
+        "mutation": 0.1407239542899232,
+        "selection": 0.09934313094137115,
+        "survival": 0.08156795244751344
+      },
+      "phase_share_cv_pct": {
+        "crossover": 15.058071337622906,
+        "evaluation": 9.174693141091865,
+        "host_sync": 12.553360593824403,
+        "initialization": 42.414250769386626,
+        "local_search": 1.0379477131485288,
+        "mutation": 8.626967615344107,
+        "selection": 9.429069105680103,
+        "survival": 14.409300622844063
+      },
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
@@ -130,18 +254,80 @@
       }
     },
     "HybridOptimized": {
-      "mean_time": 0.04689768366612649,
-      "std_time": 0.004252573366175124,
-      "mean_initial_cost": 9687.666666666666,
-      "std_initial_cost": 31.930480039541457,
-      "mean_cost": 5056.333333333333,
-      "std_cost": 8.219218670625303,
-      "mean_gap": 0.2047826661381953,
-      "std_gap": 0.16288582383324024,
-      "mean_generations": 3.0,
+      "mean_time": 0.03426407500519417,
+      "std_time": 0.003625287263112423,
+      "mean_initial_cost": 17665.9,
+      "std_initial_cost": 466.4633854870069,
+      "mean_cost": 5055.9,
+      "std_cost": 8.537564055396599,
+      "mean_gap": 0.1961950059453032,
+      "std_gap": 0.1691946899602972,
+      "mean_generations": 4.0,
       "std_generations": 0.0,
       "success_rate": 1.0,
       "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 23.124885087599978,
+          "calls": 4.0,
+          "mean_ms": 5.7812212718999945
+        },
+        "evaluation": {
+          "total_ms": 1.2234001100296155,
+          "calls": 5.0,
+          "mean_ms": 0.2446800220059231
+        },
+        "host_sync": {
+          "total_ms": 0.11609909997787327,
+          "calls": 9.0,
+          "mean_ms": 0.012899899997541474
+        },
+        "initialization": {
+          "total_ms": 1.3357628980884328,
+          "calls": 1.0,
+          "mean_ms": 1.3357628980884328
+        },
+        "local_search": {
+          "total_ms": 7.0573460921877995,
+          "calls": 4.0,
+          "mean_ms": 1.7643365230469499
+        },
+        "mutation": {
+          "total_ms": 0.5287056934321299,
+          "calls": 4.0,
+          "mean_ms": 0.13217642335803248
+        },
+        "selection": {
+          "total_ms": 0.381678604753688,
+          "calls": 4.0,
+          "mean_ms": 0.095419651188422
+        },
+        "survival": {
+          "total_ms": 0.29884021496400237,
+          "calls": 4.0,
+          "mean_ms": 0.07471005374100059
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 67.25651391341302,
+        "evaluation": 3.5917500262031687,
+        "host_sync": 0.3397389878345186,
+        "initialization": 3.9039143740667432,
+        "local_search": 20.79333856618981,
+        "mutation": 1.544938293903858,
+        "selection": 1.1186468683433932,
+        "survival": 0.8729811607071156
+      },
+      "phase_share_cv_pct": {
+        "crossover": 4.159344341319049,
+        "evaluation": 8.037127897154038,
+        "host_sync": 6.707804063311282,
+        "initialization": 43.85010766093372,
+        "local_search": 9.651875345763731,
+        "mutation": 6.634757026636535,
+        "selection": 8.119857361795805,
+        "survival": 8.751363276909691
+      },
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
@@ -187,18 +373,80 @@
       }
     },
     "FullGPUModular": {
-      "mean_time": 0.019014014993445016,
-      "std_time": 0.00019252615088473444,
-      "mean_initial_cost": 9687.666666666666,
-      "std_initial_cost": 31.930480039541457,
-      "mean_cost": 5060.0,
-      "std_cost": 13.92838827718412,
-      "mean_gap": 0.2774474831549742,
-      "std_gap": 0.27602830513642723,
-      "mean_generations": 3.0,
+      "mean_time": 0.013704138301545755,
+      "std_time": 0.0003811050991019839,
+      "mean_initial_cost": 17665.9,
+      "std_initial_cost": 466.4633854870069,
+      "mean_cost": 5058.1,
+      "std_cost": 10.044401425669925,
+      "mean_gap": 0.23979389615537058,
+      "std_gap": 0.19905670681073967,
+      "mean_generations": 4.0,
       "std_generations": 0.0,
       "success_rate": 1.0,
       "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 1.2518081901362166,
+          "calls": 4.0,
+          "mean_ms": 0.31295204753405415
+        },
+        "evaluation": {
+          "total_ms": 0.7862685975851491,
+          "calls": 5.0,
+          "mean_ms": 0.15725371951702982
+        },
+        "host_sync": {
+          "total_ms": 4.9080960772698745,
+          "calls": 9.0,
+          "mean_ms": 0.5453440085855417
+        },
+        "initialization": {
+          "total_ms": 1.1796012026024982,
+          "calls": 1.0,
+          "mean_ms": 1.1796012026024982
+        },
+        "local_search": {
+          "total_ms": 1.2856424058554694,
+          "calls": 4.0,
+          "mean_ms": 0.32141060146386735
+        },
+        "mutation": {
+          "total_ms": 1.4496736082946882,
+          "calls": 4.0,
+          "mean_ms": 0.36241840207367204
+        },
+        "selection": {
+          "total_ms": 1.1030750873032957,
+          "calls": 4.0,
+          "mean_ms": 0.27576877182582393
+        },
+        "survival": {
+          "total_ms": 1.504701390513219,
+          "calls": 4.0,
+          "mean_ms": 0.37617534762830473
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 9.127634292271932,
+        "evaluation": 5.733284426530622,
+        "host_sync": 35.86518158495975,
+        "initialization": 8.608131242036043,
+        "local_search": 9.375976131219605,
+        "mutation": 10.573283009067634,
+        "selection": 8.042016388203104,
+        "survival": 10.95917141183567
+      },
+      "phase_share_cv_pct": {
+        "crossover": 4.3702287513224825,
+        "evaluation": 4.484056028729353,
+        "host_sync": 6.087031055367448,
+        "initialization": 2.345104599463206,
+        "local_search": 3.6244847387373422,
+        "mutation": 2.4952995396888866,
+        "selection": 4.403113071401556,
+        "survival": 9.569558588704902
+      },
       "algorithm_config": {
         "population_size": 256,
         "mutation_rate": 0.02,
@@ -249,8 +497,8 @@
     "optimal_cost": 5046.0,
     "baseline_algorithm": "CPU",
     "friedman_test": {
-      "statistic": 5.068965517241385,
-      "p_value": 0.166816247173982,
+      "statistic": 2.821428571428577,
+      "p_value": 0.41998453024177085,
       "significant": false,
       "post_hoc_required": false
     },
@@ -258,83 +506,83 @@
       {
         "comparison": "CPU vs HybridNaive",
         "test_used": "paired_t_test",
-        "p_value": 0.9477053436307622,
-        "mean_difference": 1.0,
-        "ci_95_lower": -57.09909012630294,
-        "ci_95_upper": 59.09909012630294,
-        "cohens_d": 0.05925221551879148,
-        "normality_p_value_a": 0.6530229165484096,
-        "normality_p_value_b": 0.4632628749337997,
+        "p_value": 0.33344689967035485,
+        "mean_difference": 5.0,
+        "ci_95_lower": -6.066858799986324,
+        "ci_95_upper": 16.066858799986324,
+        "cohens_d": 0.45922910133544065,
+        "normality_p_value_a": 0.5382970698728831,
+        "normality_p_value_b": 0.7475251998255816,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "CPU vs HybridOptimized",
+        "test_used": "paired_t_test",
+        "p_value": 0.08874572233908883,
+        "mean_difference": 7.2,
+        "ci_95_lower": -1.3364591966339843,
+        "ci_95_upper": 15.736459196633984,
+        "cohens_d": 0.6274988025774497,
+        "normality_p_value_a": 0.5382970698728831,
+        "normality_p_value_b": 0.2419499536618625,
+        "p_value_corrected": 0.5324743340345329,
+        "significant_after_correction": false,
+        "effect_interpretation": "medium"
+      },
+      {
+        "comparison": "CPU vs FullGPUModular",
+        "test_used": "paired_t_test",
+        "p_value": 0.3649829417805829,
+        "mean_difference": 5.0,
+        "ci_95_lower": -6.855660454061821,
+        "ci_95_upper": 16.85566045406182,
+        "cohens_d": 0.4120972429788479,
+        "normality_p_value_a": 0.5382970698728831,
+        "normality_p_value_b": 0.3093885313593371,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "paired_t_test",
+        "p_value": 0.6048793175024976,
+        "mean_difference": 2.2,
+        "ci_95_lower": -7.083116862978453,
+        "ci_95_upper": 11.483116862978452,
+        "cohens_d": 0.2670292727576127,
+        "normality_p_value_a": 0.7475251998255816,
+        "normality_p_value_b": 0.2419499536618625,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPUModular",
+        "test_used": "paired_t_test",
+        "p_value": 1.0,
+        "mean_difference": 0.0,
+        "ci_95_lower": -8.04401090061469,
+        "ci_95_upper": 8.04401090061469,
+        "cohens_d": 0.0,
+        "normality_p_value_a": 0.7475251998255816,
+        "normality_p_value_b": 0.3093885313593371,
         "p_value_corrected": 1.0,
         "significant_after_correction": false,
         "effect_interpretation": "negligible"
       },
       {
-        "comparison": "CPU vs HybridOptimized",
-        "test_used": "paired_t_test",
-        "p_value": 0.25664190194073566,
-        "mean_difference": 17.0,
-        "ci_95_lower": -29.54030511288036,
-        "ci_95_upper": 63.54030511288036,
-        "cohens_d": 0.9801351029039815,
-        "normality_p_value_a": 0.6530229165484096,
-        "normality_p_value_b": 0.7804408148790178,
-        "p_value_corrected": 1.0,
-        "significant_after_correction": false,
-        "effect_interpretation": "large"
-      },
-      {
-        "comparison": "CPU vs FullGPUModular",
-        "test_used": "paired_t_test",
-        "p_value": 0.14758450814531762,
-        "mean_difference": 13.333333333333334,
-        "ci_95_lower": -11.54941163483681,
-        "ci_95_upper": 38.21607830150348,
-        "cohens_d": 0.6703073854685923,
-        "normality_p_value_a": 0.6530229165484096,
-        "normality_p_value_b": 0.5098448100468244,
-        "p_value_corrected": 0.8855070488719057,
-        "significant_after_correction": false,
-        "effect_interpretation": "medium"
-      },
-      {
-        "comparison": "HybridNaive vs HybridOptimized",
-        "test_used": "paired_t_test",
-        "p_value": 0.2529126323623716,
-        "mean_difference": 16.0,
-        "ci_95_lower": -27.31242098943224,
-        "ci_95_upper": 59.31242098943224,
-        "cohens_d": 1.732050807568877,
-        "normality_p_value_a": 0.4632628749337997,
-        "normality_p_value_b": 0.7804408148790178,
-        "p_value_corrected": 1.0,
-        "significant_after_correction": false,
-        "effect_interpretation": "large"
-      },
-      {
-        "comparison": "HybridNaive vs FullGPUModular",
-        "test_used": "paired_t_test",
-        "p_value": 0.2899044237286451,
-        "mean_difference": 12.333333333333334,
-        "ci_95_lower": -24.873488330812833,
-        "ci_95_upper": 49.540154997479505,
-        "cohens_d": 0.9188470970002027,
-        "normality_p_value_a": 0.4632628749337997,
-        "normality_p_value_b": 0.5098448100468244,
-        "p_value_corrected": 1.0,
-        "significant_after_correction": false,
-        "effect_interpretation": "large"
-      },
-      {
         "comparison": "HybridOptimized vs FullGPUModular",
         "test_used": "paired_t_test",
-        "p_value": 0.7634818761043581,
-        "mean_difference": -3.6666666666666665,
-        "ci_95_lower": -49.49435085621127,
-        "ci_95_upper": 42.16101752287794,
-        "cohens_d": -0.2617934788056851,
-        "normality_p_value_a": 0.7804408148790178,
-        "normality_p_value_b": 0.5098448100468244,
+        "p_value": 0.6645447932323056,
+        "mean_difference": -2.2,
+        "ci_95_lower": -13.301740985235021,
+        "ci_95_upper": 8.901740985235023,
+        "cohens_d": -0.22390254855346875,
+        "normality_p_value_a": 0.2419499536618625,
+        "normality_p_value_b": 0.3093885313593371,
         "p_value_corrected": 1.0,
         "significant_after_correction": false,
         "effect_interpretation": "small"
