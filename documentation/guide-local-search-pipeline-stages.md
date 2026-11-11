@@ -170,6 +170,7 @@ ga = GeneticAlgorithm(
 
 - **Behavior:** Refines `state.offspring` immediately after `CrossoverStep` and **before** `MutationStep`.
 - **Pipeline sequence:** `SelectionStep` → `CrossoverStep` → `LocalSearchStep(target="offspring")` → `MutationStep` → `EvaluationStep(target="offspring")` → `SurvivalStep`.
+- **Generation 0:** Not refined. The initial population is evaluated raw, because it was not produced by crossover; only the loop's offspring are candidates for this stage.
 - **When to use:** Repairs edge crossings introduced by crossover cuts while allowing subsequent mutation to introduce diversity into the locally optimal tour before evaluation.
 
 ```python
@@ -201,6 +202,7 @@ ga = GeneticAlgorithm(
 
 - **Behavior:** Refines `state.offspring` after `MutationStep` and **before** `EvaluationStep(target="offspring")`.
 - **Pipeline sequence:** `SelectionStep` → `CrossoverStep` → `MutationStep` → `LocalSearchStep(target="offspring")` → `EvaluationStep(target="offspring")` → `SurvivalStep`.
+- **Generation 0:** Not refined. The initial population is evaluated raw; `initial_fitness` in the run statistics is therefore the best cost of the randomly initialised population, comparable across pipeline stages. Only `post_evaluation` refines the starting population.
 - **When to use:** Classic Memetic Algorithm. Every mutated offspring is brought to a local minimum before its fitness is evaluated.
 
 ```python
@@ -223,6 +225,8 @@ ga = GeneticAlgorithm(
 - **Behavior:** Offspring are evaluated raw (`EvaluationStep(target="offspring")`), survivors are selected (`SurvivalStep`), and then `LocalSearchStep(target="population", re_evaluate=self.evaluation)` refines the surviving `state.population` and re-evaluates `state.fitness`.
 - **Pipeline sequence:** `SelectionStep` → `CrossoverStep` → `MutationStep` → `EvaluationStep(target="offspring")` → `SurvivalStep` → `LocalSearchStep(target="population", re_evaluate=self.evaluation)`.
 - **Why `re_evaluate` is required here:** Because `LocalSearchStep` modifies `state.population` *after* `SurvivalStep`, `state.fitness` would otherwise hold the pre-2-opt costs. Passing `re_evaluate=self.evaluation` updates `state.fitness` immediately so early stopping and next-generation tournament selection see accurate costs.
+
+**Generation 0: not refined:** In accordance with `BUG-21`, Generation 0 is always evaluated raw (`initialization.initialize()` followed by `evaluation.evaluate_batch()`) across all five stages, including `post_evaluation`. Local search inside the generational loop only refines populations produced during evolution, ensuring `initial_fitness` is strictly comparable and stage-independent. If pre-evolution refinement of $P_0$ is desired, use `PostInitLocalSearchStep` (`DP11-6`).
 
 ```python
 ga = GeneticAlgorithm(
@@ -261,12 +265,11 @@ ga = GeneticAlgorithm(
 
 ## 3. Custom pipeline patterns via `GenerationStep`
 
-When the five built-in stages are not enough, you can write a custom class implementing `run(self, state: GenerationState, timer: PhaseTimer) -> None` and pass a list of steps to `GeneticAlgorithm(..., pipeline=[...])`.
-
-> [!WARNING]
-> When passing a custom `pipeline=[...]` to `GeneticAlgorithm`, ALSO set `local_search_stage="none"` on `GeneticAlgorithm(...)` if your custom pipeline already manages local search. Otherwise, `evolve()` will still execute the initial-population local search block in [`genetic_algorithm.py`](../src/algorithms/metaheuristics/genetic_algorithm.py#L473-L504) before generation 1 begins.
+When the five built-in stages are not enough, you can use existing custom steps from `algorithms.pipeline_steps` (`PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`, `PeriodicLocalSearchStep`) or write a custom class implementing `run(self, state: GenerationState, timer: PhaseTimer) -> None` and pass a list of steps to `GeneticAlgorithm(..., pipeline=[...])`.
 
 ### 3.1. Pattern 1: Post-initialization-only local search (`PostInitLocalSearchStep`)
+
+Implemented in [`src/algorithms/pipeline_steps.py`](../src/algorithms/pipeline_steps.py) (`DP11-6`).
 
 **Goal:** Refine the initial random population once at `state.generation == 1` before parent selection starts, and then run pure GA for all subsequent generations (`state.generation > 1`).
 
@@ -280,50 +283,7 @@ When the five built-in stages are not enough, you can write a custom class imple
 ```python
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from algorithms.metaheuristics.genetic_algorithm import (
-  CrossoverStep,
-  EvaluationStep,
-  GenerationState,
-  GenerationStep,
-  GeneticAlgorithm,
-  MutationStep,
-  SelectionStep,
-  SurvivalStep,
-)
-
-if TYPE_CHECKING:
-  from protocols.algorithm_strategies import EvaluationStrategy, LocalSearchStrategy
-  from utils.phase_timer import PhaseTimer
-
-
-class PostInitLocalSearchStep:
-  """Refine `state.population` only once at the start of generation 1."""
-
-  def __init__(
-    self,
-    local_search: LocalSearchStrategy,
-    evaluation: EvaluationStrategy,
-  ) -> None:
-    self.local_search: LocalSearchStrategy = local_search
-    self.evaluation: EvaluationStrategy = evaluation
-
-  def run(self, state: GenerationState, timer: PhaseTimer) -> None:
-    if state.generation != 1:
-      return
-    state.population = timer.measure(
-      "local_search",
-      self.local_search.improve_batch,
-      state.population,
-      state.context,
-    )
-    state.fitness = timer.measure(
-      "evaluation",
-      self.evaluation.evaluate_batch,
-      state.population,
-      state.context,
-    )
+from algorithms.pipeline_steps import PostInitLocalSearchStep
 
 
 def build_post_init_ga(
@@ -362,6 +322,8 @@ def build_post_init_ga(
 
 ### 3.2. Pattern 2: Elite-only local search (`EliteOnlyLocalSearchStep`)
 
+Implemented in [`src/algorithms/pipeline_steps.py`](../src/algorithms/pipeline_steps.py) (`DP11-10`).
+
 **Goal:** Instead of running expensive 2-opt on all $N$ individuals in `state.population`, refine only the top $k$ fittest individuals (`elite_count = k`) after `SurvivalStep` and update only their entries in `state.population` and `state.fitness`.
 
 #### Step-by-step implementation rules
@@ -376,67 +338,7 @@ def build_post_init_ga(
 ```python
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-import numpy as np
-
-from algorithms.metaheuristics.genetic_algorithm import (
-  CrossoverStep,
-  EvaluationStep,
-  GenerationState,
-  GeneticAlgorithm,
-  MutationStep,
-  SelectionStep,
-  SurvivalStep,
-)
-from protocols.backend import cupy_backend
-from utils.route_helpers import is_gpu_array
-
-if TYPE_CHECKING:
-  from protocols.algorithm_strategies import EvaluationStrategy, LocalSearchStrategy
-  from utils.phase_timer import PhaseTimer
-
-
-class EliteOnlyLocalSearchStep:
-  """Apply local search exclusively to the top-k lowest-cost routes in `state.population`."""
-
-  def __init__(
-    self,
-    local_search: LocalSearchStrategy,
-    evaluation: EvaluationStrategy,
-    elite_count: int = 10,
-  ) -> None:
-    if elite_count <= 0:
-      raise ValueError(f"elite_count must be > 0, got {elite_count}")
-    self.local_search: LocalSearchStrategy = local_search
-    self.evaluation: EvaluationStrategy = evaluation
-    self.elite_count: int = elite_count
-
-  def run(self, state: GenerationState, timer: PhaseTimer) -> None:
-    pop_size: int = int(state.population.shape[0])
-    k: int = min(self.elite_count, pop_size)
-
-    is_gpu: bool = is_gpu_array(state.fitness)
-    xp: Any = cupy_backend() if is_gpu else np
-
-    elite_indices = xp.argsort(state.fitness)[:k]
-    elite_routes = state.population[elite_indices]
-
-    improved_elites = timer.measure(
-      "local_search",
-      self.local_search.improve_batch,
-      elite_routes,
-      state.context,
-    )
-    improved_fitness = timer.measure(
-      "evaluation",
-      self.evaluation.evaluate_batch,
-      improved_elites,
-      state.context,
-    )
-
-    state.population[elite_indices] = improved_elites
-    state.fitness[elite_indices] = improved_fitness
+from algorithms.pipeline_steps import EliteOnlyLocalSearchStep
 
 
 def build_elite_local_search_ga(
@@ -480,6 +382,8 @@ def build_elite_local_search_ga(
 
 ### 3.3. Pattern 3: Periodic / staged local search (`PeriodicLocalSearchStep`)
 
+Implemented in [`src/algorithms/pipeline_steps.py`](../src/algorithms/pipeline_steps.py) (`DP11-10`).
+
 **Goal:** Execute local search only every `interval` generations (for example, when `state.generation % 10 == 0`), skipping local search on all other generations to reduce runtime while periodically smoothing the population's tours.
 
 #### Step-by-step implementation rules
@@ -490,69 +394,7 @@ def build_elite_local_search_ga(
 ```python
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
-
-from algorithms.metaheuristics.genetic_algorithm import (
-  CrossoverStep,
-  EvaluationStep,
-  GenerationState,
-  GeneticAlgorithm,
-  MutationStep,
-  SelectionStep,
-  SurvivalStep,
-)
-
-if TYPE_CHECKING:
-  from protocols.algorithm_strategies import EvaluationStrategy, LocalSearchStrategy
-  from utils.phase_timer import PhaseTimer
-
-
-class PeriodicLocalSearchStep:
-  """Execute local search once every `interval` generations."""
-
-  def __init__(
-    self,
-    local_search: LocalSearchStrategy,
-    interval: int = 10,
-    target: Literal["offspring", "population"] = "population",
-    re_evaluate: EvaluationStrategy | None = None,
-  ) -> None:
-    if interval <= 0:
-      raise ValueError(f"interval must be > 0, got {interval}")
-    if target == "population" and re_evaluate is None:
-      raise ValueError("re_evaluate EvaluationStrategy is required when target='population'")
-    self.local_search: LocalSearchStrategy = local_search
-    self.interval: int = interval
-    self.target: Literal["offspring", "population"] = target
-    self.re_evaluate: EvaluationStrategy | None = re_evaluate
-
-  def run(self, state: GenerationState, timer: PhaseTimer) -> None:
-    if state.generation % self.interval != 0:
-      return
-
-    if self.target == "offspring":
-      if state.offspring is None:
-        raise RuntimeError("PeriodicLocalSearchStep(target='offspring') called before offspring exists.")
-      state.offspring = timer.measure(
-        "local_search",
-        self.local_search.improve_batch,
-        state.offspring,
-        state.context,
-      )
-    else:
-      state.population = timer.measure(
-        "local_search",
-        self.local_search.improve_batch,
-        state.population,
-        state.context,
-      )
-      if self.re_evaluate is not None:
-        state.fitness = timer.measure(
-          "evaluation",
-          self.re_evaluate.evaluate_batch,
-          state.population,
-          state.context,
-        )
+from algorithms.pipeline_steps import PeriodicLocalSearchStep
 ```
 
 ### 3.4. Pattern 4: Multi-stage memetic pipeline (shallow per-generation + deep periodic elite)

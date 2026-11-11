@@ -14,10 +14,26 @@ modifications:
     modifications:
       - description: >
           Standardized document per markdown instructions: added formal YAML frontmatter, validated hierarchical tags, and standardized code fences.
+  - date_modified: 2026-11-10
+    modifications:
+      - description: >
+          Expanded Common Pitfalls with empirical GPU benchmarking lessons: distinguishing AOT precompilation
+          from runtime execution warm-up (and the origin of negative scaling slope artifacts beta < 0),
+          host-side unvectorized serialization bottlenecks masking CUDA performance (Amdahl's law),
+          and topology cache poisoning hazards from placeholder zero arrays.
+      - description: >
+          Added pitfalls 9 and 10: the `@time_strategy` decorator as an unconditional host-device
+          barrier that invalidates any "enqueue vs. execution" timing inference, and the phase-accounting
+          rule that `survival` plus `host_sync` must close the wall clock with `ddof=1` dispersion.
 related_files:
   - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
   - "[guide-statistical-demsar-post-hoc-tests.md](./guide-statistical-demsar-post-hoc-tests.md)"
   - "[guide-iso-algorithmic-ga-validation.md](./guide-iso-algorithmic-ga-validation.md)"
+  - "[analysis-initial-population-policy-and-experiment-comparability.md](./analysis-initial-population-policy-and-experiment-comparability.md)"
+  - "[analysis-crossover-gpu-architecture-and-scaling.md](./analysis-crossover-gpu-architecture-and-scaling.md)"
+  - "[analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md)"
+  - "[analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md)"
+  - "[analysis-host-side-sampling-bottlenecks.md](./analysis-host-side-sampling-bottlenecks.md)"
 tags:
   - guide/benchmarking
   - benchmark/performance
@@ -357,6 +373,33 @@ print(f"95% CI: [{ci.confidence_interval.low:.2f}x, "
 5. **Overlooking Practical Significance**
    - ❌ "p < 0.001, therefore GPU is better"
    - ✅ "Statistically significant (p < 0.001) speedup of 1.05x - not practically meaningful given implementation complexity"
+
+6. **Conflating AOT Precompilation with Execution Warm-Up**
+   - ❌ Assuming that JIT/AOT-compiling the CUDA kernel eliminated all cold-start overheads.
+   - ✅ Distinguish between pure AOT compilation (PTX/cubin generation via NVRTC) and runtime execution warm-up. An untimed warm-up dispatch is strictly required to:
+     - Prime dynamic memory pools (avoiding expensive OS-level `cudaMalloc` calls during timing);
+     - Initialize CUDA driver stream queues and event contexts;
+     - Ramp GPU hardware clocks from idle power states (P8/P5, $\approx 139\text{ MHz}$) to boost frequencies (P0, $\approx 1{,}493\text{ MHz}$);
+     - Populate instruction and L2 SRAM cache lines.
+   - ⚠️ Omitting per-dimension execution warm-up causes the first tested size ($n_0$) to absorb allocation latency, artificially tilting fitted power-law scaling ($\log T = \beta \log n$) into spurious negative slopes ($\beta < 0$).
+
+7. **Host-Side Serialization Bottlenecks Masking GPU Acceleration**
+   - ❌ Benchmarking whole-strategy Python methods and attributing all latency to GPU execution.
+   - ✅ Use hardware CUDA events (`cp.cuda.Event`) to measure pure device kernel time alongside host wall time. Unvectorized Python parameter loops (e.g. generating cut points or mutation pairs via `for i in range(N): rng.choice(...)`) consume $\approx 1.22\text{ ms}$ on the CPU, dominating pure CUDA execution ($0.012\text{--}0.088\text{ ms}$) by $14\times$ to $100\times$ (accounting for $>90\%$ of runtime). Vectorized NumPy sampling ($c_2 += c_2 \ge c_1$) reduces host overhead to $0.017\text{ ms}$ ($72\times$ faster).
+
+8. **Topology Cache Poisoning via Placeholder Warm-Up Payloads**
+   - ❌ Passing dummy zero arrays (`cp.zeros((N, n))`) to execution warm-up dispatches.
+   - ✅ Dummy zero arrays satisfy `batch[0, 0] == batch[0, -1]` ($0 == 0$), falsely triggering closed-tour heuristics and committing `_is_closed_cache = (n, True)`. When subsequent Open TSP benchmarks execute, the poisoned cache restricts cut boundaries and injects duplicate cities. Warm-up passes must always use structurally valid permutations.
+
+9. **Mistaking a Decorator Barrier for Intrinsic Device Synchronization**
+   + ❌ Concluding that a GPU strategy "blocks internally" because three different clocks (`perf_counter`, `cp.cuda.Event`, drained `perf_counter`) agree on its duration.
+   + ✅ Vary the *call surface*, not only the clock. In this repository `@time_strategy` ([phase_timer.py](../../src/utils/phase_timer.py)) inspects `isinstance(arg, cp.ndarray)` and unconditionally runs `start_evt.record()` / `end_evt.synchronize()`, so **every** decorated GPU strategy call is a host-device barrier regardless of its body. Measured on $n = 500$, $N = 256$: wrapped `improve_batch` $= 260.840\ \text{ms}$ versus undecorated body (raw enqueue) $= 0.363\ \text{ms}$ — a $718\times$ gap that is entirely wrapper. Agreement among clocks measured through the same wrapper proves the wrapper blocks, nothing more. Removing `cp.cuda.Stream.null.synchronize()` from strategy bodies (`BUG-15`, `DP10-18`, `DP11-14`–`DP11-18`) is still correct for out-of-`evolve()` callers, but produces no in-pipeline gain.
+   + See [analysis-timing-instrumentation-and-warmup.md §2–§3](./analysis-timing-instrumentation-and-warmup.md#2-two-independent-clocks-in-the-same-process).
+
+10. **Incomplete Phase Accounting: Async `SurvivalStep` Bleed and Biased Dispersion**
+    + ❌ Publishing a per-phase share table that omits `survival` and `host_sync`, or reporting a coefficient of variation computed with `np.std` at its `ddof=0` default.
+    + ✅ `SurvivalStep` runs undecorated through `PhaseTimer.measure` with `use_cuda_events=False`, so `vstack` / `concatenate` / `argsort` / fancy-index gather are only *enqueued*; the device work is drained by the next `_extract_best` (`cp.argmin(fitness).get()`) under the `host_sync` bucket. The closure $T_{\text{wall}} \approx \sum_p T_p + T_{\text{host\_sync}}$ therefore requires `survival` in the sum. Use `ddof=1`: at $R = 8$ the population estimator understates $\sigma$ by $1 - \sqrt{7/8} \approx 6.5\%$, reaching $\approx 18.4\%$ at $R = 3$.
+    + See [analysis-timing-instrumentation-and-warmup.md §4–§5](./analysis-timing-instrumentation-and-warmup.md#4-the-async-bleed-survivalstep-and-the-host_sync-bucket).
 
 ---
 

@@ -35,7 +35,10 @@ Does the code do what it claims to do?
 - **Spec & mathematical parity:** Verify numeric formulas, rounding vs. truncation (`int(x)` vs. `_nint(x)`), and 1-based vs. 0-based indexing directly against upstream specifications (e.g., TSPLIB95, Fortran reference code) — never trust docstrings or status-quo characterization snapshots alone.
 - **Sub-route vs. full-permutation bounds:** In routing operators (TSP/CVRP), verify lookup buffers (such as `inverse_positions`) size against max node ID (`max(len(route), int(route.max()) + 1)`), never `len(route)`, and check static CUDA array caps (`applied_start[16]`) against dynamic block capacity.
 - **No silent data evaporation:** Reject parsers, validators, or fallback guards (`if route.max() >= route.size: return None`) that silently drop malformed sections or disable features instead of raising or handling properly.
+- **Named topology beats positional heuristics:** Route operators must derive open-vs-closed bounds from context metadata (`context.is_closed`, repeated depot endpoints), never from an unconditional `(1, n - 1)`. Freezing indices `0` and `n - 1` of an open TSP tour shrinks the search space from $n!$ to $(n-2)!$ while every test still passes.
 - **Whole-module sibling sweep:** When a defect fix targets one strategy/operator class (e.g., GPU distance caching in `GPUCostEvaluation`), check all sibling classes in the module (`BatchGPUTwoOpt`, `BatchGPUMultiMoveTwoOpt`) so partial fixes never pass review.
+- **Cross-backend invariance:** Changing sampling order, `dtype` width, or replacement semantics on one backend (`rng.choice(..., replace=False)` → `rng.integers` in the GPU class only) breaks bit-identical parity (`OX-A`, `SWAP-A`, `INV-A`) and silently handicaps the CPU baseline. Require one shared helper plus a parity test asserting `array_equal` for the same seed.
+- **Run the DoD command verbatim:** Re-execute the exact normalized check (`grep -rn ... --exclude-dir={__pycache__,.mypy_cache,.pytest_cache,.ruff_cache}`) before writing `→ 0`. A quoted summary is not evidence, and a grep that skipped a sibling file is a false pass.
 
 ### 2. Readability & Simplicity
 
@@ -88,6 +91,35 @@ For detailed profiling and optimization, see `performance-optimization`. Does th
 - Any unnecessary re-renders in UI components?
 - Any missing pagination on list endpoints?
 - Any large objects created in hot paths?
+- **Hidden synchronization in wrappers:** A `grep` for `synchronize()` inside a module proves nothing about the call path. Inspect every decorator (`@time_strategy`), context manager, base-class hook, and property on the hot method — `PhaseTimer.measure` calls `end_evt.synchronize()` on *every* call when `use_cuda_events=True`.
+- **Device residency across generations:** Byte counters (`h2d_bytes`, `d2h_bytes`) must stay constant over a $G > 1$ loop. A `cp.asarray(x)` inside a per-generation helper re-uploads host data every generation and erases the claimed speedup.
+- **Implicit host scalar syncs:** `int(arr.max())`, `bool(arr[0] == arr[-1])`, `.item()`, `np.asarray(gpu_arr)` each force a device→host stall. Audit helpers reachable from the GPU hot path, not only the file named in the task.
+- **Getters with zero callers:** A new `ProblemContext` GPU getter (`get_gpu_candidate_list`) nobody calls is dead API — the strategy keeps uploading its own copy. Verify call sites *and* that they hit the cache.
+- **Mutable per-instance caches are a correctness hazard, not an optimization:** A cache keyed by shape or topology (`_is_closed_cache = (n_cities, is_closed)`) is poisoned by any synthetic batch whose rows are identical (`cp.zeros` makes `0 == 0` read as "closed"). Keep derived state in `ProblemContext`, or key it by content hash.
+
+## Accelerated & Benchmarked Code Gate
+
+Run this gate for any change touching CUDA kernels, CuPy/NumPy branches, timing instrumentation, RNG, warm-up, or benchmark/report code. Each gate names the observation that fails today and the command that produces it — attach the output. Detailed patterns: `references/gpu-and-scientific-computing-review.md`.
+
+| # | Gate | Falsifiable check (run it, paste it) |
+| --- | --- | --- |
+| 1 | **Decorator & instrumentation sync audit (`BUG-26`)** — no hidden event/stream sync in `@time_strategy`, `PhaseTimer.measure`, `is_gpu_array`, `to_cpu_batch`, context managers, or base-class hooks. A module-scoped `grep "Stream.null.synchronize()"` is never evidence. | Time `method.__wrapped__(...)` (decorator bypassed) against `method(...)` over ≥20 calls on a resident population. Ratio ≫ 1 (measured: $260.840\ \text{ms}$ wrapped vs $0.363\ \text{ms}$ enqueue) proves the decorator blocks; ratio ≈ 1 proves it does not. |
+| 2 | **Cross-backend stochastic & algorithmic bit-identity (`BUG-24`, `BUG-28`)** — identical RNG API, draw count, `dtype` width (`rng.choice` vs `rng.integers`, `int64` vs `int32` in PCG64 consume differently), and replacement semantics on the CPU and GPU siblings; route bounds resolved from topology (`resolve_route_bounds` over `_mutation_bounds` / `_has_depot_endpoints`) | One seed → `array_equal(CPU, GPU)` on offspring/routes. `grep -n "rng\.\(choice\|integers\|permutation\)"` must show the *same shared helper* (`sample_distinct_pairs`) in both siblings; all index draws `dtype=np.int32`. Bounds probe: open TSP tour → `(0, n)`; CVRP `[0, …, 0]` → `(1, n - 1)`. |
+| 3 | **Stateful strategy cache & warm-up isolation (`BUG-24`, `BUG-25`)** — no mutable shape/topology cache on a strategy instance; warm-up must not mutate the measured state and must cover *every* pipeline step, including periodic ones | `grep -rn "_cache" src/algorithms/strategies/` → zero instance-level `(shape, topology)` keys. Warm-up clones the instance when `algorithm_factory is None`; `_compile_kernel_cached.cache_info().currsize` must be **constant** across all measured repetitions with `max_generations ≥ interval` (a delta of 1 is the JIT spike: measured 26.27× on repetition 1). |
+| 4 | **VRAM cache residency & telemetry completeness (`BUG-27`, `BUG-30`)** — context-owned caches (`get_gpu_distances`, `get_gpu_candidate_list`) are the only source of GPU operands; every host↔device transfer increments `h2d_bytes`/`d2h_bytes`, `incremental_mode` included; every `PhaseTimer` bucket reaches the report and the DB | `h2d_bytes`/`d2h_bytes` diff over $G \in \{1, 5\}$ must be `0`; `sum(phase_share_pct.values()) ≈ 100` **including** `survival` and `host_sync`; `grep -n "survival\|host_sync"` present in `report_generator.py`, `schema.sql`, and `import_checkpoints.py` — 2/3 is a defect. |
+| 5 | **CUDA kernel structural & bounds audit (`BUG-29`)** — grid guard on every indexed kernel, no reduction barriers in the no-improvement path, no unused dynamic shared memory, no serial Thread-0 loops that the block could parallelize | Per `.cu` checklist in the reference: `if (idx >= n_tours) return;` present; `__syncthreads()` not reached when `s_deltas[0] >= 0`; `_shared_mem_bytes == 0` when candidate mode never touches `s_tour`; `for (k = tid; k < num_swaps; k += blockDim.x)` replaces `while (left < right)` under `tid == 0`. |
+| 6 | **Falsifiable DoD replay** — re-execute the exact DoD command on the final tree, across **every** sibling file in the directory | Command and output attached verbatim; a `→ 0` that skipped a sibling `.cu` or `.py` is a false pass. |
+
+**Gate 1 probe (runnable, ~8 lines):**
+
+```python
+import time
+raw = getattr(strategy.improve_batch, "__wrapped__", strategy.improve_batch)  # bypass @time_strategy
+for fn in (raw, strategy.improve_batch):
+    t0 = time.perf_counter(); [fn(pop_gpu, ctx) for _ in range(20)]
+    print(fn.__qualname__, (time.perf_counter() - t0) / 20 * 1e3, "ms/call")
+# expect: both lines within ~5% → async. decorated ≫ raw → hidden end_evt.synchronize().
+```
 
 ## Structural Remedies
 
@@ -343,6 +375,18 @@ For triaging `npm audit` findings and supply-chain risk (typosquatting, compromi
 - [ ] No unbounded operations
 - [ ] Pagination on list endpoints
 
+### Accelerated / Scientific
+- [ ] `__wrapped__` timing probe run: decorated ≈ raw call (no hidden `end_evt.synchronize()`)
+- [ ] CPU/GPU parity test asserts bit-identical output for the same seed, same RNG helper and `int32` draws
+- [ ] Route bounds derived from topology (open tour `(0, n)` vs. closed `(1, n - 1)`), not hardcoded
+- [ ] No mutable `(shape, topology)` cache on a strategy instance; warm-up clones the instance
+- [ ] `_compile_kernel_cached.cache_info().currsize` constant across measured repetitions, periodic steps included
+- [ ] `h2d_bytes`/`d2h_bytes` invariant across a multi-generation loop and under `incremental_mode`
+- [ ] `PhaseTimer` buckets sum to ~100% of wall time in the report; every bucket persisted to DuckDB
+- [ ] Context GPU caches (`get_gpu_distances`, `get_gpu_candidate_list`) have call sites in every GPU sibling
+- [ ] Every `.cu` has its grid guard, no dead barriers, and no unused dynamic shared memory
+- [ ] DoD command re-run verbatim across every sibling kernel and module
+
 ### Verification
 - [ ] Tests pass
 - [ ] Build succeeds
@@ -357,6 +401,7 @@ For triaging `npm audit` findings and supply-chain risk (typosquatting, compromi
 
 - For detailed security review guidance, see `../../references/security-checklist.md`
 - For performance review checks, see `../../references/performance-checklist.md`
+- For GPU/scientific review patterns (decorator sync tracing, RNG parity, kernel sweeps, telemetry conservation), see [gpu-and-scientific-computing-review.md](./references/gpu-and-scientific-computing-review.md)
 
 ## Common Rationalizations
 
@@ -371,6 +416,14 @@ For triaging `npm audit` findings and supply-chain risk (typosquatting, compromi
 | "It's only a small addition to this file" | Small diffs still push files past a healthy size and bolt branches onto unrelated flows. Judge the resulting structure, not the diff size. |
 | "It's just a version bump" | A bump is a behavior change you didn't write. Read the changelog; semver doesn't guarantee no breakage. |
 | "I'll upgrade everything in one PR to save time" | A bulk bump that breaks the build hides which package did it. One dependency per change keeps the cause and the revert clean. |
+| "`grep synchronize` returns 0, so it's async" | The call can live in a decorator, context manager, or base-class hook. Zero matches in the module is not zero on the call path. |
+| "I only optimized the GPU path" | Unilateral RNG/`dtype` changes destroy bit-identity with the CPU reference and handicap the baseline you compare against. |
+| "The DoD grep passed" | A grep that skipped a sibling file or ran on a stale tree reports 0 for code that still matches. Re-run the exact command and paste it. |
+| "Telemetry is just a log line" | A new timing bucket or config key is a contract across producer, aggregator, validator, schema, and report — 4/5 layers is a defect. |
+| "I removed every `Stream.null.synchronize()`" | The barrier may sit in a decorator, a `RawKernel` wrapper, or `int(tour.max())`. Only a `__wrapped__` timing probe distinguishes enqueue from execution. |
+| "The parity test passes, so CPU and GPU match" | Parity on one seed proves nothing if the GPU class alone switched `rng.choice` → `rng.integers` or `int64` → `int32`; the streams diverge on the next draw. Compare the sampling helper in *both* siblings. |
+| "Warm-up already runs one generation" | One generation compiles nothing when the expensive step fires every tenth (`PeriodicLocalSearchStep`). Assert `cache_info().currsize` is flat across repetitions instead of trusting wall-clock. |
+| "The cache is just a memo" | A cache keyed by `(n, is_closed)` accepts synthetic `zeros` batches where `0 == 0` reads as "closed" and poisons every later real run. State belongs to the context, not the strategy instance. |
 
 ## Red Flags
 
@@ -388,6 +441,15 @@ For triaging `npm audit` findings and supply-chain risk (typosquatting, compromi
 - A bespoke helper that duplicates an existing canonical one, or feature logic placed in a shared module
 - A bulk "bump dependencies" PR with no changelog review and no per-package isolation
 - A lockfile change that's hand-edited, uncommitted, or merged without reviewing its diff
+- A "GPU path is async now" claim backed only by a module-scoped grep for `synchronize()`
+- RNG/sampling changes applied to one backend but not the other
+- A new `ProblemContext` GPU getter or cache with zero call sites
+- A DoD claim of `→ 0` on a grep that did not cover every sibling kernel or module
+- A new phase/bucket/config key that stops before the report table
+- A `(shape, topology)` cache stored on a strategy instance, or a warm-up that reuses the measured instance
+- A warm-up justified by wall-clock instead of `_compile_kernel_cached.cache_info().currsize`
+- A `.cu` kernel indexing a per-tour slot with no `>= n_tours` guard, or a `while (left < right)` loop running on `tid == 0`
+- Route bounds hardcoded to `(1, n - 1)` regardless of whether the tour is open
 
 ## Verification
 
@@ -399,5 +461,6 @@ After review is complete:
 - [ ] Build succeeds
 - [ ] The verification story is documented (what changed, how it was verified)
 - [ ] Dependency upgrades were reviewed against their changelog, isolated per package, and verified by a green suite with the lockfile diff reviewed
+- [ ] For accelerated/benchmarked code: all six Accelerated & Benchmarked Code Gates were each answered with a command and its output
 
-**Presumptive blockers:** surface and propose the simpler design for each of these; escalate to Required only when the change actively makes structure worse: a refactor that relocates complexity instead of reducing it; a change that pushes a file past the size boundary with no decomposition; feature logic added to a shared module; a near-duplicate of an existing canonical helper; a silent fallback that hides an unclear invariant.
+**Presumptive blockers:** surface and propose the simpler design for each of these; escalate to Required only when the change actively makes structure worse: a refactor that relocates complexity instead of reducing it; a change that pushes a file past the size boundary with no decomposition; feature logic added to a shared module; a near-duplicate of an existing canonical helper; a silent fallback that hides an unclear invariant; a performance claim whose hot path still synchronizes; a "done" backed by a grep the reviewer cannot reproduce.

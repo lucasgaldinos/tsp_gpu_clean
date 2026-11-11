@@ -26,6 +26,7 @@ modifications:
           (DP11-3), and documenting the three-tier distance architecture.
 related_files:
   - "[analysis-gpu-distance-and-shared-memory-limits.md](./analysis-gpu-distance-and-shared-memory-limits.md)"
+  - "[analysis-initial-population-policy-and-experiment-comparability.md](./analysis-initial-population-policy-and-experiment-comparability.md)"
   - "[analysis-gpu-memory-calculation.md](./analysis-gpu-memory-calculation.md)"
   - "[plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md)"
   - "[table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md)"
