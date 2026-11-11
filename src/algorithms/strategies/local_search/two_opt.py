@@ -36,7 +36,7 @@ import numpy as np
 
 from protocols.algorithm_strategies import LocalSearchStrategy
 from protocols.backend import require_gpu
-from utils.gpu_helpers import load_kernel
+from utils.gpu_helpers import load_kernel, next_power_of_2
 from utils.phase_timer import time_strategy
 from utils.route_helpers import (
   ensure_routes_batch,
@@ -76,14 +76,6 @@ _DEFAULT_MAX_SHARED_TOUR_CITIES: int = 11_520
 _TILE_SIZE: int = 2048
 
 
-def _next_power_of_2(value: int) -> int:
-  """Round `value` down to a power of 2 in `[1, 256]` for CUDA shared-memory reduction."""
-  power = 1
-  while power * 2 <= value:
-    power *= 2
-  return max(1, min(power, 256))
-
-
 class _DistanceOperandCache:
   """Strategy-local mirror of the GPU buffers owned by `ProblemContext`.
 
@@ -98,6 +90,8 @@ class _DistanceOperandCache:
     self.distance_key: tuple[str, int, str, int] | None = None
     self.coords: Any = None
     self.coords_key: tuple[str, int, str, int] | None = None
+    self.candidates: Any = None
+    self.candidates_key: tuple[str, int, str, int] | None = None
 
   def reset(self) -> None:
     """Forget the mirrored buffers after a metrics reset."""
@@ -105,6 +99,8 @@ class _DistanceOperandCache:
     self.distance_key = None
     self.coords = None
     self.coords_key = None
+    self.candidates = None
+    self.candidates_key = None
 
   def resolve(
     self,
@@ -139,13 +135,35 @@ class _DistanceOperandCache:
       self.coords_key = None
     return (d_distances, d_coords, edge_type_code), uploaded_bytes
 
+  def resolve_candidates(self, context: ProblemContext, k: int) -> tuple[Any, int]:
+    """Return `(d_candidates, uploaded_bytes)` for the context-owned `N_k` table.
 
-def _shared_mem_bytes(block_size: int, n: int, tile_size: int) -> int:
+    `ProblemContext.get_gpu_candidate_list` caches the device table per `k`, so the
+    first strategy that asks pays the single upload and every later generation, and
+    every sibling strategy, binds the same VRAM object for zero bytes (`BUG-27`).
+    """
+    d_candidates = context.get_gpu_candidate_list(k)
+    problem = context.problem
+    problem_key = (problem.name, problem.dimension, problem.edge_type, id(problem))
+    reused: bool = self.candidates is d_candidates and self.candidates_key == problem_key
+    uploaded_bytes = 0 if reused else int(d_candidates.nbytes)
+    self.candidates = d_candidates
+    self.candidates_key = problem_key
+    return d_candidates, uploaded_bytes
+
+
+def _shared_mem_bytes(block_size: int, n: int, tile_size: int, use_candidates: bool = False) -> int:
   """Return dynamic shared-memory bytes for the per-block buffers.
 
   Layout: `s_deltas`, `s_swap_i`, `s_swap_j` (three `block_size` ints) plus either
   the full tour (`n` ints) or one tile (`tile_size + 1` ints, `Task 10.18`).
+
+  Candidate mode never caches the tour (`DP10-20`): the kernel reads node ids straight
+  from global memory, so reserving `n` ints of shared memory would cap `n` at the
+  48 KB per-block budget for no benefit (`BUG-27`).
   """
+  if use_candidates:
+    return block_size * 3 * 4
   tour_ints = tile_size + 1 if tile_size > 0 else n
   return (block_size * 3 + tour_ints) * 4
 
@@ -154,8 +172,6 @@ def _resolve_candidates(
   context: ProblemContext,
   tour: np.ndarray,
   candidate_k: int | None,
-  *,
-  require_dense_ids: bool = False,
 ) -> np.ndarray | None:
   """Return the `(n, k_eff)` candidate table for `candidate_k`, or `None` to disable.
 
@@ -167,10 +183,6 @@ def _resolve_candidates(
       context: Problem context owning the cached `N_k` table.
       tour: 1D route or 2D batch whose largest node id bounds the lookup.
       candidate_k: Requested neighbours per node; `None` disables candidate mode.
-      require_dense_ids: Also reject routes whose node ids exceed the route width.
-          The GPU kernels index a `(batch, n)` `positions` buffer by node id, so a
-          sparse CVRP sub-route (`BUG-19`) cannot use the kernel candidate path and
-          stays on the exhaustive scan.
 
   Returns:
       The candidate table, or `None` when the exhaustive scan must be used.
@@ -180,8 +192,6 @@ def _resolve_candidates(
   candidates = context.get_cpu_candidate_list(candidate_k)
   largest_node = int(tour.max()) if tour.size else -1
   if largest_node >= candidates.shape[0]:
-    return None
-  if require_dense_ids and largest_node >= int(tour.shape[-1]):
     return None
   return candidates
 
@@ -356,13 +366,21 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
 
   - `"batch"`: `two_opt_batch.cu`, one CUDA block per route, a single steepest move
     per pass (Fujimoto & Tsutsui, 2011; Rocki & Suda, 2012; O'Neil & Burtscher, 2015).
-  - `"multi_move"`: `two_opt_multi_move.cu`, every mutually disjoint improving move
+  - `"multi_move"`: `two_opt_multi_move.cu`, many mutually disjoint improving moves
     per pass (Rocki & Suda, 2013; O'Neil, Burtscher, & Coates, 2011).
   - `"naive"`: `two_opt_single.cu`, per-route `CPU -> GPU -> CPU` transfers and one
     kernel launch per route and iteration, kept as the Chapter 4 transfer baseline.
 
   The grid modes perform a single batched H2D/D2H transfer; a CuPy-resident input is
   refined in place in VRAM with zero PCIe traffic (`BUG-15` / `DP10-18`).
+
+  `"multi_move"` is not a re-implementation of the CPU acceptance rule: each thread
+  retains only its own steepest candidate, so one pass offers at most
+  `min(block_size, n // 2)` moves to the greedy disjoint-selection step (Rocki & Suda,
+  2013). That deliberate bound is what keeps the per-pass bookkeeping O(block_size)
+  instead of O(n^2); the CPU reference scans every pair and therefore exposes all
+  improving moves of the pass, so GPU and CPU `multi_move` converge in the same
+  direction but not necessarily through the same intermediate tours.
   """
 
   def __init__(
@@ -415,9 +433,43 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       self._kernel = load_kernel(source, entry_point, __file__)
     return self._kernel
 
+  def warmup(self, context: ProblemContext) -> None:
+    """Compile the selected kernel and launch it once on a valid permutation.
+
+    The first launch is what makes the driver load the module; doing it here keeps
+    that cost out of the measured repetitions, including for periodic pipeline steps
+    that would only launch it at generation 10 (`BUG-25`). The batch is `arange`,
+    never `cp.zeros` (`BUG-24`).
+    """
+    super().warmup(context)
+    self.improve_batch(self._warmup_batch(context, rows=1), context)
+
   def _tile_size(self, n: int) -> int:
     """Return 0 for the full-tour path, else the shared-memory tile width."""
     return 0 if n <= self.max_shared_tour_cities else _TILE_SIZE
+
+  def _uses_candidates(self, context: ProblemContext, n: int) -> bool:
+    """Return whether the kernel candidate path is admissible for this batch.
+
+    The kernel builds the inverse map `pos[tour[idx]] = idx` in a `(batch, n)` buffer
+    and indexes it by node id, so it needs a dense `0..n-1` permutation. Sparse CVRP
+    sub-routes (`problem_type == "CVRP"`) and batches narrower than the problem
+    (`n < context.dimension`) therefore keep the exhaustive scan.
+
+    The decision is taken from host metadata only — `problem_type`, `dimension` and the
+    batch width — so the hot path never calls `int(tour.max())` on a GPU array, which
+    used to force one D2H synchronization per generation (`BUG-27`).
+    """
+    if self.candidate_k is None or self.candidate_k <= 0:
+      return False
+    if self._tile_size(n) > 0:
+      # Tiling and candidate mode are mutually exclusive: a tiled block already
+      # streams the tour through shared memory, so the `positions` scratch would
+      # compete with the window for the 48 KB budget for no throughput gain.
+      return False
+    if context.problem.problem_type == "CVRP":
+      return False
+    return n >= context.dimension
 
   def improve(self, route: Route, context: ProblemContext) -> Route:
     """Improve a single 1D route `(n_cities,)` through the selected GPU kernel family."""
@@ -456,7 +508,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     distances_gpu = cp.asarray(distances_cpu, dtype=cp.int32)
     self.h2d_bytes += int(distances_cpu.nbytes)
 
-    threads_per_block: int = _next_power_of_2(min(256, max(1, n - 2)))
+    threads_per_block: int = next_power_of_2(min(256, max(1, n - 2)), min_val=1, max_val=256)
     shared_mem = (
       threads_per_block * 4  # s_deltas (int32)
       + threads_per_block * 4  # s_swap_i (int32)
@@ -507,21 +559,26 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       context, n, self.max_matrix_dimension
     )
     self.h2d_bytes += uploaded_bytes
-    block_size: int = _next_power_of_2(min(self.threads_per_block, max(1, n - 2)))
+    block_size: int = next_power_of_2(
+      min(self.threads_per_block, max(1, n - 2)), min_val=1, max_val=256
+    )
     tile_size: int = self._tile_size(n)
-    shared_mem: int = _shared_mem_bytes(block_size, n, tile_size)
 
-    # Candidate-list mode (`DP10-20`): upload `N_k` once and let each block build its
-    # inverse tour map in its own `positions` slice. Sparse sub-routes stay exhaustive
-    # because the kernel indexes `positions` by node id (`BUG-19`).
-    candidate_table = _resolve_candidates(context, batch, self.candidate_k, require_dense_ids=True)
-    candidate_count: int = int(candidate_table.shape[1]) if candidate_table is not None else 0
+    # Candidate-list mode (`DP10-20`): bind the context-owned `N_k` once and let each
+    # block build its inverse tour map in its own `positions` slice. The table lives in
+    # VRAM across generations; only the first bind charges H2D bytes (`BUG-27`).
+    candidate_count: int = 0
     d_candidates: Any = 0
     d_positions: Any = 0
-    if candidate_count > 0 and candidate_table is not None:
-      d_candidates = cp.ascontiguousarray(cp.asarray(candidate_table, dtype=cp.int32))
+    if self._uses_candidates(context, n):
+      d_candidates, candidate_bytes = self._operands.resolve_candidates(context, int(self.candidate_k or 0))
+      self.h2d_bytes += candidate_bytes
+      candidate_count = int(d_candidates.shape[1])
       d_positions = cp.empty((batch_size, n), dtype=cp.int32)
-      self.h2d_bytes += int(candidate_table.nbytes)
+
+    shared_mem: int = _shared_mem_bytes(
+      block_size, n, tile_size, use_candidates=candidate_count > 0
+    )
 
     kernel = self._get_kernel()
     for _ in range(self.max_iterations):

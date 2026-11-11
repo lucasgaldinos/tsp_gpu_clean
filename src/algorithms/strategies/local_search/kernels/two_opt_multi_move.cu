@@ -6,6 +6,17 @@
  * applies multiple non-overlapping (disjoint) improving segment reversals
  * in the same iteration pass.
  *
+ * Candidate bound (`DP11-18` refinement, `BUG-29`): each thread keeps only its own
+ * steepest candidate (`two_opt_consider`), so a pass offers at most
+ * `min(block_size, n / 2)` moves to the greedy disjoint selection (Rocki & Suda, 2013).
+ * The CPU `multi_move` reference scans every pair and therefore exposes all improving
+ * moves of the pass; this kernel trades that breadth for O(block_size) bookkeeping.
+ *
+ * Reversal ownership (`DP11-18`, `2OPT-A`): only the selection is serial. Thread 0
+ * publishes the winning segment through shared memory and the whole block reverses it
+ * cooperatively (`for (k = tid; k < num_swaps; k += block_size)`), so the segment
+ * reversal never runs on a single thread.
+ *
  * Memory layout (`Task 10.18`):
  *   - `tour_tile_size == 0`: the whole tour lives in `s_tour[n]`, loaded once.
  *   - `tour_tile_size > 0`: only one `j`-window of `tour_tile_size` positions plus one
@@ -55,7 +66,11 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
     const bool use_candidates = !tiled && candidates != nullptr && cand_k > 0 && positions != nullptr;
 
     int *s_tour = shared_mem;                                         // [n] or [tour_tile_size + 1]
-    int *s_deltas = tiled ? &s_tour[tour_tile_size + 1] : &s_tour[n]; // [block_size]
+    // Candidate mode never caches the tour, so its counters start at the first slot and
+    // the launch does not reserve `n` unused ints (`BUG-27`).
+    int *s_deltas = use_candidates
+                        ? shared_mem
+                        : (tiled ? &s_tour[tour_tile_size + 1] : &s_tour[n]); // [block_size]
     int *s_swap_i = &s_deltas[block_size];                            // [block_size]
     int *s_swap_j = &s_swap_i[block_size];                            // [block_size]
 
@@ -217,22 +232,29 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
     }
     __syncthreads();
 
-    // Thread 0 greedily selects and applies all mutually disjoint improving moves
-    // collected across the threads of the block in steepest-descent order.
+    // Greedy disjoint-move selection, with the reversal applied by the whole block.
     //
-    // The bound is `min(block_size, n / 2)` -- at most one disjoint reversal per two
-    // tour positions and at most one candidate per thread -- instead of a hardcoded
-    // 16 (`BUG-20` / `DP11-2`). No bookkeeping arrays are needed: an applied move has
-    // its own delta zeroed, and every remaining candidate whose reversed segment
-    // touches the applied one is zeroed in place as soon as the move is applied.
-    if (tid == 0)
-    {
-        // Every thread contributes at most one candidate, so `block_size` bounds the
-        // number of selectable moves; a reversal always covers at least two positions,
-        // so `n / 2` bounds the number of disjoint reversals a tour can absorb.
-        const int max_moves = block_size < (n / 2) ? block_size : (n / 2);
+    // Each thread contributed at most one steepest candidate (`two_opt_consider`), so
+    // one pass offers at most `min(block_size, n / 2)` moves to the selection step
+    // (Rocki & Suda, 2013). That deliberate bound keeps the per-pass bookkeeping
+    // O(block_size) instead of O(n^2), which is what distinguishes this kernel from the
+    // exhaustive CPU `multi_move` reference.
+    //
+    // Only the *selection* is serial: thread 0 picks the steepest surviving candidate
+    // and publishes the segment through shared memory, then every thread of the block
+    // reverses it in parallel (`DP11-18`, `2OPT-A`). Reversing with thread 0 alone left
+    // up to n/2 sequential swaps while the rest of the block waited at the barrier.
+    __shared__ int s_move_start;
+    __shared__ int s_move_end;
 
-        for (int applied = 0; applied < max_moves; applied++)
+    // Every thread contributes at most one candidate, so `block_size` bounds the
+    // number of selectable moves; a reversal always covers at least two positions,
+    // so `n / 2` bounds the number of disjoint reversals a tour can absorb (`BUG-20`).
+    const int max_moves = block_size < (n / 2) ? block_size : (n / 2);
+
+    for (int applied = 0; applied < max_moves; applied++)
+    {
+        if (tid == 0)
         {
             int best_t = -1;
             int best_d = 0;
@@ -244,64 +266,70 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
                     best_t = t;
                 }
             }
-
             if (best_t < 0)
-                break;
-
-            const int swap_i = s_swap_i[best_t];
-            const int swap_j = s_swap_j[best_t];
-            s_deltas[best_t] = 0; // Mark consumed
-
-            int left = swap_i + 1;
-            int right = swap_j;
-            if (use_candidates)
             {
-                // Candidate mode never cached the tour: edit global memory directly.
-                while (left < right)
-                {
-                    int tmp = tour[left];
-                    tour[left] = tour[right];
-                    tour[right] = tmp;
-                    left++;
-                    right--;
-                }
+                s_move_start = -1; // No improving candidate left for this pass
             }
             else
             {
-                while (left < right)
-                {
-                    int tmp = TOUR_AT(left);
-                    TOUR_SET(left, TOUR_AT(right));
-                    TOUR_SET(right, tmp);
-                    left++;
-                    right--;
-                }
-            }
-
-            // Reversed segment of the move just applied: tour positions
-            // [seg_start, seg_end] = [swap_i + 1, swap_j]. A reversal only permutes
-            // positions inside that segment, so a candidate whose four break positions
-            // stay outside it keeps a valid delta; every other candidate is dropped.
-            const int seg_start = swap_i + 1;
-            const int seg_end = swap_j;
-            for (int t = 0; t < block_size; t++)
-            {
-                if (s_deltas[t] >= 0)
-                    continue;
-                int ms = s_swap_i[t] + 1;
-                int me = s_swap_j[t];
-                if (ms > me)
-                {
-                    const int tmp = ms;
-                    ms = me;
-                    me = tmp;
-                }
-                if (!(me + 1 < seg_start || seg_end + 1 < ms))
-                {
-                    s_deltas[t] = 0; // Conflicting candidate eliminated on the fly
-                }
+                s_move_start = s_swap_i[best_t] + 1;
+                s_move_end = s_swap_j[best_t];
+                s_deltas[best_t] = 0; // Mark consumed
             }
         }
+        __syncthreads();
+
+        if (s_move_start < 0)
+            break; // Uniform across the block: `s_move_start` is shared
+
+        // Reversed segment of the move just applied: tour positions
+        // [seg_start, seg_end] = [swap_i + 1, swap_j].
+        const int seg_start = s_move_start;
+        const int seg_end = s_move_end;
+        const int num_swaps = (seg_end - seg_start + 1) / 2;
+
+        // Cooperative reversal: pair `k` swaps (seg_start + k, seg_end - k), and the
+        // pairs are mutually disjoint, so every thread writes a distinct slot.
+        if (use_candidates)
+        {
+            // Candidate mode never cached the tour: edit global memory directly.
+            for (int k = tid; k < num_swaps; k += block_size)
+            {
+                const int tmp = tour[seg_start + k];
+                tour[seg_start + k] = tour[seg_end - k];
+                tour[seg_end - k] = tmp;
+            }
+        }
+        else
+        {
+            for (int k = tid; k < num_swaps; k += block_size)
+            {
+                const int tmp = TOUR_AT(seg_start + k);
+                TOUR_SET(seg_start + k, TOUR_AT(seg_end - k));
+                TOUR_SET(seg_end - k, tmp);
+            }
+        }
+        __syncthreads();
+
+        // A reversal only permutes positions inside [seg_start, seg_end], so a candidate
+        // whose break positions stay outside it keeps a valid delta; every other
+        // candidate is dropped. Each thread owns its own slot, so no barrier is needed.
+        if (s_deltas[tid] < 0)
+        {
+            int ms = s_swap_i[tid] + 1;
+            int me = s_swap_j[tid];
+            if (ms > me)
+            {
+                const int tmp = ms;
+                ms = me;
+                me = tmp;
+            }
+            if (!(me + 1 < seg_start || seg_end + 1 < ms))
+            {
+                s_deltas[tid] = 0; // Conflicting candidate eliminated on the fly
+            }
+        }
+        __syncthreads();
     }
     __syncthreads();
 
