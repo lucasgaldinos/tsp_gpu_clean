@@ -48,6 +48,30 @@ if TYPE_CHECKING:
   from data_models.problem import Problem
 
 
+def test_strategy_base_keeps_telemetry_on_the_instance() -> None:
+  """WHAT: `StrategyBase` and one instance built from it.
+
+  WHY: declaring `h2d_bytes = 0` at class level and then rebinding it in `__init__`
+  shadows the class attribute with an instance one, so the declared contract and the
+  counters that `reset_metrics()` actually resets could disagree (`BUG-27`).
+
+  EXPECTED: no telemetry name lives on the class, every counter starts at zero on the
+  instance, and `reset_metrics()` restores exactly those three counters.
+  """
+  from algorithms.strategies.base import StrategyBase
+
+  telemetry = ("h2d_bytes", "d2h_bytes", "kernel_launches", "seed", "rng")
+  for name in telemetry:
+    assert name not in vars(StrategyBase), f"{name} must be an instance attribute only"
+
+  base = StrategyBase(seed=7)
+  base.h2d_bytes, base.d2h_bytes, base.kernel_launches = 8, 4, 2
+  base.reset_metrics()
+
+  assert (base.h2d_bytes, base.d2h_bytes, base.kernel_launches) == (0, 0, 0)
+  assert base.seed == 7
+
+
 def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: Problem) -> None:
   """Verify all strategies satisfy their Protocol and accept both 1D Route and 2D Routes."""
   context = ProblemContext(burma14_problem, xp=np, seed=42)
