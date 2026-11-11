@@ -192,13 +192,13 @@ def test_create_database_creates_runs_table_and_sequence(db_conn: duckdb.DuckDBP
   WHY: the sequence supplies `run_id` through the column default; without it
   every insert fails, and the table name is the contract the rest of the module
   interpolates into its SQL.
-  EXPECTED: `benchmark_runs` is described with 42 columns and
+  EXPECTED: `benchmark_runs` is described with 45 columns and
   `nextval('benchmark_runs_seq')` yields the first id, 1.
   """
   columns: dict[str, tuple[str, str, str]] = describe_columns(db_conn)
   first_id: tuple[Any, ...] | None = db_conn.execute("SELECT nextval('benchmark_runs_seq')").fetchone()
 
-  assert len(columns) == 42, sorted(columns)
+  assert len(columns) == 45, sorted(columns)
   assert "run_id" in columns
   assert first_id == (1,)
 
@@ -540,6 +540,42 @@ def test_insert_benchmark_run_serialises_json_columns(
 
   assert json.loads(stored["algorithm_config"]) == JSON_PAYLOAD
   assert json.loads(stored["strategies"]) == JSON_PAYLOAD
+
+
+def test_insert_benchmark_run_persists_phase_telemetry(
+  db_conn: duckdb.DuckDBPyConnection,
+) -> None:
+  """WHAT: `mean_phase_timings`, `phase_share_pct` and `phase_share_cv_pct` round trip.
+
+  WHY: `DP11-7`/`BUG-30` — the runner computes the phase breakdown but the schema had
+  no column for it, so every import silently dropped the only evidence Chapter 4 has
+  for where the wall time goes. Absent payloads must still import as SQL `NULL`.
+  EXPECTED: the three JSON columns read back parsed and identical to the payload;
+  a payload without them stores `NULL` instead of failing the insert.
+  """
+  phase_timings: dict[str, dict[str, float]] = {
+    "initialization": {"total_ms": 2.0, "calls": 1, "mean_ms": 2.0},
+    "evaluation": {"total_ms": 15.0, "calls": 20, "mean_ms": 0.75},
+    "survival": {"total_ms": 4.0, "calls": 20, "mean_ms": 0.2},
+    "host_sync": {"total_ms": 3.0, "calls": 21, "mean_ms": 0.14},
+  }
+  share_pct: dict[str, float] = {"initialization": 4.0, "evaluation": 30.0, "survival": 8.0, "host_sync": 6.0}
+  share_cv_pct: dict[str, float] = {"initialization": 2.5, "evaluation": 1.2, "survival": 3.3, "host_sync": 4.0}
+  payload = run_payload(
+    mean_phase_timings=phase_timings,
+    phase_share_pct=share_pct,
+    phase_share_cv_pct=share_cv_pct,
+  )
+
+  stored = fetch_run(db_conn, insert_benchmark_run(db_conn, validate_benchmark_data(payload)))
+  assert json.loads(stored["mean_phase_timings"]) == phase_timings
+  assert json.loads(stored["phase_share_pct"]) == share_pct
+  assert json.loads(stored["phase_share_cv_pct"]) == share_cv_pct
+
+  legacy = fetch_run(db_conn, insert_benchmark_run(db_conn, validate_benchmark_data(run_payload())))
+  assert legacy["mean_phase_timings"] is None
+  assert legacy["phase_share_pct"] is None
+  assert legacy["phase_share_cv_pct"] is None
 
 
 @pytest.mark.parametrize(

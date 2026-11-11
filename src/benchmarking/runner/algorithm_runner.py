@@ -15,6 +15,7 @@ Author: GPU Accelerated Routing Optimization Team
 Date: 2025-01-28
 """
 
+import copy
 import gc
 import logging
 import math
@@ -31,6 +32,7 @@ if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"),
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
+from utils.gpu_helpers import _compile_kernel_cached
 
 # =============================================================================
 # Generation Calculation
@@ -93,6 +95,15 @@ def run_single_algorithm(
   if patience is None:
     patience = adaptive_patience(problem_size)
 
+  # Telemetry carried from the runs already on disk (incremental mode). `results`
+  # below starts its per-run lists empty and only the *new* repetitions land there,
+  # so without these totals an incremental resume would report the transfer and
+  # launch means of the new slice as if they described the whole cohort (`BUG-30`).
+  carried_runs: int = 0
+  carried_h2d_bytes: float = 0.0
+  carried_d2h_bytes: float = 0.0
+  carried_kernel_launches: float = 0.0
+
   if incremental_mode and existing_checkpoint:
     existing_runs = existing_checkpoint["successful_runs"]
     total_runs_after = existing_runs + repetitions
@@ -105,14 +116,23 @@ def run_single_algorithm(
       f"New repetitions: {repetitions}"
     )
 
+    carried_runs = int(existing_runs)
+    carried_h2d_bytes = float(existing_checkpoint.get("mean_h2d_mb", 0.0) or 0.0) * 1e6 * carried_runs
+    carried_d2h_bytes = float(existing_checkpoint.get("mean_d2h_mb", 0.0) or 0.0) * 1e6 * carried_runs
+    carried_kernel_launches = float(existing_checkpoint.get("mean_kernels", 0.0) or 0.0) * carried_runs
+
     results = {
       "times": existing_checkpoint.get("raw_times", []).copy(),
-      "initial_costs": existing_checkpoint.get("raw_initial_costs", []).copy(),
+      "initial_costs": existing_checkpoint.get(
+        "raw_initial_costs",
+        existing_checkpoint.get("raw_costs", []),
+      ).copy(),
       "final_costs": existing_checkpoint.get("raw_costs", []).copy(),
       "gaps": existing_checkpoint.get("raw_gaps", []).copy(),
       "improvements": [],
       "generations": existing_checkpoint.get("raw_generations", []).copy(),
       "stop_reasons": existing_checkpoint.get("raw_stop_reasons", []).copy(),
+      "phase_timings": existing_checkpoint.get("raw_phase_timings", []).copy(),
       "h2d_bytes": [],
       "d2h_bytes": [],
       "kernel_launches": [],
@@ -131,12 +151,36 @@ def run_single_algorithm(
       "improvements": [],
       "generations": [],
       "stop_reasons": [],
+      "phase_timings": [],
       "h2d_bytes": [],
       "d2h_bytes": [],
       "kernel_launches": [],
       "best_tours": [],
       "seeds": [],
     }
+
+  # Explicit ahead-of-time pre-compilation for GPU variants (Task 11.11, DP11-12, BUG-25).
+  # A discarded one-generation run is not a warm-up: `PeriodicLocalSearchStep(interval=10)`
+  # never fires at generation 1, so `two_opt_batch.cu` was JIT-compiled inside the first
+  # *measured* repetition (26.27x spike). `warmup(context)` visits every strategy and every
+  # pipeline step, so coverage does not depend on any generation cadence.
+  jit_cache_before: int | None = None
+  if use_gpu and repetitions > 0:
+    try:
+      warmup_instance: Any
+      if callable(algorithm_factory):
+        warmup_instance = algorithm_factory(seed_base)
+      else:
+        # Isolated clone: warming the measured instance would advance its RNG and
+        # internal state, so repetition 1 would no longer run the seeded experiment.
+        warmup_instance = copy.deepcopy(algorithm_instance)
+      warmup_xp: Any = cupy_backend() or np
+      warmup_context = ProblemContext(problem, xp=warmup_xp, seed=seed_base)
+      logging.info("    [Warm-up] Pre-compiling every pipeline kernel (AOT protocol)...")
+      warmup_instance.warmup(warmup_context)
+      jit_cache_before = _compile_kernel_cached.cache_info().currsize
+    except Exception as e:
+      logging.warning(f"    [Warm-up] GPU pre-compilation skipped or failed: {e}")
 
   for rep in range(repetitions):
     offset: Any | Literal[0] = (
@@ -185,6 +229,7 @@ def run_single_algorithm(
       results["h2d_bytes"].append(stats.get("h2d_bytes", 0))
       results["d2h_bytes"].append(stats.get("d2h_bytes", 0))
       results["kernel_launches"].append(stats.get("kernel_launches", 0))
+      results["phase_timings"].append(stats.get("phase_timings", {}))
       tour_list = tour.tolist() if hasattr(tour, "tolist") else list(tour)
       results["best_tours"].append(tour_list)
 
@@ -207,10 +252,20 @@ def run_single_algorithm(
       results["improvements"].append(np.nan)
       results["generations"].append(0)
       results["stop_reasons"].append("error")
+      results["phase_timings"].append({})
       results["h2d_bytes"].append(0)
       results["d2h_bytes"].append(0)
       results["kernel_launches"].append(0)
       results["best_tours"].append(None)
+
+  if jit_cache_before is not None:
+    jit_cache_after: int = _compile_kernel_cached.cache_info().currsize
+    if jit_cache_after != jit_cache_before:
+      raise RuntimeError(
+        "JIT compilation landed inside the measured loop: "
+        f"_compile_kernel_cached.currsize {jit_cache_before} -> {jit_cache_after}. "
+        "A strategy or pipeline step is missing its warmup() coverage (BUG-25)."
+      )
 
   times = np.array(results["times"])
   initial_costs_arr = np.array(results["initial_costs"])
@@ -232,6 +287,64 @@ def run_single_algorithm(
   ]
   best_run_idx: int = int(np.nanargmin(final_costs[valid_mask])) if total_successful > 0 else 0
   best_tour = valid_tours[best_run_idx] if valid_tours and best_run_idx < len(valid_tours) else None
+
+  # Aggregate phase statistics across successful runs (Task 11.7, DP11-7, DP11-13)
+  raw_phase_timings: list[dict[str, dict[str, float | int]]] = [
+    results["phase_timings"][i]
+    for i in range(len(valid_mask))
+    if valid_mask[i] and i < len(results["phase_timings"])
+  ]
+
+  mean_phase_timings: dict[str, dict[str, float]] = {}
+  phase_share_pct: dict[str, float] = {}
+  phase_share_cv_pct: dict[str, float] = {}
+
+  if raw_phase_timings:
+    all_phases: set[str] = set()
+    for run_pt in raw_phase_timings:
+      all_phases.update(run_pt.keys())
+
+    valid_times_ms = times[valid_mask] * 1000.0
+
+    for phase in sorted(all_phases):
+      phase_totals: list[float] = []
+      phase_calls: list[int] = []
+      phase_shares: list[float] = []
+
+      for idx, run_pt in enumerate(raw_phase_timings):
+        p_info = run_pt.get(phase, {})
+        tot_ms = float(p_info.get("total_ms", 0.0))
+        calls = int(p_info.get("calls", 0))
+        phase_totals.append(tot_ms)
+        phase_calls.append(calls)
+        wall_ms = float(valid_times_ms[idx]) if idx < len(valid_times_ms) else 0.0
+        share = (tot_ms / wall_ms * 100.0) if wall_ms > 0 else 0.0
+        phase_shares.append(share)
+
+      mean_tot = float(np.mean(phase_totals)) if phase_totals else 0.0
+      mean_c = float(np.mean(phase_calls)) if phase_calls else 0.0
+      mean_phase_timings[phase] = {
+        "total_ms": mean_tot,
+        "calls": mean_c,
+        "mean_ms": (mean_tot / mean_c) if mean_c > 0 else 0.0,
+      }
+      m_share = float(np.mean(phase_shares)) if phase_shares else 0.0
+      phase_share_pct[phase] = m_share
+      # Sample standard deviation: `DP11-7` promises the dispersion of the per-run
+      # shares, and `ddof=0` shrinks it by sqrt((n - 1) / n), understating the CV
+      # exactly where repetitions are few (the sub-100 ms cells in Table 4).
+      std_share = float(np.std(phase_shares, ddof=1)) if len(phase_shares) > 1 else 0.0
+      phase_share_cv_pct[phase] = (std_share / m_share * 100.0) if m_share > 1e-9 else 0.0
+
+  new_runs = len(h2d)
+  transfer_runs: int = carried_runs + new_runs
+  mean_h2d_bytes: float = (float(np.sum(h2d)) + carried_h2d_bytes) / transfer_runs if transfer_runs else 0.0
+  mean_d2h_bytes: float = (float(np.sum(d2h)) + carried_d2h_bytes) / transfer_runs if transfer_runs else 0.0
+  mean_kernel_launches: float = (
+    (float(np.sum(results["kernel_launches"])) + carried_kernel_launches) / transfer_runs
+    if transfer_runs
+    else 0.0
+  )
 
   summary = {
     "algorithm": algorithm_name,
@@ -255,10 +368,10 @@ def run_single_algorithm(
     "std_generations": float(np.nanstd(generations_arr)),
     "min_generations": float(np.nanmin(generations_arr)),
     "max_generations": float(np.nanmax(generations_arr)),
-    "mean_h2d_mb": float(np.nanmean(h2d)) / 1e6 if len(h2d) > 0 else 0.0,
-    "mean_d2h_mb": float(np.nanmean(d2h)) / 1e6 if len(d2h) > 0 else 0.0,
-    "total_transfer_mb": (float(np.nanmean(h2d)) + float(np.nanmean(d2h))) / 1e6 if len(h2d) > 0 else 0.0,
-    "mean_kernels": float(np.nanmean(results["kernel_launches"])) if results["kernel_launches"] else 0.0,
+    "mean_h2d_mb": mean_h2d_bytes / 1e6,
+    "mean_d2h_mb": mean_d2h_bytes / 1e6,
+    "total_transfer_mb": (mean_h2d_bytes + mean_d2h_bytes) / 1e6,
+    "mean_kernels": mean_kernel_launches,
     "best_tour": best_tour,
     "raw_best_tours": valid_tours,
     "problem_type": getattr(problem, "problem_type", "TSP"),
@@ -272,6 +385,10 @@ def run_single_algorithm(
     if results["stop_reasons"]
     else [],
     "raw_seeds": seeds_arr[valid_mask].tolist(),
+    "raw_phase_timings": raw_phase_timings,
+    "mean_phase_timings": mean_phase_timings,
+    "phase_share_pct": phase_share_pct,
+    "phase_share_cv_pct": phase_share_cv_pct,
   }
 
   if incremental_mode and existing_checkpoint:

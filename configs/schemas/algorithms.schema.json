@@ -76,6 +76,13 @@
           "type": "object",
           "description": "Algorithm-level parameters. Modular pipelines accept `local_search_stage`, `population_size`, `mutation_rate` and `seed`.",
           "properties": {
+            "pipeline": {
+              "type": "array",
+              "description": "Optional list of generational pipeline step specifications (DP11-6, DP11-10).",
+              "items": {
+                "$ref": "#/$defs/pipeline_step"
+              }
+            },
             "local_search_stage": {
               "$ref": "#/$defs/local_search_stage"
             },
@@ -226,6 +233,50 @@
               "type": "integer",
               "minimum": 2,
               "description": "`n` above which the GPU 2-opt scans the tour tile by tile instead of caching it in shared memory (default 11 520)."
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+    "pipeline_step": {
+      "type": "object",
+      "required": ["class"],
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "type": "string",
+          "description": "Key of PIPELINE_STEP_REGISTRY.",
+          "enum": [
+            "PostInitLocalSearchStep",
+            "EliteOnlyLocalSearchStep",
+            "PeriodicLocalSearchStep"
+          ]
+        },
+        "params": {
+          "type": "object",
+          "description": "Constructor keyword arguments for the pipeline step.",
+          "properties": {
+            "local_search": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "evaluation": {
+              "$ref": "#/$defs/strategy_slot"
+            },
+            "elite_count": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of top-fitness routes to refine (EliteOnlyLocalSearchStep)."
+            },
+            "interval": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Generation interval between local search passes (PeriodicLocalSearchStep)."
+            },
+            "target": {
+              "type": "string",
+              "enum": ["offspring", "population"],
+              "description": "Target array to refine ('offspring' or 'population')."
             }
           },
           "additionalProperties": true

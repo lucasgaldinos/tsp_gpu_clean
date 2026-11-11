@@ -292,3 +292,25 @@ def test_predicates_reject_an_unusable_repetitions_field(tmp_path: Path, repetit
   # Act / Assert
   assert is_valid_checkpoint(path) is False
   assert can_resume_checkpoint(path) is False
+
+
+def test_checkpoint_valid_with_consistent_raw_phase_timings(tmp_path: Path) -> None:
+  """Verify checkpoint with consistent raw_phase_timings is valid."""
+  payload = _payload(3)
+  payload["raw_phase_timings"] = [
+    {"initialization": {"total_ms": 1.0, "calls": 1}},
+    {"initialization": {"total_ms": 1.1, "calls": 1}},
+    {"initialization": {"total_ms": 0.9, "calls": 1}},
+  ]
+  path = _write_json(tmp_path / "valid_phase_timings.json", payload)
+  assert is_valid_checkpoint(path) is True
+
+
+def test_checkpoint_rejects_inconsistent_raw_phase_timings(tmp_path: Path) -> None:
+  """Verify checkpoint with raw_phase_timings length mismatch is rejected."""
+  payload = _payload(3)
+  payload["raw_phase_timings"] = [
+    {"initialization": {"total_ms": 1.0, "calls": 1}},
+  ]  # Length 1 != successful_runs 3
+  path = _write_json(tmp_path / "bad_phase_timings.json", payload)
+  assert is_valid_checkpoint(path) is False

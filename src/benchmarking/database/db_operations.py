@@ -52,7 +52,7 @@ from typing import Any, cast
 import duckdb
 
 from benchmarking.database.schema import TABLE_RUNS
-from data_models.records import BenchmarkRunInput
+from data_models.records import BenchmarkRunInput, JsonPayload
 
 # ============================================================================
 # Database Initialization
@@ -185,6 +185,18 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
 # ============================================================================
 
 
+def _json_or_none(value: JsonPayload | None) -> str | None:
+  """Return a DuckDB-ready JSON string, or `None` for an absent payload.
+
+  DuckDB binds a Python `dict` parameter as a `MAP`, which cannot be inserted into a
+  `JSON` column, so structured telemetry is serialised here exactly like
+  `algorithm_config` and `strategies` are.
+  """
+  if value is None or isinstance(value, str):
+    return value
+  return json.dumps(dict(value))
+
+
 def insert_benchmark_run(
   conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInput
 ) -> int:
@@ -264,6 +276,9 @@ def insert_benchmark_run(
             mean_d2h_mb,
             total_transfer_mb,
             mean_kernels,
+            mean_phase_timings,
+            phase_share_pct,
+            phase_share_cv_pct,
             raw_times,
             raw_costs,
             raw_gaps,
@@ -277,7 +292,8 @@ def insert_benchmark_run(
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?
         )
         RETURNING run_id
     """
@@ -316,6 +332,9 @@ def insert_benchmark_run(
       data.get("mean_d2h_mb"),
       data.get("total_transfer_mb"),
       data.get("mean_kernels"),
+      _json_or_none(data.get("mean_phase_timings")),
+      _json_or_none(data.get("phase_share_pct")),
+      _json_or_none(data.get("phase_share_cv_pct")),
       data["raw_times"],
       data["raw_costs"],
       data["raw_gaps"],

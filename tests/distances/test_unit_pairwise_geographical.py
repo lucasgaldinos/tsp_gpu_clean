@@ -12,7 +12,7 @@ import math
 import pytest
 from converter.utils.cost import geographical
 
-from distances.pairwise import compute_geographical
+from distances.pairwise import _to_radians_geo, compute_geographical
 
 # Berlin (52.31N, 13.23E) -> Munich (48.08N, 11.34E) in TSPLIB DDD.MM format.
 GEO_BERLIN = (52.31, 13.23)
@@ -20,16 +20,37 @@ GEO_MUNICH = (48.08, 11.34)
 GEO_HAND_COMPUTED_KM = 504.718377149365722
 
 
-def test_geographical_is_the_upstream_routing_data_function() -> None:
-  """WHAT: ``pairwise.compute_geographical`` is the ``routing_data`` implementation.
+def test_geographical_overrides_upstream_routing_data_with_canonical_patch() -> None:
+  """WHAT: ``pairwise.compute_geographical`` overrides ``converter.utils.cost.geographical``.
 
-  WHY: ``DP10-13`` moved every TSPLIB95 scalar formula into ``routing_data`` so the
-  solver and the ETL share one definition; a second local copy would drift silently
-  (it already did — the local copy existed only because upstream rounded the degree).
+  WHY: ``converter.utils.cost.geographical`` in ``routing_data`` v0.2.0 rounds the degree
+  component instead of truncating it (BUG-32), which corrupts canonical TSPLIB95 distances
+  such as burma14 d(1,3) (reading 560 instead of 510). ``pairwise.py`` provides a local
+  canonical patch until upstream releases the fix.
 
-  EXPECTED: object identity with ``converter.utils.cost.geographical``.
+  EXPECTED: ``compute_geographical is not geographical``.
   """
-  assert compute_geographical is geographical
+  assert compute_geographical is not geographical
+
+
+@pytest.mark.parametrize(
+  ("coordinate", "expected_radians"),
+  [
+    (52.31, 0.916588554814815),  # 52 deg 18.6 min
+    (13.23, 0.233583182962963),
+    (48.08, 0.840084971851852),
+    (11.34, 0.201876374814815),
+  ],
+)
+def test_geographical_degree_minute_conversion(coordinate: float, expected_radians: float) -> None:
+  """WHAT: DDD.MM values become radians via ``PI * (deg + 5 * min / 3) / 180``.
+
+  WHY: the fractional part of a TSPLIB GEO coordinate is minutes, not hundredths of a
+  degree; treating 52.31 as 52.31 degrees instead of 52 deg 18.6 min shifts every distance.
+
+  EXPECTED: each coordinate matches the hand-computed radian value to 1e-9 relative.
+  """
+  assert _to_radians_geo(coordinate) == pytest.approx(expected_radians, rel=1e-9)
 
 
 def test_fractional_part_of_a_geo_coordinate_is_minutes() -> None:

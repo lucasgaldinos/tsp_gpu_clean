@@ -21,6 +21,7 @@ References:
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Protocol
 
 from converter.utils.cost import (
@@ -34,9 +35,6 @@ from converter.utils.cost import (
 )
 from converter.utils.cost import (
   euclidean_3d as compute_euclidean_3d,
-)
-from converter.utils.cost import (
-  geographical as compute_geographical,
 )
 from converter.utils.cost import (
   manhattan_2d as compute_manhattan_2d,
@@ -65,6 +63,43 @@ PI = 3.141592
 
 #: Earth radius in km used by the TSPLIB95 geographical distance.
 EARTH_RADIUS_KM = 6378.388
+
+
+def _to_radians_geo(coord_val: float) -> float:
+  """Convert a TSPLIB95 DDD.MM coordinate to radians.
+
+  PATCH NOTICE (BUG-32): This function restores the canonical TSPLIB95 specification
+  (Reinelt 1995) by truncating the degree part (``deg = int(coord_val)``) and treating
+  the fractional part as minutes (``minutes = coord_val - deg``), so ``52.31`` is
+  52 degrees 18.6 minutes (52 + 5 * 31 / 3 = 52.31666... degrees).
+  This overrides upstream ``routing_data.converter.utils.cost.geographical``, which
+  rounds the degree part and corrupts distances for any node where minutes >= 30
+  (e.g., changing burma14 d(1,3) from 510 to 560).
+  Matches ``pairwise_device.cuh::gpu_geo_radians``.
+  """
+  deg: int = int(coord_val)
+  minutes: float = coord_val - deg
+  return PI * (deg + 5.0 * minutes / 3.0) / 180.0
+
+
+def compute_geographical(coord1: Sequence[float], coord2: Sequence[float]) -> int:
+  """Compute the TSPLIB95 geographical distance (spherical law of cosines).
+
+  PATCH NOTICE (BUG-32): Overrides ``converter.utils.cost.geographical`` due to
+  the upstream degree-rounding defect in ``routing_data`` v0.2.0. Matches the CUDA device
+  kernel implementation in ``pairwise_device.cuh::gpu_geo``.
+  """
+  lat1: float = _to_radians_geo(coord1[0])
+  lon1: float = _to_radians_geo(coord1[1])
+  lat2: float = _to_radians_geo(coord2[0])
+  lon2: float = _to_radians_geo(coord2[1])
+
+  q1: float = math.cos(lon1 - lon2)
+  q2: float = math.cos(lat1 - lat2)
+  q3: float = math.cos(lat1 + lat2)
+  acos_arg: float = 0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3)
+  acos_arg = max(-1.0, min(1.0, acos_arg))
+  return int(EARTH_RADIUS_KM * math.acos(acos_arg) + 1.0)
 
 
 class PairwiseDistanceFn(Protocol):
@@ -180,12 +215,13 @@ def get_distance_function(edge_weight_type: str) -> PairwiseDistanceFn:
     )
 
 
-__all__ = [
+__all__: list[str] = [
   "EARTH_RADIUS_KM",
   "EDGE_TYPE_TO_CODE",
   "PI",
   "PairwiseDistanceFn",
   "_nint",
+  "_to_radians_geo",
   "compute_att",
   "compute_ceiling_2d",
   "compute_euclidean_2d",

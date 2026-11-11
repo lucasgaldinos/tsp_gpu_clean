@@ -45,6 +45,105 @@
         }
       }
     },
+    "ExampleCPU_PostInitMemetic": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "CPU memetic GA with post-initialization local search refinement on P_0 (DP11-6)",
+      "params": {
+        "local_search_stage": "none",
+        "pipeline": [
+          {
+            "class": "PostInitLocalSearchStep"
+          }
+        ]
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "best"
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "ExperimentalMemeticPipeline": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "CPU memetic GA whose entire local-search schedule lives in a declared pipeline (stages none to avoid running 2-opt twice on P_0)",
+      "params": {
+        "local_search_stage": "none",
+        "pipeline": [
+          {
+            "class": "PostInitLocalSearchStep"
+          },
+          {
+            "class": "EliteOnlyLocalSearchStep",
+            "params": {
+              "elite_count": 8
+            }
+          },
+          {
+            "class": "PeriodicLocalSearchStep",
+            "params": {
+              "interval": 10,
+              "target": "population"
+            }
+          }
+        ]
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "max_iterations": 10,
+            "mode": "best"
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
     "ExampleCPU_TournamentOX_First": {
       "metaheuristic": "GeneticAlgorithm",
       "use_gpu": false,

@@ -1,14 +1,18 @@
-"""CPU-only unit tests for `PhaseTimer` bookkeeping in `utils.phase_timer`.
+"""CPU-only unit tests for `PhaseTimer` bookkeeping and `@time_strategy` opt-in.
 
 Only counts, sums and summaries are asserted; no wall-clock bound is ever checked, so the
-tests stay deterministic on any machine.
+tests stay deterministic on any machine. The decorator tests use a fake backend, so they
+prove the *decision* (call the device or not) instead of measuring CUDA.
 """
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
-from utils.phase_timer import PhaseTimer
+from utils import phase_timer
+from utils.phase_timer import PhaseTimer, time_strategy
 
 
 def _raise_boom() -> None:
@@ -31,6 +35,89 @@ def test_record_accumulates_counts_and_totals() -> None:
   assert entry["calls"] == 2
   assert entry["total_ms"] == pytest.approx(4.0)
   assert entry["mean_ms"] == pytest.approx(2.0)
+
+
+def test_time_strategy_never_probes_the_device_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+  """WHAT: `@time_strategy` on a method called with a CuPy-like array argument.
+
+  WHY: the decorator used to inspect every argument with `isinstance(arg, cp.ndarray)` and
+  then build a CUDA event pair ending in `end_evt.synchronize()`. That forced 5-6 hidden
+  host-device barriers per generation and cancelled the asynchronous GPU pipeline
+  (`BUG-26` / `DP11-22`).
+
+  EXPECTED: the backend is never even imported-into for the decision, and the call is still
+  timed on the host clock.
+  """
+
+  class _BoomBackend:
+    """Fail loudly if the decorator asks the backend anything at all."""
+
+    def __getattr__(self, name: str) -> Any:
+      raise AssertionError(f"time_strategy touched the GPU backend (accessed {name!r})")
+
+  class _Strategy:
+    last_elapsed_ms: float = 0.0
+    total_elapsed_ms: float = 0.0
+    call_count: int = 0
+
+    @time_strategy
+    def run(self, batch: Any) -> str:
+      return f"done:{type(batch).__name__}"
+
+  monkeypatch.setattr(phase_timer, "cupy_backend", lambda: _BoomBackend())
+
+  strategy = _Strategy()
+  assert strategy.run(object()) == "done:object"
+  assert strategy.last_elapsed_ms >= 0.0
+  assert strategy.call_count == 1
+
+
+def test_time_strategy_uses_device_events_only_when_opted_in(monkeypatch: pytest.MonkeyPatch) -> None:
+  """WHAT: the same decorator on a strategy exposing `use_gpu_events = True`.
+
+  WHY: device-accurate timing must stay reachable (`DP11-22`: opt-in, not implicit).
+
+  EXPECTED: one start/end event pair is recorded and synchronized once, and the elapsed
+  time comes from `get_elapsed_time` rather than the host clock.
+  """
+  calls: list[str] = []
+
+  class _FakeEvent:
+    def record(self) -> None:
+      calls.append("record")
+
+    def synchronize(self) -> None:
+      calls.append("synchronize")
+
+  class _FakeCuda:
+    @staticmethod
+    def Event() -> _FakeEvent:
+      calls.append("Event")
+      return _FakeEvent()
+
+    @staticmethod
+    def get_elapsed_time(start: _FakeEvent, end: _FakeEvent) -> float:
+      return 4.0
+
+  class _FakeBackend:
+    cuda = _FakeCuda()
+
+  class _OptedIn:
+    use_gpu_events = True
+    last_elapsed_ms: float = 0.0
+    total_elapsed_ms: float = 0.0
+    call_count: int = 0
+
+    @time_strategy
+    def run(self) -> str:
+      return "done"
+
+  monkeypatch.setattr(phase_timer, "cupy_backend", lambda: _FakeBackend())
+
+  strategy = _OptedIn()
+  assert strategy.run() == "done"
+  assert calls == ["Event", "Event", "record", "record", "synchronize"]
+  assert strategy.last_elapsed_ms == pytest.approx(4.0)
 
 
 def test_summary_preserves_first_record_order() -> None:

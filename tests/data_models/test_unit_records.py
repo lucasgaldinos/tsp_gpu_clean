@@ -62,6 +62,9 @@ OPTIONAL_FIELDS: frozenset[str] = frozenset(
     "mean_d2h_mb",
     "total_transfer_mb",
     "mean_kernels",
+    "mean_phase_timings",
+    "phase_share_pct",
+    "phase_share_cv_pct",
     "raw_initial_costs",
     "raw_generations",
     "raw_stop_reasons",
@@ -110,6 +113,9 @@ FULL_PAYLOAD: dict[str, object] = {
   "mean_d2h_mb": 0.25,
   "total_transfer_mb": 3.75,
   "mean_kernels": 40.0,
+  "mean_phase_timings": {"crossover": {"total_ms": 1.2, "calls": 5, "mean_ms": 0.24}},
+  "phase_share_pct": {"crossover": 15.0},
+  "phase_share_cv_pct": {"crossover": 2.5},
   "raw_initial_costs": [4000.0, 4020.0, 3980.0],
   "raw_generations": [70, 80, 100],
   "raw_stop_reasons": ["max_generations", "converged", "max_generations"],
@@ -135,10 +141,10 @@ def test_benchmark_run_input_optional_keys_match_the_nullable_columns() -> None:
   """
   WHAT: `BenchmarkRunInput.__optional_keys__`.
   WHY: these are the keys the writer reads with `dict.get`; a missing one must stay legal for old checkpoints.
-  EXPECTED: exactly the 13 documented `NotRequired` columns.
+  EXPECTED: exactly the 16 documented `NotRequired` columns (13 base + 3 phase telemetry, BUG-31).
   """
   assert set(BenchmarkRunInput.__optional_keys__) == OPTIONAL_FIELDS
-  assert len(BenchmarkRunInput.__optional_keys__) == 13
+  assert len(BenchmarkRunInput.__optional_keys__) == 16
 
 
 def test_benchmark_run_input_key_sets_partition_the_annotations() -> None:
@@ -178,15 +184,15 @@ def test_minimal_payload_covers_every_required_field() -> None:
 
 def test_full_payload_covers_every_declared_field() -> None:
   """
-  WHAT: a checkpoint payload naming all 40 fields.
+  WHAT: a checkpoint payload naming all 43 fields.
   WHY: it proves no contract key is unnamed and no payload key is invented, which is the drift this test guards.
-  EXPECTED: keys equal required plus optional, a subset of the annotations, and 40 fields in total.
+  EXPECTED: keys equal required plus optional, a subset of the annotations, and 43 fields in total (BUG-31).
   """
   declared = set(BenchmarkRunInput.__required_keys__) | set(BenchmarkRunInput.__optional_keys__)
 
   assert set(FULL_PAYLOAD) == declared
   assert set(FULL_PAYLOAD) <= set(BenchmarkRunInput.__annotations__)
-  assert len(FULL_PAYLOAD) == 40
+  assert len(FULL_PAYLOAD) == 43
 
 
 def test_benchmark_run_input_uses_both_json_payload_shapes() -> None:

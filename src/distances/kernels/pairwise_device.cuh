@@ -102,7 +102,12 @@ __device__ __forceinline__ int gpu_att(double xd, double yd) {
   return tij < rij ? tij + 1 : tij;
 }
 
-/** TSPLIB95 DDD.MM -> radians, truncating the degree part (matches `pairwise._to_radians_geo`). */
+/**
+ * TSPLIB95 DDD.MM -> radians, truncating the degree part.
+ * NOTE (BUG-32 patch): Matches canonical TSPLIB95 and `pairwise._to_radians_geo`.
+ * Upstream `routing_data` v0.2.0 rounds the degree component; both this device
+ * implementation and the host patch in `pairwise.py` preserve the spec truncation.
+ */
 __device__ __forceinline__ double gpu_geo_radians(double coord_val) {
   int deg = (int)coord_val;
   double minutes = coord_val - (double)deg;
