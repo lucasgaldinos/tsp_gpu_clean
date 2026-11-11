@@ -103,17 +103,25 @@ class SelectionTournament(StrategyBase, SelectionStrategy):
     cp: Any = require_gpu() if is_gpu else None
     xp: Any = cp if is_gpu else np
 
+    fitness_on_gpu: bool = is_gpu_array(fitness)
     fit_arr = xp.asarray(fitness, dtype=xp.float64)
+
+    # One host RNG stream for both backends: `cp.random.randint` used the device
+    # generator, so a GPU-resident population ignored `context.rng` and diverged
+    # from the CPU strategy under the same seed (`BUG-28`, `SEL-A`).
+    rng: Generator = resolve_rng(context, self.rng)
+    candidates_np = rng.integers(0, pop_size, size=(n_select, self.k), dtype=np.int32)
+
     if is_gpu:
-      candidates = cp.random.randint(0, pop_size, size=(n_select, self.k), dtype=cp.int32)
+      if not fitness_on_gpu:
+        self.h2d_bytes += int(fit_arr.nbytes)
+      candidates = cp.asarray(candidates_np, dtype=cp.int32)
+      self.h2d_bytes += int(candidates.nbytes)
       cand_fitness = fit_arr[candidates]
       best_cols = cp.argmin(cand_fitness, axis=1)
       winners = candidates[cp.arange(n_select), best_cols]
       return cast("Routes", pop_batch[winners].copy())
 
-    rng: Generator = resolve_rng(context, self.rng)
-
-    candidates_np = rng.integers(0, pop_size, size=(n_select, self.k))
     cand_fitness_np = fit_arr[candidates_np]
     best_cols_np = np.argmin(cand_fitness_np, axis=1)
     winners_np = candidates_np[np.arange(n_select), best_cols_np]
@@ -151,6 +159,18 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
       )
     return self._kernel
 
+  def warmup(self, context: ProblemContext) -> None:
+    """Compile the kernel and launch it once on a valid permutation batch.
+
+    `select_batch` returns early for a single route, so the warm-up batch carries two
+    routes and two dummy fitness values. The routes are `arange`, never `cp.zeros`
+    (`BUG-24`).
+    """
+    super().warmup(context)
+    cp = require_gpu()
+    batch = self._warmup_batch(context, rows=2)
+    self.select_batch(batch, cp.zeros(2, dtype=cp.float64), num_parents=2, context=context)
+
   def select(
     self,
     population: Routes,
@@ -180,7 +200,7 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
     cp = require_gpu()
 
     pop_batch, _ = ensure_routes_batch(routes)
-    pop_size, n_cities = pop_batch.shape
+    pop_size = pop_batch.shape[0]
     n_select = pop_size if num_parents is None else num_parents
 
     input_on_gpu: bool = is_gpu_array(pop_batch)
@@ -201,7 +221,7 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
     d_candidates = cp.asarray(candidates_np, dtype=cp.int32)
     self.h2d_bytes += int(d_candidates.nbytes)
 
-    d_parents = cp.empty((n_select, n_cities), dtype=cp.int32)
+    d_winner_indices = cp.empty(n_select, dtype=cp.int32)
 
     threads_per_block = 128
     blocks = (n_select + threads_per_block - 1) // threads_per_block
@@ -210,18 +230,17 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
       (blocks,),
       (threads_per_block,),
       (
-        d_pop,
         d_fit,
         d_candidates,
-        d_parents,
+        d_winner_indices,
         np.int32(pop_size),
         np.int32(n_select),
-        np.int32(n_cities),
         np.int32(self.k),
       ),
     )
-    cp.cuda.Stream.null.synchronize()
     self.kernel_launches += 1
+
+    d_parents = d_pop[d_winner_indices]
 
     if input_on_gpu:
       return cast("Routes", d_parents)

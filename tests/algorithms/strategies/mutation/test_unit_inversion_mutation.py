@@ -107,16 +107,17 @@ def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Pro
   """
   # Arrange
   context = ProblemContext(berlin52_problem, xp=np, seed=19)
-  route = np.random.default_rng(23).permutation(np.arange(52, dtype=np.int32)).astype(np.int32, copy=False)
+  inner = np.random.default_rng(23).permutation(np.arange(1, 51, dtype=np.int32))
+  route = np.concatenate(([0], inner, [0])).astype(np.int32)
   original = route.copy()
 
   # Act
   mutated = MutationInversion(seed=6, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
-  assert sorted(mutated.tolist()) == list(range(52))
-  assert mutated[0] == route[0]
-  assert mutated[-1] == route[-1]
+  assert sorted(mutated.tolist()) == sorted(route.tolist())
+  assert mutated[0] == 0
+  assert mutated[-1] == 0
   np.testing.assert_array_equal(route, original)
 
 

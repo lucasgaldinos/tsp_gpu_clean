@@ -200,6 +200,20 @@ class ProblemContext:
     if problem.distances is None and problem.coordinates is None:
       raise ValueError(f"Problem '{problem.name}' has no distances or coordinates to compute distance matrix from.")
 
+  @property
+  def is_closed(self) -> bool:
+    """Whether routes are depot-bounded (`CVRP`) instead of open permutations.
+
+    Crossover and mutation read this property to decide whether positions `0` and
+    `n - 1` may move (`DP11-19`). Declaring the topology on the problem avoids both
+    a device-to-host sync on every generation and the per-instance `(n, is_closed)`
+    cache that a zero-filled warm-up batch can poison (`BUG-24`).
+
+    Returns:
+        `True` for `CVRP` (routes close on the depot), `False` for `TSP`/`ATSP`.
+    """
+    return self.problem.problem_type == "CVRP"
+
   def get_cpu_demands(self) -> np.ndarray | None:
     """
     Get demands as NumPy array on CPU (lazy computation with caching).

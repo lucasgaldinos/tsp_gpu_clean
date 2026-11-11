@@ -57,37 +57,35 @@ void cost_calculator_kernel(
     // Initialize partial sum for this thread
     long long partial_cost = 0;
     
-    // Each thread sums a contiguous chunk of edges. Carrying `from_node` from the
-    // previous iteration (`Task 10.16`) removes one tour read per edge; the set of
-    // summed edges and the int64 reduction are unchanged.
-    int chunk = (n + block_size - 1) / block_size;
-    int start = tid * chunk;
-    int end = (start + chunk < n) ? (start + chunk) : n;
-    if (start < n) {
-        int from_node = tour[start];
-        for (int i = start; i < end; ++i) {
-            int to_node = tour[(i + 1) % n];  // Wrap around for last edge
-            partial_cost += (long long)gpu_pairwise_distance(
-                from_node, to_node, distances, coords, n, edge_type_code);
-            from_node = to_node;
-        }
+    // Coalesced block-stride loop (DP11-15, EVAL-A): threads read adjacent tour elements
+    for (int i = tid; i < n; i += block_size) {
+        int from_node = tour[i];
+        int to_node = tour[(i + 1) % n];
+        partial_cost += (long long)gpu_pairwise_distance(
+            from_node, to_node, distances, coords, n, edge_type_code);
     }
     
     // Store partial sum in shared memory
     s_partials[tid] = partial_cost;
     __syncthreads();
     
-    // Parallel reduction to sum all partial costs
-    // Standard log-step reduction pattern
-    for (int stride = block_size / 2; stride > 0; stride >>= 1) {
+    // Parallel reduction in shared memory down to warp size (stride = 32)
+    for (int stride = block_size / 2; stride >= 32; stride >>= 1) {
         if (tid < stride && tid + stride < block_size) {
             s_partials[tid] += s_partials[tid + stride];
         }
         __syncthreads();
     }
     
-    // Thread 0 writes final cost to global memory
-    if (tid == 0) {
-        costs[tour_idx] = s_partials[0];
+    // Warp 0 finishes the last 32 partial sums via register shuffle reduction
+    if (tid < 32) {
+        long long warp_cost = (tid < block_size) ? s_partials[tid] : 0LL;
+        unsigned int mask = (block_size < 32) ? ((1u << block_size) - 1u) : 0xFFFFFFFFu;
+        for (int offset = 16; offset > 0; offset >>= 1) {
+            warp_cost += __shfl_down_sync(mask, warp_cost, offset);
+        }
+        if (tid == 0) {
+            costs[tour_idx] = warp_cost;
+        }
     }
 }
