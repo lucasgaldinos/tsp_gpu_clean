@@ -308,6 +308,13 @@ def is_valid_checkpoint(filepath: Path, expected_reps: int | None = None) -> boo
       logging.warning(f"Checkpoint {filepath.name} array length mismatch")
       return False
 
+    if "raw_phase_timings" in data and len(data["raw_phase_timings"]) != data["successful_runs"]:
+      logging.warning(
+        f"Checkpoint {filepath.name} raw_phase_timings length mismatch: "
+        f"expected {data['successful_runs']}, got {len(data['raw_phase_timings'])}"
+      )
+      return False
+
     return True
 
   except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
@@ -383,6 +390,13 @@ def can_resume_checkpoint(filepath: Path, expected_reps: int | None = None) -> b
 
     if len(raw_times) != data["successful_runs"]:
       logging.warning(f"Checkpoint {filepath.name} array length mismatch")
+      return False
+
+    if "raw_phase_timings" in data and len(data["raw_phase_timings"]) != data["successful_runs"]:
+      logging.warning(
+        f"Checkpoint {filepath.name} raw_phase_timings length mismatch: "
+        f"expected {data['successful_runs']}, got {len(data['raw_phase_timings'])}"
+      )
       return False
 
     return True

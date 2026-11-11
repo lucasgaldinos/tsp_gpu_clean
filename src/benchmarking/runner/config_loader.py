@@ -30,11 +30,13 @@ from dataclasses import field as dc_field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
 from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsplib_file
 
 if TYPE_CHECKING:
   from inspect import Signature
 
+  from algorithms.metaheuristics.genetic_algorithm import GenerationStep
   from protocols.types import LocalSearchStage
 
 # =============================================================================
@@ -159,44 +161,92 @@ class AlgorithmConfig:
             f"Unknown strategy slot '{slot_name}'. Valid slots are: {sorted(valid_slots)}"
           )
 
-    def _build_strategy(slot: str) -> Any:
-      strat_spec = self.strategies.get(slot)
-      if not strat_spec:
+    def _build_spec(
+      spec: dict[str, Any] | None,
+      registry: dict[str, type],
+      registry_name: str,
+      slot: str | None = None,
+      default_kwargs: dict[str, Any] | None = None,
+    ) -> Any:
+      if not spec:
         return None
-      class_name = strat_spec.get("class")
+      class_name = spec.get("class")
       if not class_name:
         return None
-      if class_name not in STRATEGY_REGISTRY:
+      if class_name not in registry:
+        slot_ctx = f" in slot '{slot}'" if slot else ""
         raise ValueError(
-          f"Unknown strategy class '{class_name}' in slot '{slot}'. Available: {list(STRATEGY_REGISTRY.keys())}"
+          f"Unknown {registry_name} class '{class_name}'{slot_ctx}. Available: {sorted(registry.keys())}"
         )
-      strat_cls: type = STRATEGY_REGISTRY[class_name]
-      strat_params = dict(strat_spec.get("params", {}))
+      target_cls: type = registry[class_name]
+      params = dict(spec.get("params", {}))
 
       import inspect
 
-      sig: Signature = inspect.signature(strat_cls)
+      sig: Signature = inspect.signature(target_cls)
       has_var_kw: bool = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
 
-      if strategy_overrides and slot in strategy_overrides:
+      if slot and strategy_overrides and slot in strategy_overrides:
         for k, v in strategy_overrides[slot].items():
           if not has_var_kw and k not in sig.parameters:
             raise ValueError(
               f"Strategy class '{class_name}' in slot '{slot}' does not accept parameter '{k}'. "
               f"Accepted parameters: {list(sig.parameters.keys())}"
             )
-          strat_params[k] = v
+          params[k] = v
 
-      if "seed" in sig.parameters and "seed" not in strat_params:
-        strat_params["seed"] = resolved_seed
-      return strat_cls(**strat_params)
+      if default_kwargs:
+        for k, v in default_kwargs.items():
+          if k in sig.parameters and k not in params and v is not None:
+            params[k] = v
 
-    init_strat = _build_strategy("initialization")
-    sel_strat = _build_strategy("selection")
-    cx_strat = _build_strategy("crossover")
-    mut_strat = _build_strategy("mutation")
-    eval_strat = _build_strategy("evaluation")
-    ls_strat = _build_strategy("local_search")
+      # Resolve nested strategy specifications if provided
+      for k, v in list(params.items()):
+        if isinstance(v, dict) and "class" in v and v["class"] in STRATEGY_REGISTRY:
+          params[k] = _build_spec(v, STRATEGY_REGISTRY, "strategy")
+
+      if "seed" in sig.parameters and "seed" not in params:
+        params["seed"] = resolved_seed
+
+      if not has_var_kw:
+        for k in params:
+          if k not in sig.parameters:
+            raise ValueError(
+              f"{registry_name} class '{class_name}' does not accept parameter '{k}'. "
+              f"Accepted parameters: {list(sig.parameters.keys())}"
+            )
+
+      return target_cls(**params)
+
+    init_strat = _build_spec(self.strategies.get("initialization"), STRATEGY_REGISTRY, "strategy", "initialization")
+    sel_strat = _build_spec(self.strategies.get("selection"), STRATEGY_REGISTRY, "strategy", "selection")
+    cx_strat = _build_spec(self.strategies.get("crossover"), STRATEGY_REGISTRY, "strategy", "crossover")
+    mut_strat = _build_spec(self.strategies.get("mutation"), STRATEGY_REGISTRY, "strategy", "mutation")
+    eval_strat = _build_spec(self.strategies.get("evaluation"), STRATEGY_REGISTRY, "strategy", "evaluation")
+    ls_strat = _build_spec(self.strategies.get("local_search"), STRATEGY_REGISTRY, "strategy", "local_search")
+
+    built_pipeline: list[GenerationStep] | None = None
+    pipeline_specs = (
+      param_overrides.get("pipeline")
+      if (param_overrides and "pipeline" in param_overrides)
+      else self.params.get("pipeline")
+    )
+    if pipeline_specs is not None:
+      built_pipeline = []
+      step_defaults = {
+        "local_search": ls_strat,
+        "evaluation": eval_strat,
+        "re_evaluate": eval_strat,
+      }
+      for step_spec in pipeline_specs:
+        step_inst = _build_spec(
+          step_spec,
+          PIPELINE_STEP_REGISTRY,
+          "pipeline step",
+          default_kwargs=step_defaults,
+        )
+        if step_inst is not None:
+          built_pipeline.append(step_inst)
 
     effective_ls_stage = cast(
       "LocalSearchStage",
@@ -224,6 +274,7 @@ class AlgorithmConfig:
       evaluation=eval_strat,
       local_search=ls_strat,
       local_search_stage=effective_ls_stage,
+      pipeline=built_pipeline,
     )
 
 

@@ -208,6 +208,17 @@ def test_run_comprehensive_benchmark_fixture(
   assert strategy_params["local_search"]["max_iterations"] >= 1
   assert results["gr17"]["CPU"]["construction_heuristic"] == "InitializationRandom"
 
+  # Phase timings persistence (Task 11.7, DP11-7, DP11-13)
+  cpu_res = results["gr17"]["CPU"]
+  assert "raw_phase_timings" in cpu_res
+  assert "mean_phase_timings" in cpu_res
+  assert "phase_share_pct" in cpu_res
+  assert "phase_share_cv_pct" in cpu_res
+  assert len(cpu_res["raw_phase_timings"]) == 1
+  assert "initialization" in cpu_res["mean_phase_timings"]
+  assert "host_sync" in cpu_res["mean_phase_timings"]
+  assert "evaluation" in cpu_res["mean_phase_timings"]
+
 
 def test_compare_algorithms_and_grouping() -> None:
   """Verify compare_algorithms, grouping, and stratified cross-problem analysis."""
@@ -363,3 +374,80 @@ def test_strategy_override_reaches_instance(fixture_config_dir: Path) -> None:
   # Monolithic strategy-override mapping is covered by the opt-in archive config
   # (`configs/algorithms.archive.json`), which the suite no longer loads: no test
   # executes archive code.
+
+
+def test_generate_result_tables_emits_phase_timings_table(tmp_path: Path) -> None:
+  """Verify that generate_result_tables emits Table 4 when mean_phase_timings are present (Task 11.7)."""
+  problem_configs = [ProblemConfig(name="berlin52", optimal=7542.0, size=52)]
+  all_results = {
+    "berlin52": {
+      "CPU": {
+        "mean_time": 0.050,  # < 100 ms to also trigger floor warning
+        "std_time": 0.002,
+        "mean_cost": 7600.0,
+        "std_cost": 10.0,
+        "best_cost": 7590.0,
+        "mean_gap": 0.77,
+        "std_gap": 0.13,
+        "best_gap": 0.64,
+        "successful_runs": 1,
+        "raw_times": [0.050],
+        "raw_costs": [7600.0],
+        "raw_gaps": [0.77],
+        "raw_seeds": [42],
+        "mean_phase_timings": {
+          "initialization": {"total_ms": 2.0, "calls": 1, "mean_ms": 2.0},
+          "evaluation": {"total_ms": 15.0, "calls": 20, "mean_ms": 0.75},
+          "selection": {"total_ms": 5.0, "calls": 20, "mean_ms": 0.25},
+          "crossover": {"total_ms": 10.0, "calls": 20, "mean_ms": 0.5},
+          "mutation": {"total_ms": 5.0, "calls": 20, "mean_ms": 0.25},
+          "local_search": {"total_ms": 10.0, "calls": 5, "mean_ms": 2.0},
+          "survival": {"total_ms": 4.0, "calls": 20, "mean_ms": 0.2},
+          "host_sync": {"total_ms": 3.0, "calls": 21, "mean_ms": 0.14},
+        },
+        "phase_share_pct": {
+          "initialization": 4.0,
+          "evaluation": 27.0,
+          "selection": 10.0,
+          "crossover": 18.0,
+          "mutation": 10.0,
+          "local_search": 17.0,
+          "survival": 8.0,
+          "host_sync": 6.0,
+        },
+        "phase_share_cv_pct": {
+          "initialization": 2.5,
+          "evaluation": 1.2,
+          "selection": 3.0,
+          "crossover": 1.8,
+          "mutation": 2.1,
+          "local_search": 1.5,
+          "survival": 3.3,
+          "host_sync": 4.0,
+        },
+      }
+    }
+  }
+
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "tables",
+    benchmark_name="phase_timings_test",
+  )
+
+  md_content = (tmp_path / "tables" / "phase_timings_test.md").read_text(encoding="utf-8")
+  tex_content = (tmp_path / "tables" / "phase_timings_test.tex").read_text(encoding="utf-8")
+
+  assert "## Table 4: Average Phase Timings and Relative Share Breakdown" in md_content
+  assert "Host Sync" in md_content
+  assert "Surv (%)" in md_content, "Table 4 must show the survival bucket (BUG-30)"
+  assert "8.0% (CV 3.3%)" in md_content, "the survival share and its CV must reach the row"
+  assert "Runtime Floor Warning" in md_content
+
+  assert "\\caption{Average Phase Timings, Relative Share, and Dispersion" in tex_content
+  assert "Host Sync" in tex_content
+  assert "Surv &" in tex_content, "the LaTeX header must carry the survival column"
+  assert "8.0\\% (3\\%)" in tex_content, "the LaTeX row must carry the survival share and CV"
+  assert "Warning:" in tex_content
+  assert "\\end{document}" in tex_content

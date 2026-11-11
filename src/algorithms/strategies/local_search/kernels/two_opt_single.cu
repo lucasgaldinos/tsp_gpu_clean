@@ -92,26 +92,23 @@ void two_opt_kernel(
     s_swap_j[tid] = my_swap_j;
     __syncthreads();
     
-    // Parallel reduction to find minimum delta (most negative = best improvement)
-    // For non-power-of-2 block sizes, we need special handling
-    // Strategy: Parallel reduce as much as possible, then serial reduction for remainder
-    
-    // Parallel reduction for power-of-2 portion
+    // Block reduction to the exact minimum delta.
+    //
+    // Phase 1 folds thread partials in parallel while the stride still spans more than
+    // one warp. Phase 2 lets thread 0 fold only the surviving `min(block_size, 64)`
+    // partials -- the pre-fix code rescanned all `block_size` of them after the tree had
+    // already merged the upper half (`BUG-29`).
     for (unsigned int s = block_size / 2; s > 32; s >>= 1) {
-        if (tid < s) {
-            if (tid + s < block_size && s_deltas[tid + s] < s_deltas[tid]) {
-                s_deltas[tid] = s_deltas[tid + s];
-                s_swap_i[tid] = s_swap_i[tid + s];
-                s_swap_j[tid] = s_swap_j[tid + s];
-            }
+        if (tid < s && tid + s < block_size && s_deltas[tid + s] < s_deltas[tid]) {
+            s_deltas[tid] = s_deltas[tid + s];
+            s_swap_i[tid] = s_swap_i[tid + s];
+            s_swap_j[tid] = s_swap_j[tid + s];
         }
         __syncthreads();
     }
-    
-    // Final reduction: use thread 0 to serially reduce remaining values
-    // This guarantees correctness for any block_size (power-of-2 or not)
     if (tid == 0) {
-        for (int i = 1; i < block_size; i++) {
+        const int remaining = block_size < 64 ? block_size : 64;
+        for (int i = 1; i < remaining; i++) {
             if (s_deltas[i] < s_deltas[0]) {
                 s_deltas[0] = s_deltas[i];
                 s_swap_i[0] = s_swap_i[i];
@@ -120,21 +117,21 @@ void two_opt_kernel(
         }
     }
     __syncthreads();
-    
-    // Apply best swap (Thread 0 only)
-    if (tid == 0 && s_deltas[0] < 0) {
+
+    // `s_deltas[0]` is now the exact minimum, so a pass with no improving move skips
+    // the reversal branch instead of synchronizing for nothing (`BUG-29`).
+    if (s_deltas[0] < 0) {
         int swap_i = s_swap_i[0];
         int swap_j = s_swap_j[0];
         
-        // Reverse segment [i+1, j]
+        // Reverse segment [swap_i + 1, swap_j]
         int left = swap_i + 1;
         int right = swap_j;
-        while (left < right) {
-            int temp = s_tour[left];
-            s_tour[left] = s_tour[right];
-            s_tour[right] = temp;
-            left++;
-            right--;
+        int num_swaps = (right - left + 1) / 2;
+        for (int k = tid; k < num_swaps; k += block_size) {
+            int temp = s_tour[left + k];
+            s_tour[left + k] = s_tour[right - k];
+            s_tour[right - k] = temp;
         }
     }
     __syncthreads();

@@ -2,8 +2,9 @@
 Non-intrusive strategy and phase timing instrumentation.
 
 Provides `@time_strategy` and `PhaseTimer` for recording per-phase execution
-durations in milliseconds using CUDA hardware events (`cp.cuda.Event`) when
-available and `time.perf_counter()` on CPU.
+durations in milliseconds. Both default to `time.perf_counter()`, which measures the
+host-side cost including kernel dispatch; CUDA hardware events (`cp.cuda.Event`) are
+only used when the caller asks for them explicitly (`DP11-22`).
 """
 
 from __future__ import annotations
@@ -89,26 +90,25 @@ def time_strategy[**P, R](func: Callable[P, R]) -> Callable[P, R]:
 
   Stores the last execution duration (in ms) on `self.last_elapsed_ms` and
   accumulates total time on `self.total_elapsed_ms` when `self` is a strategy
-  instance. Uses `cp.cuda.Event` if any argument is a CuPy array or if
-  `getattr(self, "use_gpu_events", False)` is True.
+  instance.
+
+  The default path only reads `time.perf_counter()`, so a GPU strategy returns to the
+  host as soon as its kernels are *enqueued*: a `cp.cuda.Event` pair ending in
+  `end_evt.synchronize()` on every call imposed five to six hidden host-device
+  barriers per generation, cancelling the asynchronous pipeline that `DP10-18`,
+  `SWAP-A`, `EVAL-A`, `SEL-A` and `INV-A` were built for (`BUG-26`). Device-accurate
+  timing stays available but is opt-in: a strategy exposes `use_gpu_events = True`,
+  and `PhaseTimer(use_cuda_events=True)` keeps the barrier-and-event path for callers
+  that need a device clock.
   """
 
   @functools.wraps(func)
   def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
     self_obj: Any = args[0] if args else None
-    cp = cupy_backend()
-    use_cuda = False
-    if cp is not None:
-      if getattr(self_obj, "use_gpu_events", False):
-        use_cuda = True
-      else:
-        for arg in args[1:]:
-          if isinstance(arg, cp.ndarray):
-            use_cuda = True
-            break
+    cp = cupy_backend() if getattr(self_obj, "use_gpu_events", False) else None
 
     elapsed_ms: float
-    if use_cuda and cp is not None:
+    if cp is not None:
       try:
         start_evt = cp.cuda.Event()
         end_evt = cp.cuda.Event()

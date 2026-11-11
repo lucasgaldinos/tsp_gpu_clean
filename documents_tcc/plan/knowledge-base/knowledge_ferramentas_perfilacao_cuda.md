@@ -11,7 +11,6 @@ links:
 
 # Knowledge: Ferramentas de Perfilação CUDA para o Projeto Chimera
 
-
 ## Objetivo
 
 Consolidar as capacidades, métricas coletáveis, e limitações das ferramentas de perfilação GPU disponíveis para validar as hipóteses arquiteturais dos TODOs pendentes no relatório ([second_draft.tex L2641](file:///home/lucas_galdino/chimera/gpu_accelerated/documents_tcc/tex/second_draft.tex#L2641)).
@@ -23,7 +22,7 @@ Consolidar as capacidades, métricas coletáveis, e limitações das ferramentas
 ### 1.1 NVIDIA Nsight Systems (`nsys`)
 
 | Aspecto | Detalhe |
-|---|---|
+| --- | --- |
 | **Escopo** | Visão **sistêmica** (CPU + GPU + memória + I/O) |
 | **Para que serve** | Identificar gargalos macroscópicos: latência de lançamento de kernels, transferências H2D/D2H, sincronizações CPU-GPU |
 | **Overhead** | **Baixo** — adequado para traçar execuções longas sem perturbar o comportamento |
@@ -45,7 +44,7 @@ nsys profile --trace=cuda,nvtx -o chimera_profile python3 run_benchmark.py
 ### 1.2 NVIDIA Nsight Compute (`ncu`)
 
 | Aspecto | Detalhe |
-|---|---|
+| --- | --- |
 | **Escopo** | Análise **por kernel** individual |
 | **Para que serve** | Deep-dive em métricas de SM: eficiência de warps, uso de registradores, shared memory, coalescing de memória global |
 | **Overhead** | **Alto** — usa *kernel replay* (re-executa o kernel múltiplas vezes para coletar contadores de hardware) |
@@ -55,7 +54,7 @@ nsys profile --trace=cuda,nvtx -o chimera_profile python3 run_benchmark.py
 #### Métricas Relevantes para os TODOs do Relatório
 
 | Hipótese Pendente | Métrica Nsight Compute | Seção no NCU |
-|---|---|---|
+| --- | --- | --- |
 | Pressão de registradores | `sm__registers_per_thread`, Occupancy Analysis | Speed of Light → SM |
 | Divergência de warps | `smsp__warps_issue_stalled_not_selected` / `branch_efficiency` | Warp State Statistics |
 | Gargalo compute vs memory | `sm__throughput.avg.pct_of_peak_sustained_elapsed` | Speed of Light |
@@ -80,7 +79,7 @@ ncu --set full --kernel-name ga_evolution_early_stop -o chimera_kernel python3 r
 ### 1.3 CUDA Events via CuPy (Instrumentação Não-Intrusiva)
 
 | Aspecto | Detalhe |
-|---|---|
+| --- | --- |
 | **Escopo** | Temporização precisa de kernels e seções de código no pipeline python |
 | **Para que serve** | Medir tempo de kernel, tempo de transferência H2D/D2H, e overhead de lançamento — **sem ferramentas externas** |
 | **Overhead** | **Mínimo** — eventos são registrados diretamente no stream CUDA |
@@ -118,15 +117,18 @@ result = benchmark(minha_funcao, args=(), n_repeat=20)
 print(result)  # Imprime média, std, min, max
 ```
 
-> [!IMPORTANT]
-> **Warm-up obrigatório:** A primeira execução de um kernel CuPy RawKernel inclui o tempo de compilação JIT. Sempre executar 2-3 iterações de warm-up antes de coletar dados.
+> [!IMPORTANT] Warm-up de Execução e Cuidados
+>
+> - **AOT vs. Warm-up de Execução:** A compilação CuPy RawKernel gera PTX/cubin, mas não aquece o hardware. O warm-up de execução deve disparar um lançamento não-temporizado para alocar pools de memória (`cudaMalloc`), inicializar filas de streams e estabilizar as frequências P-State da GPU (evitando transições de clock P8 $\to$ P0 durante o profiling).
+> - **Cuidado com Arrays Nulos (Envenenamento de Heurísticas):** Nunca utilizar arrays de zeros (`cp.zeros`) como carga de warm-up se o pipeline possuir heurísticas de detecção de topologia (ex: `first_0 == first_end`). Arrays nulos satisfazem $0 == 0$, gravando falsamente `is_closed = True` no cache e corrompendo execuções subsequentes em instâncias abertas.
+> - **Gargalo de Amdahl no Host (RNG Serial):** Sempre instrumentar separadamente o tempo de preparação na CPU e o tempo do kernel com `cp.cuda.Event`. Em estratégias como Order Crossover, laços seriais em python (`for i in range(...) rng.choice(...)`) consomem $\approx 1{,}22\text{ ms}$, enquanto o kernel CUDA consome apenas $0{,}012\text{ ms}$ a $0{,}088\text{ ms}$ ($>90\%$ do tempo gasto no host CPU). A vetorização em NumPy reduz esse tempo para $0{,}017\text{ ms}$ ($72\times$ mais rápido).
 
 ---
 
 ## 2. Comparação Consolidada
 
 | Critério | Nsight Systems | Nsight Compute | CUDA Events (CuPy) |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Escopo** | Sistema completo | Kernel individual | Seção de código |
 | **Overhead** | Baixo | Alto (replay) | Mínimo |
 | **Métricas de tempo** | ✅ | ✅ | ✅ |
@@ -191,7 +193,7 @@ ncu --set full \
 **Hipóteses a testar:**
 
 | TODO | Métrica a coletar | Resultado esperado |
-|---|---|---|
+| --- | --- | --- |
 | Pressão de registradores | `sm__registers_per_thread` | Se > 32, limita ocupação |
 | Divergência de warps | `branch_efficiency` | Se < 90%, divergência significativa |
 | Compute vs Memory bound | Speed of Light summary | Classificar o kernel |

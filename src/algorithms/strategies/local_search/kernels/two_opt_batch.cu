@@ -67,16 +67,24 @@ void two_opt_batch_kernel(
     const bool use_matrix = dist != nullptr;
     const bool use_candidates = candidate_k > 0 && candidates != nullptr && positions != nullptr;
 
-    // Partition shared memory (per-block): the tour buffer comes first so the
-    // tiled and untiled layouts share one allocation.
-    int *s_tour = shared_mem;
-    int *s_deltas = tiled ? (int*)&s_tour[tour_tile_size + 1] : (int*)&s_tour[n];
-    int *s_swap_i = (int*)&s_deltas[blockDim.x];
-    int *s_swap_j = (int*)&s_swap_i[blockDim.x];
-
     int tour_idx = blockIdx.x;  // Which tour this block processes
     int tid = threadIdx.x;
     int block_size = blockDim.x;
+
+    // Grid bounds guard (`BUG-29`): a launch wider than `num_tours` would otherwise
+    // let the surplus blocks write shared memory and index `tours` past its end.
+    if (tour_idx >= num_tours) return;
+
+    // Partition shared memory (per-block): the tour buffer comes first so the
+    // tiled and untiled layouts share one allocation. Candidate mode never caches the
+    // tour, so its three `block_size` buffers start at the very first slot and the
+    // launch does not reserve `n` unused ints (`BUG-27`).
+    int *s_tour = shared_mem;
+    int *s_deltas = use_candidates
+                        ? shared_mem
+                        : (tiled ? (int*)&s_tour[tour_tile_size + 1] : (int*)&s_tour[n]);
+    int *s_swap_i = (int*)&s_deltas[block_size];
+    int *s_swap_j = (int*)&s_swap_i[block_size];
 
     // Offset to this tour's data
     int *tour = tours + (tour_idx * n);
@@ -217,26 +225,23 @@ void two_opt_batch_kernel(
     }
     __syncthreads();
     
-    // Parallel reduction to find minimum delta across all threads in this block
-    // For non-power-of-2 block sizes, we need special handling
-    // Strategy: Parallel reduce as much as possible, then serial reduction for remainder
-    
-    // Parallel reduction for power-of-2 portion
+    // Block reduction to the exact minimum delta of this block.
+    //
+    // Phase 1 folds thread partials in parallel while the stride still spans more than
+    // one warp. Phase 2 lets thread 0 fold only the surviving `min(block_size, 64)`
+    // partials -- the pre-fix code rescanned all `block_size` of them, i.e. up to 255
+    // serial comparisons after a reduction that had already covered them (`BUG-29`).
     for (unsigned int s = block_size / 2; s > 32; s >>= 1) {
-        if (tid < s) {
-            if (tid + s < block_size && s_deltas[tid + s] < s_deltas[tid]) {
-                s_deltas[tid] = s_deltas[tid + s];
-                s_swap_i[tid] = s_swap_i[tid + s];
-                s_swap_j[tid] = s_swap_j[tid + s];
-            }
+        if (tid < s && tid + s < block_size && s_deltas[tid + s] < s_deltas[tid]) {
+            s_deltas[tid] = s_deltas[tid + s];
+            s_swap_i[tid] = s_swap_i[tid + s];
+            s_swap_j[tid] = s_swap_j[tid + s];
         }
         __syncthreads();
     }
-    
-    // Final reduction: use thread 0 to serially reduce remaining values
-    // This guarantees correctness for any block_size (power-of-2 or not)
     if (tid == 0) {
-        for (int i = 1; i < block_size; i++) {
+        const int remaining = block_size < 64 ? block_size : 64;
+        for (int i = 1; i < remaining; i++) {
             if (s_deltas[i] < s_deltas[0]) {
                 s_deltas[0] = s_deltas[i];
                 s_swap_i[0] = s_swap_i[i];
@@ -245,31 +250,29 @@ void two_opt_batch_kernel(
         }
     }
     __syncthreads();
-    
-    // Apply best swap (Thread 0 only)
-    if (tid == 0 && s_deltas[0] < 0) {
+
+    // `s_deltas[0]` is now the exact block minimum, so a block with no improving move
+    // skips the reversal branch instead of synchronizing for nothing (`BUG-29`).
+    if (s_deltas[0] < 0) {
         int swap_i = s_swap_i[0];
         int swap_j = s_swap_j[0];
         
-        // Reverse segment [i+1, j]
+        // Reverse segment [swap_i + 1, swap_j]
         int left = swap_i + 1;
         int right = swap_j;
+        int num_swaps = (right - left + 1) / 2;
         if (use_candidates) {
             // Candidate mode never cached the tour: edit global memory directly.
-            while (left < right) {
-                int temp = tour[left];
-                tour[left] = tour[right];
-                tour[right] = temp;
-                left++;
-                right--;
+            for (int k = tid; k < num_swaps; k += block_size) {
+                int temp = tour[left + k];
+                tour[left + k] = tour[right - k];
+                tour[right - k] = temp;
             }
         } else {
-            while (left < right) {
-                int temp = TOUR_AT(left);
-                TOUR_SET(left, TOUR_AT(right));
-                TOUR_SET(right, temp);
-                left++;
-                right--;
+            for (int k = tid; k < num_swaps; k += block_size) {
+                int temp = TOUR_AT(left + k);
+                TOUR_SET(left + k, TOUR_AT(right - k));
+                TOUR_SET(right - k, temp);
             }
         }
     }

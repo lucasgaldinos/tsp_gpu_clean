@@ -373,6 +373,41 @@ def test_naive_mode_keeps_one_launch_per_route_and_iteration(berlin52_problem: P
     assert _closed_cost(after, distances) <= _closed_cost(before, distances)
 
 
+@pytest.mark.gpu
+@pytest.mark.parametrize("max_iters", [1, 3])
+def test_gpu_two_opt_batch_and_naive_match_cpu_best_bit_identical(
+  berlin52_problem: Problem,
+  max_iters: int,
+) -> None:
+  """WHAT: Compare GPU batch, GPU naive, and CPU best-improvement 2-opt bit-for-bit.
+
+  WHY: DP11-18 (2OPT-A) replaced single-thread serial segment reversal with cooperative
+  block-stride parallel reversal in two_opt_batch.cu and two_opt_single.cu.
+  The improved tours must remain 100% bit-identical to the CPU best-improvement reference.
+
+  EXPECTED: Exactly identical 2D tour arrays across both GPU modes and CPU reference.
+  """
+  cp = _cupy()
+  n = berlin52_problem.dimension
+  tours = _random_tours(n, 4, seed=42)
+
+  ctx_cpu = ProblemContext(berlin52_problem, xp=np, seed=1)
+  ctx_gpu = ProblemContext(berlin52_problem, xp=cp, seed=1)
+
+  cpu_improved = LocalSearchCPUTwoOpt(max_iterations=max_iters, mode="best").improve_batch(
+    tours.copy(), context=ctx_cpu
+  )
+  gpu_batch = LocalSearchGPUTwoOpt(max_iterations=max_iters, mode="batch").improve_batch(
+    tours.copy(), context=ctx_gpu
+  )
+  gpu_naive = LocalSearchGPUTwoOpt(max_iterations=max_iters, mode="naive").improve_batch(
+    tours.copy(), context=ctx_gpu
+  )
+
+  np.testing.assert_array_equal(np.asarray(gpu_batch), np.asarray(cpu_improved))
+  np.testing.assert_array_equal(np.asarray(gpu_naive), np.asarray(cpu_improved))
+
+
 def _explicit_problem(name: str, distances: np.ndarray) -> Problem:
   """Build a small EXPLICIT TSP whose matrix distinguishes it from a same-named twin."""
   return Problem(
@@ -501,3 +536,137 @@ def test_multi_move_gpu_candidate_k_supports_sparse_sub_route(berlin52_problem: 
   assert strategy.candidate_k == 4
   result = np.asarray(improved)
   assert sorted(int(gene) for gene in result) == sorted(int(gene) for gene in _CVRP_SUB_ROUTE)
+
+
+def test_gpu_two_opt_kernels_use_block_wide_cooperative_reversal() -> None:
+  """WHAT: Falsifiable test confirming two_opt kernels use block-wide cooperative reversal.
+
+  WHY: Task 11.16 (DP11-18, 2OPT-A) eliminated thread-0 serial reversal `while (left < right)`.
+  """
+  from pathlib import Path
+  kernels_dir = (
+    Path(__file__).resolve().parents[4]
+    / "src"
+    / "algorithms"
+    / "strategies"
+    / "local_search"
+    / "kernels"
+  )
+  for kernel_file in ["two_opt_batch.cu", "two_opt_single.cu", "two_opt_multi_move.cu"]:
+    source = (kernels_dir / kernel_file).read_text(encoding="utf-8")
+    assert "for (int k = tid; k < num_swaps; k += block_size)" in source, (
+      f"{kernel_file} must use block-wide cooperative reversal loop"
+    )
+    assert "while (left < right)" not in source, (
+      f"{kernel_file} must not contain serial while (left < right) reversal"
+    )
+
+
+def test_batch_kernel_guards_grid_bounds_and_reduces_exactly() -> None:
+  """WHAT: the launch-wide guard and the two-phase block reduction of `two_opt_batch.cu`.
+
+  WHY: a launch wider than `num_tours` let surplus blocks write shared memory and index
+  past `tours`; and thread 0 rescanned all `block_size` partials after the tree had already
+  merged the upper half (`BUG-29`).
+
+  EXPECTED: the guard exists before any tour access, and the serial tail is bounded by
+  `min(block_size, 64)` instead of `block_size`.
+  """
+  from pathlib import Path
+  kernels_dir = (
+    Path(__file__).resolve().parents[4]
+    / "src"
+    / "algorithms"
+    / "strategies"
+    / "local_search"
+    / "kernels"
+  )
+  for kernel_file in ["two_opt_batch.cu", "two_opt_single.cu"]:
+    source = (kernels_dir / kernel_file).read_text(encoding="utf-8")
+    assert "for (int i = 1; i < block_size; i++)" not in source, (
+      f"{kernel_file} must not rescan every partial in thread 0"
+    )
+    assert "block_size < 64 ? block_size : 64" in source, (
+      f"{kernel_file} must bound the serial tail by min(block_size, 64)"
+    )
+  batch_source = (kernels_dir / "two_opt_batch.cu").read_text(encoding="utf-8")
+  assert "if (tour_idx >= num_tours) return;" in batch_source
+
+
+def test_candidate_mode_skips_the_shared_tour_buffer() -> None:
+  """WHAT: `_shared_mem_bytes` in candidate and exhaustive modes.
+
+  WHY: `two_opt_batch.cu`/`two_opt_multi_move.cu` read the tour from global memory in
+  candidate mode, so reserving `n` ints of shared memory capped `n` at the 48 KB per-block
+  budget for no benefit (`BUG-27`).
+
+  EXPECTED: candidate mode allocates only the three `block_size` counters.
+  """
+  from algorithms.strategies.local_search import two_opt as two_opt_module
+
+  assert two_opt_module._shared_mem_bytes(256, 1000, 0, use_candidates=True) == 256 * 3 * 4
+  assert two_opt_module._shared_mem_bytes(256, 1000, 0) == (256 * 3 + 1000) * 4
+  assert two_opt_module._shared_mem_bytes(256, 20_000, 2048) == (256 * 3 + 2049) * 4
+
+
+@pytest.mark.gpu
+def test_batch_gpu_candidate_list_stays_resident_across_generations() -> None:
+  """WHAT: five `improve_batch` calls of `LocalSearchGPUTwoOpt(mode="batch", candidate_k=20)`.
+
+  WHY: `_improve_grid` rebuilt the candidate table on the host, called `int(tour.max())` on
+  the GPU array (one D2H sync per generation) and re-uploaded `N_k` on every call (`BUG-27`).
+
+  EXPECTED: `N_k` is cached on the context, transferred exactly once, and the total H2D
+  traffic is the 40,000-byte matrix plus the single 8,000-byte candidate upload.
+  """
+  # Arrange
+  cupy: Any = _cupy()
+  rng = np.random.default_rng(23)
+  size = 100
+  symmetric = rng.integers(1, 50, size=(size, size)).astype(np.int64)
+  matrix = np.triu(symmetric, 1).astype(np.int64)
+  matrix = matrix + matrix.T
+  problem = _explicit_problem("candidate_residency_100", matrix)
+  context = ProblemContext(problem, xp=np, seed=13)
+  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode="batch", candidate_k=20)
+  tour = np.arange(size, dtype=np.int32)
+  tour = np.stack([rng.permutation(tour)]).astype(np.int32, copy=False)
+  device_batch = cupy.asarray(tour, dtype=cupy.int32)
+
+  # Act
+  for _ in range(5):
+    strategy.improve_batch(device_batch, context=context)
+
+  # Assert
+  matrix_bytes = size * size * 4
+  candidate_bytes = size * 20 * 4
+  assert 20 in context._gpu_candidate_lists
+  assert strategy._operands.candidates is context._gpu_candidate_lists[20]
+  assert strategy.h2d_bytes == matrix_bytes + candidate_bytes == 48_000
+
+
+@pytest.mark.gpu
+def test_batch_gpu_candidate_mode_never_reads_the_tour_extent() -> None:
+  """WHAT: `LocalSearchGPUTwoOpt(mode="batch", candidate_k=20)` on a CuPy-resident batch.
+
+  WHY: `int(tour.max())` on a `cp.ndarray` forces a device-to-host synchronization per
+  generation, which is exactly the transfer the candidate cache was meant to avoid
+  (`BUG-27`).
+
+  EXPECTED: zero D2H bytes while the population stays resident in VRAM.
+  """
+  # Arrange
+  cupy: Any = _cupy()
+  context = ProblemContext(_explicit_problem("d2h_probe", _FIRST_MATRIX), xp=np, seed=3)
+  strategy = LocalSearchGPUTwoOpt(max_iterations=3, mode="batch", candidate_k=2)
+  host = np.array([[0, 1, 2, 3], [2, 3, 0, 1]], dtype=np.int32)
+  device_batch = cupy.asarray(host, dtype=cupy.int32)
+
+  # Act
+  improved = strategy.improve_batch(device_batch, context=context)
+
+  # Assert
+  assert strategy.d2h_bytes == 0
+  assert isinstance(improved, cupy.ndarray)
+  assert 2 in context._gpu_candidate_lists
+

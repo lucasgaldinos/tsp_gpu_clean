@@ -99,6 +99,26 @@ def test_cpu_cost_evaluation_batch_matches_single_tours() -> None:
     assert evaluator.evaluate(tour, context) == pytest.approx(expected_cost)
 
 
+def test_cpu_cost_evaluation_reports_no_transfer_for_host_batch() -> None:
+  """WHAT: The CPU twin of the `BUG-30` H2D accounting — host batches move zero bytes.
+
+  WHY: `EvaluationGPUCost` must count the host->device upload of a CPU batch; the CPU
+  evaluator has no device boundary, so its transfer counters have to stay at zero
+  instead of borrowing the GPU strategy's accounting.
+
+  EXPECTED: `h2d_bytes`, `d2h_bytes` and `kernel_launches` all remain 0.
+  """
+  context = ProblemContext(_tiny_explicit_problem(), xp=np, seed=0)
+  evaluator = EvaluationCPUCost()
+  tours = np.array([[0, 1, 2, 3], [0, 2, 1, 3]], dtype=np.int32)
+
+  evaluator.evaluate_batch(tours, context)
+
+  assert evaluator.h2d_bytes == 0
+  assert evaluator.d2h_bytes == 0
+  assert evaluator.kernel_launches == 0
+
+
 def test_cpu_cost_evaluation_single_route_batch_shape() -> None:
   """WHAT: `evaluate_batch` applied to a single 1D route.
 

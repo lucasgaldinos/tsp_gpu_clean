@@ -2,20 +2,19 @@
  * Modular GPU Tournament Selection Kernel
  * =======================================
  *
- * Selects `num_parents` parent routes from `population` in parallel on GPU.
- * Each thread `idx` (or block) selects one winner from `tournament_size`
- * randomly sampled candidates and copies the winning route to `parents_out`.
+ * Selects `num_parents` parent indices from `population` in parallel on GPU (DP11-16, SEL-A).
+ * Each thread `idx` selects one winner index from `tournament_size` randomly sampled
+ * candidates and stores the winner in `winner_indices[idx]`.
+ * Route gathering is delegated to CuPy's vectorized 2D indexer (NVIDIA CUB DeviceGather).
  */
 
 extern "C" __global__
 void tournament_selection_kernel(
-    const int* __restrict__ population,      // [pop_size * n]
     const double* __restrict__ fitness,      // [pop_size]
     const int* __restrict__ candidates,      // [num_parents * tournament_size]
-    int* __restrict__ parents_out,           // [num_parents * n]
+    int* __restrict__ winner_indices,        // [num_parents]
     const int pop_size,
     const int num_parents,
-    const int n,
     const int tournament_size
 ) {
     int parent_idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -34,9 +33,5 @@ void tournament_selection_kernel(
         }
     }
 
-    const int* src_route = &population[best_idx * n];
-    int* dst_route = &parents_out[parent_idx * n];
-    for (int c = 0; c < n; c++) {
-        dst_route[c] = src_route[c];
-    }
+    winner_indices[parent_idx] = best_idx;
 }

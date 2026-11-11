@@ -87,6 +87,14 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     mean_d2h_mb DOUBLE,                 -- Device to Host transfer
     total_transfer_mb DOUBLE,           -- Total bidirectional transfer
     mean_kernels DOUBLE,                -- Average kernel launches per run
+
+    -- ========================================================================
+    -- Per-Phase Telemetry (DP11-7, DP11-13)
+    -- JSON: {"initialization": {"total_ms": 2.0, "calls": 1, "mean_ms": 2.0}, ...}
+    -- ========================================================================
+    mean_phase_timings JSON,            -- Mean per-phase total_ms/calls/mean_ms
+    phase_share_pct JSON,               -- Per-phase share of wall time (%)
+    phase_share_cv_pct JSON,            -- Coefficient of variation of each share (%)
     
     -- ========================================================================
     -- Raw Arrays: Exact Reproduction Data

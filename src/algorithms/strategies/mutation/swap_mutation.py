@@ -16,11 +16,11 @@ from utils.gpu_helpers import load_kernel
 from utils.phase_timer import time_strategy
 from utils.rng import resolve_rng
 from utils.route_helpers import (
-  _mutation_bounds,
   ensure_routes_batch,
   is_gpu_array,
+  resolve_route_bounds,
   restore_routes_shape,
-  select_proximity_index,
+  sample_mutation_positions,
   to_cpu_batch,
 )
 
@@ -59,24 +59,7 @@ class MutationSwap(StrategyBase, MutationStrategy):
     context: ProblemContext | None = None,
   ) -> Route:
     """Mutate a single 1D route `(n_cities,)` with probability `mutation_rate`."""
-    mutated = np.asarray(individual, dtype=np.int32).copy()
-    low, high = _mutation_bounds(len(mutated))
-    if high - low < 2:
-      return mutated
-
-    rng: Generator = resolve_rng(context, self.rng)
-
-    if float(rng.random()) < mutation_rate:
-      if self.candidate_k is not None and self.candidate_k > 0 and context is not None:
-        idx1 = int(rng.integers(low, high))
-        candidates = context.get_cpu_candidate_list(self.candidate_k)
-        idx2 = select_proximity_index(mutated, idx1, low, high, candidates, rng)
-      else:
-        first, second = rng.choice(np.arange(low, high), size=2, replace=False)
-        idx1, idx2 = int(first), int(second)
-      mutated[idx1], mutated[idx2] = mutated[idx2], mutated[idx1]
-
-    return mutated
+    return self.mutate_batch(individual, mutation_rate, context=context)
 
   @time_strategy
   def mutate_batch(
@@ -85,13 +68,34 @@ class MutationSwap(StrategyBase, MutationStrategy):
     mutation_rate: float,
     context: ProblemContext | None = None,
   ) -> RouteOrRoutes:
-    """Mutate a 1D route `(n_cities,)` or 2D batch `(N, n_cities)` of routes."""
+    """Mutate a 1D route `(n_cities,)` or 2D batch `(N, n_cities)` of routes.
+
+    Positions come from the single shared host oracle, so this method and
+    `MutationGPUSwap.mutate_batch` issue identical draws and stay bit-identical
+    for the same seed (`SWAP-A`, `DP11-14`).
+    """
     batch_np, was_1d, was_gpu = to_cpu_batch(routes, copy=True)
+    low, high = resolve_route_bounds(batch_np.shape[1], context=context, route_sample=batch_np[0])
+    if high - low < 2:
+      return restore_routes_shape(batch_np, was_1d, to_gpu=was_gpu)
 
-    out = np.empty_like(batch_np, dtype=np.int32)
-    for i in range(len(batch_np)):
-      out[i] = self.mutate(batch_np[i], mutation_rate, context=context)
+    rng: Generator = resolve_rng(context, self.rng)
+    probs = rng.random(len(batch_np))
+    pos1, pos2, _ = sample_mutation_positions(
+      rng,
+      batch_np,
+      low,
+      high,
+      candidate_k=self.candidate_k,
+      context=context,
+    )
 
+    out = batch_np.copy()
+    active = np.flatnonzero(probs < mutation_rate)
+    out[active, pos1[active]], out[active, pos2[active]] = (
+      out[active, pos2[active]],
+      out[active, pos1[active]],
+    )
     return restore_routes_shape(out, was_1d, to_gpu=was_gpu)
 
 
@@ -102,9 +106,16 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
   Applies swap mutation across a batch of routes `(N, n_cities)` in parallel on GPU.
   """
 
-  def __init__(self, seed: SeedLike = None) -> None:
-    """Initialize GPU Swap Mutation strategy."""
+  def __init__(self, seed: SeedLike = None, candidate_k: int | None = None) -> None:
+    """Initialize GPU Swap Mutation strategy.
+
+    Args:
+        seed: Optional random seed override.
+        candidate_k: Accepted for LSP parity with `MutationSwap` (`DP11-20`); when set,
+            the second position comes from the candidate neighbourhood (`BUG-28`).
+    """
     super().__init__(seed)
+    self.candidate_k: int | None = candidate_k
     self._kernel: Any = None
 
   def _get_kernel(self) -> Any:
@@ -116,6 +127,11 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
         __file__,
       )
     return self._kernel
+
+  def warmup(self, context: ProblemContext) -> None:
+    """Compile the kernel and launch it once on a valid permutation (`BUG-24`, `BUG-25`)."""
+    super().warmup(context)
+    self.mutate_batch(self._warmup_batch(context, rows=1), 1.0, context=context)
 
   def mutate(
     self,
@@ -144,7 +160,8 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
 
     batch, was_1d = ensure_routes_batch(routes)
     num_routes, n_cities = batch.shape
-    if n_cities < 2:
+    low, high = resolve_route_bounds(n_cities, context=context, route_sample=batch[0])
+    if high - low < 2:
       return restore_routes_shape(batch.copy(), was_1d)
 
     input_on_gpu: bool = is_gpu_array(batch)
@@ -155,10 +172,16 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
       self.h2d_bytes += int(d_routes.nbytes)
 
     rng: Generator = resolve_rng(context, self.rng)
-
-    probs_np = rng.random(num_routes, dtype=np.float64)
-    pos1_np = rng.integers(0, n_cities, size=num_routes, dtype=np.int32)
-    pos2_np = rng.integers(0, n_cities, size=num_routes, dtype=np.int32)
+    probs_np = rng.random(num_routes)
+    pos1_np, pos2_np, d2h_positions = sample_mutation_positions(
+      rng,
+      batch,
+      low,
+      high,
+      candidate_k=self.candidate_k,
+      context=context,
+    )
+    self.d2h_bytes += d2h_positions
 
     d_probs = cp.asarray(probs_np, dtype=cp.float64)
     d_pos1 = cp.asarray(pos1_np, dtype=cp.int32)
@@ -181,7 +204,6 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
         np.int32(n_cities),
       ),
     )
-    cp.cuda.Stream.null.synchronize()
     self.kernel_launches += 1
 
     if input_on_gpu:

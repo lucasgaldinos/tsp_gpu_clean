@@ -19,7 +19,13 @@ modifications:
           Distinguished GTX 1050 Mobile shared memory per block (M_shared,block = 48 KB)
           from total shared memory per SM (M_shared,SM = 96 KB), reconciled thread notation
           to B and N_SM across architectural taxonomy sections.
+  - date_modified: 2026-11-09
+    modifications:
+      - description: >
+          Added analysis of move application phase: serial Thread 0 reversal bottleneck in
+          two_opt_batch.cu/two_opt_single.cu vs. 2OPT-A cooperative 256-thread block reversal.
 related_files:
+  - "[analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md)"
   - "[analysis-gpu-2opt-performance-modeling.md](./analysis-gpu-2opt-performance-modeling.md)"
   - "[analysis-gpu-2opt-reduction-strategies.md](./analysis-gpu-2opt-reduction-strategies.md)"
   - "[analysis-gpu-2opt-kernel-benchmarking.md](./analysis-gpu-2opt-kernel-benchmarking.md)"
@@ -46,7 +52,7 @@ The following standardized mathematical notation and architectural parameters ar
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning | Units / Scale |
 | :--- | :--- | :--- | :--- |
-| $n_{\text{cities}}$ | Tour vertex cardinality $n = |V|$ | Number of vertices / cities in the TSP instance | Dimensionless integer |
+| $n_{\text{cities}}$ | Tour vertex cardinality $n = | V | $ | Number of vertices / cities in the TSP instance | Dimensionless integer |
 | $W_{\text{total}}$ | $\frac{n(n-3)}{2} \approx \frac{n^2}{2}$ | Total candidate 2-opt move evaluations per local search iteration | Integer evaluations |
 | $N_{\text{SM}}$ | Physical Multiprocessor count | Number of Streaming Multiprocessors ($N_{\text{SM}} = 5$ on GP107) | Hardware count |
 | $W_{\text{SM,max}}$ | Maximum concurrent warps per SM | Architecture warp allocation limit ($64$ warps/SM on Pascal GP107) | Warps |
@@ -59,7 +65,7 @@ The following standardized mathematical notation and architectural parameters ar
 | $T_{\text{red,GPU}}$ | Parallel reduction latency on GPU | Block-level tree reduction latency in shared memory | $\mu\text{s}$ |
 | $T_{\text{red,CPU}}$ | Sequential reduction latency on CPU | Host evaluation latency of thread candidate array $\arg\min_{t} \Delta_{t}$ | $\mu\text{s}$ |
 | $T_{\text{PCIe}}$ | Host-device data transfer latency | Copy latency for candidate moves over PCIe 3.0 x16 bus | $\mu\text{s}$ |
-| $T_{\text{serial,scalar}}$ | Pure Python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
+| $T_{\text{serial,scalar}}$ | Pure python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
 | $T_{\text{serial,simd}}$ | Vectorized NumPy CPU 2-opt time | C-extension SIMD AVX2 vectorized execution time | $\text{ms}$ |
 | $S_{\text{GPU}}$ | $T_{\text{serial}} / T_{\text{exec}}$ | Speedup factor over CPU baseline | Dimensionless ratio |
 | $\text{Occ}_{\text{theoretical}}$ | Active Warps / Maximum Warps | Theoretical warp occupancy on the active SM | Dimensionless $\in [0, 1]$ |
@@ -116,7 +122,7 @@ graph TB
 **Key Comparison:**
 
 | Aspect | Serial CPU | Rocki (Strategy 1) | Ours (Strategy 2) |
-|--------|------------|-------------------|-------------------|
+| -------- | ------------ | ------------------- | ------------------- |
 | **Thread Count** | 1 | $\frac{n_{cities}^2}{2} \approx 4.5M$ | 256 (fixed) |
 | **Waves** | N/A | 439 (for GTX 1050) | 1 |
 | **Work/Thread** | $\frac{n_{cities}^2}{2}$ | 1 evaluation | $\frac{n_{cities}^2}{512}$ evaluations |
@@ -127,26 +133,26 @@ graph TB
 #### **Axis 1: Thread Count**
 
 - **Data Parallelism:** Launch $O(n_{\text{cities}}^2)$ threads (one per evaluation)
-  - Example: Rocki & Suda (2013) launch $\frac{n_{\text{cities}}^2}{2}$ threads
-  - For $n_{\text{cities}}=3000$: Launch 4.5 million threads
+  + Example: Rocki & Suda (2013) launch $\frac{n_{\text{cities}}^2}{2}$ threads
+  + For $n_{\text{cities}}=3000$: Launch 4.5 million threads
 - **Task Parallelism:** Launch fixed threads $B$ (distribute work per thread)
-  - Example: This work launches $B = 256$ threads (constant)
-  - Each thread handles $\frac{n_{\text{cities}}^2}{2B}$ evaluations
+  + Example: This work launches $B = 256$ threads (constant)
+  + Each thread handles $\frac{n_{\text{cities}}^2}{2B}$ evaluations
 
 #### **Axis 2: Work Distribution**
 
 - **Outer loop parallel:** Parallelize $i$ positions, serialize $j$ iterations
-  - Each thread: `for (i=thread_id; i<n_{cities}; i+=blockDim.x) { for (j=i+2; j<n_{cities}; j++) {...} }`
+  + Each thread: `for (i=thread_id; i<n_{cities}; i+=blockDim.x) { for (j=i+2; j<n_{cities}; j++) {...} }`
 - **Both loops parallel:** Parallelize both $i$ and $j$ (full data parallelism)
-  - Each thread: Convert `thread_id` to unique $(i,j)$ pair, evaluate once
+  + Each thread: Convert `thread_id` to unique $(i,j)$ pair, evaluate once
 - **Custom decomposition:** Problem-specific strategies
 
 #### **Axis 3: Reduction Location**
 
 - **GPU reduction:** All-reduce on device (shared memory, global memory, tree reduction)
-  - Complexity: $O(\log B)$ for tree reduction with $B$ threads
+  + Complexity: $O(\log B)$ for tree reduction with $B$ threads
 - **CPU reduction:** Per-thread best → CPU `argmin()`
-  - Complexity: $O(n_{\text{cities}}^2)$ serial operations (but FAST: $\sim 2\mu s$ for $n_{\text{cities}}=3000$)
+  + Complexity: $O(n_{\text{cities}}^2)$ serial operations (but FAST: $\sim 2\mu s$ for $n_{\text{cities}}=3000$)
 - **Hybrid:** Mix strategies for different scales
 
 > [!warning]
@@ -165,8 +171,8 @@ Each choice creates **cascading trade-offs** affecting performance:
 - **✅ Maximum parallelism:** Every evaluation happens simultaneously
 - **✅ Simple kernel:** Each thread independent, minimal logic
 - **❌ Hardware limits:** GTX 1050 has only 10,240 concurrent threads
-  - For $n_{\text{cities}}=3000$: Requires $\lceil \frac{4.5M}{10,240} \rceil = 439$ **sequential waves**
-  - Each wave waits for previous wave to complete
+  + For $n_{\text{cities}}=3000$: Requires $\lceil \frac{4.5M}{10,240} \rceil = 439$ **sequential waves**
+  + Each wave waits for previous wave to complete
 - **❌ Memory overhead:** Must store $O(n_{\text{cities}}^2)$ results (4.5M floats = 18MB)
 - **❌ Launch overhead:** Kernel launch time amortized over fewer operations per thread
 
@@ -182,12 +188,12 @@ Each choice creates **cascading trade-offs** affecting performance:
 #### **GPU reduction vs. CPU reduction:**
 
 - **GPU reduction:**
-  - ✅ Fully parallel: $O(\log n_{\text{cities}})$ or $O(\log B)$ time
-  - ❌ Complex kernel: Requires synchronization, shared memory, reduction logic
+  + ✅ Fully parallel: $O(\log n_{\text{cities}})$ or $O(\log B)$ time
+  + ❌ Complex kernel: Requires synchronization, shared memory, reduction logic
 - **CPU reduction:**
-  - ✅ Simple kernel: Just compute deltas, no reduction logic
-  - ✅ Negligible overhead: For $n_{\text{cities}}=3000$, CPU argmin() takes $\sim 2\mu s$ vs. GPU compute $\sim 2000\mu s$ (0.1%)
-  - ❌ Serial: $O(n_{\text{cities}}^2)$ operations on CPU (but modern CPUs: $\sim 3$ billion comparisons/second)
+  + ✅ Simple kernel: Just compute deltas, no reduction logic
+  + ✅ Negligible overhead: For $n_{\text{cities}}=3000$, CPU argmin() takes $\sim 2\mu s$ vs. GPU compute $\sim 2000\mu s$ (0.1%)
+  + ❌ Serial: $O(n_{\text{cities}}^2)$ operations on CPU (but modern CPUs: $\sim 3$ billion comparisons/second)
 
 > [!warning]
 >
@@ -216,11 +222,11 @@ Each choice creates **cascading trade-offs** affecting performance:
 
 - **Thread count:** 256 threads (8 warps, 1 block)
 - **Work distribution:** Outer loop parallelization
-  - Outer loop: `for (i=thread_id; i<n_{cities}-2; i+=256)` — **parallel** across threads
-  - Inner loop: `for (j=i+2; j<n_{cities}; j++)` — **serial** within each thread
+  + Outer loop: `for (i=thread_id; i<n_{cities}-2; i+=256)` — **parallel** across threads
+  + Inner loop: `for (j=i+2; j<n_{cities}; j++)` — **serial** within each thread
 - **Reduction:** Hybrid (GPU shared memory → CPU argmin)
-  - GPU: 256 threads → 256 best values (one per thread)
-  - CPU: Find minimum of 256 values ($\sim 0.1\mu s$)
+  + GPU: 256 threads → 256 best values (one per thread)
+  + CPU: Find minimum of 256 values ($\sim 0.1\mu s$)
 
 ### 1.4 Document Roadmap
 
@@ -306,11 +312,11 @@ def compute_2opt_delta(tour, dist, i, j):
 
 **Question:** Can the serial algorithm be vectorized on CPU?
 
-**Answer:** YES - NumPy provides ~830× speedup over naive Python through SIMD (Single Instruction, Multiple Data) vectorization.
+**Answer:** YES - NumPy provides ~830× speedup over naive python through SIMD (Single Instruction, Multiple Data) vectorization.
 
-#### **Naive Python Implementation** (`naive_cpu_2opt.py`)
+#### **Naive python Implementation** (`naive_cpu_2opt.py`)
 
-Pure Python with explicit loops:
+Pure python with explicit loops:
 
 ```python
 def find_best_2opt_naive(tour_x, tour_y):
@@ -332,10 +338,10 @@ def find_best_2opt_naive(tour_x, tour_y):
 
 **Bottlenecks:**
 
-- Python interpreter overhead (~50×)
+- python interpreter overhead (~50×)
 - Scalar operations (no SIMD)
 - Cache misses in nested loops
-- Python object creation per iteration
+- python object creation per iteration
 
 #### **NumPy Vectorized Implementation** (`benchmark_cpu_variants.py`)
 
@@ -372,7 +378,7 @@ def find_best_2opt_numpy(tour):
 
 **Performance:** ~1.8 μs for $n_{cities} = 3000$ (measured)
 
-**Speedup:** $\frac{1500}{1.8} \approx 830\times$ over naive Python
+**Speedup:** $\frac{1500}{1.8} \approx 830\times$ over naive python
 
 #### **SIMD/AVX2 Explanation**
 
@@ -388,7 +394,7 @@ Modern CPUs (Intel/AMD since ~2013) support **AVX2 (Advanced Vector Extensions 2
 1. **Compiled C Code:** NumPy uses optimized C/Fortran libraries (BLAS, LAPACK)
 2. **SIMD Instructions:** Automatic vectorization via compiler (`-march=native`, `-mavx2`)
 3. **Memory Layout:** Contiguous arrays enable efficient SIMD loads
-4. **No Python Overhead:** Loops execute in C, not Python interpreter
+4. **No python Overhead:** Loops execute in C, not python interpreter
 
 **Theoretical SIMD Speedup:**
 
@@ -401,14 +407,14 @@ $$
 The 830× speedup includes:
 
 - **8× from SIMD** (AVX2 vectorization)
-- **~100× from removing Python interpreter overhead**
+- **~100× from removing python interpreter overhead**
 - Additional gains from cache locality and memory bandwidth
 
 #### **Performance Comparison Table**
 
 | Implementation | Time (μs) | Speedup vs Naive | Key Technology |
-|----------------|-----------|------------------|----------------|
-| **Naive Python** | 1500 | 1.0× (baseline) | Pure Python loops |
+| ---------------- | ----------- | ------------------ | ---------------- |
+| **Naive python** | 1500 | 1.0× (baseline) | Pure python loops |
 | **NumPy Vectorized** | 1.8 | 830× | SIMD/AVX2 + compiled C |
 | **Custom CUDA GPU** | 0.17 | 8,800× | 256 threads + memory bandwidth |
 
@@ -417,18 +423,18 @@ The 830× speedup includes:
 Despite NumPy's impressive vectorization, GPU wins due to:
 
 1. **Parallelism:** 256 threads vs 1 CPU core (with SIMD)
-   - NumPy: Sequential execution of vectorized operations
-   - GPU: True parallel execution across 256 threads
+   + NumPy: Sequential execution of vectorized operations
+   + GPU: True parallel execution across 256 threads
 
 2. **Memory Bandwidth:**
-   - CPU (DDR4): ~40 GB/s (typical for GTX 1050 system)
-   - GPU (GDDR5): ~112 GB/s (GTX 1050)
-   - **2.8× more bandwidth**
+   + CPU (DDR4): ~40 GB/s (typical for GTX 1050 system)
+   + GPU (GDDR5): ~112 GB/s (GTX 1050)
+   + **2.8× more bandwidth**
 
 3. **Memory-Bound Workload:**
-   - 2-opt requires 16 bytes per evaluation (4 floats)
-   - For $n_{cities} = 3000$: 68.6 MB total reads
-   - Bottleneck: Memory bandwidth, not compute
+   + 2-opt requires 16 bytes per evaluation (4 floats)
+   + For $n_{cities} = 3000$: 68.6 MB total reads
+   + Bottleneck: Memory bandwidth, not compute
 
 **Speedup Ratio:**
 
@@ -446,13 +452,13 @@ This ~10× gap is explained by:
 
 Implementation files in `code/examples/`:
 
-- `naive_cpu_2opt.py` - Pure Python baseline
+- `naive_cpu_2opt.py` - Pure python baseline
 - `benchmark_cpu_variants.py` - NumPy vs CuPy comparison
 
 Run benchmarks:
 
 ```bash
-# Naive Python benchmark
+# Naive python benchmark
 python code/examples/naive_cpu_2opt.py
 
 # Full comparison (Naive vs NumPy vs CuPy)
@@ -851,11 +857,76 @@ $$
 
 ---
 
+## 8. Move Application Phase: Serial Thread 0 Reversal vs. Cooperative Block Reversal (`2OPT-A`)
+
+In parallel 2-opt implementations across literature and in this codebase ([`two_opt_batch.cu#L250-L275`](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L250), [`two_opt_single.cu#L100-L139`](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu#L100), and [`two_opt_multi_move.cu#L257-L279`](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L257)), an often overlooked architectural bottleneck occurs *after* parallel evaluation has completed.
+
+### 8.1 The Serial Thread 0 Bottleneck
+
+Once all $B = 256$ threads evaluate moves and a parallel tree reduction selects the global best move $(i, j)$ with delta $\Delta < 0$, the winning move must be applied to reverse the tour segment $[i+1, j]$. In the baseline kernels, this reversal is implemented as:
+
+```c++ cuda
+// Baseline: Thread 0 alone reverses the segment serially
+if (tid == 0 && s_deltas[0] < 0) {
+    int left = s_swap_i[0] + 1;
+    int right = s_swap_j[0];
+    while (left < right) {
+        int temp = tour[left];
+        tour[left] = tour[right];
+        tour[right] = temp;
+        left++;
+        right--;
+    }
+}
+__syncthreads();
+```
+
+While Thread 0 executes up to $n/2$ iterations of this sequential loop:
+
+- **All other 255 threads in the block sit completely idle at `__syncthreads()`**.
+- On large instances ($n \ge 1{,}000$), reversing a segment of length $800$ takes 400 serial iterations on a single CUDA core, causing severe pipeline stalling.
+
+### 8.2 Why Cooperative Block Reversal (`2OPT-A`) is 100% 2-Opt Best-Improvement
+
+A natural question arises: *"Does parallelizing the reversal across threads turn this into 2-opt multi-move?"*
+
+**No. It is mathematically 100% identical to single-move 2-opt best-improvement:**
+
+- In `two_opt_multi_move.cu`, multiple *different* disjoint moves $(i_1, j_1), (i_2, j_2)$ are applied simultaneously.
+- In `2OPT-A`, there is **only ONE single winning move** $(i, j)$.
+- Reversing segment $[left, right]$ requires swapping $M/2$ pairs of symmetric endpoints:
+  $$
+  \begin{align}
+  \text{pair } k: \quad \text{swap}(\text{tour}[\text{left} + k], \, \text{tour}[\text{right} - k]) \quad \forall k \in \left[0, \left\lfloor \frac{\text{right} - \text{left} + 1}{2} \right\rfloor - 1\right]
+  \end{align}
+  $$
+
+Instead of Thread 0 executing all $M/2$ swaps sequentially, the 256 threads in the block divide the swaps cooperatively using a parallel block-stride loop:
+
+```c++ cuda
+// 2OPT-A: Cooperative 256-Thread Block Reversal
+if (s_deltas[0] < 0) {
+    int left = s_swap_i[0] + 1;
+    int right = s_swap_j[0];
+    int num_swaps = (right - left + 1) / 2;
+
+    for (int k = tid; k < num_swaps; k += blockDim.x) {
+        int temp = tour[left + k];
+        tour[left + k] = tour[right - k];
+        tour[right - k] = temp;
+    }
+}
+__syncthreads();
+```
+
+For detailed architectural analysis, memory bandwidth comparisons, and the full decision matrix, see [analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md).
+
 ---
 
 ## Suite Navigation & Cross-References
 
 This document establishes the architecture taxonomy and serial/Rocki baselines:
+
 - **Theoretical Performance Modeling**: Full occupancy derivations and mathematical models in [analysis-gpu-2opt-performance-modeling.md](./analysis-gpu-2opt-performance-modeling.md).
 - **Reduction Strategies & Host Transfer**: Block reduction and CPU break-even thresholds in [analysis-gpu-2opt-reduction-strategies.md](./analysis-gpu-2opt-reduction-strategies.md).
 - **CUDA Kernel Implementation & Anchors**: Outer-loop kernel source, line anchors, and TSPLIB microbenchmarks in [analysis-gpu-2opt-kernel-benchmarking.md](./analysis-gpu-2opt-kernel-benchmarking.md).

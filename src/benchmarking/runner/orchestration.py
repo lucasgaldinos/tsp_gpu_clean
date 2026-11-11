@@ -95,6 +95,26 @@ _STRATEGY_PARAM_ATTRS: tuple[str, ...] = (
   "mode",
 )
 
+
+def _serialize_custom_pipeline(steps: Sequence[Any]) -> list[dict[str, Any]]:
+  """Serialize user-declared pipeline steps with the parameters that define them.
+
+  A checkpoint that records only `class` for a pipeline step cannot be reproduced:
+  `elite_count`, `interval` and `target` change when and how often local search
+  runs, so dropping them silently rewrites the experiment (`BUG-30`). Only the
+  caller-declared steps arrive here, so the core steps composed by
+  `GeneticAlgorithm` are not listed as if they were configuration.
+  """
+  specs: list[dict[str, Any]] = []
+  for step in steps:
+    public_params = getattr(step, "public_params", None)
+    params: dict[str, Any] = public_params() if callable(public_params) else {}
+    spec: dict[str, Any] = {"class": type(step).__name__}
+    if params:
+      spec["params"] = params
+    specs.append(spec)
+  return specs
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -188,6 +208,9 @@ def _save_problem_statistics_file(
         "std_generations": float(np.nanstd(generations)),
         "success_rate": float(np.sum(valid_mask) / len(times)) if len(times) > 0 else 0.0,
         "backend": results.get("backend", "unknown"),
+        "mean_phase_timings": results.get("mean_phase_timings", {}),
+        "phase_share_pct": results.get("phase_share_pct", {}),
+        "phase_share_cv_pct": results.get("phase_share_cv_pct", {}),
         "algorithm_config": results.get("algorithm_config", {}),
         "strategies": results.get("strategies", {}),
       }
@@ -535,6 +558,11 @@ def run_comprehensive_benchmark(
         for slot in ("initialization", "selection", "crossover", "mutation", "local_search", "evaluation")
         if (params := _get_strategy_params(slot))
       }
+
+      if hasattr(algorithm_instance, "pipeline") and algorithm_instance.pipeline is not None:
+        custom_steps: list[Any] = list(getattr(algorithm_instance, "custom_pipeline_steps", None) or [])
+        if custom_steps:
+          results["algorithm_config"]["pipeline"] = _serialize_custom_pipeline(custom_steps)
 
       results["construction_heuristic"] = _get_strat_name(getattr(algorithm_instance, "initialization", None))
 

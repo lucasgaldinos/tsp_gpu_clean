@@ -13,7 +13,7 @@ import numpy as np
 from protocols.algorithm_strategies import EvaluationStrategy
 from protocols.backend import require_gpu
 from protocols.types import Fitness
-from utils.gpu_helpers import load_kernel
+from utils.gpu_helpers import load_kernel, next_power_of_2
 from utils.phase_timer import time_strategy
 from utils.route_helpers import ensure_routes_batch, is_gpu_array, to_cpu_batch
 
@@ -23,14 +23,6 @@ if TYPE_CHECKING:
   from data_models.problem import Problem
   from protocols.problem_context import ProblemContext
   from protocols.types import Fitness, Route, RouteOrRoutes
-
-
-def _next_power_of_2(value: int) -> int:
-  """Round `value` down to a power of 2 in `[1, 256]` for CUDA shared-memory reduction."""
-  power = 1
-  while power * 2 <= value:
-    power *= 2
-  return max(1, min(power, 256))
 
 
 class EvaluationCPUCost(StrategyBase, EvaluationStrategy):
@@ -93,7 +85,7 @@ class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
     """
     super().__init__()
     self.return_gpu: bool = return_gpu
-    self.threads_per_block: int = _next_power_of_2(threads_per_block)
+    self.threads_per_block: int = next_power_of_2(threads_per_block, min_val=32, max_val=256)
     self.max_matrix_dimension: int | None = max_matrix_dimension
     self._kernel: Any = None
     self._cached_distances_gpu: Any = None
@@ -118,6 +110,17 @@ class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
         __file__,
       )
     return self._kernel
+
+  def warmup(self, context: ProblemContext) -> None:
+    """Compile the kernel and launch it once so the driver loads the CUDA module.
+
+    `RawKernel` construction only produces PTX; the driver JITs it to SASS and loads
+    the module on the first *launch* (measured ~230 ms on `burma14`), which otherwise
+    lands in the first measured repetition. The batch is a valid permutation
+    (`BUG-24`), never `cp.zeros`.
+    """
+    super().warmup(context)
+    self.evaluate_batch(self._warmup_batch(context, rows=1), context)
 
   def _get_distances_int32_gpu(self, context: ProblemContext | None = None, problem: Problem | None = None) -> Any:
     """Get the cached ``int32`` distance matrix on GPU for ``cost_calculator_kernel``.
@@ -212,6 +215,10 @@ class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
     else:
       batch_np: np.ndarray = np.asarray(batch, dtype=np.int32)
       d_population = cp.asarray(batch_np, dtype=cp.int32)
+      # Every host->device upload is telemetry (`BUG-30`): a CPU batch crosses PCIe
+      # here, exactly like the distance/coordinate operands above, so a warm strategy
+      # must not report zero H2D just because the caller kept the population on host.
+      self.h2d_bytes += int(d_population.nbytes)
 
     d_distances, d_coords, edge_type_code = self._distance_operands(context, n)
     d_costs = cp.zeros(batch_size, dtype=cp.int64)
@@ -232,7 +239,6 @@ class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
       ),
       shared_mem=cost_shared,
     )
-    cp.cuda.Stream.null.synchronize()
     self.kernel_launches += 1
 
     if input_on_gpu and self.return_gpu:

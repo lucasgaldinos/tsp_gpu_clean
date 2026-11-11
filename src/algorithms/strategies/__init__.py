@@ -10,6 +10,8 @@ Every class name is prefixed with the slot it fills (`Initialization*`, `Selecti
 `StrategyBase`, so the registry key reads as "which slot, which variant" (`DP11-1`).
 """
 
+from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
+
 from .base import StrategyBase
 from .crossover import (
   CrossoverGPUOrder,
@@ -55,6 +57,7 @@ STRATEGY_REGISTRY: dict[str, type] = {
 }
 
 __all__: list[str] = [
+  "PIPELINE_STEP_REGISTRY",
   "STRATEGY_REGISTRY",
   "CrossoverGPUOrder",
   "CrossoverOrder",

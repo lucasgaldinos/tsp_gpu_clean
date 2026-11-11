@@ -61,9 +61,7 @@ def _get_problem_size(problem_name: str, problem_configs: list[ProblemConfig]) -
   return None
 
 
-def _categorize_by_size(
-  problem_names: list[str], problem_configs: list[ProblemConfig]
-) -> dict[str, list[str]]:
+def _categorize_by_size(problem_names: list[str], problem_configs: list[ProblemConfig]) -> dict[str, list[str]]:
   """Categorize problems by size ranges."""
   categories: dict[str, list[str]] = {
     "Small (n<100)": [],
@@ -437,8 +435,155 @@ def _generate_table3_latex(
   lines.append("\\vspace{0.5em}")
   lines.append("{\\small \\textit{Note:} Best algorithm determined by lowest mean gap to known optimum.}")
   lines.append("\\end{table}")
-  lines.append("\n\\end{document}")
 
+  return lines
+
+
+def _has_phase_timings(all_results: dict[str, dict[str, dict[str, Any]]]) -> bool:
+  """Check if all algorithms across problems have mean_phase_timings data."""
+  has_any = False
+  for _prob, algs in all_results.items():
+    for _alg, data in algs.items():
+      if data.get("mean_phase_timings"):
+        has_any = True
+      else:
+        return False
+  return has_any
+
+
+def _generate_phase_timings_markdown(
+  all_results: dict[str, dict[str, dict[str, Any]]],
+  problem_names: list[str],
+  algorithm_names: list[str],
+) -> list[str]:
+  """Generate Table 4: Phase Timing and Relative Share Breakdown in Markdown."""
+  lines: list[str] = [
+    "\n## Table 4: Average Phase Timings and Relative Share Breakdown",
+    "",
+    "Phase execution times (ms), relative share of wall time (%), and CV (%) across repetitions.",
+    "",
+    (
+      "| Problem | Algorithm | Wall (ms) | Init (%) | Sel (%) | CX (%) | Mut (%) | "
+      "Eval (%) | LS (%) | Surv (%) | Host Sync (%) | Sum/Wall (%) |"
+    ),
+    "|---|---|---|---|---|---|---|---|---|---|---|---|",
+  ]
+
+  phases: list[str] = [
+    "initialization",
+    "selection",
+    "crossover",
+    "mutation",
+    "evaluation",
+    "local_search",
+    "survival",
+    "host_sync",
+  ]
+  has_floor_warning = False
+
+  for problem in problem_names:
+    for alg in algorithm_names:
+      if alg not in all_results[problem]:
+        continue
+      data = all_results[problem][alg]
+      mean_wall_ms = float(data.get("mean_time", 0.0)) * 1000.0
+      if mean_wall_ms < 100.0:
+        has_floor_warning = True
+
+      share_pct = data.get("phase_share_pct", {})
+      cv_pct = data.get("phase_share_cv_pct", {})
+
+      phase_cells: list[str] = []
+      sum_share = 0.0
+      for p in phases:
+        s = float(share_pct.get(p, 0.0))
+        cv = float(cv_pct.get(p, 0.0))
+        sum_share += s
+        if s > 0:
+          phase_cells.append(f"{s:.1f}% (CV {cv:.1f}%)")
+        else:
+          phase_cells.append("-")
+
+      row = f"| {problem} | {alg} | {mean_wall_ms:.1f} | " + " | ".join(phase_cells) + f" | {sum_share:.1f}% |"
+      lines.append(row)
+
+  if has_floor_warning:
+    lines.append("")
+    lines.append(
+      "> [!WARNING]\n"
+      "> **Runtime Floor Warning:** Executions with mean runtime < 100 ms exhibit elevated\n"
+      "> relative host synchronization and dispatch overhead (~0.5-1.0 ms fixed latency).\n"
+      "> Phase shares for sub-100ms runs should be interpreted with caution."
+    )
+
+  return lines
+
+
+def _generate_phase_timings_latex(
+  all_results: dict[str, dict[str, dict[str, Any]]],
+  problem_names: list[str],
+  algorithm_names: list[str],
+) -> list[str]:
+  """Generate Table 4: Phase Timing and Relative Share Breakdown in LaTeX."""
+  lines: list[str] = [
+    "\n\\begin{table}[htbp]",
+    "\\centering",
+    "\\caption{Average Phase Timings, Relative Share, and Dispersion (\\% $\\pm$ CV \\%)}",
+    "\\label{tab:phase_timings}",
+    "\\begin{tabular}{llrccccccccr}",
+    "\\toprule",
+    "Problem & Algorithm & Wall (ms) & Init & Sel & CX & Mut & Eval & LS & Surv & Host Sync & Sum/Wall \\\\",
+    "\\midrule",
+  ]
+
+  phases: list[str] = [
+    "initialization",
+    "selection",
+    "crossover",
+    "mutation",
+    "evaluation",
+    "local_search",
+    "survival",
+    "host_sync",
+  ]
+  has_floor_warning = False
+
+  for problem in problem_names:
+    for alg in algorithm_names:
+      if alg not in all_results[problem]:
+        continue
+      data = all_results[problem][alg]
+      mean_wall_ms = float(data.get("mean_time", 0.0)) * 1000.0
+      if mean_wall_ms < 100.0:
+        has_floor_warning = True
+
+      share_pct = data.get("phase_share_pct", {})
+      cv_pct = data.get("phase_share_cv_pct", {})
+
+      phase_cells: list[str] = []
+      sum_share = 0.0
+      for p in phases:
+        s = float(share_pct.get(p, 0.0))
+        cv = float(cv_pct.get(p, 0.0))
+        sum_share += s
+        if s > 0:
+          phase_cells.append(f"{s:.1f}\\% ({cv:.0f}\\%)")
+        else:
+          phase_cells.append("-")
+
+      row = f"{problem} & {alg} & {mean_wall_ms:.1f} & " + " & ".join(phase_cells) + f" & {sum_share:.1f}\\% \\\\"
+      lines.append(row)
+
+  lines.append("\\bottomrule")
+  lines.append("\\end{tabular}")
+  lines.append("\\vspace{0.5em}")
+  if has_floor_warning:
+    lines.append(
+      "{\\small \\textbf{Warning:} Executions with mean runtime $< 100$\\,ms exhibit elevated "
+      "relative host synchronization and dispatch overhead. Phase shares for sub-100\\,ms runs "
+      "should be interpreted with caution.}"
+    )
+  lines.append("\\end{table}")
   return lines
 
 
@@ -516,6 +661,12 @@ def generate_result_tables(
 
   md_lines.extend(_generate_table3_markdown(all_results, problem_configs, algorithm_names))
   tex_lines.extend(_generate_table3_latex(all_results, problem_configs, algorithm_names))
+
+  if _has_phase_timings(all_results):
+    md_lines.extend(_generate_phase_timings_markdown(all_results, problem_names, algorithm_names))
+    tex_lines.extend(_generate_phase_timings_latex(all_results, problem_names, algorithm_names))
+
+  tex_lines.append("\n\\end{document}")
 
   md_path = output_dir / f"{benchmark_name}.md"
   tex_path = output_dir / f"{benchmark_name}.tex"
