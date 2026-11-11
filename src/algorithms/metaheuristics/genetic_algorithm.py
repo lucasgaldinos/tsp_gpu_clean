@@ -19,8 +19,9 @@ Execution within each generation is driven by a composable Step Pipeline:
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Protocol, get_args
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 import numpy as np
 
@@ -42,7 +43,7 @@ from utils.phase_timer import PhaseTimer
 from utils.route_helpers import is_gpu_array
 
 if TYPE_CHECKING:
-  from collections.abc import Sequence
+  from collections.abc import Callable, Mapping, Sequence
 
   from protocols.algorithm_strategies import (
     CrossoverStrategy,
@@ -223,6 +224,83 @@ class LocalSearchStep:
 
 
 # =============================================================================
+# StageSpec and Unified Stage Dispatch Table (DP11-8, DP11-9, BUG-21)
+# =============================================================================
+
+
+@dataclass(frozen=True)
+class StageSpec:
+  """Specification of pipeline steps and post-loop execution for a LocalSearchStage."""
+
+  pipeline_steps: Callable[[GeneticAlgorithm], list[GenerationStep]]
+  post_loop_hook: bool = False
+  requires_local_search: bool = True
+
+
+def _steps_standard(ga: GeneticAlgorithm) -> list[GenerationStep]:
+  return [
+    SelectionStep(ga.selection, ga.population_size),
+    CrossoverStep(ga.crossover),
+    MutationStep(ga.mutation, ga.mutation_rate),
+    EvaluationStep(ga.evaluation, target="offspring"),
+    SurvivalStep(ga._select_survivors),
+  ]
+
+
+def _steps_post_crossover(ga: GeneticAlgorithm) -> list[GenerationStep]:
+  if ga.local_search is None:
+    return _steps_standard(ga)
+  return [
+    SelectionStep(ga.selection, ga.population_size),
+    CrossoverStep(ga.crossover),
+    LocalSearchStep(ga.local_search, target="offspring"),
+    MutationStep(ga.mutation, ga.mutation_rate),
+    EvaluationStep(ga.evaluation, target="offspring"),
+    SurvivalStep(ga._select_survivors),
+  ]
+
+
+def _steps_post_mutation(ga: GeneticAlgorithm) -> list[GenerationStep]:
+  if ga.local_search is None:
+    return _steps_standard(ga)
+  return [
+    SelectionStep(ga.selection, ga.population_size),
+    CrossoverStep(ga.crossover),
+    MutationStep(ga.mutation, ga.mutation_rate),
+    LocalSearchStep(ga.local_search, target="offspring"),
+    EvaluationStep(ga.evaluation, target="offspring"),
+    SurvivalStep(ga._select_survivors),
+  ]
+
+
+def _steps_post_evaluation(ga: GeneticAlgorithm) -> list[GenerationStep]:
+  if ga.local_search is None:
+    return _steps_standard(ga)
+  return [
+    SelectionStep(ga.selection, ga.population_size),
+    CrossoverStep(ga.crossover),
+    MutationStep(ga.mutation, ga.mutation_rate),
+    EvaluationStep(ga.evaluation, target="offspring"),
+    SurvivalStep(ga._select_survivors),
+    LocalSearchStep(ga.local_search, target="population", re_evaluate=ga.evaluation),
+  ]
+
+
+STAGE_SPECS: Mapping[LocalSearchStage, StageSpec] = {
+  "none": StageSpec(pipeline_steps=_steps_standard, post_loop_hook=False, requires_local_search=False),
+  "post_crossover": StageSpec(pipeline_steps=_steps_post_crossover, post_loop_hook=False, requires_local_search=True),
+  "post_mutation": StageSpec(pipeline_steps=_steps_post_mutation, post_loop_hook=False, requires_local_search=True),
+  "post_evaluation": StageSpec(pipeline_steps=_steps_post_evaluation, post_loop_hook=False, requires_local_search=True),
+  "post_evolution": StageSpec(pipeline_steps=_steps_standard, post_loop_hook=True, requires_local_search=True),
+}
+
+
+#: Attributes a pipeline step may expose without declaring `strategies()`, used as
+#: a fallback so third-party steps still contribute their telemetry counters.
+_PIPELINE_STRATEGY_ATTRS: tuple[str, ...] = ("strategy", "local_search", "evaluation", "re_evaluate")
+
+
+# =============================================================================
 # GeneticAlgorithm Metaheuristic
 # =============================================================================
 
@@ -270,10 +348,9 @@ class GeneticAlgorithm:
         enable_phase_timing: Record per-phase execution times via `PhaseTimer`.
         pipeline: Optional custom list of `GenerationStep`s (overrides default pipeline).
     """
-    valid_stages = get_args(LocalSearchStage.__value__)
-    if local_search_stage not in valid_stages:
+    if local_search_stage not in STAGE_SPECS:
       raise ValueError(
-        f"Invalid local_search_stage '{local_search_stage}'. Valid stages: {list(valid_stages)}"
+        f"Invalid local_search_stage '{local_search_stage}'. Valid stages: {list(STAGE_SPECS.keys())}"
       )
 
     self.population_size: int = population_size
@@ -296,59 +373,89 @@ class GeneticAlgorithm:
     self.kernel_launches: int = 0
 
     # Build or set the generational pipeline
+    self.custom_pipeline_steps: list[GenerationStep] = list(pipeline) if pipeline is not None else []
     if pipeline is not None:
-      self.pipeline: list[GenerationStep] = pipeline
+      has_core_step = any(
+        isinstance(step, (SelectionStep, CrossoverStep, MutationStep, SurvivalStep))
+        for step in pipeline
+      )
+      if has_core_step:
+        self.pipeline: list[GenerationStep] = pipeline
+      else:
+        self.pipeline = self._compose_pipeline(pipeline)
     else:
       self.pipeline = self._build_default_pipeline()
 
+  def _compose_pipeline(self, extension_steps: list[GenerationStep]) -> list[GenerationStep]:
+    """Insert extension steps into the default pipeline at their declared `stage_anchor`.
+
+    Anchors keep placement declarative (`BUG-30`): a step states where it belongs
+    instead of `GeneticAlgorithm` matching on its class name, so a new step type
+    needs no edit here. `pre_selection` steps run before parent selection, in the
+    order declared; `pre_evaluation` steps run on offspring before they are scored;
+    everything else (including steps that declare no anchor) is appended after survival.
+    """
+    steps = self._build_default_pipeline()
+    pre_selection_steps: list[GenerationStep] = []
+    for step in extension_steps:
+      anchor: str = getattr(step, "stage_anchor", "post_survival")
+      if anchor == "pre_selection":
+        pre_selection_steps.append(step)
+      elif anchor == "pre_evaluation":
+        eval_idx = next(
+          (
+            i
+            for i, s in enumerate(steps)
+            if isinstance(s, EvaluationStep) and getattr(s, "target", "") == "offspring"
+          ),
+          len(steps),
+        )
+        steps.insert(eval_idx, step)
+      else:
+        steps.append(step)
+    return [*pre_selection_steps, *steps]
+
   def _build_default_pipeline(self) -> list[GenerationStep]:
     """Construct standard generational pipeline based on configured strategies and stage."""
-    steps: list[GenerationStep] = [
-      SelectionStep(self.selection, self.population_size),
-      CrossoverStep(self.crossover),
-    ]
-
-    has_ls: bool = self.local_search is not None and self.local_search_stage != "none"
-    ls: LocalSearchStrategy | None = self.local_search
-
-    if has_ls and ls is not None and self.local_search_stage == "post_crossover":
-      steps.append(LocalSearchStep(ls, target="offspring"))
-
-    steps.append(MutationStep(self.mutation, self.mutation_rate))
-
-    if has_ls and ls is not None and self.local_search_stage == "post_mutation":
-      steps.append(LocalSearchStep(ls, target="offspring"))
-
-    steps.append(EvaluationStep(self.evaluation, target="offspring"))
-    steps.append(SurvivalStep(self._select_survivors))
-
-    if has_ls and ls is not None and self.local_search_stage == "post_evaluation":
-      steps.append(
-        LocalSearchStep(
-          ls,
-          target="population",
-          re_evaluate=self.evaluation,
-        )
-      )
-
-    return steps
+    spec = STAGE_SPECS[self.local_search_stage]
+    return spec.pipeline_steps(self)
 
   # ===========================================================================
   # Internal Helpers
   # ===========================================================================
 
   def _all_strategies(self) -> list[Any]:
-    """Return list of active strategy objects for metric aggregation."""
-    strats: list[Any] = [
+    """Return every strategy that can own telemetry, including pipeline-owned ones.
+
+    Extension steps (`PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`,
+    `PeriodicLocalSearchStep`) carry their own local search and evaluator, which may
+    be the *only* instance in the run when `local_search_stage="none"`; collecting
+    them here keeps H2D/D2H/kernel counters from silently reading zero (`BUG-30`).
+    Identity de-duplication keeps shared strategies from being reset or summed twice.
+    """
+    candidates: list[Any] = [
       self.initialization,
       self.selection,
       self.crossover,
       self.mutation,
       self.evaluation,
+      self.local_search,
     ]
-    if self.local_search is not None:
-      strats.append(self.local_search)
-    return strats
+    for step in self.pipeline:
+      declared = getattr(step, "strategies", None)
+      if callable(declared):
+        candidates.extend(declared())
+      else:
+        candidates.extend(getattr(step, attr, None) for attr in _PIPELINE_STRATEGY_ATTRS)
+
+    unique: list[Any] = []
+    seen: set[int] = set()
+    for strat in candidates:
+      if strat is None or id(strat) in seen:
+        continue
+      seen.add(id(strat))
+      unique.append(strat)
+    return unique
 
   def _reset_run_metrics(self) -> None:
     """Reset counters on self and all injected strategies before a run."""
@@ -361,6 +468,46 @@ class GeneticAlgorithm:
     for strat in self._all_strategies():
       if hasattr(strat, "reset_metrics"):
         strat.reset_metrics()
+
+  def warmup(self, context: ProblemContext) -> None:
+    """Pre-compile every kernel this pipeline can launch (`DP11-12`, `DP11-21`, `BUG-25`).
+
+    Replaces the discarded one-generation run, which only covered the operators that
+    happen to fire in generation 1: `PeriodicLocalSearchStep(interval=10)` never fires
+    there, so `two_opt_batch.cu` was JIT-compiled at the first *measured* generation 10
+    (26.27x spike, 1651.73 ms vs 64.44 ms). This method walks the whole pipeline — every
+    step and every strategy they own, plus the six injected slots — so coverage is a
+    property of the configuration, not of the generation counter.
+
+    It performs no evolutionary work: no generation counter, population state or
+    `PhaseTimer` bucket of this instance changes. Each strategy's hook compiles its
+    kernel and launches it once on a `(rows, n)` batch of valid permutations
+    (`arange`, never `cp.zeros` — `BUG-24`) so the driver's module load also happens
+    here, not inside a measurement. On the isolated clone the runner uses, the RNG
+    advanced by those launches is discarded with the clone.
+
+    Args:
+        context: Run context used by strategy-level warm-up hooks.
+    """
+    seen: set[int] = set()
+    for step in self.pipeline:
+      step_hook = getattr(step, "warmup", None)
+      if not callable(step_hook):
+        continue
+      step_hook(context)
+      # Steps warm the strategies they own; recording those identities keeps the
+      # per-strategy pass below from compiling (and counting) them a second time.
+      owned = getattr(step, "strategies", None)
+      if callable(owned):
+        seen.update(id(strategy) for strategy in owned())
+
+    for strategy in self._all_strategies():
+      if id(strategy) in seen:
+        continue
+      seen.add(id(strategy))
+      strategy_hook = getattr(strategy, "warmup", None)
+      if callable(strategy_hook):
+        strategy_hook(context)
 
   def _collect_strategy_metrics(self, context: ProblemContext) -> None:
     """Aggregate H2D, D2H, and kernel launch counts from all active strategies."""
@@ -399,6 +546,18 @@ class GeneticAlgorithm:
     combined_fitness = xp.concatenate([xp.asarray(old_fitness), xp.asarray(new_fitness)])
     best_indices = xp.argsort(combined_fitness)[: self.population_size]
     return combined_pop[best_indices], combined_fitness[best_indices]
+
+  @staticmethod
+  def _best_cost(fitness: Fitness) -> float:
+    """Return only the best fitness value, transferring a single scalar D2H (`BUG-30`).
+
+    A generation that does not beat the incumbent needs the cost and nothing else;
+    materializing the winning route here is what used to copy a full `(n,)` tour
+    device-to-host on every generation.
+    """
+    if is_gpu_array(fitness):
+      return float(require_gpu().min(fitness).get())
+    return float(np.min(fitness))
 
   @staticmethod
   def _extract_best(population: Routes, fitness: Fitness) -> tuple[Route, float]:
@@ -462,51 +621,20 @@ class GeneticAlgorithm:
       context,
     )
 
-    # 2. Initial population evaluation
-    has_ls: bool = self.local_search is not None and self.local_search_stage != "none"
-    ls: LocalSearchStrategy | None = self.local_search
+    # 2. Initial population evaluation (Generation 0 evaluated raw for all 5 stages; BUG-21)
+    fitness: Fitness = self.timer.measure(
+      "evaluation",
+      self.evaluation.evaluate_batch,
+      population,
+      context,
+    )
 
-    if has_ls and ls is not None and self.local_search_stage in ("post_crossover", "post_mutation"):
-      population = self.timer.measure(
-        "local_search",
-        ls.improve_batch,
-        population,
-        context,
-      )
-      fitness: Fitness = self.timer.measure(
-        "evaluation",
-        self.evaluation.evaluate_batch,
-        population,
-        context,
-      )
-    elif has_ls and ls is not None and self.local_search_stage == "post_evaluation":
-      fitness = self.timer.measure(
-        "evaluation",
-        self.evaluation.evaluate_batch,
-        population,
-        context,
-      )
-      population = self.timer.measure(
-        "local_search",
-        ls.improve_batch,
-        population,
-        context,
-      )
-      fitness = self.timer.measure(
-        "evaluation",
-        self.evaluation.evaluate_batch,
-        population,
-        context,
-      )
-    else:
-      fitness = self.timer.measure(
-        "evaluation",
-        self.evaluation.evaluate_batch,
-        population,
-        context,
-      )
-
-    best_tour, best_cost = self._extract_best(population, fitness)
+    best_tour, best_cost = self.timer.measure(
+      "host_sync",
+      self._extract_best,
+      population,
+      fitness,
+    )
     initial_best_cost: float = best_cost
     self.best_cost_history = [best_cost]
 
@@ -524,10 +652,21 @@ class GeneticAlgorithm:
       for step in self.pipeline:
         step.run(state, self.timer)
 
-      gen_best_tour, gen_best_cost = self._extract_best(state.population, state.fitness)
+      gen_best_cost = self.timer.measure(
+        "host_sync",
+        self._best_cost,
+        state.fitness,
+      )
       if gen_best_cost < best_cost - 1e-6:
+        # The route crosses PCIe only on strict improvement (`BUG-30`), so a stagnant
+        # generation pays one scalar read instead of a full `(n,)` device-to-host copy.
+        best_tour, _ = self.timer.measure(
+          "host_sync",
+          self._extract_best,
+          state.population,
+          state.fitness,
+        )
         best_cost = gen_best_cost
-        best_tour = gen_best_tour
         generations_without_improvement = 0
       else:
         generations_without_improvement += 1
@@ -552,11 +691,12 @@ class GeneticAlgorithm:
         stop_reason = "no_improvements"
         break
 
-    # 4. Post-evolution stage: refine the full final population once after loop ends
-    if has_ls and ls is not None and self.local_search_stage == "post_evolution":
+    # 4. Post-evolution stage hook if registered in StageSpec (DP11-8)
+    spec = STAGE_SPECS[self.local_search_stage]
+    if self.local_search is not None and spec.post_loop_hook:
       state.population = self.timer.measure(
         "local_search",
-        ls.improve_batch,
+        self.local_search.improve_batch,
         state.population,
         context,
       )
@@ -566,7 +706,12 @@ class GeneticAlgorithm:
         state.population,
         context,
       )
-      post_best_tour, post_best_cost = self._extract_best(state.population, state.fitness)
+      post_best_tour, post_best_cost = self.timer.measure(
+        "host_sync",
+        self._extract_best,
+        state.population,
+        state.fitness,
+      )
       if post_best_cost <= best_cost:
         best_tour = post_best_tour
         best_cost = post_best_cost
@@ -591,6 +736,7 @@ class GeneticAlgorithm:
 
 
 __all__: list[str] = [
+  "STAGE_SPECS",
   "CrossoverStep",
   "EvaluationStep",
   "GenerationState",
@@ -600,5 +746,6 @@ __all__: list[str] = [
   "LocalSearchStep",
   "MutationStep",
   "SelectionStep",
+  "StageSpec",
   "SurvivalStep",
 ]
