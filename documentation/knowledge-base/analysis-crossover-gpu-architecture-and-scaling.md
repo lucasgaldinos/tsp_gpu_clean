@@ -42,11 +42,18 @@ modifications:
           NumPy vectorized integer sampling (c1, c2 += c2 >= c1) reducing overhead to ~0.017 ms (72x speedup);
           and analyzed GPU warm-up nuances (pure AOT compilation vs execution warm-up) and cache poisoning
           hazards from dummy zero arrays on topology detection heuristics (_is_closed_cache).
+  - date_modified: 2026-11-11
+    modifications:
+      - description: >
+          Cross-referenced companion deep dive on shared-memory crossover formats
+          (analysis-crossover-shared-memory-formats.md) comparing Format A direct byte array
+          versus Format B bitpacked bitmap mechanics.
 related_files:
   - "[order_crossover.py](../../src/algorithms/strategies/crossover/order_crossover.py)"
   - "[order_crossover.cu](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu)"
   - "[crossover_scaling_sweep.py](../../benchmark_scripts/crossover_scaling_sweep.py)"
   - "[analysis-crossover-matrix-formulation-and-mechanics.md](./analysis-crossover-matrix-formulation-and-mechanics.md)"
+  - "[analysis-crossover-shared-memory-formats.md](./analysis-crossover-shared-memory-formats.md)"
   - "[guide-cuda-warp-primitives-and-intrinsics.md](./guide-cuda-warp-primitives-and-intrinsics.md)"
   - "[guide-cuda-hardware-bitwise-and-registers.md](./guide-cuda-hardware-bitwise-and-registers.md)"
   - "[analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md)"
@@ -509,6 +516,9 @@ Value Stored:    1       1       0       0       0       0       1       1
 4. **Zero Branch Divergence**: All 32 threads in the warp execute the exact same memory fetch simultaneously.
 
 There are two physical representations for this table in shared memory:
+
+> [!NOTE]
+> For a dedicated comparative deep dive analyzing instruction-level memory latency (`LDS.U8` vs. `atomicOr`), write-hazard serialization, and occupancy proofs across TSPLIB95, see [analysis-crossover-shared-memory-formats.md](./analysis-crossover-shared-memory-formats.md).
 
 #### Format A: Byte Array (`uint8_t in_segment[n]`) — The Recommended Architecture
 

@@ -28,6 +28,7 @@ modifications:
 related_files:
   - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
   - "[analysis-complete-statistical-results.md](./analysis-complete-statistical-results.md)"
+  - "[analysis-demsar-critical-difference-diagrams.md](../../documents_tcc/plan/knowledge-base/analysis-demsar-critical-difference-diagrams.md)"
   - "[notes_types_of_variables_statistics.md](./notes_types_of_variables_statistics.md)"
   - "[analysis-genetic-algorithm-memetic-lineage.md](./analysis-genetic-algorithm-memetic-lineage.md)"
   - "[guide-statistical-multicomparison-tests.md](./guide-statistical-multicomparison-tests.md)"
@@ -481,6 +482,9 @@ A Critical Difference (CD) diagram visualizes the results of the Demšar protoco
    - Algorithms connected by the same horizontal bar have **no statistically significant difference** in performance.
    - Any two algorithms **not connected** by a common horizontal bar are **statistically significantly different** at the $\alpha = 0.05$ level.
    - In the diagram above, HybridOpt ($R_1 = 1.35$) and FullGPU ($R_2 = 1.85$) are connected (difference $0.50 \le 0.761$), but both are separated from HybridNaive ($R_3 = 2.95$, difference $1.10 > CD$) and CPU ($R_4 = 3.85$, difference $2.00 > CD$) by gaps exceeding $CD$, proving conclusive superiority over baseline configurations.
+
+> [!TIP]
+> For generating publication-ready vector LaTeX/TikZ figures (`.tikz`) suitable for inclusion in thesis manuscripts (`second_draft.tex`), see the companion operational blueprint in [analysis-demsar-critical-difference-diagrams.md](../../documents_tcc/plan/knowledge-base/analysis-demsar-critical-difference-diagrams.md), which provides standalone TikZ templates and an automated clique rendering pipeline.
 
 ---
 

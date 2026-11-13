@@ -50,6 +50,18 @@ modifications:
           `currsize` warm-up invariant, and the sampling note records the $n! \to (n-2)!$
           search-space framing. Verified every `useful-notes/` link resolves (no live
           reference to the retired `useful_notes/` directory remains in this index).
+  - date_modified: 2026-11-11
+    modifications:
+      - description: >
+          Indexed `analysis-crossover-shared-memory-formats.md` under metaheuristics
+          and GPU crossover architecture.
+      - description: >
+          Indexed `analysis-gpu-tsp-future-improvements.md` covering algorithmic
+          extensions (EAX, Or-opt for ATSP, stream-based island models, LKH) and GPU
+          micro-optimizations (warp shuffles, padding, persistent threads, read-only cache).
+      - description: >
+          Indexed `analysis-sample-variance-bessel-correction-and-ddof.md` covering
+          Bessel's correction derivation, degrees of freedom, and NumPy ddof semantics.
 related_files:
   - "[README.md](../README.md)"
   - "[analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md)"
@@ -61,6 +73,9 @@ related_files:
   - "[guide-cuda-warp-primitives-and-intrinsics.md](./guide-cuda-warp-primitives-and-intrinsics.md)"
   - "[guide-cuda-hardware-bitwise-and-registers.md](./guide-cuda-hardware-bitwise-and-registers.md)"
   - "[analysis-crossover-matrix-formulation-and-mechanics.md](./analysis-crossover-matrix-formulation-and-mechanics.md)"
+  - "[analysis-crossover-shared-memory-formats.md](./analysis-crossover-shared-memory-formats.md)"
+  - "[analysis-gpu-tsp-future-improvements.md](./analysis-gpu-tsp-future-improvements.md)"
+  - "[analysis-sample-variance-bessel-correction-and-ddof.md](./analysis-sample-variance-bessel-correction-and-ddof.md)"
   - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
 tags:
   - guide/architecture
@@ -117,6 +132,8 @@ Curated technical reference articles, mathematical derivations, and engineering 
 - [analysis-genetic-algorithm-memetic-lineage.md](./analysis-genetic-algorithm-memetic-lineage.md) — Holland GA -> Moscato Memetic Algorithm lineage, discrete tournament selection math, and strategy composition.
 - [analysis-crossover-gpu-architecture-and-scaling.md](./analysis-crossover-gpu-architecture-and-scaling.md) — Order Crossover (OX) scaling analysis ($\mathcal{O}(n)$ CPU hash lookup vs. $\mathcal{O}(n^2)$ naive GPU linear scan `BUG-22`), shared-memory direct-address bitmaps, Pascal GP107 SM occupancy, and 1-warp-per-route cooperative compaction (`DP11-11`).
 - [analysis-crossover-matrix-formulation-and-mechanics.md](./analysis-crossover-matrix-formulation-and-mechanics.md) — Mathematical matrix development of the complete GPU Genetic Algorithm pipeline (Evaluation, Selection, Crossover, Mutation, 2-Opt) using a 2-route formulation, proving why dense GEMM ($\mathcal{O}(n^3)$) is rejected in favor of warp streaming ($\mathcal{O}(n)$).
+- [analysis-crossover-shared-memory-formats.md](./analysis-crossover-shared-memory-formats.md) — Shared-memory duplicate detection in Order Crossover: Direct Byte Array (Format A) vs. Bitpacked Bitmap (Format B), instruction-level latency, atomic serialization hazards, and GP107 capacity boundaries.
+- [analysis-gpu-tsp-future-improvements.md](./analysis-gpu-tsp-future-improvements.md) — Future architectural roadmap for GPU TSP solvers: Edge Assembly Crossover (EAX), 3-opt/Or-opt for ATSP, stream-based island models, LKH variable-neighborhood search, and kernel micro-optimizations (warp shuffle reductions, bank-conflict padding, persistent threads, and texture binding).
 - [guide-ga-hyperparameter-tuning.md](./guide-ga-hyperparameter-tuning.md) — Population sizing, crossover/mutation rates, and local-search intensity tuning benchmarks.
 - [guide-iso-algorithmic-ga-validation.md](./guide-iso-algorithmic-ga-validation.md) — Protocol for verifying algorithmic equivalence between CPU and GPU Genetic Algorithm implementations.
 - [guide-gpu-cpu-comparison-methodology.md](./guide-gpu-cpu-comparison-methodology.md) — Fair benchmarking rules, warm-up handling, stopping criteria, and hardware normalization caveats.
@@ -131,6 +148,7 @@ Curated technical reference articles, mathematical derivations, and engineering 
 
 - [guide-statistical-testing-index.md](./guide-statistical-testing-index.md) — Master decision tree and navigation hub for the 6-part statistical testing series.
 - [guide-statistical-parametric-foundations.md](./guide-statistical-parametric-foundations.md) — Hypothesis testing mechanics, Type I/II errors, confidence intervals, and parametric assumptions.
+- [analysis-sample-variance-bessel-correction-and-ddof.md](./analysis-sample-variance-bessel-correction-and-ddof.md) — Mathematical derivation of Bessel's correction, geometric degrees of freedom in $\mathbb{R}^N$, NumPy ddof parameter semantics, and sample size bias quantification in metaheuristic benchmarking.
 - [guide-statistical-normality-and-outliers.md](./guide-statistical-normality-and-outliers.md) — Shapiro-Wilk, D'Agostino-Pearson, Q-Q diagnostics, skewness/heavy tails in heuristic costs, and IQR outlier rules.
 - [guide-statistical-pairwise-comparisons.md](./guide-statistical-pairwise-comparisons.md) — Paired $t$-test, Welch's $t$-test, Wilcoxon signed-rank, and Mann-Whitney U protocols.
 - [guide-statistical-multicomparison-tests.md](./guide-statistical-multicomparison-tests.md) — One-way ANOVA, Friedman aligned/rank tests, Holm/Bonferroni family-wise error control, and omnibus workflows.
