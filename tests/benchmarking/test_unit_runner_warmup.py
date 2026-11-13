@@ -96,6 +96,7 @@ class _MutableJitCache:
     return SimpleNamespace(currsize=self.currsize)
 
 
+@pytest.mark.gpu
 def test_runner_gpu_warms_an_isolated_clone_once(burma14_problem: Problem) -> None:
   """Verify GPU execution pre-compiles once, on a clone, before the measured loop."""
   algorithm = _RecordingAlgorithm(dimension=burma14_problem.dimension)
@@ -123,6 +124,7 @@ def test_runner_gpu_warms_an_isolated_clone_once(burma14_problem: Problem) -> No
   assert len(summary["raw_times"]) == 3
 
 
+@pytest.mark.gpu
 def test_runner_gpu_warmup_context_targets_the_real_problem(burma14_problem: Problem) -> None:
   """Verify the warm-up receives the measured problem, never a synthetic dummy batch."""
   seen: list[ProblemContext] = []
@@ -177,6 +179,7 @@ def test_runner_cpu_omits_warmup_run(burma14_problem: Problem) -> None:
   assert len(summary["raw_times"]) == 3
 
 
+@pytest.mark.gpu
 def test_runner_gpu_warmup_failure_tolerated(burma14_problem: Problem) -> None:
   """Verify that a failing warm-up leaves the measured repetitions intact."""
   algorithm = _RecordingAlgorithm(
@@ -202,6 +205,7 @@ def test_runner_gpu_warmup_failure_tolerated(burma14_problem: Problem) -> None:
   assert len(summary["raw_times"]) == 2
 
 
+@pytest.mark.gpu
 def test_runner_gpu_fires_warmup_run_in_incremental_mode(burma14_problem: Problem) -> None:
   """Verify that GPU warm-up still fires when resuming from an existing checkpoint."""
   algorithm = _RecordingAlgorithm(dimension=burma14_problem.dimension)
@@ -243,6 +247,7 @@ def test_runner_gpu_fires_warmup_run_in_incremental_mode(burma14_problem: Proble
   assert algorithm.evolve_generations == [5, 5, 5]
 
 
+@pytest.mark.gpu
 def test_runner_gpu_rejects_jit_compiled_inside_the_measured_loop(
   burma14_problem: Problem, monkeypatch: pytest.MonkeyPatch
 ) -> None:
