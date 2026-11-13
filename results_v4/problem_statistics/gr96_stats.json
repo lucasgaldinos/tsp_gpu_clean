@@ -1,0 +1,592 @@
+{
+  "problem_info": {
+    "name": "gr96",
+    "size": 96,
+    "optimal_cost": 55209.0,
+    "problem_id": 54,
+    "tsplib_name": "gr96",
+    "problem_type": "TSP",
+    "dimension": 96,
+    "edge_type": "GEO",
+    "edge_weight_type": "GEO",
+    "edge_weight_format": null,
+    "is_symmetric": true,
+    "comment": "Africa-Subproblem of 666-city TSP (Groetschel)",
+    "capacity": null,
+    "has_coordinates": true,
+    "has_display_coords": false,
+    "has_explicit_matrix": false,
+    "has_solution": false,
+    "source_file": "datasets_raw/problems/tsp/gr96.tsp",
+    "file_checksum": "d03f1f2a5dbddfff39fdfa2fa8982fa01708065dc638446633dd6ca1c5c56979"
+  },
+  "algorithms": {
+    "CPU": {
+      "mean_time": 41.62018202236698,
+      "std_time": 3.7934075929050017,
+      "mean_initial_cost": 321379.76666666666,
+      "std_initial_cost": 7352.25482037165,
+      "mean_cost": 55569.566666666666,
+      "std_cost": 117.99289380511753,
+      "mean_gap": 0.6530940003743351,
+      "std_gap": 0.21372039668372467,
+      "mean_generations": 10.2,
+      "std_generations": 0.5508613944197477,
+      "success_rate": 1.0,
+      "backend": "CPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 85.04855702631176,
+          "calls": 10.2,
+          "mean_ms": 8.338093826108997
+        },
+        "evaluation": {
+          "total_ms": 2.9861726293650768,
+          "calls": 11.2,
+          "mean_ms": 0.26662255619331043
+        },
+        "host_sync": {
+          "total_ms": 0.23203631474946937,
+          "calls": 21.4,
+          "mean_ms": 0.010842818446236887
+        },
+        "initialization": {
+          "total_ms": 1.3908643663550417,
+          "calls": 1.0,
+          "mean_ms": 1.3908643663550417
+        },
+        "local_search": {
+          "total_ms": 41527.097992791096,
+          "calls": 10.2,
+          "mean_ms": 4071.2841169403036
+        },
+        "mutation": {
+          "total_ms": 1.3081367845491816,
+          "calls": 10.2,
+          "mean_ms": 0.12824870436756683
+        },
+        "selection": {
+          "total_ms": 0.8899118867702782,
+          "calls": 10.2,
+          "mean_ms": 0.0872462634088508
+        },
+        "survival": {
+          "total_ms": 0.8319225938369831,
+          "calls": 10.2,
+          "mean_ms": 0.08156103861146893
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 0.20410989929874282,
+        "evaluation": 0.0071820007901210615,
+        "host_sync": 0.0005577971797231002,
+        "initialization": 0.0033606367344794627,
+        "local_search": 99.77659485343746,
+        "mutation": 0.0031092039249866104,
+        "selection": 0.0021367067043941124,
+        "survival": 0.00199807994127937
+      },
+      "phase_share_cv_pct": {
+        "crossover": 7.4508330635785285,
+        "evaluation": 4.578028807842424,
+        "host_sync": 7.767141961622856,
+        "initialization": 38.45222378117107,
+        "local_search": 0.015943245750533516,
+        "mutation": 15.433589317295542,
+        "selection": 5.921888131578223,
+        "survival": 5.95847252323591
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": false
+          },
+          "selection": {
+            "class": "SelectionTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverOrder"
+          },
+          "mutation": {
+            "class": "MutationSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchCPUTwoOpt",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "mode": "best"
+          },
+          "evaluation": {
+            "class": "EvaluationCPUCost"
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionTournament",
+        "crossover": "CrossoverOrder",
+        "mutation": "MutationSwap",
+        "local_search": "LocalSearchCPUTwoOpt",
+        "evaluation": "EvaluationCPUCost"
+      }
+    },
+    "HybridNaive": {
+      "mean_time": 1.5082712775639568,
+      "std_time": 0.1075535947152274,
+      "mean_initial_cost": 321379.76666666666,
+      "std_initial_cost": 7352.25482037165,
+      "mean_cost": 55562.86666666667,
+      "std_cost": 138.7684087404904,
+      "mean_gap": 0.6409582978620637,
+      "std_gap": 0.251351063668044,
+      "mean_generations": 9.933333333333334,
+      "std_generations": 0.5832922809856749,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 78.49193689762615,
+          "calls": 9.933333333333334,
+          "mean_ms": 7.9018728420429
+        },
+        "evaluation": {
+          "total_ms": 2.7155776178309075,
+          "calls": 10.933333333333334,
+          "mean_ms": 0.24837600163087567
+        },
+        "host_sync": {
+          "total_ms": 0.2126188289063672,
+          "calls": 20.866666666666667,
+          "mean_ms": 0.010189400746311528
+        },
+        "initialization": {
+          "total_ms": 1.5114122710656375,
+          "calls": 1.0,
+          "mean_ms": 1.5114122710656375
+        },
+        "local_search": {
+          "total_ms": 1422.3189315215375,
+          "calls": 9.933333333333334,
+          "mean_ms": 143.18646961626217
+        },
+        "mutation": {
+          "total_ms": 1.198683335678652,
+          "calls": 9.933333333333334,
+          "mean_ms": 0.1206728190280522
+        },
+        "selection": {
+          "total_ms": 0.7733630035848668,
+          "calls": 9.933333333333334,
+          "mean_ms": 0.07785533593136243
+        },
+        "survival": {
+          "total_ms": 0.6983545298377672,
+          "calls": 9.933333333333334,
+          "mean_ms": 0.07030414729910409
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 5.179892398286167,
+        "evaluation": 0.17912862865656373,
+        "host_sync": 0.014010957952887499,
+        "initialization": 0.09925964048414998,
+        "local_search": 94.32904121901755,
+        "mutation": 0.0786863782191544,
+        "selection": 0.050984045950741436,
+        "survival": 0.045950101613609094
+      },
+      "phase_share_cv_pct": {
+        "crossover": 12.653314825813863,
+        "evaluation": 12.069905631404678,
+        "host_sync": 14.400753409797707,
+        "initialization": 51.04604703846258,
+        "local_search": 0.7851284576816289,
+        "mutation": 25.528575780946262,
+        "selection": 14.131955981874016,
+        "survival": 15.7679257754018
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": false
+          },
+          "selection": {
+            "class": "SelectionTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverOrder"
+          },
+          "mutation": {
+            "class": "MutationSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "max_iterations": 10,
+            "mode": "naive",
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationCPUCost"
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionTournament",
+        "crossover": "CrossoverOrder",
+        "mutation": "MutationSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationCPUCost"
+      }
+    },
+    "HybridOptimized": {
+      "mean_time": 0.12521640789927915,
+      "std_time": 0.02467458621580001,
+      "mean_initial_cost": 321379.76666666666,
+      "std_initial_cost": 7352.25482037165,
+      "mean_cost": 55539.666666666664,
+      "std_cost": 123.89270478462633,
+      "mean_gap": 0.5989361637897203,
+      "std_gap": 0.22440671771744886,
+      "mean_generations": 10.366666666666667,
+      "std_generations": 0.5560534167675354,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 87.36768579304528,
+          "calls": 10.366666666666667,
+          "mean_ms": 8.42775104112977
+        },
+        "evaluation": {
+          "total_ms": 2.3043606992966184,
+          "calls": 11.366666666666667,
+          "mean_ms": 0.20272968029002505
+        },
+        "host_sync": {
+          "total_ms": 0.2551599425108482,
+          "calls": 21.733333333333334,
+          "mean_ms": 0.011740488152339641
+        },
+        "initialization": {
+          "total_ms": 1.438380063821872,
+          "calls": 1.0,
+          "mean_ms": 1.438380063821872
+        },
+        "local_search": {
+          "total_ms": 30.43641340142737,
+          "calls": 10.366666666666667,
+          "mean_ms": 2.9359884310058555
+        },
+        "mutation": {
+          "total_ms": 1.3565395221424599,
+          "calls": 10.366666666666667,
+          "mean_ms": 0.130855902457472
+        },
+        "selection": {
+          "total_ms": 0.8770209232655665,
+          "calls": 10.366666666666667,
+          "mean_ms": 0.08460008906098712
+        },
+        "survival": {
+          "total_ms": 0.8036741230171174,
+          "calls": 10.366666666666667,
+          "mean_ms": 0.07752483501772836
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 69.22273368501288,
+        "evaluation": 1.8101364372232112,
+        "host_sync": 0.19963338759253427,
+        "initialization": 1.1290438370510685,
+        "local_search": 24.975776851090036,
+        "mutation": 1.048197167633002,
+        "selection": 0.6904799477585377,
+        "survival": 0.6275475931080575
+      },
+      "phase_share_cv_pct": {
+        "crossover": 4.327374362917764,
+        "evaluation": 11.984727897391721,
+        "host_sync": 12.809625246650763,
+        "initialization": 35.42265090765726,
+        "local_search": 14.668575475581926,
+        "mutation": 21.277728092578414,
+        "selection": 8.841218525956675,
+        "survival": 14.669132927945276
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": false
+          },
+          "selection": {
+            "class": "SelectionTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverOrder"
+          },
+          "mutation": {
+            "class": "MutationSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "max_iterations": 10,
+            "mode": "batch",
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": false,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionTournament",
+        "crossover": "CrossoverOrder",
+        "mutation": "MutationSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "FullGPUModular": {
+      "mean_time": 0.04273493732907809,
+      "std_time": 0.003756498659679228,
+      "mean_initial_cost": 321379.76666666666,
+      "std_initial_cost": 7352.25482037165,
+      "mean_cost": 55532.066666666666,
+      "std_cost": 139.59101179772517,
+      "mean_gap": 0.5851702922832629,
+      "std_gap": 0.2528410436662956,
+      "mean_generations": 10.166666666666666,
+      "std_generations": 0.46113303737741407,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 2.5554255058523268,
+          "calls": 10.166666666666666,
+          "mean_ms": 0.25135332844449115
+        },
+        "evaluation": {
+          "total_ms": 1.3486916587377589,
+          "calls": 11.166666666666666,
+          "mean_ms": 0.12077835749890378
+        },
+        "host_sync": {
+          "total_ms": 25.484328623861074,
+          "calls": 21.333333333333332,
+          "mean_ms": 1.1945779042434879
+        },
+        "initialization": {
+          "total_ms": 1.6821713380826016,
+          "calls": 1.0,
+          "mean_ms": 1.6821713380826016
+        },
+        "local_search": {
+          "total_ms": 2.607881227352967,
+          "calls": 10.166666666666666,
+          "mean_ms": 0.25651290760848855
+        },
+        "mutation": {
+          "total_ms": 3.091355401556939,
+          "calls": 10.166666666666666,
+          "mean_ms": 0.3040677444154366
+        },
+        "selection": {
+          "total_ms": 2.334937994601205,
+          "calls": 10.166666666666666,
+          "mean_ms": 0.22966603225585625
+        },
+        "survival": {
+          "total_ms": 3.199839919883137,
+          "calls": 10.166666666666666,
+          "mean_ms": 0.31473835277539053
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 5.921904610107281,
+        "evaluation": 3.1050475593722098,
+        "host_sync": 60.09568806045637,
+        "initialization": 3.8448718100143777,
+        "local_search": 6.052946526701794,
+        "mutation": 7.168257986573446,
+        "selection": 5.394580790072768,
+        "survival": 7.421088824726534
+      },
+      "phase_share_cv_pct": {
+        "crossover": 15.731859366963038,
+        "evaluation": 49.10783642346973,
+        "host_sync": 10.360525366162285,
+        "initialization": 43.24608102489492,
+        "local_search": 12.882990821325027,
+        "mutation": 14.300521180456954,
+        "selection": 19.154109023588553,
+        "survival": 13.88841963340247
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "max_iterations": 10,
+            "mode": "batch",
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "gr96",
+    "optimal_cost": 55209.0,
+    "baseline_algorithm": "CPU",
+    "friedman_test": {
+      "statistic": 1.4949152542373159,
+      "p_value": 0.6834443833194621,
+      "significant": false,
+      "post_hoc_required": false
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "CPU vs HybridNaive",
+        "test_used": "paired_t_test",
+        "p_value": 0.8526830841484047,
+        "mean_difference": 6.7,
+        "ci_95_lower": -66.43747077360858,
+        "ci_95_upper": 79.83747077360859,
+        "cohens_d": 0.05201854397640139,
+        "normality_p_value_a": 0.05343868754879464,
+        "normality_p_value_b": 0.058081675672716965,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "CPU vs HybridOptimized",
+        "test_used": "paired_t_test",
+        "p_value": 0.21279226092256212,
+        "mean_difference": 29.9,
+        "ci_95_lower": -18.10169580550339,
+        "ci_95_upper": 77.90169580550338,
+        "cohens_d": 0.24715080298958306,
+        "normality_p_value_a": 0.05343868754879464,
+        "normality_p_value_b": 0.20796452961349354,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "CPU vs FullGPUModular",
+        "test_used": "paired_t_test",
+        "p_value": 0.27543325612901465,
+        "mean_difference": 37.5,
+        "ci_95_lower": -31.494978926327946,
+        "ci_95_upper": 106.49497892632795,
+        "cohens_d": 0.2901490807036281,
+        "normality_p_value_a": 0.05343868754879464,
+        "normality_p_value_b": 0.10982733101487507,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "paired_t_test",
+        "p_value": 0.4708024305167536,
+        "mean_difference": 23.2,
+        "ci_95_lower": -41.733465344888174,
+        "ci_95_upper": 88.13346534488818,
+        "cohens_d": 0.1763708546517858,
+        "normality_p_value_a": 0.058081675672716965,
+        "normality_p_value_b": 0.20796452961349354,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPUModular",
+        "test_used": "paired_t_test",
+        "p_value": 0.3825591122324259,
+        "mean_difference": 30.8,
+        "ci_95_lower": -40.24579592014395,
+        "ci_95_upper": 101.84579592014394,
+        "cohens_d": 0.22129565761762685,
+        "normality_p_value_a": 0.058081675672716965,
+        "normality_p_value_b": 0.10982733101487507,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPUModular",
+        "test_used": "paired_t_test",
+        "p_value": 0.8291381924832926,
+        "mean_difference": 7.6,
+        "ci_95_lower": -63.77893550465348,
+        "ci_95_upper": 78.97893550465348,
+        "cohens_d": 0.05758645615806559,
+        "normality_p_value_a": 0.20796452961349354,
+        "normality_p_value_b": 0.10982733101487507,
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false,
+        "effect_interpretation": "negligible"
+      }
+    ]
+  }
+}

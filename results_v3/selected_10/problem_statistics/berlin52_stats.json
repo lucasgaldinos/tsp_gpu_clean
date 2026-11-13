@@ -22,79 +22,79 @@
   },
   "algorithms": {
     "CPU": {
-      "mean_time": 10.983016604295699,
-      "std_time": 1.1308126683869772,
+      "mean_time": 11.524789243488339,
+      "std_time": 1.568932209573621,
       "mean_initial_cost": 25211.1,
-      "std_initial_cost": 477.2128351165756,
+      "std_initial_cost": 503.0264958782544,
       "mean_cost": 7550.2,
-      "std_cost": 16.42437213411825,
+      "std_cost": 17.312808360671394,
       "mean_gap": 0.10872447626624238,
-      "std_gap": 0.21777210466876487,
+      "std_gap": 0.22955195386729507,
       "mean_generations": 4.7,
-      "std_generations": 0.45825756949558405,
+      "std_generations": 0.48304589153964794,
       "success_rate": 1.0,
       "backend": "CPU",
       "mean_phase_timings": {
         "crossover": {
-          "total_ms": 26.73696559795644,
+          "total_ms": 25.829019997036085,
           "calls": 4.7,
-          "mean_ms": 5.688716084671583
+          "mean_ms": 5.495536169582145
         },
         "evaluation": {
-          "total_ms": 1.188193293637596,
+          "total_ms": 1.1387457430828363,
           "calls": 5.7,
-          "mean_ms": 0.20845496379606948
+          "mean_ms": 0.19977995492681339
         },
         "host_sync": {
-          "total_ms": 0.12195138551760465,
+          "total_ms": 0.1178390346467495,
           "calls": 10.4,
-          "mean_ms": 0.01172609476130814
+          "mean_ms": 0.011330676408341298
         },
         "initialization": {
-          "total_ms": 1.3922955025918782,
+          "total_ms": 1.5147084021009505,
           "calls": 1.0,
-          "mean_ms": 1.3922955025918782
+          "mean_ms": 1.5147084021009505
         },
         "local_search": {
-          "total_ms": 10951.9139199052,
+          "total_ms": 11494.458397425478,
           "calls": 4.7,
-          "mean_ms": 2330.1944510436597
+          "mean_ms": 2445.6294462607398
         },
         "mutation": {
-          "total_ms": 0.6229159887880087,
+          "total_ms": 0.7057673064991832,
           "calls": 4.7,
-          "mean_ms": 0.1325353167634061
+          "mean_ms": 0.15016325670195385
         },
         "selection": {
-          "total_ms": 0.4367677931440994,
+          "total_ms": 0.4063155094627291,
           "calls": 4.7,
-          "mean_ms": 0.09292931769023391
+          "mean_ms": 0.08645010839632533
         },
         "survival": {
-          "total_ms": 0.35850268322974443,
+          "total_ms": 0.3675687999930233,
           "calls": 4.7,
-          "mean_ms": 0.07627716664462647
+          "mean_ms": 0.07820612765809005
         }
       },
       "phase_share_pct": {
-        "crossover": 0.24362836673530622,
-        "evaluation": 0.010825447779214384,
-        "host_sync": 0.0011121555117583415,
-        "initialization": 0.013158829452987252,
-        "local_search": 99.71611876801255,
-        "mutation": 0.005670043841270811,
-        "selection": 0.003984347499190638,
-        "survival": 0.0032578699264341564
+        "crossover": 0.22331924610986448,
+        "evaluation": 0.00989771585201994,
+        "host_sync": 0.0010210288308376912,
+        "initialization": 0.013865500231382935,
+        "local_search": 99.73691499713816,
+        "mutation": 0.006096762851325409,
+        "selection": 0.003520369136069989,
+        "survival": 0.003173702002171327
       },
       "phase_share_cv_pct": {
-        "crossover": 16.525748847716155,
-        "evaluation": 9.026296329536782,
-        "host_sync": 7.522993353799458,
-        "initialization": 55.096052218285216,
-        "local_search": 0.04370503654658664,
-        "mutation": 8.153845572457676,
-        "selection": 10.363614985312813,
-        "survival": 12.047637462422479
+        "crossover": 9.630713187718685,
+        "evaluation": 3.9447768093787037,
+        "host_sync": 4.247724692639801,
+        "initialization": 61.44507682654302,
+        "local_search": 0.02259063571354311,
+        "mutation": 10.072516397617996,
+        "selection": 4.793279989418248,
+        "survival": 6.8026780842139285
       },
       "algorithm_config": {
         "population_size": 256,
@@ -137,79 +137,79 @@
       }
     },
     "HybridNaive": {
-      "mean_time": 0.46218248339719137,
-      "std_time": 0.04596558365171379,
+      "mean_time": 0.47249501399928706,
+      "std_time": 0.040836132814242664,
       "mean_initial_cost": 25211.1,
-      "std_initial_cost": 477.2128351165756,
+      "std_initial_cost": 503.0264958782544,
       "mean_cost": 7542.6,
-      "std_cost": 1.8000000000000003,
+      "std_cost": 1.8973665961010278,
       "mean_gap": 0.007955449482895784,
-      "std_gap": 0.02386634844868735,
+      "std_gap": 0.025157340176359424,
       "mean_generations": 4.7,
-      "std_generations": 0.45825756949558405,
+      "std_generations": 0.48304589153964794,
       "success_rate": 1.0,
       "backend": "GPU",
       "mean_phase_timings": {
         "crossover": {
-          "total_ms": 27.86998660012614,
+          "total_ms": 27.261053799884394,
           "calls": 4.7,
-          "mean_ms": 5.929784383005561
+          "mean_ms": 5.800224212741361
         },
         "evaluation": {
-          "total_ms": 1.1833550030132756,
+          "total_ms": 1.2048359320033342,
           "calls": 5.7,
-          "mean_ms": 0.20760614087952203
+          "mean_ms": 0.21137472491286563
         },
         "host_sync": {
-          "total_ms": 0.1260632969206199,
+          "total_ms": 0.12668679701164365,
           "calls": 10.4,
-          "mean_ms": 0.012121470857751913
+          "mean_ms": 0.01218142278958112
         },
         "initialization": {
-          "total_ms": 1.9119893026072532,
+          "total_ms": 1.208085211692378,
           "calls": 1.0,
-          "mean_ms": 1.9119893026072532
+          "mean_ms": 1.208085211692378
         },
         "local_search": {
-          "total_ms": 429.46687041257974,
+          "total_ms": 440.90059878653847,
           "calls": 4.7,
-          "mean_ms": 91.37592987501696
+          "mean_ms": 93.80863803968903
         },
         "mutation": {
-          "total_ms": 0.5958308989647776,
+          "total_ms": 0.7241639250423759,
           "calls": 4.7,
-          "mean_ms": 0.1267725316946335
+          "mean_ms": 0.15407743086007997
         },
         "selection": {
-          "total_ms": 0.4438598989509046,
+          "total_ms": 0.4409676883369684,
           "calls": 4.7,
-          "mean_ms": 0.0944382763725329
+          "mean_ms": 0.09382291241212094
         },
         "survival": {
-          "total_ms": 0.3509327012579888,
+          "total_ms": 0.3690281882882118,
           "calls": 4.7,
-          "mean_ms": 0.0746665321825508
+          "mean_ms": 0.07851663580600252
         }
       },
       "phase_share_pct": {
-        "crossover": 6.075763858215173,
-        "evaluation": 0.2584027788432672,
-        "host_sync": 0.027475336318468362,
-        "initialization": 0.42237855184005557,
-        "local_search": 92.86378357584093,
-        "mutation": 0.12841113171452076,
-        "selection": 0.09675321248133524,
-        "survival": 0.07627103632786028
+        "crossover": 5.776524754561512,
+        "evaluation": 0.25516060222913184,
+        "host_sync": 0.02682539465979415,
+        "initialization": 0.2566514111447892,
+        "local_search": 93.30596909146001,
+        "mutation": 0.15318790565765977,
+        "selection": 0.09300711056189634,
+        "survival": 0.07788781053742638
       },
       "phase_share_cv_pct": {
-        "crossover": 16.20645299451499,
-        "evaluation": 11.003893804329898,
-        "host_sync": 13.668642063999437,
-        "initialization": 48.35689786456787,
-        "local_search": 1.1962669419811178,
-        "mutation": 11.970154736633312,
-        "selection": 17.16505055285219,
-        "survival": 9.102652805261629
+        "crossover": 7.792484020489288,
+        "evaluation": 4.025673380842789,
+        "host_sync": 5.5489563497547865,
+        "initialization": 37.52006238608291,
+        "local_search": 0.5860100166653034,
+        "mutation": 12.48952262908276,
+        "selection": 13.771246648721021,
+        "survival": 7.513213296582498
       },
       "algorithm_config": {
         "population_size": 256,
@@ -254,79 +254,79 @@
       }
     },
     "HybridOptimized": {
-      "mean_time": 0.037074544501956554,
-      "std_time": 0.004960721379794608,
+      "mean_time": 0.04210719779366627,
+      "std_time": 0.006911305369058804,
       "mean_initial_cost": 25211.1,
-      "std_initial_cost": 477.2128351165756,
+      "std_initial_cost": 503.0264958782544,
       "mean_cost": 7548.2,
-      "std_cost": 18.599999999999998,
+      "std_cost": 19.60612149304395,
       "mean_gap": 0.08220631132325643,
-      "std_gap": 0.24661893396976925,
+      "std_gap": 0.25995918182238065,
       "mean_generations": 4.8,
-      "std_generations": 0.39999999999999997,
+      "std_generations": 0.4216370213557839,
       "success_rate": 1.0,
       "backend": "GPU",
       "mean_phase_timings": {
         "crossover": {
-          "total_ms": 24.52100621012505,
+          "total_ms": 28.636858373647556,
           "calls": 4.8,
-          "mean_ms": 5.108542960442719
+          "mean_ms": 5.966012161176574
         },
         "evaluation": {
-          "total_ms": 1.2435777171049267,
+          "total_ms": 1.5246489841956645,
           "calls": 5.8,
-          "mean_ms": 0.21440995122498738
+          "mean_ms": 0.2628705145164939
         },
         "host_sync": {
-          "total_ms": 0.12767960724886507,
+          "total_ms": 0.1505922118667513,
           "calls": 10.6,
-          "mean_ms": 0.012045245966874063
+          "mean_ms": 0.014206812440259559
         },
         "initialization": {
-          "total_ms": 1.2381442997138947,
+          "total_ms": 1.0828900034539402,
           "calls": 1.0,
-          "mean_ms": 1.2381442997138947
+          "mean_ms": 1.0828900034539402
         },
         "local_search": {
-          "total_ms": 8.415587499621324,
+          "total_ms": 8.839261281536892,
           "calls": 4.8,
-          "mean_ms": 1.7532473957544426
+          "mean_ms": 1.8415127669868525
         },
         "mutation": {
-          "total_ms": 0.5729362979764119,
+          "total_ms": 0.7418432913254946,
           "calls": 4.8,
-          "mean_ms": 0.11936172874508581
+          "mean_ms": 0.15455068569281138
         },
         "selection": {
-          "total_ms": 0.4190509091131389,
+          "total_ms": 0.4741033888421953,
           "calls": 4.8,
-          "mean_ms": 0.08730227273190394
+          "mean_ms": 0.09877153934212402
         },
         "survival": {
-          "total_ms": 0.32265850459225476,
+          "total_ms": 0.39916791720315814,
           "calls": 4.8,
-          "mean_ms": 0.06722052179005308
+          "mean_ms": 0.08315998275065795
         }
       },
       "phase_share_pct": {
-        "crossover": 65.93158709972798,
-        "evaluation": 3.392479868468569,
-        "host_sync": 0.3460318323958339,
-        "initialization": 3.2745068018351082,
-        "local_search": 22.891995721954128,
-        "mutation": 1.5582111207318354,
-        "selection": 1.1439362581964065,
-        "survival": 0.8758189833499136
+        "crossover": 67.54659975701986,
+        "evaluation": 3.684941852139198,
+        "host_sync": 0.36379256385738235,
+        "initialization": 2.6261161570228007,
+        "local_search": 21.28123187063722,
+        "mutation": 1.7837350268795995,
+        "selection": 1.1335580247683477,
+        "survival": 0.9597524386514186
       },
       "phase_share_cv_pct": {
-        "crossover": 3.4137458308567474,
-        "evaluation": 10.736254939205061,
-        "host_sync": 11.815689700439064,
-        "initialization": 37.057857837925724,
-        "local_search": 8.761652930614773,
-        "mutation": 12.781858383761936,
-        "selection": 14.200591010981054,
-        "survival": 10.83209304272416
+        "crossover": 5.245985164252003,
+        "evaluation": 17.6640987406801,
+        "host_sync": 16.62041001985872,
+        "initialization": 23.252525148326516,
+        "local_search": 10.610345517399347,
+        "mutation": 12.347276853039505,
+        "selection": 9.797779825855356,
+        "survival": 13.664229884545156
       },
       "algorithm_config": {
         "population_size": 256,
@@ -373,79 +373,79 @@
       }
     },
     "FullGPUModular": {
-      "mean_time": 0.014655152297927998,
-      "std_time": 0.0012133499071881944,
+      "mean_time": 0.015834222896955907,
+      "std_time": 0.0012212169787576468,
       "mean_initial_cost": 25211.1,
-      "std_initial_cost": 477.2128351165756,
+      "std_initial_cost": 503.0264958782544,
       "mean_cost": 7559.8,
-      "std_cost": 27.150690598951623,
+      "std_cost": 28.619340779736117,
       "mean_gap": 0.23601166799257486,
-      "std_gap": 0.3599932458094885,
+      "std_gap": 0.37946619967828316,
       "mean_generations": 4.6,
-      "std_generations": 0.4898979485566356,
+      "std_generations": 0.5163977794943222,
       "success_rate": 1.0,
       "backend": "GPU",
       "mean_phase_timings": {
         "crossover": {
-          "total_ms": 1.1852874042233452,
+          "total_ms": 1.410417287843302,
           "calls": 4.6,
-          "mean_ms": 0.25767117483116203
+          "mean_ms": 0.3066124538789787
         },
         "evaluation": {
-          "total_ms": 0.6996266893111169,
+          "total_ms": 0.7908310100901872,
           "calls": 5.6,
-          "mean_ms": 0.12493333737698517
+          "mean_ms": 0.1412198232303906
         },
         "host_sync": {
-          "total_ms": 6.1476741975639015,
+          "total_ms": 6.187012750888243,
           "calls": 10.2,
-          "mean_ms": 0.602713156623912
+          "mean_ms": 0.6065698775380631
         },
         "initialization": {
-          "total_ms": 1.3084369915304706,
+          "total_ms": 1.1396404937840998,
           "calls": 1.0,
-          "mean_ms": 1.3084369915304706
+          "mean_ms": 1.1396404937840998
         },
         "local_search": {
-          "total_ms": 1.2286065088119358,
+          "total_ms": 1.315036287996918,
           "calls": 4.6,
-          "mean_ms": 0.2670883714808556
+          "mean_ms": 0.2858774539123735
         },
         "mutation": {
-          "total_ms": 1.411237398860976,
+          "total_ms": 1.6298757924232632,
           "calls": 4.6,
-          "mean_ms": 0.30679073888282093
+          "mean_ms": 0.35432082443983987
         },
         "selection": {
-          "total_ms": 1.0608707030769438,
+          "total_ms": 1.3754849904216826,
           "calls": 4.6,
-          "mean_ms": 0.23062406588629214
+          "mean_ms": 0.2990184761786267
         },
         "survival": {
-          "total_ms": 1.374294701963663,
+          "total_ms": 1.6984930902253836,
           "calls": 4.6,
-          "mean_ms": 0.29875971781818766
+          "mean_ms": 0.36923762830986606
         }
       },
       "phase_share_pct": {
-        "crossover": 8.08830660497151,
-        "evaluation": 4.7875822556092995,
-        "host_sync": 41.93075665028373,
-        "initialization": 8.97469950544461,
-        "local_search": 8.406762028710244,
-        "mutation": 9.608640468793201,
-        "selection": 7.21336450901517,
-        "survival": 9.360551877136814
+        "crossover": 8.907642908424776,
+        "evaluation": 5.026128108877065,
+        "host_sync": 38.973285960767875,
+        "initialization": 7.275682911267866,
+        "local_search": 8.325069075639146,
+        "mutation": 10.291584882478343,
+        "selection": 8.677196742866583,
+        "survival": 10.71312257218187
       },
       "phase_share_cv_pct": {
-        "crossover": 6.5495344585864865,
-        "evaluation": 6.134432883925842,
-        "host_sync": 5.4206849177755485,
-        "initialization": 41.28375429026096,
-        "local_search": 8.35137868859074,
-        "mutation": 5.3436175870292795,
-        "selection": 7.502264946902029,
-        "survival": 11.045814464813029
+        "crossover": 6.173558089894066,
+        "evaluation": 13.761377718144988,
+        "host_sync": 6.51578624930373,
+        "initialization": 20.568853569532436,
+        "local_search": 8.475425485036107,
+        "mutation": 5.177139650741022,
+        "selection": 7.847559994619095,
+        "survival": 5.774293385267697
       },
       "algorithm_config": {
         "population_size": 256,

@@ -1,0 +1,456 @@
+{
+  "problem_info": {
+    "name": "att532",
+    "size": 532,
+    "optimal_cost": 27686.0,
+    "problem_id": 3,
+    "tsplib_name": "att532",
+    "problem_type": "TSP",
+    "dimension": 532,
+    "edge_type": "ATT",
+    "edge_weight_type": "ATT",
+    "edge_weight_format": null,
+    "is_symmetric": true,
+    "comment": "532-city problem (Padberg/Rinaldi)",
+    "capacity": null,
+    "has_coordinates": true,
+    "has_display_coords": false,
+    "has_explicit_matrix": false,
+    "has_solution": false,
+    "source_file": "datasets_raw/problems/tsp/att532.tsp",
+    "file_checksum": "ac1707613da7f07e65604dbfb52bdbcfe572747f01e776cc82d39659b52b18fc"
+  },
+  "algorithms": {
+    "HybridNaive": {
+      "mean_time": 281.06494270769764,
+      "std_time": 76.98321100442975,
+      "mean_initial_cost": 481453.5,
+      "std_initial_cost": 3095.140649135518,
+      "mean_cost": 28031.7,
+      "std_cost": 96.90918251214596,
+      "mean_gap": 1.2486455248139854,
+      "std_gap": 0.3500295546924292,
+      "mean_generations": 232.16666666666666,
+      "std_generations": 63.79767768626786,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 14633.347077809352,
+          "calls": 232.16666666666666,
+          "mean_ms": 63.02949207958085
+        },
+        "evaluation": {
+          "total_ms": 338.14921399268013,
+          "calls": 233.16666666666666,
+          "mean_ms": 1.4502468076884065
+        },
+        "host_sync": {
+          "total_ms": 5.293195523942511,
+          "calls": 345.2,
+          "mean_ms": 0.01533370661628769
+        },
+        "initialization": {
+          "total_ms": 4.717128000144537,
+          "calls": 1.0,
+          "mean_ms": 4.717128000144537
+        },
+        "local_search": {
+          "total_ms": 265919.8695631697,
+          "calls": 232.16666666666666,
+          "mean_ms": 1145.3835013489004
+        },
+        "mutation": {
+          "total_ms": 63.36643470373625,
+          "calls": 232.16666666666666,
+          "mean_ms": 0.2729351099945567
+        },
+        "selection": {
+          "total_ms": 39.02513667708263,
+          "calls": 232.16666666666666,
+          "mean_ms": 0.16809104096374428
+        },
+        "survival": {
+          "total_ms": 51.84512792232757,
+          "calls": 232.16666666666666,
+          "mean_ms": 0.22330995515718982
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 5.205516613330156,
+        "evaluation": 0.1208225178494988,
+        "host_sync": 0.0019272680493318225,
+        "initialization": 0.0018001205608021793,
+        "local_search": 94.61178588290285,
+        "mutation": 0.022483682084008572,
+        "selection": 0.013862562637746757,
+        "survival": 0.018473879182127787
+      },
+      "phase_share_cv_pct": {
+        "crossover": 7.229467972818042,
+        "evaluation": 5.441658492563676,
+        "host_sync": 12.49629297284997,
+        "initialization": 37.64322608708074,
+        "local_search": 0.40876949261424544,
+        "mutation": 9.364394861466142,
+        "selection": 6.420128044269995,
+        "survival": 8.140951007208256
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": false
+          },
+          "selection": {
+            "class": "SelectionTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverOrder"
+          },
+          "mutation": {
+            "class": "MutationSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "max_iterations": 10,
+            "mode": "naive",
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationCPUCost"
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionTournament",
+        "crossover": "CrossoverOrder",
+        "mutation": "MutationSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationCPUCost"
+      }
+    },
+    "HybridOptimized": {
+      "mean_time": 14.720981019898318,
+      "std_time": 5.26535573740526,
+      "mean_initial_cost": 481453.5,
+      "std_initial_cost": 3095.140649135518,
+      "mean_cost": 27981.533333333333,
+      "std_cost": 57.22233307283837,
+      "mean_gap": 1.067446844373811,
+      "std_gap": 0.20668328062139116,
+      "mean_generations": 177.2,
+      "std_generations": 64.71390619621423,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 11042.551725476127,
+          "calls": 177.2,
+          "mean_ms": 62.316883326614715
+        },
+        "evaluation": {
+          "total_ms": 62.85069561757458,
+          "calls": 178.2,
+          "mean_ms": 0.3526975062714623
+        },
+        "host_sync": {
+          "total_ms": 4.917937959544361,
+          "calls": 291.53333333333336,
+          "mean_ms": 0.016869213215907935
+        },
+        "initialization": {
+          "total_ms": 4.5878901980662095,
+          "calls": 1.0,
+          "mean_ms": 4.5878901980662095
+        },
+        "local_search": {
+          "total_ms": 3473.225198146732,
+          "calls": 177.2,
+          "mean_ms": 19.60059366899962
+        },
+        "mutation": {
+          "total_ms": 48.87861105768631,
+          "calls": 177.2,
+          "mean_ms": 0.2758386628537602
+        },
+        "selection": {
+          "total_ms": 31.433500865629565,
+          "calls": 177.2,
+          "mean_ms": 0.17738995973831584
+        },
+        "survival": {
+          "total_ms": 45.305007515707985,
+          "calls": 177.2,
+          "mean_ms": 0.2556715999757787
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 74.85640378662566,
+        "evaluation": 0.4266379505491739,
+        "host_sync": 0.034445294762954465,
+        "initialization": 0.035034496834745174,
+        "local_search": 23.741985697229403,
+        "mutation": 0.3305822027668327,
+        "selection": 0.2184147981143684,
+        "survival": 0.3072909250327059
+      },
+      "phase_share_cv_pct": {
+        "crossover": 1.441877156906282,
+        "evaluation": 4.527480660537159,
+        "host_sync": 9.646713054491876,
+        "initialization": 46.737527659718246,
+        "local_search": 4.567660587748142,
+        "mutation": 4.342009598395299,
+        "selection": 35.821926148260076,
+        "survival": 2.3011088505689123
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": false
+          },
+          "selection": {
+            "class": "SelectionTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverOrder"
+          },
+          "mutation": {
+            "class": "MutationSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "max_iterations": 10,
+            "mode": "batch",
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": false,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionTournament",
+        "crossover": "CrossoverOrder",
+        "mutation": "MutationSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "FullGPUModular": {
+      "mean_time": 3.393200757166293,
+      "std_time": 0.9606567468016153,
+      "mean_initial_cost": 481453.5,
+      "std_initial_cost": 3095.140649135518,
+      "mean_cost": 27999.933333333334,
+      "std_cost": 78.54975727407495,
+      "mean_gap": 1.1339064268342607,
+      "std_gap": 0.28371652558721006,
+      "mean_generations": 194.4,
+      "std_generations": 59.84670071279533,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 50.94089990016073,
+          "calls": 194.4,
+          "mean_ms": 0.26204166615309016
+        },
+        "evaluation": {
+          "total_ms": 16.947137482929975,
+          "calls": 195.4,
+          "mean_ms": 0.08673048865368461
+        },
+        "host_sync": {
+          "total_ms": 3088.374655098111,
+          "calls": 311.9,
+          "mean_ms": 9.901810372228635
+        },
+        "initialization": {
+          "total_ms": 4.620272064736734,
+          "calls": 1.0,
+          "mean_ms": 4.620272064736734
+        },
+        "local_search": {
+          "total_ms": 46.15955307187202,
+          "calls": 194.4,
+          "mean_ms": 0.23744626065777785
+        },
+        "mutation": {
+          "total_ms": 60.5159426049795,
+          "calls": 194.4,
+          "mean_ms": 0.3112960010544213
+        },
+        "selection": {
+          "total_ms": 51.27873775005961,
+          "calls": 194.4,
+          "mean_ms": 0.26377951517520376
+        },
+        "survival": {
+          "total_ms": 67.25861714803614,
+          "calls": 194.4,
+          "mean_ms": 0.34598054088495955
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 1.4922170836601831,
+        "evaluation": 0.4984775458878105,
+        "host_sync": 91.05673711972493,
+        "initialization": 0.14715381813146922,
+        "local_search": 1.364697066597647,
+        "mutation": 1.7727010761148987,
+        "selection": 1.4879762676561588,
+        "survival": 1.9711832277911714
+      },
+      "phase_share_cv_pct": {
+        "crossover": 7.3511769802419895,
+        "evaluation": 7.341577234285911,
+        "host_sync": 0.7797189105413559,
+        "initialization": 38.441332093734054,
+        "local_search": 7.666948298502449,
+        "mutation": 6.647334517091867,
+        "selection": 13.383848756282463,
+        "survival": 8.204153880939273
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "max_iterations": 10,
+            "mode": "batch",
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "att532",
+    "optimal_cost": 27686.0,
+    "baseline_algorithm": "HybridNaive",
+    "friedman_test": {
+      "statistic": 7.4117647058823755,
+      "p_value": 0.024578520866883384,
+      "significant": true,
+      "post_hoc_required": true
+    },
+    "nemenyi_posthoc": {
+      "critical_distance": 0.6051408893026756,
+      "mean_ranks": {
+        "HybridNaive": 2.15,
+        "HybridOptimized": 1.6,
+        "FullGPUModular": 2.25
+      },
+      "algorithm_names": [
+        "HybridNaive",
+        "HybridOptimized",
+        "FullGPUModular"
+      ],
+      "significant_pairs": [
+        {
+          "algorithm_i": "HybridOptimized",
+          "algorithm_j": "FullGPUModular",
+          "p_value": 0.031711951203976185,
+          "rank_difference": 0.6499999999999999
+        }
+      ]
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.044907576017742194,
+        "mean_difference": 50.166666666666664,
+        "ci_95_lower": 6.096550252382514,
+        "ci_95_upper": 94.23678308095081,
+        "cohens_d": 0.6303970704076256,
+        "normality_p_value_a": 0.0009434141300400675,
+        "normality_p_value_b": 4.325351061960819e-06,
+        "p_value_corrected": 0.13472272805322658,
+        "significant_after_correction": false,
+        "effect_interpretation": "medium"
+      },
+      {
+        "comparison": "HybridNaive vs FullGPUModular",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.4715798484920406,
+        "mean_difference": 31.766666666666666,
+        "ci_95_lower": -11.909984292027005,
+        "ci_95_upper": 75.44331762536034,
+        "cohens_d": 0.3601318705527721,
+        "normality_p_value_a": 0.0009434141300400675,
+        "normality_p_value_b": 0.00021675354028287863,
+        "p_value_corrected": 0.4715798484920406,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPUModular",
+        "test_used": "wilcoxon_signed_rank",
+        "p_value": 0.1879785723324192,
+        "mean_difference": -18.4,
+        "ci_95_lower": -55.404139520282506,
+        "ci_95_upper": 18.60413952028251,
+        "cohens_d": -0.2677591127914479,
+        "normality_p_value_a": 4.325351061960819e-06,
+        "normality_p_value_b": 0.00021675354028287863,
+        "p_value_corrected": 0.3759571446648384,
+        "significant_after_correction": false,
+        "effect_interpretation": "small"
+      }
+    ]
+  }
+}

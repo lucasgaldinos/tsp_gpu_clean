@@ -16,45 +16,44 @@ import logging
 import sys
 from pathlib import Path
 
+from benchmarking.logging_config import setup_benchmark_logging
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 
-# Target 10 TSPLIB benchmark instances
+# Target 10 TSPLIB benchmark instances (48 <= n < 400; micro-instances n < 48 removed)
 SELECTED_PROBLEMS: tuple[str, ...] = (
   "att48",
-  "bayg29",
-  "bays29",
   "berlin52",
-  "brg180",
-  "gr17",
-  "gr21",
-  "gr24",
-  "gr48",
+  "st70",
+  "eil76",
   "gr96",
+  "kroA100",
+  "ch150",
+  "brg180",
+  "pr264",
+  "lin318",
 )
 
 # Experiment parameters
 PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 CONFIG_DIR: Path = PROJECT_ROOT / "configs"
 DB_PATH: Path = PROJECT_ROOT / "datasets" / "tsp.duckdb"
-REPETITIONS: int = 10
+REPETITIONS: int = 5
+CPU_SIZE_THRESHOLD: int = 400
+BASELINE_ALGORITHM: str = "CPU"
 SKIP_CPU: bool = False
 OUTPUT_DIR: Path = PROJECT_ROOT / "results_v3" / "selected_10"
 BENCHMARK_NAME: str = "selected_10_validation"
 
 
-def setup_logging() -> None:
-  """Configure standard INFO logging for benchmark execution."""
-  logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-  )
+def setup_logging() -> Path:
+  """Configure dual-target console and file logging for benchmark execution."""
+  return setup_benchmark_logging(OUTPUT_DIR, BENCHMARK_NAME)
 
 
 def main() -> int:
   """Execute the selected 10 problems benchmark."""
   setup_logging()
-  logging.info("Starting Selected 10 TSPLIB Benchmark...")
+  logging.info("Starting Selected 10 TSPLIB Benchmark (n < 400, CPU uncapped, baseline=CPU, 5 repetitions)...")
 
   run_comprehensive_benchmark(
     config_dir=CONFIG_DIR,
@@ -62,8 +61,11 @@ def main() -> int:
     problem_names=SELECTED_PROBLEMS,
     db_path=DB_PATH,
     repetitions=REPETITIONS,
+    cpu_size_threshold=CPU_SIZE_THRESHOLD,
     skip_cpu=SKIP_CPU,
+    baseline_algorithm=BASELINE_ALGORITHM,
     benchmark_name=BENCHMARK_NAME,
+    incremental_runs=True,
   )
   return 0
 

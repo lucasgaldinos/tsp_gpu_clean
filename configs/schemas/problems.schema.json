@@ -23,7 +23,7 @@
           "name": {
             "type": "string",
             "description": "TSPLIB instance stem used to resolve the database row and the `.tsp` file.",
-            "examples": ["berlin52"]
+            "examples": ["berlin52", "att532", "si535", "gr666"]
           },
           "optimal": {
             "type": "number",
@@ -34,6 +34,22 @@
             "type": "integer",
             "minimum": 1,
             "description": "Number of cities (dimension) of the instance."
+          },
+          "edge_weight_type": {
+            "type": "string",
+            "description": "TSPLIB edge weight type (e.g. EUC_2D, GEO, ATT, EXPLICIT, CEIL_2D)."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Human-readable description or source notes."
+          },
+          "source": {
+            "type": "string",
+            "description": "Canonical origin, literature citation, or reference URL."
+          },
+          "problem_type": {
+            "type": "string",
+            "description": "Problem family identifier (e.g. TSP, ATSP, CVRP)."
           }
         }
       }

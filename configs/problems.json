@@ -46,6 +46,9 @@
   {"name": "fl417", "optimal": 11861, "size": 417},
   {"name": "pr439", "optimal": 107217, "size": 439},
   {"name": "pcb442", "optimal": 50778, "size": 442},
+  {"name": "att532", "optimal": 27686, "size": 532},
+  {"name": "si535", "optimal": 48450, "size": 535},
+  {"name": "gr666", "optimal": 294358, "size": 666},
   {"name": "rat783", "optimal": 8806, "size": 783},
   {"name": "pr1002", "optimal": 259045, "size": 1002}
   ]

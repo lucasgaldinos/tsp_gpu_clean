@@ -109,7 +109,7 @@
               "description": "Monolithic-only alias of the 2-opt pass cap."
             }
           },
-          "additionalProperties": true
+          "additionalProperties": false
         },
         "strategies": {
           "type": "object",
@@ -235,7 +235,7 @@
               "description": "`n` above which the GPU 2-opt scans the tour tile by tile instead of caching it in shared memory (default 11 520)."
             }
           },
-          "additionalProperties": true
+          "additionalProperties": false
         }
       }
     },
@@ -263,6 +263,10 @@
             "evaluation": {
               "$ref": "#/$defs/strategy_slot"
             },
+            "re_evaluate": {
+              "$ref": "#/$defs/strategy_slot",
+              "description": "Evaluation strategy slot required when target='population' to recompute fitness after local search."
+            },
             "elite_count": {
               "type": "integer",
               "minimum": 1,
@@ -279,7 +283,7 @@
               "description": "Target array to refine ('offspring' or 'population')."
             }
           },
-          "additionalProperties": true
+          "additionalProperties": false
         }
       }
     }
