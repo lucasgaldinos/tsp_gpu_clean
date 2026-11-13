@@ -13,7 +13,7 @@ import numpy as np
 from protocols.algorithm_strategies import EvaluationStrategy
 from protocols.backend import require_gpu
 from protocols.types import Fitness
-from utils.gpu_helpers import load_kernel, next_power_of_2
+from utils.gpu_helpers import load_kernel, prev_power_of_2
 from utils.phase_timer import time_strategy
 from utils.route_helpers import ensure_routes_batch, is_gpu_array, to_cpu_batch
 
@@ -49,10 +49,11 @@ class EvaluationCPUCost(StrategyBase, EvaluationStrategy):
     """
     batch_np, _, _ = to_cpu_batch(routes)
     distances: np.ndarray = context.get_cpu_distances()
-    next_cities: np.ndarray = np.roll(batch_np, -1, axis=1)
-    edge_costs: np.ndarray = distances[batch_np, next_cities]
-    costs: Fitness = np.sum(edge_costs, axis=1, dtype=np.float64)
-    return costs
+    flat_dist = distances.ravel()
+    n = distances.shape[1]
+    costs = flat_dist[batch_np[:, :-1] * n + batch_np[:, 1:]].sum(axis=1, dtype=np.float64)
+    costs += flat_dist[batch_np[:, -1] * n + batch_np[:, 0]]
+    return cast("Fitness", costs)
 
 
 class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
@@ -85,7 +86,7 @@ class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
     """
     super().__init__()
     self.return_gpu: bool = return_gpu
-    self.threads_per_block: int = next_power_of_2(threads_per_block, min_val=32, max_val=256)
+    self.threads_per_block: int = prev_power_of_2(threads_per_block, min_val=32, max_val=256)
     self.max_matrix_dimension: int | None = max_matrix_dimension
     self._kernel: Any = None
     self._cached_distances_gpu: Any = None

@@ -120,6 +120,132 @@ def test_time_strategy_uses_device_events_only_when_opted_in(monkeypatch: pytest
   assert strategy.last_elapsed_ms == pytest.approx(4.0)
 
 
+def test_time_strategy_executes_func_exactly_once_on_gpu_success(monkeypatch: pytest.MonkeyPatch) -> None:
+  """WHAT: time_strategy with use_gpu_events=True runs target method exactly once.
+
+  WHY: BUG-51 / DP12-27 — Ensure armed CUDA events do not cause double execution.
+  """
+  calls: list[str] = []
+
+  class _FakeEvent:
+    def record(self) -> None:
+      calls.append("record")
+
+    def synchronize(self) -> None:
+      calls.append("synchronize")
+
+  class _FakeCuda:
+    @staticmethod
+    def Event() -> _FakeEvent:
+      calls.append("Event")
+      return _FakeEvent()
+
+    @staticmethod
+    def get_elapsed_time(start: _FakeEvent, end: _FakeEvent) -> float:
+      return 5.0
+
+  class _FakeBackend:
+    cuda = _FakeCuda()
+
+  call_counter = 0
+
+  class _Strategy:
+    use_gpu_events = True
+    last_elapsed_ms: float = 0.0
+
+    @time_strategy
+    def run(self) -> str:
+      nonlocal call_counter
+      call_counter += 1
+      return "done"
+
+  monkeypatch.setattr(phase_timer, "cupy_backend", lambda: _FakeBackend())
+  strat = _Strategy()
+  res = strat.run()
+  assert res == "done"
+  assert call_counter == 1
+  assert strat.last_elapsed_ms == pytest.approx(5.0)
+
+
+def test_time_strategy_gpu_error_propagates_without_replay(monkeypatch: pytest.MonkeyPatch) -> None:
+  """WHAT: An exception raised inside func propagates directly without re-executing func.
+
+  WHY: BUG-51 / DP12-27 — The previous implementation caught all Exception and replayed
+  func(*args, **kwargs) on the CPU path. Side-effectful functions ran twice and exceptions
+  were invoked multiple times.
+  """
+  class _FakeEvent:
+    def record(self) -> None:
+      pass
+
+    def synchronize(self) -> None:
+      pass
+
+  class _FakeCuda:
+    @staticmethod
+    def Event() -> _FakeEvent:
+      return _FakeEvent()
+
+    @staticmethod
+    def get_elapsed_time(start: _FakeEvent, end: _FakeEvent) -> float:
+      return 1.0
+
+  class _FakeBackend:
+    cuda = _FakeCuda()
+
+  call_counter = 0
+
+  class _Strategy:
+    use_gpu_events = True
+    last_elapsed_ms: float = 0.0
+
+    @time_strategy
+    def run(self) -> str:
+      nonlocal call_counter
+      call_counter += 1
+      raise ValueError("deliberate failure inside method")
+
+  monkeypatch.setattr(phase_timer, "cupy_backend", lambda: _FakeBackend())
+  strat = _Strategy()
+  with pytest.raises(ValueError, match="deliberate failure inside method"):
+    strat.run()
+
+  # Must have been called EXACTLY ONCE, not twice!
+  assert call_counter == 1
+
+
+def test_time_strategy_gpu_event_init_failure_falls_back_once(monkeypatch: pytest.MonkeyPatch) -> None:
+  """WHAT: Event creation failure falls back to host clock and executes func once.
+
+  WHY: BUG-51 / DP12-27 — If Event() throws during arming, func executes once via time.perf_counter().
+  """
+  class _BrokenCuda:
+    @staticmethod
+    def Event() -> Any:
+      raise RuntimeError("CUDA driver out of resources")
+
+  class _FakeBackend:
+    cuda = _BrokenCuda()
+
+  call_counter = 0
+
+  class _Strategy:
+    use_gpu_events = True
+    last_elapsed_ms: float = 0.0
+
+    @time_strategy
+    def run(self) -> str:
+      nonlocal call_counter
+      call_counter += 1
+      return "fallback_ok"
+
+  monkeypatch.setattr(phase_timer, "cupy_backend", lambda: _FakeBackend())
+  strat = _Strategy()
+  assert strat.run() == "fallback_ok"
+  assert call_counter == 1
+  assert strat.last_elapsed_ms >= 0.0
+
+
 def test_summary_preserves_first_record_order() -> None:
   """WHAT: phases recorded as mutation, crossover, mutation.
 

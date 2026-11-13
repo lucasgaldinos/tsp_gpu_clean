@@ -74,10 +74,10 @@ class MutationSwap(StrategyBase, MutationStrategy):
     `MutationGPUSwap.mutate_batch` issue identical draws and stay bit-identical
     for the same seed (`SWAP-A`, `DP11-14`).
     """
-    batch_np, was_1d, was_gpu = to_cpu_batch(routes, copy=True)
+    batch_np, was_1d, was_gpu = to_cpu_batch(routes, copy=False)
     low, high = resolve_route_bounds(batch_np.shape[1], context=context, route_sample=batch_np[0])
     if high - low < 2:
-      return restore_routes_shape(batch_np, was_1d, to_gpu=was_gpu)
+      return restore_routes_shape(batch_np if was_gpu else batch_np.copy(), was_1d, to_gpu=was_gpu)
 
     rng: Generator = resolve_rng(context, self.rng)
     probs = rng.random(len(batch_np))
@@ -90,7 +90,7 @@ class MutationSwap(StrategyBase, MutationStrategy):
       context=context,
     )
 
-    out = batch_np.copy()
+    out = batch_np if was_gpu else batch_np.copy()
     active = np.flatnonzero(probs < mutation_rate)
     out[active, pos1[active]], out[active, pos2[active]] = (
       out[active, pos2[active]],

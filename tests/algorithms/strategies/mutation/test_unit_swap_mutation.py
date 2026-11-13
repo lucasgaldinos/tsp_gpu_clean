@@ -121,6 +121,7 @@ def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem)
   np.testing.assert_array_equal(route, original)
 
 
+
 def test_proximity_index_selects_a_candidate_neighbour(berlin52_problem: Problem) -> None:
   """WHAT: `select_proximity_index` on a full tour with `candidate_k=10`.
 
@@ -167,3 +168,52 @@ def test_candidate_k_swap_supports_sparse_cvrp_sub_route(berlin52_problem: Probl
   assert mutated[0] == 0
   assert mutated[-1] == 0
   np.testing.assert_array_equal(route, original)
+
+
+def test_swap_mutation_does_not_mutate_caller_array_in_place() -> None:
+  """WHAT: MutationSwap.mutate_batch does not mutate the input array in place.
+
+  WHY: Task 12.22 (DP12-15) — With copy=False in to_cpu_batch, out must be an independent copy.
+  EXPECTED: The input array remains byte-identical before and after mutate_batch.
+  """
+  routes = np.array(
+    [
+      [0, 1, 2, 3, 4],
+      [4, 3, 2, 1, 0],
+      [1, 2, 0, 3, 4],
+    ],
+    dtype=np.int32,
+  )
+  original = routes.copy()
+
+  mutated = MutationSwap(seed=42).mutate_batch(routes, mutation_rate=1.0)
+
+  # Check input was not modified
+  np.testing.assert_array_equal(routes, original)
+  # Check output is actually mutated and independent
+  assert not np.array_equal(mutated, routes)
+  assert mutated is not routes
+
+
+def test_select_proximity_index_singleton_and_empty_guards() -> None:
+  """WHAT: Test select_proximity_index on singleton slices and degenerate ranges.
+
+  WHY: BUG-54 / DP12-27 — When low == high - 1 and anchor_idx == low, the pool of alternative
+  indices is empty. It must return anchor_idx without raising IndexError/ValueError from rng.choice.
+  When low >= high, it must raise ValueError.
+  """
+  rng = np.random.default_rng(42)
+  route = np.array([0, 1, 2, 3], dtype=np.int32)
+
+  # Singleton slice [1, 2) where anchor_idx == 1 (pool empty) -> returns anchor_idx (1)
+  idx = select_proximity_index(route, anchor_idx=1, low=1, high=2, candidates=None, rng=rng)
+  assert idx == 1
+
+  # Degenerate range low >= high (e.g. low=2, high=2 or low=3, high=2) -> raises ValueError
+  with pytest.raises(ValueError, match="Invalid mutable range"):
+    select_proximity_index(route, anchor_idx=1, low=2, high=2, candidates=None, rng=rng)
+
+  with pytest.raises(ValueError, match="Invalid mutable range"):
+    select_proximity_index(route, anchor_idx=1, low=3, high=2, candidates=None, rng=rng)
+
+

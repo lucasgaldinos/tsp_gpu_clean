@@ -165,6 +165,12 @@ def select_proximity_index(
         if index != anchor_idx and low <= index < high:
           return index
   pool = np.array([index for index in range(low, high) if index != anchor_idx], dtype=np.int64)
+  if pool.size == 0:
+    if low >= high:
+      raise ValueError(f"Invalid mutable range [low, high): [{low}, {high}) is empty or degenerate")
+    if low <= anchor_idx < high:
+      return anchor_idx
+    return low
   return int(rng.choice(pool))
 
 

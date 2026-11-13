@@ -270,6 +270,11 @@ class DatabaseLoader:
       )
 
     matrix_format, is_symmetric, matrix_raw = row
+    if matrix_raw is None:
+      raise InvalidProblemDataError(
+        metadata["name"],
+        f"EXPLICIT edge_type has NULL matrix in edge_weight_matrices for problem_id={metadata['problem_id']}",
+      )
     distances = np.asarray(matrix_raw, dtype=np.int32)
     expected_shape = (metadata["dimension"], metadata["dimension"])
     if distances.shape != expected_shape:

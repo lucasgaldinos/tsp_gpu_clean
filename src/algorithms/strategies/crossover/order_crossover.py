@@ -65,15 +65,20 @@ class CrossoverOrder(StrategyBase, CrossoverStrategy):
       child[-1] = p1[-1]
 
     child[c1 : c2 + 1] = p1[c1 : c2 + 1]
-    in_seg = set(p1[c1 : c2 + 1].tolist())
 
-    child_pos = (c2_rel + 1) % stream_len
-    for i in range(stream_len):
-      p2_pos = stream_start + ((c2_rel + 1 + i) % stream_len)
-      gene = int(p2[p2_pos])
-      if gene not in in_seg:
-        child[stream_start + child_pos] = gene
-        child_pos = (child_pos + 1) % stream_len
+    max_node = max(n, int(p1.max()) + 1, int(p2.max()) + 1)
+    in_seg = np.zeros(max_node, dtype=bool)
+    in_seg[p1[c1 : c2 + 1]] = True
+
+    p2_stream = p2[stream_start : stream_start + stream_len]
+    shift = (c2_rel + 1) % stream_len
+
+    p2_rotated = np.roll(p2_stream, -shift)
+    remaining_genes = p2_rotated[~in_seg[p2_rotated]]
+
+    rotated_positions = (np.arange(stream_len) + shift) % stream_len
+    empty_mask = child[stream_start + rotated_positions] == -1
+    child[stream_start + rotated_positions[empty_mask]] = remaining_genes
 
     return child
 
@@ -247,9 +252,7 @@ class CrossoverGPUOrder(StrategyBase, CrossoverStrategy):
     d_offspring = cp.empty((num_routes, n_cities), dtype=cp.int32)
 
     threads_per_block = 256
-    dev_shared_mem = getattr(cp.cuda.Device(), "attributes", {}).get(
-      "MaxSharedMemoryPerBlock", 48 * 1024
-    )
+    dev_shared_mem = getattr(cp.cuda.Device(), "attributes", {}).get("MaxSharedMemoryPerBlock", 48 * 1024)
     while threads_per_block > 32 and (threads_per_block // 32) * n_cities > dev_shared_mem:
       threads_per_block //= 2
     warps_per_block = threads_per_block // 32

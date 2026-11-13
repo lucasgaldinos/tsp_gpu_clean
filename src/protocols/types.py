@@ -14,6 +14,8 @@ import numpy as np
 from numpy.random import Generator
 from numpy.typing import NDArray
 
+from .backend import Array, CupyArray
+
 type SeedLike = int | Sequence[int] | Generator | Callable[[], Generator] | None
 """Random seed integer, integer seed sequence, existing `np.random.Generator`, zero-arg callable factory, or `None`."""
 
@@ -29,8 +31,20 @@ type RouteOrRoutes = Route | Routes
 type Fitness = NDArray[np.float64]
 """1D array of tour costs with shape `(N,)` (lower is better for TSP minimization)."""
 
-type DistanceMatrix = NDArray[np.float64]
-"""2D pairwise distance matrix with shape `(n_cities, n_cities)`."""
+type DistanceMatrix = NDArray[np.int32] | NDArray[np.float64]
+"""2D pairwise distance matrix with shape `(n_cities, n_cities)` (supports integer or float distance metrics)."""
+
+type DeviceRoute = CupyArray
+"""Single tour residing on GPU device memory (`cp.ndarray`)."""
+
+type DeviceRoutes = CupyArray
+"""Batch/population of tours residing on GPU device memory (`cp.ndarray`)."""
+
+type DeviceFitness = CupyArray
+"""1D array of tour costs residing on GPU device memory (`cp.ndarray`)."""
+
+type DeviceDistanceMatrix = CupyArray
+"""2D pairwise distance matrix residing on GPU device memory (`cp.ndarray`)."""
 
 type LocalSearchStage = Literal[
   "post_crossover",
@@ -49,6 +63,12 @@ Pipeline stage in the evolutionary algorithm where `LocalSearchStrategy` is exec
 """
 
 __all__: list[str] = [
+  "Array",
+  "CupyArray",
+  "DeviceDistanceMatrix",
+  "DeviceFitness",
+  "DeviceRoute",
+  "DeviceRoutes",
   "DistanceMatrix",
   "Fitness",
   "LocalSearchStage",

@@ -79,7 +79,7 @@ def test_cpu_cost_evaluation_batch_matches_single_tours() -> None:
 
   WHY: The GA evaluates whole populations; batch and single APIs must agree exactly.
 
-  EXPECTED: float64 costs of shape `(N,)` matching the hand-computed values.
+  EXPECTED: costs of shape `(N,)` with `dtype == np.float64` matching hand-computed values.
   """
   # Arrange
   context = ProblemContext(_tiny_explicit_problem(), xp=np, seed=0)
@@ -97,6 +97,59 @@ def test_cpu_cost_evaluation_batch_matches_single_tours() -> None:
     assert cost == pytest.approx(expected_cost)
   for tour, expected_cost in zip(tours, expected, strict=True):
     assert evaluator.evaluate(tour, context) == pytest.approx(expected_cost)
+
+
+@pytest.mark.parametrize(
+  "matrix_dtype",
+  [np.int32, np.int64, np.float32, np.float64],
+  ids=["int32", "int64", "float32", "float64"],
+)
+def test_cpu_cost_evaluation_returns_float64_fitness_across_dtypes_and_shapes(matrix_dtype: Any) -> None:
+  """WHAT: EvaluationCPUCost always returns float64 Fitness regardless of matrix dtype or shape.
+
+  WHY: Task 12.22 (DP12-15, BUG-40) — Fitness type contract requires NDArray[np.float64].
+  EXPECTED: costs.dtype == np.float64 for 2D batch, 1D tour, and empty batch (N=0).
+  """
+  dist = np.array(
+    [
+      [0, 10, 20, 10],
+      [10, 0, 10, 20],
+      [20, 10, 0, 10],
+      [10, 20, 10, 0],
+    ],
+    dtype=matrix_dtype,
+  )
+  problem = Problem(
+    name="dtype_test",
+    dimension=4,
+    problem_type="TSP",
+    edge_type="EXPLICIT",
+    coordinates=None,
+    distances=dist,
+    capacity=None,
+    demands=None,
+  )
+  context = ProblemContext(problem, xp=np, seed=0)
+  evaluator = EvaluationCPUCost()
+
+  # 1. Standard batch
+  batch = np.array([[0, 1, 2, 3], [0, 2, 1, 3]], dtype=np.int32)
+  costs = evaluator.evaluate_batch(batch, context)
+  assert costs.dtype == np.float64
+  assert costs.shape == (2,)
+  assert costs[0] == pytest.approx(40.0)
+  assert costs[1] == pytest.approx(60.0)
+
+  # 2. Single 1D route
+  single_cost = evaluator.evaluate(batch[0], context)
+  assert isinstance(single_cost, float)
+  assert single_cost == pytest.approx(40.0)
+
+  # 3. Empty batch (N=0)
+  empty_batch = np.empty((0, 4), dtype=np.int32)
+  empty_costs = evaluator.evaluate_batch(empty_batch, context)
+  assert empty_costs.dtype == np.float64
+  assert empty_costs.shape == (0,)
 
 
 def test_cpu_cost_evaluation_reports_no_transfer_for_host_batch() -> None:

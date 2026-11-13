@@ -3,7 +3,7 @@ Protocols for ISO-algorithmic Genetic Algorithms.
 
 This package defines protocol interfaces for:
 - Problem context (distance matrices, backend selection)
-- Algorithm strategies (evolutionary operators and metaheuristics)
+- Algorithm strategies (evolutionary operators)
 - Standardized route/batch type aliases (`Route`, `Routes`, `RouteOrRoutes`, `Fitness`, `DistanceMatrix`)
 """
 
@@ -12,14 +12,17 @@ from .algorithm_strategies import (
   EvaluationStrategy,
   InitializationStrategy,
   LocalSearchStrategy,
-  MetaheuristicStrategy,
   MutationStrategy,
   SelectionStrategy,
-  ensure_routes_batch,
-  restore_routes_shape,
 )
 from .problem_context import ProblemContext
 from .types import (
+  Array,
+  CupyArray,
+  DeviceDistanceMatrix,
+  DeviceFitness,
+  DeviceRoute,
+  DeviceRoutes,
   DistanceMatrix,
   Fitness,
   LocalSearchStage,
@@ -30,14 +33,19 @@ from .types import (
 )
 
 __all__: list[str] = [
+  "Array",
   "CrossoverStrategy",
+  "CupyArray",
+  "DeviceDistanceMatrix",
+  "DeviceFitness",
+  "DeviceRoute",
+  "DeviceRoutes",
   "DistanceMatrix",
   "EvaluationStrategy",
   "Fitness",
   "InitializationStrategy",
   "LocalSearchStage",
   "LocalSearchStrategy",
-  "MetaheuristicStrategy",
   "MutationStrategy",
   "ProblemContext",
   "Route",
@@ -45,6 +53,4 @@ __all__: list[str] = [
   "Routes",
   "SeedLike",
   "SelectionStrategy",
-  "ensure_routes_batch",
-  "restore_routes_shape",
 ]

@@ -80,7 +80,7 @@ class ProblemContext:
   to avoid redundant O(n²) computations.
 
   **Key Performance Fix:**
-  Before ProblemContext, TspConstructionStrategy.build_tour() was called
+  Before ProblemContext, tour construction heuristics were called
   k times (once per route), each time computing the distance matrix:
       - Total: k x O(m²) redundant work
       - For GPU: k x (CPU→GPU transfer + compute + GPU→CPU transfer)

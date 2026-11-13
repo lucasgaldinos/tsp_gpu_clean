@@ -20,6 +20,39 @@ if TYPE_CHECKING:
   from collections.abc import Callable
 
 
+def _timed_call[**P, R](cp: Any, func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> tuple[R, float]:
+  """Call `func(*args, **kwargs)` exactly once and return `(result, elapsed_ms)`.
+
+  `cp` is the CuPy backend when the caller opted into device events, else `None`.
+  The host clock (`time.perf_counter`) is used only when no device clock is
+  requested or when *arming* the event pair fails - that is, when
+  `cp.cuda.Event()` or `start_evt.record()` raises before `func` ever runs.
+  Once the events are armed, `func`, `end_evt.record()` and
+  `end_evt.synchronize()` are outside any `try`, so an exception propagates
+  immediately instead of replaying `func` on the CPU (`BUG-51` / `DP12-27`).
+  """
+  events: tuple[Any, Any] | None = None
+  if cp is not None:
+    try:
+      start_evt = cp.cuda.Event()
+      end_evt = cp.cuda.Event()
+      start_evt.record()
+      events = (start_evt, end_evt)
+    except Exception:
+      events = None
+
+  if events is None:
+    t0: float = time.perf_counter()
+    result: R = func(*args, **kwargs)
+    return result, (time.perf_counter() - t0) * 1000.0
+
+  armed_start, armed_end = events
+  result = func(*args, **kwargs)
+  armed_end.record()
+  armed_end.synchronize()
+  return result, float(cp.cuda.get_elapsed_time(armed_start, armed_end))
+
+
 class PhaseTimer:
   """Accumulates per-phase execution times (in milliseconds) across generations."""
 
@@ -48,20 +81,8 @@ class PhaseTimer:
     if not self.enabled:
       return func(*args, **kwargs)
 
-    elapsed_ms: float
     cp = cupy_backend() if self.use_cuda_events else None
-    if cp is not None:
-      start_evt = cp.cuda.Event()
-      end_evt = cp.cuda.Event()
-      start_evt.record()
-      result: R = func(*args, **kwargs)
-      end_evt.record()
-      end_evt.synchronize()
-      elapsed_ms = float(cp.cuda.get_elapsed_time(start_evt, end_evt))
-    else:
-      t0: float = time.perf_counter()
-      result = func(*args, **kwargs)
-      elapsed_ms = (time.perf_counter() - t0) * 1000.0
+    result, elapsed_ms = _timed_call(cp, func, *args, **kwargs)
 
     self.record(phase_name, elapsed_ms)
     return result
@@ -107,24 +128,7 @@ def time_strategy[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     self_obj: Any = args[0] if args else None
     cp = cupy_backend() if getattr(self_obj, "use_gpu_events", False) else None
 
-    elapsed_ms: float
-    if cp is not None:
-      try:
-        start_evt = cp.cuda.Event()
-        end_evt = cp.cuda.Event()
-        start_evt.record()
-        result: R = func(*args, **kwargs)
-        end_evt.record()
-        end_evt.synchronize()
-        elapsed_ms = float(cp.cuda.get_elapsed_time(start_evt, end_evt))
-      except Exception:
-        t0: float = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed_ms = (time.perf_counter() - t0) * 1000.0
-    else:
-      t0 = time.perf_counter()
-      result = func(*args, **kwargs)
-      elapsed_ms = (time.perf_counter() - t0) * 1000.0
+    result, elapsed_ms = _timed_call(cp, func, *args, **kwargs)
 
     if self_obj is not None and hasattr(self_obj, "__dict__"):
       self_obj.last_elapsed_ms = elapsed_ms

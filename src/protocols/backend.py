@@ -207,9 +207,7 @@ class GPUCapabilityProbe:
 
       count = cp.cuda.runtime.getDeviceCount()
       if count <= 0:
-        return None, GPUUnavailableError(
-          "CUDA device unavailable: no CUDA-capable device found or driver error."
-        )
+        return None, GPUUnavailableError("CUDA device unavailable: no CUDA-capable device found or driver error.")
       return cp, None
     except Exception as exc:
       return None, GPUUnavailableError(
@@ -265,4 +263,3 @@ __all__ = [
   "gpu_available",
   "require_gpu",
 ]
-

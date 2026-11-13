@@ -64,8 +64,8 @@ def load_kernel(kernel_filename: str, kernel_function_name: str, caller_file_pat
   raise FileNotFoundError(f"Kernel file '{kernel_filename}' not found. Searched locations: {searched}")
 
 
-def next_power_of_2(value: int, min_val: int = 1, max_val: int = 256) -> int:
-  """Round `value` down to a power of 2 in `[min_val, max_val]` for CUDA block/warp sizing."""
+def prev_power_of_2(value: int, min_val: int = 1, max_val: int = 256) -> int:
+  """Round `value` down to the greatest power of 2 in `[min_val, max_val]` for CUDA block/warp sizing."""
   power = 1 << ((max(1, value)).bit_length() - 1)
   return max(min_val, min(power, max_val))
 

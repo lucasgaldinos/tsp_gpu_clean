@@ -165,9 +165,16 @@ def _bundle_from_normalized(
   for zero_idx in range(dimension):
     x_val: float | None = None
     y_val: float | None = None
-    if node_coords is not None and zero_idx < len(node_coords) and len(node_coords[zero_idx]) >= 2:
-      x_val = float(node_coords[zero_idx][0])
-      y_val = float(node_coords[zero_idx][1])
+    if node_coords is not None and zero_idx < len(node_coords):
+      if len(node_coords[zero_idx]) > 2:
+        coord_len = len(node_coords[zero_idx])
+        raise InvalidProblemDataError(
+          instance_name,
+          f"3D coordinates are not supported (found coordinate of length {coord_len} at node {zero_idx})",
+        )
+      if len(node_coords[zero_idx]) == 2:
+        x_val = float(node_coords[zero_idx][0])
+        y_val = float(node_coords[zero_idx][1])
     if edge_type != "EXPLICIT" and x_val is None:
       raise MissingCoordinatesError(instance_name, edge_type)
     demand_val: int = int(demands[zero_idx]) if zero_idx < len(demands) else 0
@@ -391,13 +398,30 @@ def _problem_payload(
 ) -> dict[str, Any]:
   """Build the flat schema-v2 payload `DatabaseManager.insert_problem` consumes."""
   problem_meta: dict[str, Any] = normalized["problem_data"]
+  instance_name: str = tsp_file.stem
   problem_type: str = str(problem_meta.get("type") or "TSP")
   edge_type = str(problem_meta.get("edge_weight_type") or "").upper().strip()
   dimension = int(problem_meta.get("dimension") or 0)
   capacity_raw: Any = problem_meta.get("capacity")
 
+  if edge_type not in VALID_EDGE_TYPES:
+    raise InvalidEdgeTypeError(edge_type)
+  if dimension <= 0:
+    raise InvalidProblemDataError(instance_name, f"Invalid dimension: {dimension}")
+
   coords: list[list[float]] | None = normalized["coords"]
   display_coords: list[list[float]] | None = normalized["display_coords"]
+
+  check_coords = coords if edge_type != "EXPLICIT" else display_coords
+  if check_coords is not None:
+    for zero_idx, pt in enumerate(check_coords):
+      if len(pt) > 2:
+        coord_len = len(pt)
+        raise InvalidProblemDataError(
+          instance_name,
+          f"3D coordinates are not supported (found coordinate of length {coord_len} at node {zero_idx})",
+        )
+
   if edge_type == "EXPLICIT":
     display_coords = coords or display_coords
     coords = None

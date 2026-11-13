@@ -53,21 +53,24 @@ class CrossoverPartiallyMapped(StrategyBase, CrossoverStrategy):
     child: np.ndarray = np.full(size, -1, dtype=np.int32)
     child[start : end + 1] = p1[start : end + 1]
 
-    p2_pos: dict[int, int] = {int(val): idx for idx, val in enumerate(p2)}
-    in_segment = set(p1[start : end + 1].tolist())
+    max_node = max(size, int(p2.max()) + 1, int(p1.max()) + 1)
+    inv_p2 = np.full(max_node, -1, dtype=np.int32)
+    inv_p2[p2] = np.arange(size, dtype=np.int32)
+
+    in_segment = np.zeros(max_node, dtype=bool)
+    in_segment[p1[start : end + 1]] = True
 
     for idx in range(start, end + 1):
       val = int(p2[idx])
-      if val not in in_segment:
+      if not in_segment[val]:
         pos: int = idx
         while start <= pos <= end:
           mapped_val = int(p1[pos])
-          pos = p2_pos[mapped_val]
+          pos = int(inv_p2[mapped_val])
         child[pos] = val
 
-    for idx in range(size):
-      if child[idx] == -1:
-        child[idx] = p2[idx]
+    unmapped = child == -1
+    child[unmapped] = p2[unmapped]
 
     return child
 

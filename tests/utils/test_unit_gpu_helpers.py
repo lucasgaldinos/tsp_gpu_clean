@@ -140,6 +140,44 @@ def test_load_kernel_reports_every_searched_location(tmp_path: Path, monkeypatch
   assert compiler.calls == []
 
 
+@pytest.mark.parametrize(
+  ("value", "min_val", "max_val", "expected"),
+  [
+    # Edge cases <= 0
+    pytest.param(-10, 1, 256, 1, id="negative-clamped-min"),
+    pytest.param(0, 1, 256, 1, id="zero-clamped-min"),
+    pytest.param(0, 32, 256, 32, id="zero-clamped-custom-min"),
+    # Exact powers of 2
+    pytest.param(1, 1, 256, 1, id="one"),
+    pytest.param(2, 1, 256, 2, id="two"),
+    pytest.param(4, 1, 256, 4, id="four"),
+    pytest.param(32, 1, 256, 32, id="thirty-two"),
+    pytest.param(256, 1, 256, 256, id="two-fifty-six"),
+    # Non-powers of 2 (must round DOWN to greatest power of 2 <= value)
+    pytest.param(3, 1, 256, 2, id="three-rounds-down-to-two"),
+    pytest.param(5, 1, 256, 4, id="five-rounds-down-to-four"),
+    pytest.param(7, 1, 256, 4, id="seven-rounds-down-to-four"),
+    pytest.param(48, 1, 256, 32, id="forty-eight-rounds-down-to-thirty-two"),
+    pytest.param(50, 1, 256, 32, id="fifty-rounds-down-to-thirty-two"),
+    pytest.param(100, 1, 256, 64, id="hundred-rounds-down-to-sixty-four"),
+    pytest.param(255, 1, 256, 128, id="two-fifty-five-rounds-down-to-one-twenty-eight"),
+    # Bounds clamping (min_val and max_val)
+    pytest.param(10, 16, 256, 16, id="value-below-min-clamps-to-min"),
+    pytest.param(500, 1, 256, 256, id="value-above-max-clamps-to-max"),
+    pytest.param(1024, 1, 512, 512, id="custom-max-clamp"),
+  ],
+)
+def test_prev_power_of_2_semantics_and_bounds(value: int, min_val: int, max_val: int, expected: int) -> None:
+  """WHAT: Verifies prev_power_of_2 floor rounding and boundary clamping.
+
+  WHY: BUG-52 / DP12-27 — Rounding down to the greatest power of 2 <= value prevents
+  allocating excess CUDA threads and respects shared memory / warp block limits.
+  """
+  from utils.gpu_helpers import prev_power_of_2
+
+  assert prev_power_of_2(value, min_val, max_val) == expected
+
+
 @pytest.mark.gpu
 def test_compile_kernel_cache_reuses_the_compiled_kernel(tmp_path: Path) -> None:
   """WHAT: two `_compile_kernel_cached` calls for the same kernel path and function name.

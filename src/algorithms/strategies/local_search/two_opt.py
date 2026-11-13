@@ -36,7 +36,7 @@ import numpy as np
 
 from protocols.algorithm_strategies import LocalSearchStrategy
 from protocols.backend import require_gpu
-from utils.gpu_helpers import load_kernel, next_power_of_2
+from utils.gpu_helpers import load_kernel, prev_power_of_2
 from utils.phase_timer import time_strategy
 from utils.route_helpers import (
   ensure_routes_batch,
@@ -49,8 +49,6 @@ from utils.route_helpers import (
 from ..base import StrategyBase
 
 if TYPE_CHECKING:
-  from collections.abc import Iterator
-
   from protocols.problem_context import ProblemContext
   from protocols.types import Route, RouteOrRoutes
 
@@ -200,7 +198,7 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
   """
   CPU 2-opt local search with a selectable acceptance rule.
 
-  All three modes walk the same neighbourhood (`_iter_moves`): the upper triangle of
+  All three modes walk the same neighbourhood: the upper triangle of
   edge pairs, or the `k` nearest neighbours of each node when `candidate_k` is set.
   They differ only in which improving move is applied:
 
@@ -235,21 +233,58 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     self.max_iterations: int = max_iterations
     self.candidate_k: int | None = candidate_k
 
-  def _iter_moves(
-    self,
-    tour: np.ndarray,
-    distances: np.ndarray,
-    candidates: np.ndarray | None,
-  ) -> Iterator[tuple[int, int, float]]:
-    """Yield `(i, j, delta)` for every admissible 2-opt edge pair of `tour`.
+  def _step_best(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
+    """Apply the single steepest improving move; return whether one was applied."""
+    n: int = len(tour)
+    best_delta: int = 0
+    best_i: int = -1
+    best_j: int = -1
 
-    The exhaustive branch walks the upper triangle `i + 2 <= j <= n - 1` and skips the
-    wrap-around pair `(0, n - 1)`; it carries `c` over from the previous iteration
-    because `tour[j + 1]` of one step is `tour[j]` of the next (`Task 10.16`).
+    if candidates is None:
+      for i in range(n - 2):
+        a: int = int(tour[i])
+        b: int = int(tour[i + 1])
+        d_ab: int = int(distances[a, b])
+        c: int = int(tour[i + 2])
+        limit_j = n - 1 if i == 0 else n
+        for j in range(i + 2, limit_j):
+          d: int = int(tour[(j + 1) % n])
+          delta: int = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
+          if delta < best_delta:
+            best_delta = delta
+            best_i = i
+            best_j = j
+          c = d
+    else:
+      pos: np.ndarray = inverse_positions(tour)
+      neighbors: int = int(candidates.shape[1])
+      for i in range(n - 2):
+        a = int(tour[i])
+        b = int(tour[i + 1])
+        d_ab = int(distances[a, b])
+        limit_j = n - 1 if i == 0 else n
+        for r in range(neighbors):
+          neighbor = int(candidates[a, r])
+          if neighbor < 0 or neighbor >= pos.size:
+            continue
+          j = int(pos[neighbor])
+          if j <= i + 1 or j >= limit_j:
+            continue
+          c = int(tour[j])
+          d = int(tour[(j + 1) % n])
+          delta = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
+          if delta < best_delta:
+            best_delta = delta
+            best_i = i
+            best_j = j
 
-    With a candidate table `N_k`, each row `i` scans only `N_k[tour[i], :]` and maps
-    each neighbour `v` to its tour position `j = pos[v]` (`Theta(n * k)` per pass).
-    """
+    if best_delta < 0:
+      tour[best_i + 1 : best_j + 1] = tour[best_i + 1 : best_j + 1][::-1]
+      return True
+    return False
+
+  def _step_first(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
+    """Apply the first improving move found; return whether one was applied."""
     n: int = len(tour)
     if candidates is None:
       for i in range(n - 2):
@@ -257,15 +292,15 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
         b: int = int(tour[i + 1])
         d_ab: int = int(distances[a, b])
         c: int = int(tour[i + 2])
-        for j in range(i + 2, n):
+        limit_j = n - 1 if i == 0 else n
+        for j in range(i + 2, limit_j):
           d: int = int(tour[(j + 1) % n])
-          if i == 0 and j == n - 1:
-            c = d
-            continue
-          delta: float = float(distances[a, c] + distances[b, d]) - float(d_ab + distances[c, d])
-          yield i, j, delta
+          delta: int = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
+          if delta < 0:
+            tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
+            return True
           c = d
-      return
+      return False
 
     pos: np.ndarray = inverse_positions(tour)
     neighbors: int = int(candidates.shape[1])
@@ -273,46 +308,61 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
       a = int(tour[i])
       b = int(tour[i + 1])
       d_ab = int(distances[a, b])
+      limit_j = n - 1 if i == 0 else n
       for r in range(neighbors):
         neighbor = int(candidates[a, r])
         if neighbor < 0 or neighbor >= pos.size:
           continue
         j = int(pos[neighbor])
-        if j < 0 or j <= i + 1 or (i == 0 and j == n - 1):
+        if j <= i + 1 or j >= limit_j:
           continue
         c = int(tour[j])
         d = int(tour[(j + 1) % n])
-        delta = float(distances[a, c] + distances[b, d]) - float(d_ab + distances[c, d])
-        yield i, j, delta
-
-  def _step_best(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
-    """Apply the single steepest improving move; return whether one was applied."""
-    best_delta: float = 0.0
-    best_i: int = -1
-    best_j: int = -1
-    for i, j, delta in self._iter_moves(tour, distances, candidates):
-      if delta < best_delta - 1e-6:
-        best_delta = delta
-        best_i = i
-        best_j = j
-    if best_delta < -1e-6:
-      tour[best_i + 1 : best_j + 1] = tour[best_i + 1 : best_j + 1][::-1]
-      return True
-    return False
-
-  def _step_first(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
-    """Apply the first improving move found; return whether one was applied."""
-    for i, j, delta in self._iter_moves(tour, distances, candidates):
-      if delta < -1e-6:
-        tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
-        return True
+        delta = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
+        if delta < 0:
+          tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
+          return True
     return False
 
   def _step_multi_move(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
     """Apply every mutually disjoint improving move of one scan; return whether any was applied."""
-    moves: list[tuple[float, int, int]] = [
-      (delta, i, j) for i, j, delta in self._iter_moves(tour, distances, candidates) if delta < -1e-6
-    ]
+    n: int = len(tour)
+    moves: list[tuple[int, int, int]] = []
+
+    if candidates is None:
+      for i in range(n - 2):
+        a: int = int(tour[i])
+        b: int = int(tour[i + 1])
+        d_ab: int = int(distances[a, b])
+        c: int = int(tour[i + 2])
+        limit_j = n - 1 if i == 0 else n
+        for j in range(i + 2, limit_j):
+          d: int = int(tour[(j + 1) % n])
+          delta: int = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
+          if delta < 0:
+            moves.append((delta, i, j))
+          c = d
+    else:
+      pos: np.ndarray = inverse_positions(tour)
+      neighbors: int = int(candidates.shape[1])
+      for i in range(n - 2):
+        a = int(tour[i])
+        b = int(tour[i + 1])
+        d_ab = int(distances[a, b])
+        limit_j = n - 1 if i == 0 else n
+        for r in range(neighbors):
+          neighbor = int(candidates[a, r])
+          if neighbor < 0 or neighbor >= pos.size:
+            continue
+          j = int(pos[neighbor])
+          if j <= i + 1 or j >= limit_j:
+            continue
+          c = int(tour[j])
+          d = int(tour[(j + 1) % n])
+          delta = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
+          if delta < 0:
+            moves.append((delta, i, j))
+
     if not moves:
       return False
 
@@ -508,7 +558,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     distances_gpu = cp.asarray(distances_cpu, dtype=cp.int32)
     self.h2d_bytes += int(distances_cpu.nbytes)
 
-    threads_per_block: int = next_power_of_2(min(256, max(1, n - 2)), min_val=1, max_val=256)
+    threads_per_block: int = prev_power_of_2(min(256, max(1, n - 2)), min_val=1, max_val=256)
     shared_mem = (
       threads_per_block * 4  # s_deltas (int32)
       + threads_per_block * 4  # s_swap_i (int32)
@@ -559,9 +609,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       context, n, self.max_matrix_dimension
     )
     self.h2d_bytes += uploaded_bytes
-    block_size: int = next_power_of_2(
-      min(self.threads_per_block, max(1, n - 2)), min_val=1, max_val=256
-    )
+    block_size: int = prev_power_of_2(min(self.threads_per_block, max(1, n - 2)), min_val=1, max_val=256)
     tile_size: int = self._tile_size(n)
 
     # Candidate-list mode (`DP10-20`): bind the context-owned `N_k` once and let each
@@ -576,9 +624,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       candidate_count = int(d_candidates.shape[1])
       d_positions = cp.empty((batch_size, n), dtype=cp.int32)
 
-    shared_mem: int = _shared_mem_bytes(
-      block_size, n, tile_size, use_candidates=candidate_count > 0
-    )
+    shared_mem: int = _shared_mem_bytes(block_size, n, tile_size, use_candidates=candidate_count > 0)
 
     kernel = self._get_kernel()
     for _ in range(self.max_iterations):
