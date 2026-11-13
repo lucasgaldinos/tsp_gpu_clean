@@ -11,10 +11,13 @@ unknown optimals, and exact integer formulas.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 
+import jsonschema  # type: ignore[import-untyped]
 import pytest
 
 from benchmarking.runner.algorithm_runner import adaptive_generations, adaptive_patience
@@ -25,10 +28,6 @@ from benchmarking.runner.config_loader import (
   load_all_configs,
   validate_configs,
 )
-
-if TYPE_CHECKING:
-  from pathlib import Path
-
 
 # ============================================================================
 # Helpers
@@ -333,3 +332,271 @@ def test_adaptive_patience_formula(n: int, expected: int) -> None:
   # Act / Assert
   assert adaptive_patience(n) == expected
   assert adaptive_patience(n) == int(2 * math.sqrt(n))
+
+
+# ============================================================================
+# Formal JSON Schema Validation (Task 12.17, DP12-10)
+# ============================================================================
+
+CONFIGS_DIR = Path(__file__).resolve().parents[2] / "configs"
+SCHEMAS_DIR = CONFIGS_DIR / "schemas"
+
+
+@pytest.mark.parametrize(
+  ("config_filename", "schema_filename"),
+  [
+    ("benchmark.json", "benchmark.schema.json"),
+    ("problems.json", "problems.schema.json"),
+    ("algorithms.json", "algorithms.schema.json"),
+    ("algorithms.full.example.json", "algorithms.schema.json"),
+    ("algorithms.archive.json", "algorithms.schema.json"),
+  ],
+)
+def test_all_json_configs_validate_against_their_schemas(
+  config_filename: str,
+  schema_filename: str,
+) -> None:
+  """WHAT: Every production and example config file validates against its JSON Schema.
+
+  WHY: Task 12.17 (DP12-10) — Ensures strict structural conformity across all config
+  files and prevents schema drift between configuration files and dataclasses.
+  EXPECTED: jsonschema.validate completes without raising ValidationError.
+  """
+  config_path = CONFIGS_DIR / config_filename
+  schema_path = SCHEMAS_DIR / schema_filename
+
+  config_data = json.loads(config_path.read_text(encoding="utf-8"))
+  schema_data = json.loads(schema_path.read_text(encoding="utf-8"))
+
+  jsonschema.validate(instance=config_data, schema=schema_data)
+
+
+@pytest.mark.parametrize(
+  ("mutation_fn", "error_match"),
+  [
+    (lambda d: d.update({"repetitions": 0}), "0 is less than the minimum of 1"),
+    (lambda d: d.update({"patience": 0}), "0 is less than the minimum of 1"),
+    (lambda d: d.update({"cpu_size_threshold": 0}), "0 is less than the minimum of 1"),
+    (lambda d: d.update({"spurious_field": 123}), "Additional properties are not allowed"),
+    (lambda d: d.pop("repetitions"), "'repetitions' is a required property"),
+  ],
+)
+def test_benchmark_schema_rejects_invalid_payloads(
+  mutation_fn: Any,
+  error_match: str,
+) -> None:
+  """WHAT: benchmark.schema.json rejects malformed or invalid benchmark configs.
+
+  WHY: Task 12.17 — Strict schema validation catches erroneous bounds and spurious fields.
+  EXPECTED: jsonschema.ValidationError raised with matching diagnostic error message.
+  """
+  base = json.loads((CONFIGS_DIR / "benchmark.json").read_text(encoding="utf-8"))
+  mutation_fn(base)
+  schema = json.loads((SCHEMAS_DIR / "benchmark.schema.json").read_text(encoding="utf-8"))
+
+  with pytest.raises(jsonschema.ValidationError, match=error_match):
+    jsonschema.validate(instance=base, schema=schema)
+
+
+
+@pytest.mark.parametrize(
+  ("mutation_fn", "error_match"),
+  [
+    (lambda d: d.update({"problems": []}), "should be non-empty|is too short"),
+    (lambda d: d["problems"][0].update({"size": 0}), "0 is less than the minimum of 1"),
+    (lambda d: d["problems"][0].update({"optimal": 0}), "0 is less than or equal to the minimum of 0"),
+    (lambda d: d["problems"][0].update({"optimal": -5}), "less than or equal to the minimum"),
+    (lambda d: d["problems"][0].update({"spurious": True}), "Additional properties are not allowed"),
+    (lambda d: d["problems"][0].pop("name"), "'name' is a required property"),
+  ],
+)
+def test_problems_schema_rejects_invalid_payloads(
+  mutation_fn: Any,
+  error_match: str,
+) -> None:
+  """WHAT: problems.schema.json rejects invalid instance entries.
+
+  WHY: Task 12.17 — Problems catalogue is the single source of truth for instance dimensions and optimals.
+  EXPECTED: jsonschema.ValidationError raised.
+  """
+  base = json.loads((CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
+  mutation_fn(base)
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+
+  with pytest.raises(jsonschema.ValidationError, match=error_match):
+    jsonschema.validate(instance=base, schema=schema)
+
+
+
+@pytest.mark.parametrize(
+  ("mutation_fn", "error_match"),
+  [
+    (lambda d: d["default_params"].update({"population_size": 0}), "0 is less than the minimum of 1"),
+    (lambda d: d["default_params"].update({"mutation_rate": 1.5}), "1.5 is greater than the maximum of 1"),
+    (
+      lambda d: d["algorithm_configs"]["CPU"]["strategies"]["selection"].update({"class": "UnknownSelection"}),
+      "is not one of",
+    ),
+    (
+      lambda d: d["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"].update({"spurious_arg": 1}),
+      "Additional properties are not allowed",
+    ),
+    (
+      lambda d: d["algorithm_configs"]["CPU"]["params"].update({"local_search_stage": "invalid_stage"}),
+      "is not one of",
+    ),
+  ],
+)
+def test_algorithms_schema_rejects_invalid_payloads(
+  mutation_fn: Any,
+  error_match: str,
+) -> None:
+  """WHAT: algorithms.schema.json rejects invalid algorithm declarations.
+
+  WHY: Task 12.17 — Strategy classes and parameters must be recognized and validated.
+  EXPECTED: jsonschema.ValidationError raised.
+  """
+  base = json.loads((CONFIGS_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  mutation_fn(base)
+  schema = json.loads((SCHEMAS_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
+
+  with pytest.raises(jsonschema.ValidationError, match=error_match):
+    jsonschema.validate(instance=base, schema=schema)
+
+
+def test_periodic_local_search_step_schema_validation_with_re_evaluate() -> None:
+  """WHAT: algorithms.schema.json accepts PeriodicLocalSearchStep with re_evaluate.
+
+  WHY: Task 12.17 (DP12-10) — When target='population', PeriodicLocalSearchStep
+  requires re_evaluate. The schema must permit re_evaluate as a valid strategy_slot.
+  EXPECTED: jsonschema.validate completes without raising ValidationError.
+  """
+  base = json.loads((CONFIGS_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
+
+  # Inject PeriodicLocalSearchStep with re_evaluate slot
+  base["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {
+      "class": "PeriodicLocalSearchStep",
+      "params": {
+        "interval": 5,
+        "target": "population",
+        "re_evaluate": {
+          "class": "EvaluationCPUCost",
+        },
+      },
+    },
+    {
+      "class": "PeriodicLocalSearchStep",
+      "params": {
+        "interval": 10,
+        "target": "population",
+        "re_evaluate": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "threads_per_block": 128,
+          },
+        },
+      },
+    },
+    {
+      "class": "PeriodicLocalSearchStep",
+      "params": {
+        "interval": 15,
+        "target": "offspring",
+      },
+    },
+  ]
+
+  jsonschema.validate(instance=base, schema=schema)
+
+
+@pytest.mark.parametrize(
+  ("step_params", "error_match"),
+  [
+    (
+      {"interval": 5, "target": "population", "spurious_key": True},
+      "Additional properties are not allowed",
+    ),
+    (
+      {"interval": 5, "target": "population", "re_evaluate": "NotAStrategyDict"},
+      "is not of type 'object'",
+    ),
+    (
+      {"interval": 5, "target": "population", "re_evaluate": {"class": "InvalidEvaluator"}},
+      "is not one of",
+    ),
+    (
+      {"interval": 5, "target": "invalid_target"},
+      "is not one of",
+    ),
+  ],
+)
+def test_periodic_local_search_step_schema_rejects_malformed_params(
+  step_params: dict[str, Any],
+  error_match: str,
+) -> None:
+  """WHAT: algorithms.schema.json strictly rejects malformed params on pipeline steps.
+
+  WHY: Task 12.17 (DP12-10) — additionalProperties: false must enforce exact property names.
+  EXPECTED: jsonschema.ValidationError raised with matching diagnostic error message.
+  """
+  base = json.loads((CONFIGS_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
+
+  base["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {
+      "class": "PeriodicLocalSearchStep",
+      "params": step_params,
+    }
+  ]
+
+  with pytest.raises(jsonschema.ValidationError, match=error_match):
+    jsonschema.validate(instance=base, schema=schema)
+
+
+def test_problems_schema_accepts_standard_metadata() -> None:
+  """WHAT: problems.schema.json accepts standard TSPLIB metadata attributes.
+
+  WHY: Task 12.17 (DP12-10) — TSPLIB instance records contain edge_weight_type,
+  comment, source, and problem_type. The schema must permit them while rejecting unknown keys.
+  EXPECTED: jsonschema.validate completes without raising ValidationError.
+  """
+  base = json.loads((CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+
+  base["problems"][0]["edge_weight_type"] = "EUC_2D"
+  base["problems"][0]["comment"] = "17-city problem from Groetschel"
+  base["problems"][0]["source"] = "TSPLIB95"
+  base["problems"][0]["problem_type"] = "TSP"
+
+  jsonschema.validate(instance=base, schema=schema)
+
+
+@pytest.mark.parametrize(
+  ("metadata_update", "error_match"),
+  [
+    ({"edge_weight_type": 123}, "123 is not of type 'string'"),
+    ({"comment": ["not", "a", "string"]}, "is not of type 'string'"),
+    ({"source": {"not": "string"}}, "is not of type 'string'"),
+    ({"problem_type": True}, "True is not of type 'string'"),
+    ({"unknown_custom_field": "disallowed"}, "Additional properties are not allowed"),
+  ],
+)
+def test_problems_schema_rejects_invalid_metadata(
+  metadata_update: dict[str, Any],
+  error_match: str,
+) -> None:
+  """WHAT: problems.schema.json rejects invalid types and unknown metadata fields.
+
+  WHY: Task 12.17 (DP12-10) — Metadata fields must be strings and additionalProperties remains false.
+  EXPECTED: jsonschema.ValidationError raised with matching diagnostic error message.
+  """
+  base = json.loads((CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+
+  base["problems"][0].update(metadata_update)
+
+  with pytest.raises(jsonschema.ValidationError, match=error_match):
+    jsonschema.validate(instance=base, schema=schema)
+

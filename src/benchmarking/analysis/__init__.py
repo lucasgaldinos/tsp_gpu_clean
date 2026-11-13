@@ -5,6 +5,11 @@ from benchmarking.analysis.aggregate_statistics import (
   compare_algorithms_by_group,
   perform_cross_problem_analysis_stratified,
 )
+from benchmarking.analysis.cd_diagram import (
+  CDResults,
+  compute_cd_diagram_data,
+  export_cd_diagram_tikz,
+)
 from benchmarking.analysis.problem_statistics import (
   holm_bonferroni_correction,
   perform_statistical_analysis,
@@ -22,6 +27,7 @@ from benchmarking.analysis.stats_utils import (
 )
 
 __all__ = [
+  "CDResults",
   "StatisticalAnalyzer",
   "StatisticalSummary",
   "adjusted_r2",
@@ -29,6 +35,8 @@ __all__ = [
   "calculate_r2",
   "compare_algorithms",
   "compare_algorithms_by_group",
+  "compute_cd_diagram_data",
+  "export_cd_diagram_tikz",
   "generate_result_tables",
   "holm_bonferroni_correction",
   "loocv_regression",
@@ -38,4 +46,3 @@ __all__ = [
   "perform_statistical_analysis",
   "root_mean_squared_error",
 ]
-

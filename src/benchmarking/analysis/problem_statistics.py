@@ -42,7 +42,11 @@ from typing import TYPE_CHECKING, Any, LiteralString
 
 import numpy as np
 
+from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
+
 if TYPE_CHECKING:
+  from collections.abc import Sequence
+
   from numpy.typing import NDArray
 
   from benchmarking.analysis.statistics import StatisticalAnalyzer, StatisticalSummary
@@ -74,6 +78,61 @@ def _get_data_field(results_dict: dict[str, Any], field: str) -> list[Any]:
   return val if isinstance(val, list) else list(val)
 
 
+def _resolve_metric_mean(
+  results_dict: dict[str, Any],
+  metric_key: str,
+  raw_series: Sequence[float] | np.ndarray,
+  alg_name: str,
+) -> float:
+  """Resolve mean metric value lazily from dictionary or raw data series.
+
+  Prefers `results_dict[metric_key]` if present and not None. Otherwise,
+  computes the mean of non-NaN elements in `raw_series`.
+  Raises KeyError if neither a precomputed metric nor valid raw data is present.
+  """
+  val = results_dict.get(metric_key)
+  if val is not None:
+    return float(val)
+
+  if len(raw_series) > 0:
+    arr = np.asarray(raw_series, dtype=np.float64)
+    valid = arr[np.isfinite(arr)]
+    if valid.size > 0:
+      return float(np.mean(valid))
+
+  raise KeyError(
+    f"Algorithm '{alg_name}' is missing both precomputed '{metric_key}' "
+    f"and valid raw data series."
+  )
+
+
+def _resolve_gap_mean(
+  results_dict: dict[str, Any],
+  mean_cost: float,
+  optimal_cost: float,
+  raw_gaps: Sequence[float] | np.ndarray,
+  alg_name: str,
+) -> float:
+  """Resolve mean gap percentage lazily from dictionary, cost, or raw gaps."""
+  val = results_dict.get("mean_gap")
+  if val is not None:
+    return float(val)
+
+  if optimal_cost > 0:
+    return float((mean_cost - optimal_cost) / optimal_cost * 100.0)
+
+  if len(raw_gaps) > 0:
+    arr = np.asarray(raw_gaps, dtype=np.float64)
+    valid = arr[np.isfinite(arr)]
+    if valid.size > 0:
+      return float(np.mean(valid))
+
+  raise KeyError(
+    f"Algorithm '{alg_name}' is missing both precomputed 'mean_gap' "
+    f"and valid raw gap data."
+  )
+
+
 def holm_bonferroni_correction(p_values: list[float], alpha: float = 0.05) -> tuple[list[bool], list[float]]:
   """
   Apply Holm-Bonferroni multiple comparison correction.
@@ -98,15 +157,14 @@ def holm_bonferroni_correction(p_values: list[float], alpha: float = 0.05) -> tu
   sorted_indices = np.argsort(p_values)
   sorted_pvals = np.array(p_values)[sorted_indices]
 
-  # Holm-Bonferroni critical values
-  critical_values = alpha / (n - np.arange(n))
-
-  # Reject hypotheses where p < critical value
-  reject_sorted = sorted_pvals < critical_values
-
   # Adjusted p-values (step-down procedure)
   raw_adjusted = np.minimum((n - np.arange(n)) * sorted_pvals, 1.0)
   pvals_corrected_sorted = np.maximum.accumulate(raw_adjusted)
+
+  # Step-down rejection: an hypothesis is rejected if and only if its adjusted p-value <= alpha.
+  # This guarantees step-down termination at the first non-rejected hypothesis and ensures
+  # strict consistency between `reject` and `pvals_corrected` (BUG-46 / DP12-23).
+  reject_sorted = pvals_corrected_sorted <= alpha
 
   # Restore original order
   reject = np.zeros(n, dtype=bool)
@@ -128,6 +186,7 @@ def perform_statistical_analysis(
   results: dict[str, dict[str, Any]],
   analyzer: StatisticalAnalyzer,
   short_sep: str = "-" * 80,
+  baseline_algorithm: str | None = None,
 ) -> dict[str, Any]:
   """
   Perform statistical analysis on results for a single problem.
@@ -146,6 +205,11 @@ def perform_statistical_analysis(
       results: Dictionary mapping algorithm_name -> results_dict
       analyzer: StatisticalAnalyzer instance
       short_sep: Separator line for logging (default: 80 dashes)
+      baseline_algorithm: Optional baseline algorithm name for speedup calculation.
+          Resolved by `resolve_baseline_algorithm`: `None` selects the first
+          algorithm in `results` insertion order; a requested name that is absent
+          logs a warning and falls back to that same first algorithm; an empty
+          `results` mapping resolves to `"Unknown"`.
 
   Returns:
       Dictionary containing statistical test results
@@ -168,6 +232,26 @@ def perform_statistical_analysis(
     }
 
   cost_data: list[NDArray[Any]] = [np.array(_get_data_field(results[name], "costs")) for name in algorithm_names]
+  time_data: list[NDArray[Any]] = [np.array(_get_data_field(results[name], "times")) for name in algorithm_names]
+  gap_data: list[NDArray[Any]] = [np.array(_get_data_field(results[name], "gaps")) for name in algorithm_names]
+
+  # Check for ragged sample lengths across algorithms (Task 12.7, BUG-33)
+  cost_lengths: list[int] = [len(d) for d in cost_data]
+  min_cost_len: int = min(cost_lengths) if cost_lengths else 0
+  if len(set(cost_lengths)) > 1:
+    logging.warning(
+      "Mismatched sample counts across algorithms for problem '%s': lengths=%s. "
+      "Truncating to common minimum length %d for paired Friedman test.",
+      problem_name,
+      cost_lengths,
+      min_cost_len,
+    )
+    cost_data = [d[:min_cost_len] for d in cost_data]
+
+  time_lengths: list[int] = [len(d) for d in time_data if len(d) > 0]
+  if time_lengths and len(set(time_lengths)) > 1:
+    min_time_len: int = min(time_lengths)
+    time_data = [d[:min_time_len] for d in time_data]
 
   # =========================================================================
   # Friedman Test (k ≥ 3 algorithms)
@@ -178,45 +262,58 @@ def perform_statistical_analysis(
   mean_ranks: dict[str, float] = {}
 
   if len(algorithm_names) >= 3:
-    friedman_result = analyzer.friedman_test(cost_data)
+    if min_cost_len < 2:
+      logging.info(
+        "Skipping Friedman test for '%s': common sample size %d < 2 (insufficient for paired test).",
+        problem_name,
+        min_cost_len,
+      )
+      friedman_result = {
+        "statistic": 0.0,
+        "p_value": 1.0,
+        "significant": False,
+        "post_hoc_required": False,
+      }
+    else:
+      friedman_result = analyzer.friedman_test(cost_data)
 
-    logging.info(f"Friedman Test (k={len(algorithm_names)} algorithms):")
-    logging.info(f"  Statistic: {friedman_result['statistic']:.4f}")
-    logging.info(f"  p-value: {friedman_result['p_value']:.6f}")
-    logging.info(f"  Significant: {friedman_result['significant']}")
+      logging.info(f"Friedman Test (k={len(algorithm_names)} algorithms):")
+      logging.info(f"  Statistic: {friedman_result['statistic']:.4f}")
+      logging.info(f"  p-value: {friedman_result['p_value']:.6f}")
+      logging.info(f"  Significant: {friedman_result['significant']}")
 
-    # Calculate mean ranks
-    from scipy.stats import rankdata
+      # Calculate mean ranks
+      from scipy.stats import rankdata
 
-    n_obs: int = len(cost_data[0])
-    for i, name in enumerate(algorithm_names):
-      ranks = []
-      for obs_idx in range(n_obs):
-        obs_costs = [cost_data[j][obs_idx] for j in range(len(algorithm_names))]
-        obs_ranks: NDArray[np.float64] = rankdata(obs_costs, method="average")
-        ranks.append(obs_ranks[i])
-      mean_ranks[name] = float(np.mean(ranks))
+      n_obs: int = len(cost_data[0])
+      for i, name in enumerate(algorithm_names):
+        ranks = []
+        for obs_idx in range(n_obs):
+          obs_costs = [cost_data[j][obs_idx] for j in range(len(algorithm_names))]
+          obs_ranks: NDArray[np.float64] = rankdata(obs_costs, method="average")
+          ranks.append(obs_ranks[i])
+        mean_ranks[name] = float(np.mean(ranks))
 
-    # Nemenyi post-hoc if significant
-    if friedman_result.get("post_hoc_required"):
-      logging.info("\nNemenyi Post-Hoc Test:")
-      nemenyi_res: NemenyiResult = analyzer.nemenyi_posthoc(cost_data, algorithm_names)
-      nemenyi_result = nemenyi_res
+      # Nemenyi post-hoc if significant
+      if friedman_result.get("post_hoc_required"):
+        logging.info("\nNemenyi Post-Hoc Test:")
+        nemenyi_res: NemenyiResult = analyzer.nemenyi_posthoc(cost_data, algorithm_names)
+        nemenyi_result = nemenyi_res
 
-      logging.info(f"  Critical distance: {nemenyi_res['critical_distance']:.4f}")
-      logging.info("  Mean ranks:")
-      for name, rank in mean_ranks.items():
-        logging.info(f"    {name}: {rank:.2f}")
+        logging.info(f"  Critical distance: {nemenyi_res['critical_distance']:.4f}")
+        logging.info("  Mean ranks:")
+        for name, rank in mean_ranks.items():
+          logging.info(f"    {name}: {rank:.2f}")
 
-      logging.info("\n  Significant pairwise differences:")
-      if nemenyi_res["significant_pairs"]:
-        for i, j, p_val in nemenyi_res["significant_pairs"]:
-          name_i: str = nemenyi_res["algorithm_names"][i]
-          name_j: str = nemenyi_res["algorithm_names"][j]
-          rank_diff: float = abs(mean_ranks[name_i] - mean_ranks[name_j])
-          logging.info(f"    {name_i} vs {name_j}: rank_diff={rank_diff:.2f}, p={p_val:.4f}")
-      else:
-        logging.info("    None (no significant differences detected)")
+        logging.info("\n  Significant pairwise differences:")
+        if nemenyi_res["significant_pairs"]:
+          for i, j, p_val in nemenyi_res["significant_pairs"]:
+            name_i: str = nemenyi_res["algorithm_names"][i]
+            name_j: str = nemenyi_res["algorithm_names"][j]
+            rank_diff: float = abs(mean_ranks[name_i] - mean_ranks[name_j])
+            logging.info(f"    {name_i} vs {name_j}: rank_diff={rank_diff:.2f}, p={p_val:.4f}")
+        else:
+          logging.info("    None (no significant differences detected)")
 
   # =========================================================================
   # Pairwise Comparisons
@@ -232,10 +329,10 @@ def perform_statistical_analysis(
 
   comparisons = []
   for i, name1 in enumerate(algorithm_names):
-    for name2 in algorithm_names[i + 1 :]:
+    for j, name2 in enumerate(algorithm_names[i + 1 :], start=i + 1):
       summary: StatisticalSummary = analyzer.paired_comparison(
-        np.array(_get_data_field(results[name1], "costs")),
-        np.array(_get_data_field(results[name2], "costs")),
+        cost_data[i],
+        cost_data[j],
         f"{name1} vs {name2}",
         metric_name="cost",
       )
@@ -302,13 +399,16 @@ def perform_statistical_analysis(
   logging.info(header_fmt)
   logging.info(short_sep)
 
-  for name in algorithm_names:
+  for i, name in enumerate(algorithm_names):
     r = results[name]
+    m_cost = _resolve_metric_mean(r, "mean_cost", cost_data[i], name)
+    m_gap = _resolve_gap_mean(r, m_cost, optimal_cost, gap_data[i], name)
+    m_time = _resolve_metric_mean(r, "mean_time", time_data[i], name)
     row_fmt: str = (
       f"{name:<20} "
-      f"{r['mean_cost']:<15.2f} "
-      f"{r['mean_gap']:<12.2f} "
-      f"{r['mean_time']:<12.2f} "
+      f"{m_cost:<15.2f} "
+      f"{m_gap:<12.2f} "
+      f"{m_time:<12.2f} "
       f"{r.get('mean_h2d_mb', 0.0):<12.2f} "
       f"{r.get('mean_d2h_mb', 0.0):<12.2f}"
     )
@@ -316,14 +416,17 @@ def perform_statistical_analysis(
 
   # Calculate speedups
   logging.info("\nSpeedups (relative to baseline):")
-  baseline_name: str = "CPU" if "CPU" in results else algorithm_names[0]
-  baseline_time = results[baseline_name]["mean_time"]
+  baseline_name: str = resolve_baseline_algorithm(algorithm_names, baseline_algorithm)
+  base_idx: int = algorithm_names.index(baseline_name)
+  base_r = results[baseline_name]
+  baseline_time = _resolve_metric_mean(base_r, "mean_time", time_data[base_idx], baseline_name)
 
-  for name in algorithm_names:
+  for i, name in enumerate(algorithm_names):
     if name == baseline_name:
       logging.info(f"  {name}: 1.00x (baseline)")
     else:
-      speedup = baseline_time / results[name]["mean_time"]
+      cand_time = _resolve_metric_mean(results[name], "mean_time", time_data[i], name)
+      speedup = (baseline_time / cand_time) if (cand_time > 0 and baseline_time > 0) else 1.0
       logging.info(f"  {name}: {speedup:.2f}x vs {baseline_name}")
 
   logging.info("")

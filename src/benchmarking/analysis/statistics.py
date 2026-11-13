@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 from scipy import stats
 
+from benchmarking.analysis.stats_utils import compute_nemenyi_critical_distance
 from data_models.records import NemenyiResult
 
 POSTHOCS_AVAILABLE = find_spec("scikit_posthocs") is not None
@@ -370,10 +371,15 @@ class StatisticalAnalyzer:
     if len(data_sets) < 3:
       raise ValueError(f"Friedman test requires at least 3 algorithms (k >= 3). Got {len(data_sets)} algorithms.")
 
-    all_data = np.concatenate(data_sets)
-    variance_threshold = 1e-10
+    data_matrix = np.column_stack(data_sets)
+    if not np.all(np.isfinite(data_matrix)):
+      raise ValueError("data_sets contain non-finite (NaN or Inf) values.")
 
-    if np.std(all_data) < variance_threshold or len(data_sets[0]) < 2:
+    # Guard against insufficient samples (N < 2) or complete intra-block ranking ties
+    # (where every row has identical values across all treatments, yielding Q = 0.0, p = 1.0).
+    # Detecting exact zero range across every block avoids 0/0 scalar division in SciPy tie correction
+    # without scale-dependent variance thresholds or blanket warning suppression.
+    if data_matrix.shape[0] < 2 or bool(np.all(np.ptp(data_matrix, axis=1) == 0.0)):
       return {
         "statistic": 0.0,
         "p_value": 1.0,
@@ -382,13 +388,6 @@ class StatisticalAnalyzer:
       }
 
     statistic, p_value = stats.friedmanchisquare(*data_sets)
-    if np.isnan(statistic) or np.isnan(p_value):
-      return {
-        "statistic": 0.0,
-        "p_value": 1.0,
-        "significant": False,
-        "post_hoc_required": False,
-      }
 
     is_significant = bool(p_value < self.alpha)
 
@@ -407,18 +406,23 @@ class StatisticalAnalyzer:
     """
     Perform Nemenyi post-hoc test after significant Friedman result.
     """
+    k = len(data_sets)
+    if k < 2:
+      raise ValueError(f"Nemenyi post-hoc test requires at least 2 algorithms (k >= 2), got k={k}")
+
     if len(set(len(d) for d in data_sets)) > 1:
       raise ValueError(
         f"All data_sets must have the same number of observations. Got lengths: {[len(d) for d in data_sets]}"
       )
 
-    k = len(data_sets)
+    n_instances = len(data_sets[0])
+    if n_instances <= 0:
+      raise ValueError(f"Nemenyi post-hoc test requires at least 1 observation (n >= 1), got n={n_instances}")
+
     if algorithm_names is None:
       algorithm_names = [f"Alg{i + 1}" for i in range(k)]
     elif len(algorithm_names) != k:
       raise ValueError(f"algorithm_names length ({len(algorithm_names)}) must match data_sets length ({k})")
-
-    n_instances = len(data_sets[0])
     data_array = np.column_stack(data_sets)
     from scipy.stats import rankdata, studentized_range
 
@@ -446,8 +450,7 @@ class StatisticalAnalyzer:
         if p_val < self.alpha:
           significant_pairs.append((i, j, float(p_val)))
 
-    q_critical = studentized_range.ppf(1 - self.alpha, k, np.inf)
-    critical_distance = q_critical * np.sqrt(k * (k + 1) / (6 * n_instances))
+    critical_distance = compute_nemenyi_critical_distance(k, n_instances, self.alpha)
 
     return {
       "p_values_matrix": p_values_matrix,

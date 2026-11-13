@@ -51,14 +51,17 @@ from benchmarking.analysis.aggregate_statistics import (
 from benchmarking.analysis.problem_statistics import perform_statistical_analysis
 from benchmarking.analysis.report_generator import generate_result_tables
 from benchmarking.analysis.statistics import StatisticalAnalyzer
+from benchmarking.logging_config import setup_benchmark_logging
 from benchmarking.runner.algorithm_runner import (
   adaptive_generations,
+  compute_series_stats,
   run_single_algorithm,
 )
 from benchmarking.runner.checkpoint_io import (
   CheckpointManager,
   load_checkpoint,
   numpy_to_json_converter,
+  quarantine_checkpoint,
   save_checkpoint_atomic,
 )
 from benchmarking.runner.config_loader import (
@@ -80,6 +83,7 @@ def _release_gpu_memory() -> None:
   cp = cupy_backend()
   if cp is not None:
     cp.get_default_memory_pool().free_all_blocks()
+
 
 #: Public strategy attributes recorded in every checkpoint (`BUG-18`). They are
 #: the knobs that change search behaviour, so a checkpoint without them cannot
@@ -114,6 +118,7 @@ def _serialize_custom_pipeline(steps: Sequence[Any]) -> list[dict[str, Any]]:
       spec["params"] = params
     specs.append(spec)
   return specs
+
 
 # =============================================================================
 # Helper Functions
@@ -188,25 +193,31 @@ def _save_problem_statistics_file(
     }
 
     for alg_name, results in problem_results.items():
-      times = np.array(results.get("raw_times", results.get("times", [])))
-      initial_costs = np.array(results.get("raw_initial_costs", results.get("initial_costs", [])))
-      costs = np.array(results.get("raw_costs", results.get("final_costs", [])))
-      gaps = np.array(results.get("raw_gaps", results.get("gaps", [])))
-      generations = np.array(results.get("raw_generations", results.get("generations", [])))
+      times = np.array(results.get("raw_times", results.get("times", [])), dtype=np.float64)
+      initial_costs = np.array(results.get("raw_initial_costs", results.get("initial_costs", [])), dtype=np.float64)
+      costs = np.array(results.get("raw_costs", results.get("final_costs", [])), dtype=np.float64)
+      gaps = np.array(results.get("raw_gaps", results.get("gaps", [])), dtype=np.float64)
+      generations = np.array(results.get("raw_generations", results.get("generations", [])), dtype=np.float64)
 
-      valid_mask = ~np.isnan(times)
+      n_valid = int(np.sum(~np.isnan(times)))
+      mean_time, std_time, _, _ = compute_series_stats(times, n_valid)
+      mean_initial_cost, std_initial_cost, _, _ = compute_series_stats(initial_costs, n_valid)
+      mean_cost, std_cost, _, _ = compute_series_stats(costs, n_valid)
+      mean_gap, std_gap, _, _ = compute_series_stats(gaps, n_valid)
+      mean_generations, std_generations, _, _ = compute_series_stats(generations, n_valid)
+
       problem_stats["algorithms"][alg_name] = {
-        "mean_time": float(np.nanmean(times)),
-        "std_time": float(np.nanstd(times)),
-        "mean_initial_cost": float(np.nanmean(initial_costs)),
-        "std_initial_cost": float(np.nanstd(initial_costs)),
-        "mean_cost": float(np.nanmean(costs)),
-        "std_cost": float(np.nanstd(costs)),
-        "mean_gap": float(np.nanmean(gaps)),
-        "std_gap": float(np.nanstd(gaps)),
-        "mean_generations": float(np.nanmean(generations)),
-        "std_generations": float(np.nanstd(generations)),
-        "success_rate": float(np.sum(valid_mask) / len(times)) if len(times) > 0 else 0.0,
+        "mean_time": mean_time,
+        "std_time": std_time,
+        "mean_initial_cost": mean_initial_cost,
+        "std_initial_cost": std_initial_cost,
+        "mean_cost": mean_cost,
+        "std_cost": std_cost,
+        "mean_gap": mean_gap,
+        "std_gap": std_gap,
+        "mean_generations": mean_generations,
+        "std_generations": std_generations,
+        "success_rate": float(n_valid / len(times)) if len(times) > 0 else 0.0,
         "backend": results.get("backend", "unknown"),
         "mean_phase_timings": results.get("mean_phase_timings", {}),
         "phase_share_pct": results.get("phase_share_pct", {}),
@@ -250,8 +261,10 @@ def run_comprehensive_benchmark(
   population_size: int | None = None,
   mutation_rate: float | None = None,
   strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
+  baseline_algorithm: str | None = None,
 ) -> dict[str, dict[str, dict[str, Any]]]:
   """Run comprehensive benchmark on all configured problems and algorithms."""
+  setup_benchmark_logging(output_dir, benchmark_name)
   logging.info("Loading configurations...")
 
   resolved_config_dir: Path = Path(config_dir)
@@ -319,9 +332,7 @@ def run_comprehensive_benchmark(
     logging.info("=" * 80)
     logging.info("")
 
-  candidate_algorithms: list[str] = (
-    list(algorithms) if algorithms else list(algorithm_configs.keys())
-  )
+  candidate_algorithms: list[str] = list(algorithms) if algorithms else list(algorithm_configs.keys())
 
   selected_algorithms = []
   for alg_name in candidate_algorithms:
@@ -413,8 +424,18 @@ def run_comprehensive_benchmark(
       checkpoint_exists: bool = checkpoint_path.exists()
 
       if checkpoint_exists:
-        existing_checkpoint = load_checkpoint(checkpoint_path)
-        existing_runs = existing_checkpoint.get("successful_runs", 0) if existing_checkpoint else 0
+        try:
+          existing_checkpoint = load_checkpoint(checkpoint_path)
+          existing_runs = existing_checkpoint.get("successful_runs", 0) if existing_checkpoint else 0
+        except (json.JSONDecodeError, KeyError, OSError) as e:
+          quarantine_path = quarantine_checkpoint(checkpoint_path)
+          logging.error(
+            f"Corrupted checkpoint detected at {checkpoint_path}: {e}. "
+            f"Quarantined to {quarantine_path.name}; starting clean run."
+          )
+          existing_checkpoint = None
+          existing_runs = 0
+          checkpoint_exists = False
 
         if incremental_mode:
           new_reps_to_add = effective_repetitions
@@ -467,24 +488,6 @@ def run_comprehensive_benchmark(
 
       algorithm_instance = _factory(effective_seed)
 
-      results: dict[str, Any] = run_single_algorithm(
-        algorithm_name=alg_name,
-        algorithm_instance=algorithm_instance,
-        problem=problem,
-        problem_name=problem_name,
-        problem_size=problem_size,
-        customers=customers,
-        max_generations=max_generations,
-        optimal_cost=optimal_cost,
-        repetitions=actual_repetitions,
-        use_gpu=alg_config.use_gpu,
-        patience=benchmark_config.patience,
-        seed_base=effective_seed,
-        existing_checkpoint=existing_checkpoint,
-        incremental_mode=incremental_mode and existing_checkpoint is not None,
-        algorithm_factory=_factory,
-      )
-
       def _get_strat_name(strat: Any) -> str:
         if strat is None:
           return "None"
@@ -520,21 +523,6 @@ def run_comprehensive_benchmark(
             params[attr] = value
         return params
 
-      results["problem_name"] = problem_name
-      results["problem_size"] = problem_size
-      results["problem_type"] = getattr(problem, "problem_type", "TSP")
-      results["edge_type"] = getattr(problem, "edge_type", "EUC_2D")
-      results["optimal_cost"] = optimal_cost
-      results["max_generations_configured"] = max_generations
-      results["backend"] = "GPU" if alg_config.use_gpu else "CPU"
-      results["timestamp"] = datetime.now().isoformat()
-      results["problem_metadata"] = problem.to_metadata_dict(optimal_cost)
-      results["comment"] = problem.comment
-      results["edge_weight_format"] = problem.edge_weight_format
-      results["tsplib_name"] = problem.tsplib_name
-      results["source_file"] = problem.source_file
-      results["file_checksum"] = problem.file_checksum
-
       algo_cfg_data: dict[str, Any] = {
         "population_size": getattr(algorithm_instance, "population_size", ga_params.population_size),
         "mutation_rate": getattr(algorithm_instance, "mutation_rate", ga_params.mutation_rate),
@@ -542,18 +530,8 @@ def run_comprehensive_benchmark(
       }
       if hasattr(algorithm_instance, "local_search_stage"):
         algo_cfg_data["local_search_stage"] = str(algorithm_instance.local_search_stage)
-      results["algorithm_config"] = algo_cfg_data
 
-      results["strategies"] = {
-        "initialization": _get_strat_name(getattr(algorithm_instance, "initialization", None)),
-        "selection": _get_strat_name(getattr(algorithm_instance, "selection", None)),
-        "crossover": _get_strat_name(getattr(algorithm_instance, "crossover", None)),
-        "mutation": _get_strat_name(getattr(algorithm_instance, "mutation", None)),
-        "local_search": _get_strat_name(getattr(algorithm_instance, "local_search", None)),
-        "evaluation": _get_strat_name(getattr(algorithm_instance, "evaluation", None)),
-      }
-
-      results["algorithm_config"]["strategy_params"] = {
+      algo_cfg_data["strategy_params"] = {
         slot: params
         for slot in ("initialization", "selection", "crossover", "mutation", "local_search", "evaluation")
         if (params := _get_strategy_params(slot))
@@ -562,9 +540,67 @@ def run_comprehensive_benchmark(
       if hasattr(algorithm_instance, "pipeline") and algorithm_instance.pipeline is not None:
         custom_steps: list[Any] = list(getattr(algorithm_instance, "custom_pipeline_steps", None) or [])
         if custom_steps:
-          results["algorithm_config"]["pipeline"] = _serialize_custom_pipeline(custom_steps)
+          algo_cfg_data["pipeline"] = _serialize_custom_pipeline(custom_steps)
 
-      results["construction_heuristic"] = _get_strat_name(getattr(algorithm_instance, "initialization", None))
+      static_metadata: dict[str, Any] = {
+        "problem_name": problem_name,
+        "problem_size": problem_size,
+        "problem_type": getattr(problem, "problem_type", "TSP"),
+        "edge_type": getattr(problem, "edge_type", "EUC_2D"),
+        "optimal_cost": optimal_cost,
+        "max_generations_configured": max_generations,
+        "backend": "GPU" if alg_config.use_gpu else "CPU",
+        "problem_metadata": problem.to_metadata_dict(optimal_cost),
+        "comment": problem.comment,
+        "edge_weight_format": problem.edge_weight_format,
+        "tsplib_name": problem.tsplib_name,
+        "source_file": problem.source_file,
+        "file_checksum": problem.file_checksum,
+        "algorithm_config": algo_cfg_data,
+        "strategies": {
+          "initialization": _get_strat_name(getattr(algorithm_instance, "initialization", None)),
+          "selection": _get_strat_name(getattr(algorithm_instance, "selection", None)),
+          "crossover": _get_strat_name(getattr(algorithm_instance, "crossover", None)),
+          "mutation": _get_strat_name(getattr(algorithm_instance, "mutation", None)),
+          "local_search": _get_strat_name(getattr(algorithm_instance, "local_search", None)),
+          "evaluation": _get_strat_name(getattr(algorithm_instance, "evaluation", None)),
+        },
+        "construction_heuristic": _get_strat_name(getattr(algorithm_instance, "initialization", None)),
+      }
+
+      def _on_repetition_completed(
+        rep_num: int,
+        current_summary: dict[str, Any],
+        *,
+        _meta: dict[str, Any] = static_metadata,
+        _path: Path = checkpoint_path,
+      ) -> None:
+        payload = dict(current_summary)
+        payload.update(_meta)
+        payload["timestamp"] = datetime.now().isoformat()
+        save_checkpoint_atomic(_path, payload)
+
+      results: dict[str, Any] = run_single_algorithm(
+        algorithm_name=alg_name,
+        algorithm_instance=algorithm_instance,
+        problem=problem,
+        problem_name=problem_name,
+        problem_size=problem_size,
+        customers=customers,
+        max_generations=max_generations,
+        optimal_cost=optimal_cost,
+        repetitions=actual_repetitions,
+        use_gpu=alg_config.use_gpu,
+        patience=benchmark_config.patience,
+        seed_base=effective_seed,
+        existing_checkpoint=existing_checkpoint,
+        incremental_mode=incremental_mode and existing_checkpoint is not None,
+        algorithm_factory=_factory,
+        on_repetition_completed=_on_repetition_completed,
+      )
+
+      results.update(static_metadata)
+      results["timestamp"] = datetime.now().isoformat()
 
       checkpoint_path = checkpoint_manager.get_checkpoint_path(problem_name, alg_name)
       save_checkpoint_atomic(checkpoint_path, results)
@@ -584,6 +620,7 @@ def run_comprehensive_benchmark(
       optimal_cost=optimal_cost,
       results=problem_results[problem_name],
       analyzer=analyzer,
+      baseline_algorithm=baseline_algorithm,
     )
 
     _save_problem_statistics_file(
@@ -619,6 +656,7 @@ def run_comprehensive_benchmark(
       problem_configs=problem_configs,
       output_dir=tables_dir,
       benchmark_name=resolved_benchmark_name,
+      baseline_algorithm=baseline_algorithm,
     )
 
   logging.info("=" * 80)

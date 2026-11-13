@@ -154,7 +154,8 @@ def compare_algorithms(
   for algo in algorithms:
     algo_gaps: list[float] = _extract_algorithm_gaps(all_results, valid_problems, algo)
     data.append(np.array(algo_gaps))
-    logging.info(f"  {algo}: mean_gap={np.mean(algo_gaps):.2f}% ± {np.std(algo_gaps):.2f}%")
+    std_g = float(np.std(algo_gaps, ddof=1)) if len(algo_gaps) > 1 else 0.0
+    logging.info(f"  {algo}: mean_gap={np.mean(algo_gaps):.2f}% ± {std_g:.2f}%")
 
   logging.info("")
 
@@ -369,12 +370,13 @@ def perform_cross_problem_analysis_stratified(
         all_gaps.append(all_results[problem][algo]["mean_gap"])
 
     if all_gaps:
+      std_gap_val = float(np.std(all_gaps, ddof=1)) if len(all_gaps) > 1 else 0.0
       summary_stats[algo] = {
         "mean_gap": float(np.mean(all_gaps)),
-        "std_gap": float(np.std(all_gaps)),
+        "std_gap": std_gap_val,
         "n_problems": len(all_gaps),
       }
-      logging.info(f"{algo}: mean_gap={np.mean(all_gaps):.2f}% ± {np.std(all_gaps):.2f}% (n={len(all_gaps)} problems)")
+      logging.info(f"{algo}: mean_gap={np.mean(all_gaps):.2f}% ± {std_gap_val:.2f}% (n={len(all_gaps)} problems)")
 
   logging.info("")
 

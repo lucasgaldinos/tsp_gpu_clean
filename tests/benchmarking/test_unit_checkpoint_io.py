@@ -13,15 +13,22 @@ payload shape, with no writes outside `tmp_path`.
 from __future__ import annotations
 
 import json
+import time
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pytest
 
+from benchmarking.runner.algorithm_runner import run_single_algorithm
 from benchmarking.runner.checkpoint_io import (
   CheckpointManager,
   can_resume_checkpoint,
   get_remaining_repetitions,
   is_valid_checkpoint,
+  load_checkpoint,
+  quarantine_checkpoint,
+  save_checkpoint_atomic,
 )
 
 if TYPE_CHECKING:
@@ -314,3 +321,279 @@ def test_checkpoint_rejects_inconsistent_raw_phase_timings(tmp_path: Path) -> No
   ]  # Length 1 != successful_runs 3
   path = _write_json(tmp_path / "bad_phase_timings.json", payload)
   assert is_valid_checkpoint(path) is False
+
+
+def test_quarantine_corrupt_checkpoint(tmp_path: Path) -> None:
+  """WHAT: Quarantining a corrupted or truncated checkpoint file.
+
+  WHY: BUG-37 — Interrupted runs leave invalid JSON that crashes subsequent runs.
+  EXPECTED: File renamed to <path>.corrupt.<timestamp>.bak, original removed,
+  and content preserved in the quarantined file.
+  """
+  corrupt_file = tmp_path / "berlin52_CPU.json"
+  corrupt_file.write_text('{"algorithm": "CPU", "successful_runs":', encoding="utf-8")
+
+  fixed_ts = 1731350000
+  quarantined = quarantine_checkpoint(corrupt_file, timestamp=fixed_ts)
+
+  assert not corrupt_file.exists()
+  assert quarantined.exists()
+  assert quarantined.name == "berlin52_CPU.json.corrupt.1731350000.bak"
+  assert quarantined.read_text(encoding="utf-8") == '{"algorithm": "CPU", "successful_runs":'
+
+
+def test_incremental_mode_generates_strictly_new_seeds_without_collision(
+  burma14_problem: Any,
+) -> None:
+  """WHAT: Resuming incremental runs generates strictly new seeds.
+
+  WHY: BUG-37 — Offset calculation based on raw seed indices prevents
+  duplicate seeds between initial and resumed benchmark runs.
+  EXPECTED: Seeds in the resumed slice do not overlap with existing_checkpoint seeds.
+  """
+
+  @dataclass
+  class _MockAlgo:
+    dimension: int
+    calls: int = field(default=0)
+
+    def evolve(
+      self,
+      context: Any,
+      customers: Any,
+      max_generations: int,
+      optimal_cost: float | None = None,
+      patience: int | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+      del context, customers, max_generations, optimal_cost, patience
+      self.calls += 1
+      stats = {
+        "initial_fitness": 100.0,
+        "best_fitness": 90.0,
+        "generations_completed": 5,
+        "stop_reason": "completed",
+      }
+      return np.arange(self.dimension, dtype=np.int32), stats
+
+  existing_checkpoint: dict[str, Any] = {
+    "algorithm": "MockAlgo",
+    "repetitions": 3,
+    "successful_runs": 3,
+    "mean_time": 0.05,
+    "mean_cost": 90.0,
+    "raw_times": [0.05, 0.05, 0.05],
+    "raw_initial_costs": [100.0, 100.0, 100.0],
+    "raw_costs": [90.0, 90.0, 90.0],
+    "raw_gaps": [5.0, 5.0, 5.0],
+    "raw_seeds": [42, 43, 44],
+    "raw_generations": [5, 5, 5],
+    "raw_stop_reasons": ["completed", "completed", "completed"],
+    "raw_phase_timings": [{}, {}, {}],
+    "raw_best_tours": [[0] * 14] * 3,
+  }
+
+  algorithm = _MockAlgo(dimension=burma14_problem.dimension)
+  summary = run_single_algorithm(
+    algorithm_instance=algorithm,
+    algorithm_name="MockAlgo",
+    problem=burma14_problem,
+    problem_name="burma14",
+    problem_size=burma14_problem.dimension,
+    optimal_cost=30.0,
+    customers=list(range(burma14_problem.dimension)),
+    max_generations=5,
+    repetitions=3,
+    seed_base=42,
+    use_gpu=False,
+    incremental_mode=True,
+    existing_checkpoint=existing_checkpoint,
+  )
+
+  # Seeds should be [42, 43, 44, 45, 46, 47]
+  assert summary["raw_seeds"] == [42, 43, 44, 45, 46, 47]
+  assert len(summary["raw_seeds"]) == len(set(summary["raw_seeds"]))
+
+
+def test_per_repetition_checkpoint_callback_and_timing_isolation(
+  burma14_problem: Any,
+) -> None:
+  """WHAT: on_repetition_completed invoked after each repetition with timing isolation.
+
+  WHY: Task 12.14 (DP12-7) — Checkpoint callback must receive running aggregates
+  and disk I/O / callback duration must NOT pollute measured evolution time.
+  EXPECTED:
+  - Callback invoked 3 times with rep_num 1, 2, 3.
+  - Intermediate summary in callback has exact online running aggregates.
+  - Artificial 50ms callback delay does NOT inflate raw_times (< 20ms).
+  """
+
+  @dataclass
+  class _FastMockAlgo:
+    dimension: int
+
+    def evolve(
+      self,
+      context: Any,
+      customers: Any,
+      max_generations: int,
+      optimal_cost: float | None = None,
+      patience: int | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+      del context, customers, max_generations, optimal_cost, patience
+      stats = {
+        "initial_fitness": 100.0,
+        "best_fitness": 80.0,
+        "generations_completed": 10,
+        "stop_reason": "completed",
+      }
+      return np.arange(self.dimension, dtype=np.int32), stats
+
+  invocations: list[tuple[int, dict[str, Any]]] = []
+
+  def _callback(rep_num: int, current_summary: dict[str, Any]) -> None:
+    # Deliberate 50ms latency (simulating slow disk I/O / fsync)
+    time.sleep(0.05)
+    invocations.append((rep_num, dict(current_summary)))
+
+  algorithm = _FastMockAlgo(dimension=burma14_problem.dimension)
+  summary = run_single_algorithm(
+    algorithm_instance=algorithm,
+    algorithm_name="FastMock",
+    problem=burma14_problem,
+    problem_name="burma14",
+    problem_size=burma14_problem.dimension,
+    optimal_cost=30.0,
+    customers=list(range(burma14_problem.dimension)),
+    max_generations=10,
+    repetitions=3,
+    seed_base=100,
+    use_gpu=False,
+    on_repetition_completed=_callback,
+  )
+
+  # Exactly 3 invocations
+  assert len(invocations) == 3
+  assert [inv[0] for inv in invocations] == [1, 2, 3]
+
+  # Online running aggregates check
+  for rep_num, intermediate in invocations:
+    assert intermediate["successful_runs"] == rep_num
+    assert intermediate["repetitions"] == rep_num
+    assert len(intermediate["raw_times"]) == rep_num
+    assert len(intermediate["raw_costs"]) == rep_num
+    assert len(intermediate["raw_seeds"]) == rep_num
+    if rep_num == 1:
+      assert intermediate["std_time"] == 0.0
+      assert intermediate["std_cost"] == 0.0
+    else:
+      # Bessel's correction applied
+      assert "std_cost" in intermediate
+
+  # Timing isolation check:
+  # Without isolation, each repetition would take > 0.05s (50ms).
+  # With strict isolation, fast mock runs in < 0.02s.
+  for measured_time in summary["raw_times"]:
+    assert measured_time < 0.035, f"Measured time {measured_time}s indicates callback I/O leakage!"
+
+
+def test_atomic_checkpoint_persistence_on_interrupted_run(
+  burma14_problem: Any,
+  tmp_path: Path,
+) -> None:
+  """WHAT: Partial in-flight checkpoint resumes seamlessly to completion (DP12-7).
+
+  WHY: Task 12.14 — When a run is interrupted at K < N repetitions, checkpoint
+  on disk must be valid and resumable, executing only the remaining N - K runs.
+  EXPECTED: Partial checkpoint has successful_runs=2; resume reaches successful_runs=5.
+  """
+
+  @dataclass
+  class _MockAlgo:
+    dimension: int
+
+    def evolve(
+      self,
+      context: Any,
+      customers: Any,
+      max_generations: int,
+      optimal_cost: float | None = None,
+      patience: int | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+      del context, customers, max_generations, optimal_cost, patience
+      stats = {
+        "initial_fitness": 120.0,
+        "best_fitness": 95.0,
+        "generations_completed": 5,
+        "stop_reason": "completed",
+      }
+      return np.arange(self.dimension, dtype=np.int32), stats
+
+  checkpoint_file = tmp_path / "burma14_MockAlgo.json"
+
+  def _save_callback(rep_num: int, current_summary: dict[str, Any]) -> None:
+    payload = dict(current_summary)
+    payload["problem_name"] = "burma14"
+    payload["problem_size"] = burma14_problem.dimension
+    payload["optimal_cost"] = 30.0
+    payload["backend"] = "CPU"
+    payload["timestamp"] = "2026-11-12T12:00:00"
+    payload["strategies"] = {}
+    payload["algorithm_config"] = {"strategy_params": {}}
+    payload["construction_heuristic"] = "Random"
+    payload["problem_type"] = "TSP"
+    payload["edge_type"] = "EUC_2D"
+    save_checkpoint_atomic(checkpoint_file, payload)
+
+  algorithm = _MockAlgo(dimension=burma14_problem.dimension)
+
+  # Phase 1: Simulate interrupted execution after 2 of 5 runs
+  run_single_algorithm(
+    algorithm_instance=algorithm,
+    algorithm_name="MockAlgo",
+    problem=burma14_problem,
+    problem_name="burma14",
+    problem_size=burma14_problem.dimension,
+    optimal_cost=30.0,
+    customers=list(range(burma14_problem.dimension)),
+    max_generations=5,
+    repetitions=2,
+    seed_base=1000,
+    use_gpu=False,
+    on_repetition_completed=_save_callback,
+  )
+
+  # Checkpoint exists on disk and is resumable
+  assert checkpoint_file.exists()
+  loaded_partial = load_checkpoint(checkpoint_file)
+  assert loaded_partial["successful_runs"] == 2
+  assert can_resume_checkpoint(checkpoint_file, expected_reps=5) is True
+  assert is_valid_checkpoint(checkpoint_file, expected_reps=5) is False
+
+  # Phase 2: Resume remaining 3 runs to reach target 5
+  remaining_reps = get_remaining_repetitions(checkpoint_file, expected_reps=5)
+  assert remaining_reps == 3
+
+  completed_summary = run_single_algorithm(
+    algorithm_instance=algorithm,
+    algorithm_name="MockAlgo",
+    problem=burma14_problem,
+    problem_name="burma14",
+    problem_size=burma14_problem.dimension,
+    optimal_cost=30.0,
+    customers=list(range(burma14_problem.dimension)),
+    max_generations=5,
+    repetitions=remaining_reps,
+    seed_base=1000,
+    use_gpu=False,
+    incremental_mode=True,
+    existing_checkpoint=loaded_partial,
+    on_repetition_completed=_save_callback,
+  )
+
+  assert completed_summary["successful_runs"] == 5
+  assert len(completed_summary["raw_seeds"]) == 5
+  assert len(set(completed_summary["raw_seeds"])) == 5  # No seed collision
+
+  final_loaded = load_checkpoint(checkpoint_file)
+  assert final_loaded["successful_runs"] == 5
+  assert is_valid_checkpoint(checkpoint_file, expected_reps=5) is True

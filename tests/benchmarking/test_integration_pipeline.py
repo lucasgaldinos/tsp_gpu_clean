@@ -172,10 +172,23 @@ def test_report_generator_table2_speedup(tmp_path: Path) -> None:
     problem_configs=problem_configs,
     output_dir=tmp_path,
     benchmark_name="test_table",
+    baseline_algorithm="HybridNaive",
   )
-  md_content: str = (tmp_path / "test_table.md").read_text(encoding="utf-8")
-  assert "20.00x" in md_content
-  assert "0.50x" in md_content
+  md_path = tmp_path / "test_table.md"
+  tex_path = tmp_path / "test_table.tex"
+  assert md_path.exists()
+  assert tex_path.exists()
+
+  md_content: str = md_path.read_text(encoding="utf-8")
+  tex_content: str = tex_path.read_text(encoding="utf-8")
+
+  # Verify relative speedup ratios against HybridNaive (0.40s):
+  # FullGPUMonolithic (0.02s) -> 20.00x (n=1), CPU (0.80s) -> 0.50x (n=1), HybridNaive -> 1.00x
+  assert "20.00x (n=1)" in md_content
+  assert "0.50x (n=1)" in md_content
+  assert "1.00x" in md_content
+  assert "20.00$\\times$ ($n=1$)" in tex_content
+  assert "0.50$\\times$ ($n=1$)" in tex_content
 
 
 def test_run_comprehensive_benchmark_fixture(
@@ -218,6 +231,40 @@ def test_run_comprehensive_benchmark_fixture(
   assert "initialization" in cpu_res["mean_phase_timings"]
   assert "host_sync" in cpu_res["mean_phase_timings"]
   assert "evaluation" in cpu_res["mean_phase_timings"]
+
+
+def test_run_comprehensive_benchmark_forwards_baseline_algorithm(
+  fixture_config_dir: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+) -> None:
+  """Verify run_comprehensive_benchmark forwards baseline_algorithm to perform_statistical_analysis.
+
+  WHY: Task 12.39 (BUG-55) — Prevent silent baseline divergence between report tables and problem stats.
+  """
+  from unittest.mock import patch
+
+  gr17_path: Path = fixture_tsp_dir / "gr17.tsp"
+  with patch("benchmarking.runner.orchestration.perform_statistical_analysis") as mock_stat:
+    mock_stat.return_value = {
+      "problem_name": "gr17",
+      "optimal_cost": 2085.0,
+      "baseline_algorithm": "CustomBaseline",
+    }
+    run_comprehensive_benchmark(
+      config_dir=fixture_config_dir,
+      output_dir=tmp_path,
+      tsp_files=[gr17_path],
+      algorithms=["CPU"],
+      repetitions=1,
+      skip_cpu=False,
+      benchmark_name="test_baseline_forward",
+      baseline_algorithm="CustomBaseline",
+    )
+    assert mock_stat.called
+    _, kwargs = mock_stat.call_args
+    assert kwargs.get("baseline_algorithm") == "CustomBaseline"
+
 
 
 def test_compare_algorithms_and_grouping() -> None:

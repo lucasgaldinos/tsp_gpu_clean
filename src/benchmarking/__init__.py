@@ -25,6 +25,7 @@ from benchmarking.database import (
   insert_benchmark_run,
   validate_benchmark_data,
 )
+from benchmarking.logging_config import setup_benchmark_logging
 from benchmarking.runner import (
   AlgorithmConfig,
   BenchmarkConfig,
@@ -79,6 +80,7 @@ __all__: list[str] = [
   "run_single_algorithm",
   "save_checkpoint",
   "save_checkpoint_atomic",
+  "setup_benchmark_logging",
   "validate_benchmark_data",
   "validate_configs",
 ]

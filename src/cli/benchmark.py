@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, get_args
 
+from benchmarking.logging_config import setup_benchmark_logging
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 from protocols.types import LocalSearchStage
 
@@ -181,11 +182,7 @@ def main(argv: Sequence[str] | None = None) -> int:
   args = parser.parse_args(argv)
 
   level = getattr(logging, args.log_level.upper(), logging.INFO)
-  logging.basicConfig(
-    level=level,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    force=True,
-  )
+  setup_benchmark_logging(args.output_dir, args.benchmark_name, log_level=level)
 
   strategy_overrides: dict[str, dict[str, Any]] = {}
   if args.strategy_param:

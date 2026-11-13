@@ -19,13 +19,15 @@ Features:
 - Handles both old (2 reps) and new (15/30 reps) formats
 - Validates data before insertion
 - Reports progress and statistics
-- Skips duplicates based on (problem_name, algorithm, timestamp)
+- Replaces or skips duplicates based on natural key (problem_name, algorithm)
 
 Author: GPU Accelerated Routing Optimization Team
 Date: 2025-11-23
 """
 
 import json
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -107,22 +109,59 @@ def load_checkpoint(filepath: Path) -> dict[str, Any]:
   return cast("dict[str, Any]", data)
 
 
-def check_duplicate(conn: duckdb.DuckDBPyConnection, data: dict[str, Any]) -> bool:
-  """Check if benchmark run already exists in database."""
-  result = conn.execute(
+def _parse_timestamp(ts_val: Any) -> datetime:
+  """Parse ISO string, datetime, or standard format into naive UTC datetime."""
+  if isinstance(ts_val, datetime):
+    ts = ts_val
+  else:
+    ts_str = str(ts_val)
+    try:
+      ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+    except ValueError:
+      ts = datetime.strptime(ts_str, "%Y-%m-%d %H:%M:%S")
+  if ts.tzinfo is not None:
+    ts = ts.astimezone(UTC).replace(tzinfo=None)
+  return ts
+
+
+def check_duplicate(conn: duckdb.DuckDBPyConnection, data: Mapping[str, Any]) -> bool:
+  """Check if benchmark run already exists in database with equal/higher fidelity.
+
+  Natural key: (problem_name, algorithm).
+  If an existing row exists:
+    - If existing repetitions > incoming repetitions: return True (skip, keep larger cohort).
+    - If existing repetitions == incoming repetitions and existing timestamp >= incoming timestamp:
+      return True (skip, keep current or newer run).
+    - Otherwise (incoming has higher repetitions, or same repetitions with newer timestamp):
+      return False (proceed to replace existing row).
+  """
+  row = conn.execute(
     f"""
-        SELECT COUNT(*)
+        SELECT repetitions, timestamp
         FROM {TABLE_RUNS}
         WHERE problem_name = ?
           AND algorithm = ?
-          AND timestamp = ?
+        ORDER BY repetitions DESC, timestamp DESC
+        LIMIT 1
     """,
-    [data["problem_name"], data["algorithm"], data["timestamp"]],
+    [data["problem_name"], data["algorithm"]],
   ).fetchone()
 
-  if result is None:
+  if row is None:
     return False
-  return bool(result[0] > 0)
+
+  existing_reps = int(row[0])
+  existing_ts = _parse_timestamp(row[1])
+
+  incoming_reps = int(data.get("repetitions", 0))
+  incoming_ts = _parse_timestamp(data.get("timestamp", datetime.min))
+
+  if existing_reps > incoming_reps:
+    return True
+  if existing_reps == incoming_reps and existing_ts >= incoming_ts:
+    return True
+
+  return False
 
 
 # ============================================================================
@@ -175,19 +214,30 @@ def import_checkpoints(input_path: str | Path, output_dir: str | Path) -> None:
   for filepath in checkpoint_files:
     try:
       data = load_checkpoint(filepath)
+      record = validate_benchmark_data(data)
 
-      if check_duplicate(conn, data):
+      if check_duplicate(conn, record):
         stats["duplicates"] += 1
         print(f"   ⊘ {filepath.name} (duplicate)")
         continue
 
-      record = validate_benchmark_data(data)
-      run_id = insert_benchmark_run(conn, record)
+      conn.begin()
+      try:
+        conn.execute(
+          f"DELETE FROM {TABLE_RUNS} WHERE problem_name = ? AND algorithm = ?",
+          [record["problem_name"], record["algorithm"]],
+        )
+        run_id = insert_benchmark_run(conn, record)
+        conn.commit()
+      except Exception:
+        conn.rollback()
+        raise
+
       stats["success"] += 1
 
-      problem = data["problem_name"]
-      algo = data["algorithm"]
-      reps = data["repetitions"]
+      problem = record["problem_name"]
+      algo = record["algorithm"]
+      reps = record["repetitions"]
       is_test = "test" if reps <= 5 else "prod"
 
       print(f"   ✓ {problem:12s} {algo:16s} ({reps:2d} reps, {is_test}) -> run_id={run_id}")

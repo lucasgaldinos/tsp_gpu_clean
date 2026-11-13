@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 
 from benchmarking.database.db_operations import (
+  compute_run_aggregates,
   compute_speedup_matrix,
   create_database,
   get_algorithm_summary,
@@ -756,3 +757,516 @@ def test_compute_speedup_matrix_reports_ratio_to_baseline(db_conn: duckdb.DuckDB
   assert [entry[:2] for entry in default_speedups] == [("berlin52", "FullGPUMonolithic")]
   assert default_speedups[0][2] == pytest.approx(4.0)
   assert default_speedups[0][3] == pytest.approx(2.0)
+
+
+# ============================================================================
+# BUG-36: Synchronization of successful_runs and averages in partial executions
+# ============================================================================
+
+
+def test_validate_benchmark_data_accepts_partial_runs_matching_successful_runs() -> None:
+  """WHAT: Checkpoint payload where repetitions=5 but successful_runs=3 and arrays have length 3.
+
+  WHY: BUG-36 — Validating len(arr) against repetitions broke on partial/cancelled runs.
+  EXPECTED: Validates cleanly and returns validated BenchmarkRunInput.
+  """
+  payload = run_payload(
+    repetitions=5,
+    successful_runs=3,
+    raw_times=[1.0, 1.2, 1.1],
+    raw_costs=[7550.0, 7560.0, 7570.0],
+    raw_gaps=[0.1, 0.2, 0.3],
+    raw_initial_costs=[8000.0, 8050.0, 8100.0],
+    raw_generations=[100, 110, 120],
+    raw_stop_reasons=["completed", "completed", "completed"],
+  )
+  validated = validate_benchmark_data(payload)
+  assert validated["repetitions"] == 5
+  assert validated["successful_runs"] == 3
+  assert len(validated["raw_times"]) == 3
+
+
+def test_validate_benchmark_data_rejects_raw_array_mismatched_to_successful_runs() -> None:
+  """WHAT: Checkpoint payload with successful_runs=3 but raw_times has 2 items.
+
+  WHY: BUG-36 — Raw arrays must exactly equal successful_runs.
+  EXPECTED: ValueError indicating expected 3, got 2.
+  """
+  payload = run_payload(
+    repetitions=5,
+    successful_runs=3,
+    raw_times=[1.0, 1.2],
+    raw_costs=[7550.0, 7560.0, 7570.0],
+    raw_gaps=[0.1, 0.2, 0.3],
+  )
+  assert validation_message(payload) == "Array length mismatch for 'raw_times': expected 3, got 2"
+
+
+def test_validate_benchmark_data_rejects_successful_runs_exceeding_repetitions() -> None:
+  """WHAT: Checkpoint payload with successful_runs=6 but repetitions=5.
+
+  WHY: BUG-36 — Successful runs cannot exceed total attempted repetitions.
+  EXPECTED: ValueError naming the invalid count.
+  """
+  payload = run_payload(
+    repetitions=5,
+    successful_runs=6,
+  )
+  assert validation_message(payload) == "successful_runs (6) cannot be negative or exceed repetitions (5)"
+
+
+def test_compute_run_aggregates_uses_successful_runs_denominator(
+  db_conn: duckdb.DuckDBPyConnection,
+) -> None:
+  """WHAT: 3 successful runs out of 5 repetitions.
+
+  WHY: BUG-36 — Averages must divide strictly by successful_runs, never repetitions.
+  EXPECTED: Mean time is exactly sum(times)/3, mean cost is sum(costs)/3;
+  inserting into DuckDB persists consistent values.
+  """
+  raw_times = [1.0, 2.0, 3.0]
+  raw_costs = [100.0, 110.0, 120.0]
+  raw_gaps = [1.0, 2.0, 3.0]
+  raw_initial = [150.0, 150.0, 150.0]
+  raw_gens = [10, 20, 30]
+
+  aggs = compute_run_aggregates(
+    raw_times=raw_times,
+    raw_costs=raw_costs,
+    raw_gaps=raw_gaps,
+    optimal_cost=100.0,
+    repetitions=5,
+    raw_initial_costs=raw_initial,
+    raw_generations=raw_gens,
+  )
+
+  assert aggs["repetitions"] == 5
+  assert aggs["successful_runs"] == 3
+  # sum([1, 2, 3]) / 3 = 2.0 (if divided by 5 it would be 1.2)
+  assert aggs["mean_time"] == pytest.approx(2.0)
+  # sum([100, 110, 120]) / 3 = 110.0
+  assert aggs["mean_cost"] == pytest.approx(110.0)
+  # sum([1, 2, 3]) / 3 = 2.0
+  assert aggs["mean_gap"] == pytest.approx(2.0)
+  assert aggs["mean_generations"] == pytest.approx(20.0)
+
+  # Check that inserting into database succeeds
+  full_payload = run_payload(**aggs)
+  validated = validate_benchmark_data(full_payload)
+  run_id = insert_benchmark_run(db_conn, validated)
+  assert run_id > 0
+
+  summary = get_algorithm_summary(db_conn, "berlin52", "CPU")
+  assert summary is not None
+  assert summary["mean_time"] == pytest.approx(2.0)
+  assert summary["mean_cost"] == pytest.approx(110.0)
+  assert summary["repetitions"] == 5
+
+
+def test_compute_run_aggregates_zero_successful_runs_returns_graceful_defaults(
+  db_conn: duckdb.DuckDBPyConnection,
+) -> None:
+  """WHAT: 0 successful runs out of 5 repetitions (all failed/cancelled).
+
+  WHY: BUG-36 — Division by zero must be prevented and column nullability respected.
+  EXPECTED: Returns 0.0 for NOT NULL columns, None for nullable columns,
+  validates without NaN error, and can be inserted into database.
+  """
+  aggs = compute_run_aggregates(
+    raw_times=[],
+    raw_costs=[],
+    raw_gaps=[],
+    optimal_cost=100.0,
+    repetitions=5,
+  )
+
+  assert aggs["repetitions"] == 5
+  assert aggs["successful_runs"] == 0
+  assert aggs["mean_time"] == 0.0
+  assert aggs["mean_cost"] == 0.0
+  assert aggs["mean_gap"] == 0.0
+  assert aggs["mean_initial_cost"] is None
+  assert aggs["mean_improvement"] is None
+
+  full_payload = run_payload(**aggs)
+  validated = validate_benchmark_data(full_payload)
+  run_id = insert_benchmark_run(db_conn, validated)
+  assert run_id > 0
+
+  summary = get_algorithm_summary(db_conn, "berlin52", "CPU")
+  assert summary is not None
+  assert summary["mean_time"] == 0.0
+  assert summary["mean_cost"] == 0.0
+
+
+# ============================================================================
+# BUG-39: Single Query Speedup Matrix and FullGPUModular Inclusion
+# ============================================================================
+
+
+def test_compute_speedup_matrix_executes_single_query(db_conn: duckdb.DuckDBPyConnection) -> None:
+  """WHAT: compute_speedup_matrix executes a single analytical GROUP BY query.
+
+  WHY: BUG-39 — The previous N+1 query loop incurred redundant latency across problems.
+  EXPECTED: Exact execute call count is 1.
+  """
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=2.0, problem_name="berlin52", algorithm="CPU", timestamp="2025-11-23T10:00:00"),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(
+      mean_time=0.5,
+      problem_name="berlin52",
+      algorithm="FullGPUModular",
+      backend="GPU",
+      timestamp="2025-11-23T10:00:00",
+    ),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=4.0, problem_name="st70", algorithm="CPU", timestamp="2025-11-23T10:00:00"),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(
+      mean_time=1.0,
+      problem_name="st70",
+      algorithm="FullGPUModular",
+      backend="GPU",
+      timestamp="2025-11-23T10:00:00",
+    ),
+  )
+
+  class ConnSpy:
+    def __init__(self, target: duckdb.DuckDBPyConnection) -> None:
+      self._target = target
+      self.execute_count = 0
+
+    def execute(self, *args: Any, **kwargs: Any) -> Any:
+      self.execute_count += 1
+      return self._target.execute(*args, **kwargs)
+
+    def __getattr__(self, name: str) -> Any:
+      return getattr(self._target, name)
+
+  spy = ConnSpy(db_conn)
+  speedups = compute_speedup_matrix(cast("duckdb.DuckDBPyConnection", spy), "CPU", ["FullGPUModular"])
+  assert spy.execute_count == 1
+  assert len(speedups) == 2
+  assert speedups[0][:2] == ("berlin52", "FullGPUModular")
+  assert speedups[0][2] == pytest.approx(4.0)
+  assert speedups[0][3] == pytest.approx(2.0)
+  assert speedups[1][:2] == ("st70", "FullGPUModular")
+  assert speedups[1][2] == pytest.approx(4.0)
+  assert speedups[1][3] == pytest.approx(4.0)
+
+
+def test_compute_speedup_matrix_includes_full_gpu_modular_by_default(
+  db_conn: duckdb.DuckDBPyConnection,
+) -> None:
+  """WHAT: Default comparison list includes FullGPUModular alongside FullGPUMonolithic.
+
+  WHY: BUG-39 — FullGPUModular was previously omitted from the default speedup matrix.
+  EXPECTED: All GPU variants including FullGPUModular appear in default_speedups.
+  """
+  insert_payload(db_conn, production_payload(mean_time=2.0, algorithm="CPU", timestamp="2025-11-23T10:00:00"))
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=1.0, algorithm="HybridNaive", backend="GPU", timestamp="2025-11-23T10:00:00"),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=0.8, algorithm="HybridOptimized", backend="GPU", timestamp="2025-11-23T10:00:00"),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=0.5, algorithm="FullGPUMonolithic", backend="GPU", timestamp="2025-11-23T10:00:00"),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=0.4, algorithm="FullGPUModular", backend="GPU", timestamp="2025-11-23T10:00:00"),
+  )
+
+  speedups = compute_speedup_matrix(db_conn)
+  algs = [s[1] for s in speedups]
+
+  assert "FullGPUModular" in algs
+  assert "FullGPUMonolithic" in algs
+  assert "HybridOptimized" in algs
+  assert "HybridNaive" in algs
+
+  modular_entry = next(s for s in speedups if s[1] == "FullGPUModular")
+  assert modular_entry[2] == pytest.approx(2.0 / 0.4)
+
+
+def test_compute_speedup_matrix_handles_missing_and_zero_times_gracefully(
+  db_conn: duckdb.DuckDBPyConnection,
+) -> None:
+  """WHAT: Data with missing candidate algorithms, 0.0 runtime, or NaN.
+
+  WHY: BUG-39 — Missing candidates or division by zero must be gracefully handled.
+  EXPECTED: include_missing=False skips invalid/missing; include_missing=True returns fill_missing.
+  """
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=2.0, problem_name="eil51", algorithm="CPU", timestamp="2025-11-23T10:00:00"),
+  )
+  insert_payload(
+    db_conn,
+    production_payload(
+      mean_time=0.0,
+      problem_name="eil51",
+      algorithm="HybridNaive",
+      backend="GPU",
+      timestamp="2025-11-23T10:00:00",
+    ),
+  )
+
+  # include_missing=False (default): HybridNaive skipped due to mean_time=0.0
+  speedups_default = compute_speedup_matrix(db_conn, "CPU", ["HybridNaive", "FullGPUModular"])
+  assert len(speedups_default) == 0
+
+  # include_missing=True: both filled with None (or provided fill value)
+  speedups_filled = compute_speedup_matrix(
+    db_conn,
+    "CPU",
+    ["HybridNaive", "FullGPUModular"],
+    include_missing=True,
+    fill_missing=None,
+  )
+  assert len(speedups_filled) == 2
+  assert speedups_filled[0] == ("eil51", "HybridNaive", None, 2.0)
+  assert speedups_filled[1] == ("eil51", "FullGPUModular", None, 2.0)
+
+
+def test_import_checkpoints_natural_key_replacement_prevents_duplicate_runs(tmp_path: Path) -> None:
+  """WHAT: Importing an updated checkpoint file replaces obsolete runs.
+
+  WHY: BUG-49 / DP12-26 — Incremental resume produces checkpoints with updated repetitions
+  (e.g. N=5 -> N=10) and newer timestamps. The DB import previously checked (problem, algo, timestamp),
+  leaving duplicate rows in benchmark_runs that corrupted compute_speedup_matrix.
+  EXPECTED: Exactly 1 row in benchmark_runs for (berlin52, CPU) with reps=10 and accurate speedup.
+  """
+  from benchmarking.database.import_checkpoints import check_duplicate, import_checkpoints
+  from benchmarking.database.schema import TABLE_RUNS
+
+  checkpoints_dir = tmp_path / "checkpoints"
+  checkpoints_dir.mkdir()
+  results_dir = tmp_path / "results"
+  results_dir.mkdir()
+
+  # Step 1: Write initial checkpoint for CPU with repetitions=5 (test run), mean_time=4.0
+  reps5 = 5
+  cp_initial = run_payload(
+    problem_name="berlin52",
+    algorithm="CPU",
+    backend="CPU",
+    repetitions=reps5,
+    successful_runs=reps5,
+    timestamp="2025-11-23T10:00:00",
+    mean_time=4.0,
+    raw_times=[4.0] * reps5,
+    raw_costs=[7600.0] * reps5,
+    raw_gaps=[0.5] * reps5,
+  )
+  cp_path = checkpoints_dir / "berlin52_CPU.json"
+  with open(cp_path, "w", encoding="utf-8") as f:
+    json.dump(cp_initial, f)
+
+  # Write FullGPU production run: mean_time=1.0, repetitions=15
+  reps15 = 15
+  gpu_cp = run_payload(
+    problem_name="berlin52",
+    algorithm="FullGPUModular",
+    backend="GPU",
+    repetitions=reps15,
+    successful_runs=reps15,
+    timestamp="2025-11-23T10:00:00",
+    mean_time=1.0,
+    raw_times=[1.0] * reps15,
+    raw_costs=[7600.0] * reps15,
+    raw_gaps=[0.5] * reps15,
+  )
+  with open(checkpoints_dir / "berlin52_FullGPUModular.json", "w", encoding="utf-8") as f:
+    json.dump(gpu_cp, f)
+
+  # First import
+  import_checkpoints(checkpoints_dir, results_dir)
+
+  db_path = results_dir / "results.duckdb"
+  conn = create_database(str(db_path))
+  rows = conn.execute(
+    f"SELECT repetitions, mean_time FROM {TABLE_RUNS} WHERE problem_name = ? AND algorithm = ?",  # noqa: S608
+    ["berlin52", "CPU"],
+  ).fetchall()
+  assert len(rows) == 1
+  assert rows[0][0] == 5
+  assert rows[0][1] == pytest.approx(4.0)
+
+  # Step 2: Now simulate incremental resume finishing with repetitions=10 (production run, is_test=False), mean_time=2.0
+  reps10 = 10
+  cp_updated = run_payload(
+    problem_name="berlin52",
+    algorithm="CPU",
+    backend="CPU",
+    repetitions=reps10,
+    successful_runs=reps10,
+    timestamp="2025-11-23T12:00:00",
+    mean_time=2.0,
+    raw_times=[2.0] * reps10,
+    raw_costs=[7600.0] * reps10,
+    raw_gaps=[0.5] * reps10,
+  )
+  with open(cp_path, "w", encoding="utf-8") as f:
+    json.dump(cp_updated, f)
+
+  # Verify check_duplicate returns False for the updated checkpoint against current DB
+  assert check_duplicate(conn, cp_updated) is False
+
+  # Verify check_duplicate returns True if trying to re-import the older checkpoint (reps=5)
+  assert check_duplicate(conn, cp_initial) is True
+
+  conn.close()
+
+  # Second import
+  import_checkpoints(checkpoints_dir, results_dir)
+
+  conn = create_database(str(db_path))
+  rows_after = conn.execute(
+    f"SELECT repetitions, mean_time, timestamp FROM {TABLE_RUNS} WHERE problem_name = ? AND algorithm = ?",  # noqa: S608
+    ["berlin52", "CPU"],
+  ).fetchall()
+  # Must have EXACTLY 1 row, not 2!
+  assert len(rows_after) == 1
+  assert rows_after[0][0] == 10
+  assert rows_after[0][1] == pytest.approx(2.0)
+
+  # compute_speedup_matrix with CPU as baseline: CPU mean_time=2.0, FullGPUModular mean_time=1.0 -> speedup = 2.0
+  speedups = compute_speedup_matrix(conn, baseline="CPU", comparisons=["FullGPUModular"])
+  assert len(speedups) == 1
+  assert speedups[0][0] == "berlin52"
+  assert speedups[0][1] == "FullGPUModular"
+  assert speedups[0][2] == pytest.approx(2.0)
+  assert speedups[0][3] == pytest.approx(2.0)
+  conn.close()
+
+
+def test_import_checkpoints_failed_insert_rolls_back_and_preserves_row(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+  """WHAT: A failed insert during replacement rolls back without losing the prior row.
+
+  WHY: Review Gate 22c181dd / Task 12.33 — In autocommit mode, deleting before insert
+  leaves the DB without any record if insert fails. Wrapping DELETE + INSERT in an explicit
+  transaction ensures rollback preserves the original row.
+  """
+  import sys
+
+  from benchmarking.database.import_checkpoints import import_checkpoints
+  from benchmarking.database.schema import TABLE_RUNS
+
+  import_mod = sys.modules["benchmarking.database.import_checkpoints"]
+
+  checkpoints_dir = tmp_path / "checkpoints"
+  checkpoints_dir.mkdir()
+  results_dir = tmp_path / "results"
+  results_dir.mkdir()
+
+  # Write initial checkpoint and import
+  cp_initial = run_payload(
+    problem_name="berlin52",
+    algorithm="CPU",
+    backend="CPU",
+    repetitions=5,
+    successful_runs=5,
+    timestamp="2025-11-23T10:00:00",
+    mean_time=4.0,
+    raw_times=[4.0] * 5,
+    raw_costs=[7600.0] * 5,
+    raw_gaps=[0.5] * 5,
+  )
+  cp_path = checkpoints_dir / "berlin52_CPU.json"
+  with open(cp_path, "w", encoding="utf-8") as f:
+    json.dump(cp_initial, f)
+
+  import_checkpoints(checkpoints_dir, results_dir)
+
+  db_path = results_dir / "results.duckdb"
+  conn = create_database(str(db_path))
+  row_cnt = conn.execute(f"SELECT COUNT(*) FROM {TABLE_RUNS}").fetchone()  # noqa: S608
+  assert row_cnt is not None
+  count_before = int(row_cnt[0])
+  assert count_before == 1
+  conn.close()
+
+  # Update checkpoint to higher reps (N=10)
+  cp_updated = run_payload(
+    problem_name="berlin52",
+    algorithm="CPU",
+    backend="CPU",
+    repetitions=10,
+    successful_runs=10,
+    timestamp="2025-11-23T12:00:00",
+    mean_time=2.0,
+    raw_times=[2.0] * 10,
+    raw_costs=[7600.0] * 10,
+    raw_gaps=[0.5] * 10,
+  )
+  with open(cp_path, "w", encoding="utf-8") as f:
+    json.dump(cp_updated, f)
+
+  # Monkeypatch insert_benchmark_run to simulate mid-transaction failure
+  def _failing_insert(*args: Any, **kwargs: Any) -> int:
+    raise RuntimeError("Simulated mid-transaction failure")
+
+  monkeypatch.setattr(import_mod, "insert_benchmark_run", _failing_insert)
+
+  # Run import: the exception is caught by the per-file try/except block in import_checkpoints
+  import_checkpoints(checkpoints_dir, results_dir)
+
+  # Verify row was preserved via rollback!
+  conn = create_database(str(db_path))
+  rows = conn.execute(
+    f"SELECT repetitions, mean_time FROM {TABLE_RUNS} WHERE problem_name = ? AND algorithm = ?",  # noqa: S608
+    ["berlin52", "CPU"],
+  ).fetchall()
+  assert len(rows) == 1
+  assert rows[0][0] == 5
+  assert rows[0][1] == pytest.approx(4.0)
+  conn.close()
+
+
+def test_check_duplicate_equal_repetitions_timestamp_rules(db_conn: duckdb.DuckDBPyConnection) -> None:
+  """WHAT: Test check_duplicate resolution when repetitions are equal.
+
+  WHY: Review Gate 22c181dd / Task 12.33 — Equal repetitions must replace when the incoming
+  timestamp is strictly newer, and skip when equal or older. Timezone-aware datetimes must
+  compare correctly against UTC naive timestamps.
+  """
+  from benchmarking.database.import_checkpoints import check_duplicate
+
+  # Insert baseline run with timestamp 2025-11-23T12:00:00
+  insert_payload(
+    db_conn,
+    production_payload(mean_time=2.0, algorithm="CPU", timestamp="2025-11-23T12:00:00"),
+  )
+
+  # 1. Strictly newer timestamp (14:00:00 > 12:00:00): replace -> False (not duplicate)
+  newer_payload = production_payload(mean_time=1.8, algorithm="CPU", timestamp="2025-11-23T14:00:00")
+  assert check_duplicate(db_conn, newer_payload) is False
+
+  # 2. Equal timestamp (12:00:00 == 12:00:00): skip -> True (duplicate)
+  equal_payload = production_payload(mean_time=2.0, algorithm="CPU", timestamp="2025-11-23T12:00:00")
+  assert check_duplicate(db_conn, equal_payload) is True
+
+  # 3. Strictly older timestamp (10:00:00 < 12:00:00): skip -> True (duplicate)
+  older_payload = production_payload(mean_time=2.2, algorithm="CPU", timestamp="2025-11-23T10:00:00")
+  assert check_duplicate(db_conn, older_payload) is True
+
+  # 4. Timezone-aware UTC timestamp (13:00:00Z > 12:00:00 naive): replace -> False
+  tz_newer = production_payload(mean_time=1.9, algorithm="CPU", timestamp="2025-11-23T13:00:00+00:00")
+  assert check_duplicate(db_conn, tz_newer) is False
+
+

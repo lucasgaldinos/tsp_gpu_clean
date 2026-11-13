@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, cast
 
@@ -228,6 +229,25 @@ def load_checkpoint(filepath: Path) -> dict[str, Any]:
   """
   with open(filepath) as f:
     return cast("dict[str, Any]", json.load(f))
+
+
+def quarantine_checkpoint(filepath: Path, timestamp: int | None = None) -> Path:
+  """Quarantine a corrupted checkpoint by renaming it to <path>.corrupt.<timestamp>.bak.
+
+  Args:
+      filepath: Path to the corrupted checkpoint file.
+      timestamp: Optional epoch timestamp for deterministic testing.
+
+  Returns:
+      The Path to the quarantined file.
+  """
+  ts: int = int(time.time()) if timestamp is None else timestamp
+  quarantine_path = filepath.with_name(f"{filepath.name}.corrupt.{ts}.bak")
+  try:
+    filepath.rename(quarantine_path)
+  except OSError as e:
+    logging.error(f"Failed to quarantine corrupt checkpoint {filepath} to {quarantine_path}: {e}")
+  return quarantine_path
 
 
 def _resolve_expected_reps(data: dict[str, Any], expected_reps: int | None) -> int | None:
