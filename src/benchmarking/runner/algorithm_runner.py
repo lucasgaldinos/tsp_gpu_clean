@@ -365,6 +365,10 @@ def run_single_algorithm(
   # *measured* repetition (26.27x spike). `warmup(context)` visits every strategy and every
   # pipeline step, so coverage does not depend on any generation cadence.
   jit_cache_before: int | None = None
+  # One candidate-list cache for the whole run: contexts are rebuilt per repetition, so a
+  # per-context cache would rebuild `N_k` inside every measured window (`BUG-59`).
+  candidate_cache: dict[int, np.ndarray] = {}
+
   if use_gpu and repetitions > 0:
     try:
       warmup_instance: Any
@@ -375,7 +379,7 @@ def run_single_algorithm(
         # internal state, so repetition 1 would no longer run the seeded experiment.
         warmup_instance = copy.deepcopy(algorithm_instance)
       warmup_xp: Any = cupy_backend() or np
-      warmup_context = ProblemContext(problem, xp=warmup_xp, seed=seed_base)
+      warmup_context = ProblemContext(problem, xp=warmup_xp, seed=seed_base, candidate_cache=candidate_cache)
       logging.info("    [Warm-up] Pre-compiling every pipeline kernel (AOT protocol)...")
       warmup_instance.warmup(warmup_context)
       jit_cache_before = _compile_kernel_cached.cache_info().currsize
@@ -405,7 +409,7 @@ def run_single_algorithm(
     current_run_idx += 1
 
     xp: Any = cupy_backend() if use_gpu else np
-    context = ProblemContext(problem, xp=xp, seed=run_seed)
+    context = ProblemContext(problem, xp=xp, seed=run_seed, candidate_cache=candidate_cache)
 
     current_algo = algorithm_factory(run_seed) if callable(algorithm_factory) else algorithm_instance
 

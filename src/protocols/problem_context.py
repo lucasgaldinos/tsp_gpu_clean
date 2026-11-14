@@ -119,6 +119,7 @@ class ProblemContext:
     xp: BackendModule,
     seed: int | list[int] | None = None,
     max_matrix_dimension: int = DEFAULT_MAX_MATRIX_DIMENSION,
+    candidate_cache: dict[int, np.ndarray] | None = None,
   ) -> None:
     """
     Initialize ProblemContext with lazy computation strategy.
@@ -138,6 +139,10 @@ class ProblemContext:
         max_matrix_dimension: Largest `n` for which GPU strategies allocate the
               dense `(n, n)` matrix. Above it, coordinate-based problems switch to
               on-the-fly distances (`DP10-19`). Configurable for testing.
+        candidate_cache: Cache of `N_k` shared by every context that serves the
+              same problem. Pass one mapping to all contexts of a run so the blocked
+              `Theta(n^2)` construction happens once instead of once per context
+              (`BUG-59`). Defaults to a fresh per-context cache.
 
     Raises:
         GPUUnavailableError: If xp is CuPy but CuPy is not installed or CUDA device is unavailable.
@@ -192,8 +197,10 @@ class ProblemContext:
     self._gpu_demands: CupyArray | None = None
     self._cpu_coordinates: np.ndarray | None = None
     self._gpu_coordinates: CupyArray | None = None
-    # `k`-NN candidate lists `N_k`, cached per requested `k` (`DP10-20`).
-    self._cpu_candidate_lists: dict[int, np.ndarray] = {}
+    # `k`-NN candidate lists `N_k`, cached per requested `k` (`DP10-20`). A caller that
+    # rebuilds contexts for the same problem (one per benchmark repetition) passes its own
+    # mapping so the construction is amortised instead of repeated (`BUG-59`).
+    self._cpu_candidate_lists: dict[int, np.ndarray] = candidate_cache if candidate_cache is not None else {}
     self._gpu_candidate_lists: dict[int, CupyArray] = {}
 
     # Validate problem has data to compute from

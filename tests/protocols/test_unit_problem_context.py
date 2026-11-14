@@ -211,6 +211,29 @@ def test_cpu_candidate_list_is_cached_per_k(berlin52_problem: Problem) -> None:
   assert first.shape[1] == 10
 
 
+def test_candidate_cache_supplied_by_the_caller_is_shared_across_contexts(berlin52_problem: Problem) -> None:
+  """WHAT: A caller-supplied `N_k` cache survives context recreation.
+
+  WHY: the runner builds one context per repetition, so a per-context cache rebuilt the
+  blocked `Theta(n^2)` candidate list inside every measured window (`BUG-59`).
+
+  EXPECTED: two contexts sharing one mapping build `N_k` once and return the same array.
+  """
+  # Arrange
+  shared: dict[int, np.ndarray] = {}
+  first_context = ProblemContext(berlin52_problem, xp=np, seed=1, candidate_cache=shared)
+  second_context = ProblemContext(berlin52_problem, xp=np, seed=2, candidate_cache=shared)
+
+  # Act
+  first = first_context.get_cpu_candidate_list(20)
+  second = second_context.get_cpu_candidate_list(20)
+
+  # Assert
+  assert second is first
+  assert shared[20] is first
+  assert second_context._cpu_candidate_lists is shared
+
+
 def test_gpu_candidate_list_on_numpy_backend_uses_the_device(berlin52_problem: Problem) -> None:
   """WHAT: `get_gpu_candidate_list` on a NumPy-preferred context.
 
