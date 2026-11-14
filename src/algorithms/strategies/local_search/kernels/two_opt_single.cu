@@ -10,6 +10,13 @@
  *   3. Parallel reduction finds best improvement (minimum delta)
  *   4. Apply best swap in-place
  *   5. Write back improved tour
+ *
+ * Candidate lists (`DP10-20`, `BUG-57`):
+ *   - `candidate_k <= 0` scans the whole upper triangle, i.e. every `j in [i + 2, n)`.
+ *   - `candidate_k > 0` builds the inverse tour map `s_pos[tour[idx]] = idx` in shared
+ *     memory (`n * 4` extra bytes) and replaces the `j` scan with
+ *     `j = s_pos[candidates[tour[i] * candidate_k + r]]`, so this kernel and
+ *     `two_opt_batch.cu` search the same `Theta(n * k)` neighbourhood.
  * 
  * Performance Notes:
  *   - Shared memory reduces global memory accesses
@@ -27,12 +34,20 @@
  *     (Cooperative parallel evaluation of (i, j) pairs and block reduction).
  */
 
+// Delta arithmetic and per-thread best bookkeeping come from the shared header, so a
+// fix to either cannot diverge between this kernel and `two_opt_batch.cu` (`DP10-19`,
+// `BUG-57`).
+#include "two_opt_common.cuh"
+
 extern "C" __global__
 void two_opt_kernel(
     int *tour,
     const int *dist,
     int n,
-    int tour_idx
+    int tour_idx,
+    const int *candidates,  // n * candidate_k nearest-neighbour table, or nullptr
+    int candidate_k,        // 0 = exhaustive scan, else neighbours per node (k_eff)
+    int *positions          // n inverse-map scratch in global memory (candidate mode only)
 ) {
     extern __shared__ int shared_mem[];
     
@@ -44,17 +59,27 @@ void two_opt_kernel(
     
     int tid = threadIdx.x;
     int block_size = blockDim.x;
+    const bool use_candidates = candidate_k > 0 && candidates != nullptr && positions != nullptr;
     
     // FIX: Load tour using loop to handle n > block_size
     for (int i = tid; i < n; i += block_size) {
         s_tour[i] = tour[i];
     }
+    // The inverse map lives in global memory, like the batched kernel's `positions`
+    // scratch: keeping it in shared memory would cut this kernel's ceiling in half
+    // (`n` ints for the tour plus `n` for the map against the 48 KB per block).
+    if (use_candidates) {
+        for (int idx = tid; idx < n; idx += block_size) {
+            positions[tour[idx]] = idx;
+        }
+    }
     __syncthreads();
     
-    // Initialize this thread's best delta
-    int my_delta = 0;
-    int my_swap_i = -1;
-    int my_swap_j = -1;
+    // Each thread's best move lives in the shared reduction slots from the start, so
+    // `two_opt_consider` is the only place that records a candidate (`DP10-19`).
+    s_deltas[tid] = 0;
+    s_swap_i[tid] = -1;
+    s_swap_j[tid] = -1;
     
     // Each thread evaluates a subset of i positions
     for (int i = tid; i < n - 2; i += block_size) {
@@ -64,32 +89,43 @@ void two_opt_kernel(
         const int *row_i = dist + (size_t)node_i * (size_t)n;
         const int *row_i1 = dist + (size_t)node_i1 * (size_t)n;
         int d_ab = row_i[node_i1];
-        // Carry-over: `node_j` of iteration `j + 1` is `node_j1` of iteration `j`
-        int node_j = s_tour[i + 2];
 
-        // Serial inner loop over j (upper triangle only)
-        for (int j = i + 2; j < n; ++j) {
-            int node_j1 = s_tour[(j + 1) % n];
+        if (use_candidates) {
+            // `Theta(n * k)` scan: walk the `k` nearest neighbours of `node_i` and
+            // translate each node id into a tour position through `s_pos`.
+            const int *row_c = candidates + (size_t)node_i * (size_t)candidate_k;
+            for (int r = 0; r < candidate_k; ++r) {
+                int j = positions[row_c[r]];
+                // Upper triangle only; the wrap-around pair of `i == 0` would reverse
+                // the whole tour for a zero gain, exactly as in `two_opt_batch.cu`.
+                if (j <= i + 1 || (i == 0 && j == n - 1)) continue;
 
-            // Calculate delta (new - old: negative = improvement)
-            int old_dist = d_ab + dist[(size_t)node_j * (size_t)n + (size_t)node_j1];
-            int new_dist = row_i[node_j] + row_i1[node_j1];
-            int delta = new_dist - old_dist;  // Negative = improvement
-
-            // Update best for this thread (delta < 0 means improvement)
-            if (delta < my_delta) {
-                my_delta = delta;
-                my_swap_i = i;
-                my_swap_j = j;
+                int node_j = s_tour[j];
+                int node_j1 = s_tour[(j + 1) % n];
+                two_opt_consider(
+                    i, j,
+                    two_opt_delta(node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, nullptr, n,
+                                  0, true),
+                    s_deltas, s_swap_i, s_swap_j, tid);
             }
-            node_j = node_j1;
+        } else {
+            // Carry-over: `node_j` of iteration `j + 1` is `node_j1` of iteration `j`
+            int node_j = s_tour[i + 2];
+
+            // Serial inner loop over j (upper triangle only)
+            for (int j = i + 2; j < n; ++j) {
+                int node_j1 = s_tour[(j + 1) % n];
+
+                two_opt_consider(
+                    i, j,
+                    two_opt_delta(node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, nullptr, n,
+                                  0, true),
+                    s_deltas, s_swap_i, s_swap_j, tid);
+                node_j = node_j1;
+            }
         }
     }
     
-    // Store thread's best in shared memory for reduction
-    s_deltas[tid] = my_delta;  // int delta
-    s_swap_i[tid] = my_swap_i;
-    s_swap_j[tid] = my_swap_j;
     __syncthreads();
     
     // Block reduction to the exact minimum delta.

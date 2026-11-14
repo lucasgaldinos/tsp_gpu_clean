@@ -424,6 +424,10 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
   The grid modes perform a single batched H2D/D2H transfer; a CuPy-resident input is
   refined in place in VRAM with zero PCIe traffic (`BUG-15` / `DP10-18`).
 
+  All three families honour `candidate_k`: the same `k` binds the same `N_k` table and
+  restricts every `j` scan to those neighbours (`DP10-20`), so the per-route baseline
+  searches the neighbourhood its configuration declares (`BUG-57`).
+
   `"multi_move"` is not a re-implementation of the CPU acceptance rule: each thread
   retains only its own steepest candidate, so one pass offers at most
   `min(block_size, n // 2)` moves to the greedy disjoint-selection step (Rocki & Suda,
@@ -558,13 +562,24 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     distances_gpu = cp.asarray(distances_cpu, dtype=cp.int32)
     self.h2d_bytes += int(distances_cpu.nbytes)
 
+    # Candidate-list mode (`DP10-20`, `BUG-57`): bind the same context-owned `N_k` table
+    # and charge the same upload as `_improve_grid`, so `naive` searches the same
+    # `Theta(n * k)` neighbourhood as the grid kernels for a given `candidate_k`.
+    candidate_count: int = 0
+    d_candidates: Any = 0
+    d_positions: Any = 0
+    if self._uses_candidates(context, n):
+      d_candidates, candidate_bytes = self._operands.resolve_candidates(context, int(self.candidate_k or 0))
+      self.h2d_bytes += candidate_bytes
+      candidate_count = int(d_candidates.shape[1])
+      # Inverse map in VRAM, mirroring `_improve_grid`: keeping it in shared memory
+      # would halve this kernel's capacity, which is already bounded by `s_tour`.
+      d_positions = cp.empty(n, dtype=cp.int32)
+
     threads_per_block: int = prev_power_of_2(min(256, max(1, n - 2)), min_val=1, max_val=256)
-    shared_mem = (
-      threads_per_block * 4  # s_deltas (int32)
-      + threads_per_block * 4  # s_swap_i (int32)
-      + threads_per_block * 4  # s_swap_j (int32)
-      + n * 4  # s_tour (int32)
-    )
+    # Three reduction buffers plus `s_tour[n]`; the candidate path adds no shared memory,
+    # so both modes share the ceiling pinned by `max_shared_tour_cities`.
+    shared_mem: int = _shared_mem_bytes(threads_per_block, n, tile_size=0)
     kernel = self._get_kernel()
 
     improved = np.empty_like(batch_np, dtype=np.int32)
@@ -577,7 +592,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
         kernel(
           (1,),
           (threads_per_block,),
-          (d_tour, distances_gpu, np.int32(n), np.int32(0)),
+          (d_tour, distances_gpu, np.int32(n), np.int32(0), d_candidates, np.int32(candidate_count), d_positions),
           shared_mem=shared_mem,
         )
         self.kernel_launches += 1

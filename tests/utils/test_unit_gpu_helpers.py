@@ -203,3 +203,41 @@ def test_compile_kernel_cache_reuses_the_compiled_kernel(tmp_path: Path) -> None
   assert isinstance(first, cp.RawKernel)
   assert first is second
   assert (cache_info.hits, cache_info.misses) == (1, 1)
+
+
+@pytest.mark.gpu
+def test_load_kernel_recompiles_when_the_source_changes(tmp_path: Path) -> None:
+  """WHAT: `load_kernel` called again after the `.cu` is rewritten in the same process.
+
+  WHY: the compilation cache is keyed by path, never by content, so a benchmark started
+  before a kernel edit would keep executing the binary built from the previous revision
+  without any error or log --- the collected numbers would come from code that is no
+  longer in the repository (`BUG-58`).
+
+  EXPECTED: the second load yields a kernel compiled from the new source, checked
+  through its effect on the device (writes `2` instead of `1`) rather than through
+  object identity.
+  """
+  kernels_dir = tmp_path / "kernels"
+  kernels_dir.mkdir()
+  kernel_path = kernels_dir / "probe.cu"
+  caller_file = tmp_path / "caller_module.py"
+  assert cp is not None, "this test is device-only"
+  gpu_helpers._compile_kernel_cached.cache_clear()
+  gpu_helpers._KERNEL_SOURCE_DIGESTS.clear()
+
+  try:
+    kernel_path.write_text('extern "C" __global__ void probe_kernel(int *out) { out[0] = 1; }\n', encoding="utf-8")
+    first = load_kernel("probe.cu", "probe_kernel", str(caller_file))
+    first_out = cp.zeros(1, dtype=cp.int32)
+    first((1,), (1,), (first_out,))
+    assert int(first_out[0]) == 1
+
+    kernel_path.write_text('extern "C" __global__ void probe_kernel(int *out) { out[0] = 2; }\n', encoding="utf-8")
+    second = load_kernel("probe.cu", "probe_kernel", str(caller_file))
+    second_out = cp.zeros(1, dtype=cp.int32)
+    second((1,), (1,), (second_out,))
+    assert int(second_out[0]) == 2, "a rewritten kernel source must be recompiled, not served from cache"
+  finally:
+    gpu_helpers._compile_kernel_cached.cache_clear()
+    gpu_helpers._KERNEL_SOURCE_DIGESTS.clear()

@@ -18,6 +18,7 @@ import pytest
 
 from algorithms.strategies import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
+from algorithms.strategies.local_search.two_opt import _DEFAULT_MAX_SHARED_TOUR_CITIES, _shared_mem_bytes
 from data_models.problem import Problem
 from protocols import ProblemContext
 from protocols.backend import cupy_backend
@@ -670,3 +671,136 @@ def test_batch_gpu_candidate_mode_never_reads_the_tour_extent() -> None:
   assert isinstance(improved, cupy.ndarray)
   assert 2 in context._gpu_candidate_lists
 
+
+
+@pytest.mark.gpu
+def test_naive_gpu_candidate_mode_keeps_tour_valid(berlin52_problem: Problem) -> None:
+  """WHAT: `LocalSearchGPUTwoOpt(mode="naive", candidate_k=20)` on a 52-city instance.
+
+  WHY: the per-route kernel ignored `candidate_k` and always scanned the whole upper
+  triangle (`BUG-57`), so the configuration declared a search budget the reference
+  variant did not execute. Candidate mode builds `s_pos[tour[idx]] = idx` in shared
+  memory and looks every neighbour up there; a wrong map would drop or duplicate genes.
+
+  EXPECTED: valid permutations and a non-increasing closed cost for every route.
+  """
+  # Arrange
+  cp = _cupy()
+  n = berlin52_problem.dimension
+  tours = _random_tours(n, 3, seed=19)
+  context = ProblemContext(berlin52_problem, xp=cp, seed=1)
+  distances = ProblemContext(berlin52_problem, xp=np, seed=0).get_cpu_distances()
+  strategy = LocalSearchGPUTwoOpt(mode="naive", candidate_k=20, max_iterations=1)
+
+  # Act
+  improved = strategy.improve_batch(tours, context)
+
+  # Assert
+  assert strategy.candidate_k == 20
+  for before, after in zip(tours, np.asarray(improved), strict=True):
+    assert sorted(int(gene) for gene in after) == list(range(n))
+    assert _closed_cost(after, distances) <= _closed_cost(before, distances)
+
+
+@pytest.mark.gpu
+def test_naive_and_batch_gpu_candidate_mode_are_bit_identical(berlin52_problem: Problem) -> None:
+  """WHAT: the per-route and batched kernels with the same `candidate_k`, one pass.
+
+  WHY: `BUG-57` left the naive kernel scanning the full `j` range while `two_opt_batch.cu`
+  honoured `N_k`, so the two variants of the same algorithm searched different
+  neighbourhoods for an identical configuration.
+
+  EXPECTED: byte-identical tours. One pass of either kernel applies exactly one steepest
+  move, and both build the same inverse map, walk the same `k` neighbours of `node_i`,
+  assign `i` to threads with the same `i = tid + r * block_size` mapping and fold the
+  per-thread minima with the same reduction tree, so the winning `(i, j)` pair is the
+  same. (That argument is per pass: it is the batched `multi_move` kernel, not `batch`,
+  that applies several moves per pass.)
+  """
+  # Arrange
+  cp = _cupy()
+  n = berlin52_problem.dimension
+  tours = _random_tours(n, 4, seed=37)
+  context = ProblemContext(berlin52_problem, xp=cp, seed=1)
+
+  # Act
+  naive = LocalSearchGPUTwoOpt(mode="naive", candidate_k=20, max_iterations=1).improve_batch(tours, context)
+  batch = LocalSearchGPUTwoOpt(mode="batch", candidate_k=20, max_iterations=1).improve_batch(tours, context)
+
+  # Assert
+  np.testing.assert_array_equal(np.asarray(naive), np.asarray(batch))
+
+
+def _candidate_blind_instance() -> tuple[Problem, np.ndarray]:
+  """Build the tour/matrix pair whose only improving move leaves node 0's 20-NN list.
+
+  Node `0` sits in a 20-node clique of distance-1 edges (plus node `21`), so its `N_20`
+  is exactly that clique. Node `22` is at distance 5 — one place outside the list — and
+  it is the break point of the single improving 2-opt move of the initial tour
+  `[0, 1, 22, 23, 24, 25, 2, ..., 21]`: pairing `(0, 1)` with `(22, 23)` gains
+  `5 + 1000 - 1000 - 1000 = -995`. Every other pair has a delta of `0` or more, so a
+  full scan moves and a 20-neighbour scan provably cannot.
+  """
+  n, far = 26, 1000
+  distances = np.full((n, n), far, dtype=np.int64)
+  near = np.arange(2, 22, dtype=np.int64)
+  distances[0, near] = 1
+  distances[near, 0] = 1
+  distances[np.ix_(near, near)] = 1
+  distances[0, 22] = 5
+  distances[22, 0] = 5
+  np.fill_diagonal(distances, 0)
+  tour = np.concatenate([np.array([0, 1, 22, 23, 24, 25], dtype=np.int32), near.astype(np.int32)])
+  return _explicit_problem("candidate_blind", distances), tour
+
+
+@pytest.mark.gpu
+def test_naive_gpu_candidate_mode_differs_from_the_full_scan() -> None:
+  """WHAT: `mode="naive"` with and without `candidate_k` on a matrix built for the split.
+
+  WHY: the regression `BUG-57` needs a case where honouring `candidate_k` must change the
+  result. On the gadget below the improving partner of node `0` is node `22`, one place
+  outside `N_20(0)`, and it is the only improving pair of the tour — so the full scan
+  takes it and the restricted scan cannot.
+
+  EXPECTED: the full scan applies the `-995` move, the candidate scan returns the input
+  unchanged, and the two tours therefore differ. This test fails if `candidate_k` is
+  ignored again (both scans would then return the full-scan tour).
+  """
+  # Arrange
+  cp = _cupy()
+  problem, tour = _candidate_blind_instance()
+  context = ProblemContext(problem, xp=cp, seed=1)
+  assert 22 not in context.get_cpu_candidate_list(20)[0].tolist(), "the gadget needs node 22 outside N_20(0)"
+  full_scan = LocalSearchGPUTwoOpt(mode="naive", max_iterations=1)
+  restricted = LocalSearchGPUTwoOpt(mode="naive", candidate_k=20, max_iterations=1)
+
+  # Act
+  full = np.asarray(full_scan.improve_batch(tour, context))
+  candidate = np.asarray(restricted.improve_batch(tour, context))
+
+  # Assert
+  expected = tour.copy()
+  expected[1:3] = expected[1:3][::-1]
+  np.testing.assert_array_equal(full, expected)
+  np.testing.assert_array_equal(candidate, tour)
+  assert not np.array_equal(candidate, full), "candidate mode must not reproduce the full scan"
+
+
+def test_per_route_shared_memory_ceiling_is_the_documented_limit() -> None:
+  """WHAT: `_DEFAULT_MAX_SHARED_TOUR_CITIES` is exactly the largest tour that fits 48 KB.
+
+  WHY: the per-route kernel caches the whole tour in shared memory, so the constant is a
+  hardware bound rather than a tuning knob; if the launch layout grows, the constant
+  silently becomes a lie and the kernel fails at run time instead of at construction.
+  Candidate mode must not move it: the inverse map lives in global memory for exactly
+  this reason (`BUG-57`).
+
+  EXPECTED: the documented ceiling fits in 48 KB and one more city does not.
+  """
+  block_size = 256
+  per_block_limit = 48 * 1024
+
+  assert _shared_mem_bytes(block_size, _DEFAULT_MAX_SHARED_TOUR_CITIES, tile_size=0) <= per_block_limit
+  assert _shared_mem_bytes(block_size, _DEFAULT_MAX_SHARED_TOUR_CITIES + 1, tile_size=0) > per_block_limit
+  assert _shared_mem_bytes(block_size, 2_103, tile_size=0) < per_block_limit, "the whole TSPLIB95 cohort must fit"

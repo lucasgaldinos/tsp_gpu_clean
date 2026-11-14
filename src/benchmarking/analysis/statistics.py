@@ -76,6 +76,12 @@ class StatisticalSummary:
 
     For runtime metrics, this gives GPU speedup if A=CPU, B=GPU.
     Returns 0.0 if B is zero.
+
+    Note:
+        0.0 is a sentinel for an undefined ratio, not a measurement: 0.0 is also a legal
+        speedup value, so the two are indistinguishable. Do not feed this result into an
+        arithmetic or geometric mean -- a single sentinel would drag the aggregate to zero.
+        Report a placeholder (e.g. an em dash) instead of averaging it.
     """
     if self.mean_b == 0.0:
       return 0.0
