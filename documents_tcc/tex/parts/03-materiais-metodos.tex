@@ -206,7 +206,7 @@ Para controlar o custo computacional, a busca é truncada em duas dimensões.
 A primeira é o número de passadas: cada passada percorre os candidatos de todas as cidades e aplica um único movimento, aquele de maior ganho entre os examinados (\emph{best-improvement}); o limite é de dez passadas por indivíduo, em vez de descer até o ótimo local.
 A segunda é a vizinhança examinada em cada passada: para cada cidade, apenas os \(\kappa = 20\) vizinhos mais próximos são considerados candidatos ao segundo ponto do movimento, e não as \(n - 1\) arestas possíveis.
 Com isso, uma passada custa \(\Theta(n\kappa)\) em vez de \(\Theta(n^2)\).
-A lista de candidatos é construída uma vez por execução, antes do laço de gerações, e reutilizada em todas as gerações dessa execução.
+A lista de candidatos é construída uma vez por instância e reutilizada em todas as repetições e em todas as gerações.
 O mesmo valor de \(\kappa\), o mesmo limite de passadas e a mesma regra de aceitação são usados nas quatro variantes; o que muda entre elas é o modo de avaliação dos candidatos e, acima do limite de memória compartilhada, o fatiamento da varredura em janelas, regime que nenhuma instância deste trabalho alcança (\hyperref[sec-5311-semantica-operadores]{Seção 5.3.1.1}).
   \item
         \textbf{Critérios de Parada:} O algoritmo encerra sua execução se atingir o ótimo conhecido (com tolerância de 1\%), se não houver melhoria na melhor solução por um número de gerações definido pela ``paciência'' (\(2 \times \sqrt{n_{coords}}\)), ou se atingir o limite máximo de gerações (\(2 \times n_{coords} \times \sqrt{n_{coords}}\)).
