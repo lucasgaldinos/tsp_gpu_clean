@@ -137,7 +137,7 @@ Este trabalho justifica-se por combinar três elementos que, em conjunto, fortal
             \textbf{Implementação de heurísticas clássicas em GPU} (particularmente \(2\)-opt e operadores do AG), explorando o paralelismo de forma explícita.
       \item
             \textbf{Comparação entre variantes análogas do algoritmo em CPU e GPU}, mantendo fixos os operadores, os hiperparâmetros e os critérios de parada, de modo a isolar o efeito da plataforma de execução.
-            As variantes compartilham o mesmo algoritmo, mas não produzem execuções idênticas: cada etapa pode rodar no hospedeiro em versão vetorizada ou no dispositivo em kernel, e a busca local pode ser lançada por indivíduo ou em lote, de modo que a forma de execução difere em todas as etapas.
+            As variantes compartilham o mesmo algoritmo, mas não produzem execuções idênticas: cada etapa pode rodar na CPU em versão vetorizada ou na GPU em \emph{kernel}, e a busca local pode ser lançada por indivíduo ou em lote, de modo que a forma de execução difere em todas as etapas.
       \item
             \textbf{Aplicação de metodologia estatística rigorosa}, com múltiplas repetições por instância, testes de hipótese adequados e medidas de tamanho de efeito.
 \end{enumerate}

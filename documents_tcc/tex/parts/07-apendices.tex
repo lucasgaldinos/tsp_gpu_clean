@@ -41,8 +41,8 @@ Isso permite reimportar toda a pasta de resultados depois de uma recoleta sem li
 
 \section{Telemetria por fase}\label{apendice-telemetria}
 
-Cada repetição registra o tempo de oito etapas do ciclo evolutivo --- inicialização, seleção, cruzamento, mutação, avaliação, busca local, sobrevivência e sincronização com o hospedeiro ---, além do volume transferido em cada direção entre CPU e GPU e do número de lançamentos de \emph{kernel}.
-Os tempos são medidos no relógio do hospedeiro, o que inclui o custo de lançamento das operações assíncronas e é a métrica relevante para comparar variantes do ponto de vista de quem executa o algoritmo; a medição por eventos no dispositivo existe como opção, mas impõe uma barreira de sincronização a cada chamada e por isso não é usada na coleta.
+Cada repetição registra o tempo de oito etapas do ciclo evolutivo --- inicialização, seleção, cruzamento, mutação, avaliação, busca local, sobrevivência e sincronização com a CPU ---, além do volume transferido em cada direção entre CPU e GPU e do número de lançamentos de \emph{kernel}.
+Os tempos são medidos no relógio da CPU, o que inclui o custo de lançamento das operações assíncronas e é a métrica relevante para comparar variantes do ponto de vista de quem executa o algoritmo; a medição por eventos no dispositivo existe como opção, mas impõe uma barreira de sincronização a cada chamada e por isso não é usada na coleta.
 A soma das fases é comparada ao tempo total de parede de cada configuração, e a diferença residual mede o custo que não é atribuído a nenhuma etapa.
 
 \section{Roteiro de reprodução}\label{apendice-reproducao}

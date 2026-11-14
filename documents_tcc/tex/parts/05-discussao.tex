@@ -6,7 +6,7 @@ A discussão está organizada em quatro partes: síntese dos achados e resposta 
 \section{Síntese dos achados}\label{sec-51-sintese-achados}
 
 A questão de pesquisa indaga como comparar, de forma fiel, o impacto de diferentes estratégias de paralelização em GPU sobre o desempenho de um algoritmo memético para o TSP. Os resultados permitem uma resposta em duas partes.
-A primeira é que o fator determinante não é o uso da GPU em si, mas \textbf{onde} e \textbf{como} o tráfego de dados entre hospedeiro e dispositivo é organizado: as três variantes aceleradas diferem entre si de forma sistemática, apesar de compartilharem a mesma estrutura algorítmica.
+A primeira é que o fator determinante não é o uso da GPU em si, mas \textbf{onde} e \textbf{como} o tráfego de dados entre CPU e GPU é organizado: as três variantes aceleradas diferem entre si de forma sistemática, apesar de compartilharem a mesma estrutura algorítmica.
 A segunda é que esse efeito é \textbf{multidimensional}: as variantes não se ordenam em uma única escala de mérito, mas trocam posição conforme a métrica considerada.
 
 Sob a ótica do \textbf{tempo de execução}, a variante \textbf{Híbrida Otimizada} é consistentemente superior, com ganho de performance mediano por instância de \(5{,}69\times\) sobre a Híbrida Ingênua e tempo médio agregado de \(18{,}94\) segundos, contra \(47{,}08\) segundos da Ingênua.
@@ -91,7 +91,7 @@ Na variante ingênua, cada rota é processada por um kernel próprio, com uma tr
 Como o ganho de cada movimento é calculado pela mesma expressão, o conjunto de movimentos examinados coincide; o que pode diferir é o desempate entre ganhos iguais e a ordem de aplicação.
 A consequência para o desenho experimental é que as variantes partem do mesmo algoritmo e dos mesmos parâmetros, mas percorrem sequências de melhoria distintas a partir da primeira geração, de modo que a comparação entre elas mede o efeito conjunto da plataforma e do modo de paralelização.
 
-Um efeito correlato, também de natureza estrutural, é que a variante Totalmente em GPU contabiliza um número de gerações bem maior que a Híbrida Otimizada em instâncias do mesmo porte, o que reflete diferenças na forma de contar gerações no dispositivo e no hospedeiro.
+Um efeito correlato, também de natureza estrutural, é que a variante Totalmente em GPU contabiliza um número de gerações bem maior que a Híbrida Otimizada em instâncias do mesmo porte, o que reflete diferenças na forma de contar gerações na GPU e na CPU.
 Esse fator concorre com os anteriores na explicação das diferenças de tempo e de qualidade observadas.
 
 \subsection{Ausência de \emph{profiling} por contadores de hardware}\label{sec-532-instrumentacao}
@@ -125,7 +125,7 @@ Do ponto de vista de quem projeta ou emprega algoritmos de roteamento em GPU, os
   \tightlist
   \item
         \textbf{Quando a latência domina} — cenários interativos, planejamento com restrição de tempo de resposta ou execução de muitas instâncias em sequência — a \textbf{Híbrida Otimizada} é a escolha indicada.
-        Ela oferece o menor tempo de execução observado, com ganhos de até \(616{,}9\times\) sobre a CPU em instâncias pequenas, ao custo de manter o estado principal no hospedeiro e pagar uma transferência em lote por geração.
+        Ela oferece o menor tempo de execução observado, com ganhos de até \(616{,}9\times\) sobre a CPU em instâncias pequenas, ao custo de manter o estado principal na CPU e pagar uma transferência em lote por geração.
   \item
         \textbf{Quando a qualidade da rota domina} — e o tempo de resposta, embora relevante, é secundário — a variante \textbf{Totalmente em GPU} é a candidata natural, por concentrar o estado no dispositivo e evitar travessias do barramento durante a evolução.
   \item
