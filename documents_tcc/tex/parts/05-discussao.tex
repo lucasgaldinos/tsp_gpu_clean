@@ -13,7 +13,6 @@ Sob a ótica do \textbf{tempo de execução}, a variante \textbf{Híbrida Otimiz
 Esse resultado é coerente com a hipótese de que o processamento em lote amortiza a latência de transferência: ao enviar a população inteira em uma única chamada, o custo de comunicação deixa de ser proporcional ao número de indivíduos por geração.
 
 \begin{warning}[Resultados provisórios]\label{obs-discussao-provisoria}
-  Os números discutidos aqui vêm da execução descrita na \hyperref[obs-ajustes]{Seção 1.3}.
   A limitação específica da variante totalmente em GPU está na \hyperref[obs-fullgpu-iteracoes]{Observação (1)} do \hyperref[cap4-resultados]{Capítulo 4}, e a aritmética dos \emph{gaps}, na \hyperref[obs-aritmetica]{Observação (3)}.
 \end{warning}
 
@@ -83,23 +82,23 @@ Essa assimetria beneficia diretamente a variante que obteve o melhor \emph{gap} 
 
 \subsection{Assimetria de semântica entre os operadores \texorpdfstring{\(2\)-opt}{2-opt}}\label{sec-5311-semantica-operadores}
 
-Além do limite de iterações, há uma diferença que a normalização do parâmetro \textbf{não} corrige, porque está na definição dos operadores.
-Os quatro \emph{kernels} de busca local não fazem o mesmo trabalho: a variante \textbf{Totalmente em GPU} varre a vizinhança até não haver melhoria, aceitando a primeira melhoria encontrada (\emph{first-improvement}); a implementação em \textbf{CPU} avalia a varredura completa e aplica a melhor melhoria (\emph{best-improvement}); e as variantes \textbf{híbridas} executam uma única passada por chamada de \emph{kernel}.
-Ou seja, um mesmo valor de \(n_{2\text{-opt}}\) representa quantidades diferentes de avaliações e trajetórias de descida distintas.
-
-% TODO Ask about this later. Didn't understand exactly what's happening.
-
-Essa diferença é mais difícil de contornar do que a anterior, porque decorre do modo como cada operador foi implementado, e não de um parâmetro mal propagado.
-Para o desenho experimental deste trabalho, a consequência prática é que as variantes compartilham a estrutura algorítmica, e a comparação entre elas mede também a diferença entre os operadores — não apenas o efeito de executar na CPU ou na GPU.
+Além do limite de iterações, há uma diferença que a normalização dos parâmetros \textbf{não} corrige, porque está na forma como cada variante executa a busca local.
+Em todas elas a busca é apoiada por listas de candidatos: cada cidade tem como candidatos os \(\kappa = 20\) vértices mais próximos, o que reduz a vizinhança examinada de \(n - 1\) arestas para \(\kappa\).
+O que muda é o modo de avaliação.
+Na CPU, os candidatos são percorridos em laço vetorizado e aplica-se a melhor melhoria da passada.
+Nos modos em lote do dispositivo, os mesmos candidatos são distribuídos entre as \emph{threads} de um bloco, que acumulam os ganhos em memória compartilhada e elegem o melhor movimento por meio de uma redução em árvore.
+Na variante ingênua, cada rota é processada por um kernel próprio, com uma transferência por indivíduo.
+Como o ganho de cada movimento é calculado pela mesma expressão, o conjunto de movimentos examinados coincide; o que pode diferir é o desempate entre ganhos iguais e a ordem de aplicação.
+A consequência para o desenho experimental é que as variantes partem do mesmo algoritmo e dos mesmos parâmetros, mas percorrem sequências de melhoria distintas a partir da primeira geração, de modo que a comparação entre elas mede o efeito conjunto da plataforma e do modo de paralelização.
 
 Um efeito correlato, também de natureza estrutural, é que a variante Totalmente em GPU contabiliza um número de gerações bem maior que a Híbrida Otimizada em instâncias do mesmo porte, o que reflete diferenças na forma de contar gerações no dispositivo e no hospedeiro.
 Esse fator concorre com os anteriores na explicação das diferenças de tempo e de qualidade observadas.
 
-\subsection{Instrumentação de desempenho ausente}\label{sec-532-instrumentacao}
+\subsection{Ausência de \emph{profiling} por contadores de hardware}\label{sec-532-instrumentacao}
 
-A análise baseia-se exclusivamente em medições macroscópicas de tempo total de execução, sem instrumentação por \emph{kernel}.
-Ferramentas de \emph{profiling} de hardware como o \emph{NVIDIA Nsight Compute}, embora capazes de fornecer contadores detalhados (ocupação, pressão de registradores, divergência de \emph{warps}), serializam a execução dos kernels e exigem múltiplos passes de repetição, distorcendo o tempo real em algoritmos iterativos de longa duração como o GA aqui implementado \autocite{nvidia2024cuda}.
-Como consequência, as explicações arquiteturais oferecidas no \hyperref[cap4-resultados]{Capítulo 4} para a degradação de desempenho em instâncias grandes — pressão de registradores e divergência de \emph{warps} — permanecem como hipóteses plausíveis, porém não verificadas. Uma abordagem menos intrusiva, baseada em temporizadores via primitivas de eventos CUDA na camada Python/CuPy, é o caminho natural para instrumentação futura.
+As medições deste trabalho cobrem tempo por fase, volume transferido e número de lançamentos de \emph{kernel}, mas não contadores de \emph{hardware}.
+Indicadores como ocupação dos multiprocessadores, pressão de registradores e divergência de \emph{warps} exigiriam ferramentas como o \emph{NVIDIA Nsight Compute}, que serializam a execução dos kernels e repetem a medição várias vezes, distorcendo o tempo de um algoritmo iterativo como o GA aqui avaliado \autocite{nvidia2024cuda}.
+Por isso, as explicações arquiteturais apresentadas no \hyperref[cap4-resultados]{Capítulo 4} para a degradação de desempenho em instâncias grandes permanecem hipóteses, e não medições.
 
 \subsection{Hardware único e validade externa}\label{sec-533-hardware-unico}
 
@@ -109,13 +108,13 @@ Embora essa escolha tenha sido metodologicamente vantajosa por tornar as inefici
 
 \subsection{Linha de base incompleta}\label{sec-534-baseline-incompleta}
 
-A variante puramente em CPU foi executada apenas para instâncias com \(n_{coords} \le 100\), devido ao tempo proibitivo de execução nas demais (\hyperref[sec-33-selecao-instancias]{Seção 3.3}).
-Por consequência, para instâncias médias e grandes não existe referência em CPU no conjunto de dados, e as comparações de ganho de performance tomam a Híbrida-Ingênua como base. Isso impede quantificar o ganho absoluto da aceleração em GPU para \(n_{coords} > 100\) e desloca o sentido das comparações para o interior do conjunto de variantes aceleradas.
+A variante puramente em CPU foi executada apenas para instâncias com \(n_{coords} \le 400\), devido ao tempo proibitivo de execução nas demais (\hyperref[sec-33-selecao-instancias]{Seção 3.3}).
+Por consequência, para instâncias com \(n_{coords} > 400\) não existe referência em CPU no conjunto de dados, e as comparações de ganho de performance tomam a Híbrida-Ingênua como base. Isso impede quantificar o ganho absoluto da aceleração em GPU para \(n_{coords} > 400\) e desloca o sentido das comparações para o interior do conjunto de variantes aceleradas.
 
 \subsection{Métricas e critérios de parada}\label{sec-535-metricas-criterios}
 
-As métricas adotadas são limitadas a tempo total de execução e qualidade da solução final.
-Não foram medidos consumo energético, uso de memória ao longo da execução nem tempo por fase do algoritmo, de modo que não é possível atribuir as diferenças observadas a componentes específicos do ciclo evolutivo. Além disso, os critérios de parada dependem de parâmetros de paciência e de limite de gerações proporcionais a \(n_{coords}\) (\hyperref[sec-321-ga-base]{Seção 3.2.1}), o que faz com que instâncias maiores recebam orçamento computacional proporcionalmente maior; comparações entre faixas de tamanho devem ser lidas com essa ressalva.
+As métricas adotadas cobrem tempo total de execução, tempos por fase, volumes transferidos e lançamentos de \emph{kernel}, além da qualidade da solução final.
+Variáveis como consumo energético e ocupação de memória ao longo da execução não foram medidas, de modo que este trabalho não quantifica o custo energético da aceleração nem a evolução do uso de memória. Além disso, os critérios de parada dependem de parâmetros de paciência e de limite de gerações proporcionais a \(n_{coords}\) (\hyperref[sec-321-ga-base]{Seção 3.2.1}), o que faz com que instâncias maiores recebam orçamento computacional proporcionalmente maior; comparações entre faixas de tamanho devem ser lidas com essa ressalva.
 Por fim, a equivalência entre variantes é \emph{estrutural}, e não bit a bit: diferenças na associatividade de reduções em ponto flutuante e condições de contorno de hardware impedem determinismo perfeito entre CPU e GPU (\hyperref[sec-32-arquitetura-variantes]{Seção 3.2}).
 
 \section{Implicações práticas}\label{sec-54-implicacoes-praticas}

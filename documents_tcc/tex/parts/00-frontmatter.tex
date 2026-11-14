@@ -6,12 +6,12 @@
 \section*{Resumo}\label{resumo}
 \addcontentsline{toc}{section}{Resumo}
 
-Este trabalho investiga o impacto de diferentes estratégias de paralelização em Unidades de Processamento Gráfico (GPUs) no desempenho de um algoritmo memético (Algoritmo Genético híbrido com busca local 2-opt) para o Problema do Caixeiro Viajante (TSP).
-Foram implementadas e comparadas quatro variantes de um GA memético: uma versão sequencial em CPU, uma versão híbrida ingênua (transferência indivíduo a indivíduo), uma versão híbrida otimizada (processamento em lote) e uma versão totalmente residente em GPU.
+Este trabalho investiga o impacto de diferentes estratégias de paralelização em Unidades de Processamento Gráfico (GPUs) no desempenho de um algoritmo memético (algoritmo genético com busca local 2-opt) para o Problema do Caixeiro Viajante (TSP).
+Foram implementadas e comparadas quatro variantes de um algoritmo memético: uma versão sequencial em CPU, uma versão híbrida ingênua (transferência indivíduo a indivíduo), uma versão híbrida otimizada (processamento em lote) e uma versão totalmente residente em GPU.
 Os experimentos, conduzidos em um conjunto de 38 instâncias da TSPLIB com até 1002 cidades, demonstram que a estratégia de paralelização influencia drasticamente o trade-off entre tempo de execução e qualidade da solução. A variante híbrida otimizada obteve os menores tempos de execução (ganho de performance mediano por instância de 5,69\times sobre a híbrida ingênua), enquanto a variante totalmente em GPU alcançou a melhor qualidade de solução (gap médio de 0,88\%).
 Os resultados evidenciam que a minimização da transferência de dados entre CPU e GPU é crítica para o desempenho, e que arquiteturas totalmente residentes favorecem o refinamento das soluções em problemas de otimização combinatória.
 
-\textbf{Ressalva:} os valores numéricos citados neste resumo são provisórios e não devem ser lidos como resultados finais; ver a \hyperref[obs-ajustes]{Seção 1.3}.
+\textbf{Ressalva:} os valores numéricos citados neste resumo são provisórios e não devem ser lidos como resultados finais.
 
 \textbf{Palavras-chave:} Problema do Caixeiro Viajante, Algoritmos Genéticos, Computação em GPU, CUDA, Otimização Combinatória.
 
@@ -26,7 +26,7 @@ Experiments conducted on a set of 38 TSPLIB instances with up to 1002 cities dem
 The optimized hybrid variant achieved the lowest execution times (median per-instance Performance gains of \(5.69\times\) over the naive hybrid), while the fully GPU-resident variant achieved the best solution quality (average gap of \(0.88\%\)).
 The results highlight that minimizing data transfer between CPU and GPU is critical for performance, and that fully resident architectures favor solution refinement in combinatorial optimization problems.
 
-\textbf{Note:} the numerical values cited in this abstract are provisional and should not be read as final results; see \hyperref[obs-ajustes]{Section 1.3}.
+\textbf{Note:} the numerical values cited in this abstract are provisional and should not be read as final results.
 
 \textbf{Keywords:} Traveling Salesman Problem, Genetic Algorithms, GPU
 Computing, CUDA, Combinatorial Optimization.
@@ -56,10 +56,13 @@ Computing, CUDA, Combinatorial Optimization.
   \endhead
   \bottomrule\noalign{}
   \endlastfoot
+  \emph{baseline}                             & referência                                                    & Variante tomada como base para o cálculo de ganho de performance.                                                                                                \\
   \emph{batch}                                & lote                                                          & Usado para processamento de vários indivíduos em
   uma única chamada.                                                                                                                                             \\
   \emph{benchmark}                            & benchmark / avaliação experimental                            & Mantém-se
   ``benchmark'' quando o foco é o protocolo comparativo.                                                                                                         \\
+  \emph{bitmap}                               & mapa de bits                                                  & Tabela de pertinência que representa cada cidade por um
+  bit, em vez de um byte.                                                                                                                                        \\
   \emph{crossover}                            & cruzamento                                                    & Preferência por ``cruzamento'', mantendo
   a sigla OX quando necessário.                                                                                                                                  \\
   \emph{fitness}                              & aptidão                                                       & Quando útil, escreve-se ``aptidão
@@ -79,6 +82,8 @@ Computing, CUDA, Combinatorial Optimization.
   no texto analítico.                                                                                                                                            \\
   \emph{swap mutation}                        & mutação por troca                                             & Operador que troca a posição
   de duas cidades na permutação.                                                                                                                                 \\
+  \emph{thread}                               & \emph{thread} (unidade de execução)                             & O termo inglês é mantido, como na literatura
+  da área.                                                                                                                                                       \\
   \emph{throughput}                           & vazão                                                         & Preferência por ``vazão'', mantendo o inglês
   quando a literatura exigir.                                                                                                                                    \\
   \emph{warp}                                 & \emph{warp} (grupo de 32 \emph{threads})                      & O termo inglês

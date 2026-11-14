@@ -85,7 +85,9 @@ O framework opera em três camadas distintas:
   \tightlist
   \item
         \textbf{Camada de Algoritmos:} Contém as implementações das quatro variantes do algoritmo memético.
-        Todas compartilham a mesma estrutura de classes e os mesmos operadores genéticos, diferindo apenas na estratégia de gerenciamento de memória e paralelismo.
+        Todas partem do mesmo algoritmo memético, com os mesmos operadores genéticos, os mesmos hiperparâmetros e os mesmos critérios de parada, e diferem apenas na plataforma em que cada etapa executa e no grau de paralelismo.
+        Os operadores genéticos existem em versão de CPU e em versão de GPU, e as versões de GPU foram verificadas contra as de CPU para garantir descendentes idênticos quando as entradas são as mesmas.
+        A busca local examina o mesmo conjunto de movimentos nas quatro variantes; o que muda é o modo de avaliação desses movimentos --- em laço vetorizado no hospedeiro ou em paralelo no dispositivo ---, discutido na \hyperref[sec-5311-semantica-operadores]{Seção 5.3.1.1}.
   \item
         \textbf{Camada de Orquestração (Benchmark):} Responsável por carregar as configurações experimentais (parâmetros, instâncias), gerenciar a execução das repetições independentes e garantir o isolamento entre testes.
         Esta camada implementa mecanismos de \emph{checkpoint} para salvar o estado de cada execução, permitindo a recuperação em caso de falhas e a auditoria posterior dos dados.
@@ -100,55 +102,64 @@ O framework opera em três camadas distintas:
     direction TB
 
     class Orchestration {
-        +run_benchmark()
+        +run_comprehensive_benchmark()
         +manage_checkpoints()
       }
 
-    class GeneticAlgorithmBase {
-        <<Abstract>>
-        #population_size: int
-        #mutation_rate: float
-        #tournament_size: int
-        #two_opt_iterations: int
+    class GeneticAlgorithm {
+        +population_size: int
+        +mutation_rate: float
         +evolve()
-        #_initialize_population()
-        #_select_parents()
-        #_create_offspring()
-        #_survival_selection()
-        #_improve_population()*
-        #_evaluate_population()*
+        +timer: PhaseTimer
+        -initialization
+        -selection
+        -crossover
+        -mutation
+        -local_search
+        -evaluation
       }
 
-    class GeneticAlgorithmCPU {
-        #_improve_population()
-        #_evaluate_population()
+    class InitializationStrategy {
+        <<Protocol>>
+        +generate()
       }
 
-    class GeneticAlgorithmHybridNaive {
-        #_improve_population()
-        #_evaluate_population()
+    class SelectionStrategy {
+        <<Protocol>>
+        +select()
       }
 
-    class GeneticAlgorithmHybridOptimized {
-        #_improve_population()
-        #_evaluate_population()
+    class CrossoverStrategy {
+        <<Protocol>>
+        +crossover()
       }
 
-    class GeneticAlgorithmFullGPU {
-        #_improve_population()
-        #_evaluate_population()
+    class MutationStrategy {
+        <<Protocol>>
+        +mutate()
       }
 
-    Orchestration --> GeneticAlgorithmBase : Instantiates & Runs
+    class LocalSearchStrategy {
+        <<Protocol>>
+        +improve_batch()
+      }
 
-    GeneticAlgorithmBase <|-- GeneticAlgorithmCPU
-    GeneticAlgorithmBase <|-- GeneticAlgorithmHybridNaive
-    GeneticAlgorithmBase <|-- GeneticAlgorithmHybridOptimized
-    GeneticAlgorithmBase <|-- GeneticAlgorithmFullGPU
+    class EvaluationStrategy {
+        <<Protocol>>
+        +evaluate()
+      }
 
-    note for GeneticAlgorithmBase "Padrão Template Method:<br>Define fluxo fixo (evolve),<br>subclasses implementam backends<br>de execução específicos (*)"
+    Orchestration --> GeneticAlgorithm : Instantiates & Runs
+    GeneticAlgorithm o--> InitializationStrategy
+    GeneticAlgorithm o--> SelectionStrategy
+    GeneticAlgorithm o--> CrossoverStrategy
+    GeneticAlgorithm o--> MutationStrategy
+    GeneticAlgorithm o--> LocalSearchStrategy
+    GeneticAlgorithm o--> EvaluationStrategy
+
+    note for GeneticAlgorithm "Composição de estratégias:<br>a variante escolhe quais implementações<br>ocupam os seis slots; não há subclasses.<br>As etapas de CPU e de GPU compartilham o mesmo contrato."
   \end{mermaid}
-  \caption{Diagrama de classes do framework experimental.}
+  \caption{Diagrama de classes do framework experimental: uma única classe de algoritmo genético, composta por seis etapas intercambiáveis.}
   \label{fig:class-diagram}
 \end{figure}
 
@@ -157,10 +168,9 @@ Esta separação assegura que as métricas de tempo e qualidade sejam coletadas 
 \section{Arquitetura do framework e variantes algorítmicas}\label{sec-32-arquitetura-variantes}
 
 As variantes comparadas neste trabalho são \textbf{análogas}, mas não equivalentes.\label{obs-envelope-comparacao}
-Todas partem do mesmo GA memético, com os mesmos operadores e os mesmos hiperparâmetros globais, e diferem apenas em \emph{onde} o trabalho é executado --- CPU ou GPU --- e em \emph{como} ele é organizado: sequencial, paralelo por indivíduo ou em lote.
-Paralelizar não preserva o algoritmo: muda o modo de execução e, no caso dos operadores \(2\)-opt, muda também a quantidade de trabalho realizada por chamada.
-É por isso que as variantes são tratadas como análogas, e não como equivalentes.
-Os dois desvios concretos em relação a esse envelope são registrados na \hyperref[obs-fullgpu-iteracoes]{Observação (1)} do \hyperref[cap4-resultados]{Capítulo 4}, um deles decorrente de um parâmetro que não chegava até o \emph{kernel} da busca local, e o outro da diferença de semântica entre os operadores, detalhada na \hyperref[sec-5311-semantica-operadores]{Seção 5.3.1}.
+Todas partem do mesmo algoritmo memético, com os mesmos operadores, os mesmos hiperparâmetros globais e os mesmos critérios de parada, e diferem em \emph{onde} cada etapa é executada --- CPU ou GPU --- e em \emph{como} o trabalho é organizado: sequencial, paralelo por indivíduo ou em lote.
+Paralelizar não preserva o algoritmo: muda o modo de execução, e é por isso que as variantes são tratadas como análogas, e não como equivalentes.
+Os desvios que afetaram a coleta anterior estão registrados nas Observações do \hyperref[cap4-resultados]{Capítulo 4} e na \hyperref[sec-5311-semantica-operadores]{Seção 5.3.1.1}.
 
 \subsection{O Algoritmo Genético Base (GA + 2-opt)}\label{sec-321-ga-base}
 
@@ -190,30 +200,48 @@ Os componentes e parâmetros fundamentais, mantidos constantes em todas as varia
   \item
         \textbf{Mutação:} \emph{Swap Mutation}, que troca a posição de duas cidades aleatórias no cromossomo.
   \item
-        \textbf{Busca Local (2-opt):} Aplicada a cada indivíduo da população ao final de cada geração. Para controlar o custo computacional, a busca local é \textbf{truncada}: limita-se a um número fixo de iterações de melhoria, entendido aqui como \textbf{10 varreduras completas da vizinhança por indivíduo}, em vez de buscar o ótimo local completo (2-opt).
+\textbf{Busca Local (2-opt):} Executada após a mutação, sobre os descendentes já mutados, e não sobre a população inteira ao final da geração.
+Essa é a disposição usual em algoritmos meméticos, em que a melhoria local incide sobre os indivíduos recém-gerados \autocite{alsheddy2017memetic,larranaga1999genetic}; entre os estágios implementados no \emph{framework} --- pós-mutação, pós-inicialização e periódico ---, adotou-se o pós-mutação por ter apresentado, em execuções exploratórias, tempo menor com qualidade comparável.
+Para controlar o custo computacional, a busca é truncada em duas dimensões.
+A primeira é o número de passadas: cada passada percorre os candidatos de todas as cidades e aplica um único movimento, aquele de maior ganho entre os examinados (\emph{best-improvement}); o limite é de dez passadas por indivíduo, em vez de descer até o ótimo local.
+A segunda é a vizinhança examinada em cada passada: para cada cidade, apenas os \(\kappa = 20\) vizinhos mais próximos são considerados candidatos ao segundo ponto do movimento, e não as \(n - 1\) arestas possíveis.
+Com isso, uma passada custa \(\Theta(n\kappa)\) em vez de \(\Theta(n^2)\).
+A lista de candidatos é construída uma vez por execução, antes do laço de gerações, e reutilizada em todas as gerações dessa execução.
+O mesmo valor de \(\kappa\), o mesmo limite de passadas e a mesma regra de aceitação são usados nas quatro variantes; o que muda entre elas é o modo de avaliação dos candidatos e, acima do limite de memória compartilhada, o fatiamento da varredura em janelas, regime que nenhuma instância deste trabalho alcança (\hyperref[sec-5311-semantica-operadores]{Seção 5.3.1.1}).
   \item
         \textbf{Critérios de Parada:} O algoritmo encerra sua execução se atingir o ótimo conhecido (com tolerância de 1\%), se não houver melhoria na melhor solução por um número de gerações definido pela ``paciência'' (\(2 \times \sqrt{n_{coords}}\)), ou se atingir o limite máximo de gerações (\(2 \times n_{coords} \times \sqrt{n_{coords}}\)).
 \end{itemize}
 
 \subsection{Estratégias de Paralelização (As 4 Variantes)}\label{sec-322-variantes}
 
-Para investigar o impacto da GPU, o algoritmo base foi instanciado em quatro variantes distintas, representando diferentes níveis de utilização do hardware:
+Para investigar o impacto da GPU, o algoritmo base foi instanciado em quatro variantes, que não são implementações separadas: todas usam o mesmo algoritmo, e a variante define apenas quais implementações ocupam cada uma das seis etapas --- inicialização, seleção, cruzamento, mutação, busca local e avaliação.
 
 \begin{enumerate}
   \def\labelenumi{\arabic{enumi}.}
   \item
-        \textbf{GeneticAlgorithmCPU (Baseline):} Execução inteiramente na CPU utilizando NumPy. No nível arquitetural, a CPU permanece sendo a plataforma MIMD de referência; o que ocorre aqui é o aproveitamento pontual de vetorização SIMD dentro dos núcleos para acelerar partes da avaliação dos movimentos 2-opt. Já o processamento dos indivíduos, no nível do algoritmo, ocorre essencialmente de forma sequencial. Esta variante serve como linha de base para medir o ganho de performance absoluto.
+        \textbf{CPU (\emph{baseline}):} Execução inteiramente na CPU utilizando NumPy: inicialização, seleção, cruzamento, mutação, busca local e avaliação apontam para as implementações NumPy da mesma classe \texttt{GeneticAlgorithm}.
+        No nível arquitetural, a CPU permanece sendo a plataforma MIMD de referência; o que ocorre aqui é o aproveitamento pontual de vetorização SIMD dentro dos núcleos para acelerar partes da avaliação dos movimentos 2-opt.
+        Já o processamento dos indivíduos, no nível do algoritmo, ocorre essencialmente de forma sequencial.
+        Esta variante serve como referência para medir o ganho de performance absoluto.
   \item
-        \textbf{GeneticAlgorithmHybridNaive (Híbrido Ingênuo):} Mantém a população e os operadores genéticos na CPU, mas transfere cada indivíduo para a GPU para executar a busca local 2-opt. Esta abordagem é considerada ``ingênua'' pois realiza transferências de memória (Host-to-Device e Device-to-Host) para \emph{cada indivíduo} em \emph{cada geração}, expondo o gargalo da largura de banda do barramento PCIe.
+        \textbf{HybridNaive (Híbrido Ingênuo):} Mantém a população e os operadores genéticos na CPU --- apenas o \emph{slot} de busca local é trocado por uma implementação de GPU ---, mas transfere cada indivíduo para a GPU para executar a busca local 2-opt.
+        Esta abordagem é considerada ``ingênua'' pois realiza transferências de memória (Host-to-Device e Device-to-Host) para \emph{cada indivíduo} em \emph{cada geração}, expondo o gargalo da largura de banda do barramento PCIe.
+        Nessa variante, o kernel processa uma rota por lançamento e mantém o circuito inteiro em memória compartilhada, sem a segmentação em janelas que as variantes em lote usam para tratar instâncias maiores; esse detalhe limita o porte máximo que ela aceita, mas não é o que a define como ingênua --- o que a define é o lançamento e a transferência por indivíduo, e todas as instâncias usadas neste trabalho ficam muito abaixo desse limite.
   \item
-        \textbf{GeneticAlgorithmHybridOptimized (Híbrido Otimizado):} Também mantém a lógica genética na CPU, mas otimiza a comunicação enviando a população inteira (ou grandes lotes) para a GPU de uma única vez. O kernel 2-opt processa todos os indivíduos em paralelo na GPU, e os resultados são retornados em lote. Esta estratégia visa amortizar o custo de latência das transferências de memória.
+        \textbf{HybridOptimized (Híbrido Otimizado):} Também mantém a lógica genética na CPU, mas otimiza a comunicação enviando a população inteira (ou grandes lotes) para a GPU de uma única vez.
+        Nesta configuração, o \emph{slot} de busca local usa o modo em lote do kernel 2-opt, que processa todos os indivíduos em paralelo na GPU e devolve os resultados em lote, e o \emph{slot} de avaliação também passa a executar no dispositivo.
+        Esta estratégia visa amortizar o custo de latência das transferências de memória.
   \item
-        \textbf{GeneticAlgorithmFullGPU (Totalmente em GPU):} Implementa a estratégia de ``GPU residente''. A população é inicializada na VRAM e permanece lá durante todo o processo evolutivo. Todos os operadores (seleção, cruzamento, mutação e 2-opt) são executados via kernels CUDA (através do CuPy), eliminando quase completamente a necessidade de comunicação com a CPU, exceto para coleta de estatísticas e verificação de critérios de parada.
+        \textbf{FullGPUModular (Totalmente em GPU):} Implementa a estratégia de ``GPU residente'': os seis \emph{slots} --- inclusive inicialização, seleção, cruzamento e mutação --- apontam para implementações executadas no dispositivo.
+        A população é inicializada na VRAM e permanece lá durante todo o processo evolutivo, o que elimina quase completamente a necessidade de comunicação com a CPU, exceto para coleta de estatísticas e verificação de critérios de parada.
+        Os operadores de GPU não usam as abstrações de alto nível do CuPy, e sim kernels CUDA escritos para este trabalho e compilados antes do laço de repetições medido, numa etapa de aquecimento que mantém o custo de compilação fora dos tempos registrados.
 \end{enumerate}
 
 \section{Seleção de instâncias e protocolo experimental}\label{sec-33-selecao-instancias}
 
-Para garantir a relevância estatística dos resultados, foram selecionadas 38 instâncias da biblioteca \textbf{TSPLIB} \autocite{reinelt1991tsplib}, variando de 51 a 1002 cidades. O conjunto inclui problemas com diferentes características geométricas, permitindo avaliar a robustez dos algoritmos em diversos cenários. As instâncias selecionadas estão listadas na Tabela\textasciitilde{}\ref{tbl:selected-instances}, categorizadas por faixa de tamanho.
+Para garantir a relevância estatística dos resultados, foram selecionadas 15 instâncias da biblioteca \textbf{TSPLIB} \autocite{reinelt1991tsplib}, variando de 48 a 1002 cidades, de modo a cobrir as três faixas de tamanho usadas na análise.
+O conjunto inclui problemas com diferentes características geométricas e diferentes formatos de peso de aresta, permitindo avaliar a robustez dos algoritmos em diversos cenários.
+As instâncias selecionadas estão listadas na Tabela\textasciitilde{}\ref{tbl:selected-instances}, categorizadas por faixa de tamanho.
 
 \begin{longtable}[]{@{}
     >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3077}}
@@ -243,14 +271,12 @@ Para garantir a relevância estatística dos resultados, foram selecionadas 38 i
   \endhead
   \bottomrule\noalign{}
   \endlastfoot
-  \textbf{Pequenas}                           & \(n_{coords} \le 100\)                    & eil51, berlin52, st70,
-  eil76, pr76, rat99, kroA100, kroB100, kroC100, kroD100, kroE100,
-  rd100                                                                                                                   \\
-  \textbf{Médias}                             & \(100 < n_{coords} \le 400\)              & eil101, lin105, pr107,
-  pr124, bier127, ch130, pr136, pr144, ch150, kroA150, kroB150, pr152,
-  u159, rat195, d198, kroA200, ts225, pr264, pr299, lin318, rd400                                                         \\
-  \textbf{Grandes}                            & \(n_{coords} > 400\)                      & fl417, pr439, pcb442, rat783,
-  pr1002                                                                                                                  \\
+  \textbf{Pequenas}                           & \(n_{coords} \le 100\)                    & att48, berlin52, eil51, gr96,
+  kroA100                                                                                                                 \\
+  \textbf{Médias}                             & \(100 < n_{coords} \le 400\)              & ch150, d198, pr264,
+  lin318                                                                                                                  \\
+  \textbf{Grandes}                            & \(n_{coords} > 400\)                      & pcb442, att532, si535, gr666,
+  rat783, pr1002                                                                                                          \\
 \end{longtable}
 
 O protocolo de execução seguiu as diretrizes para comparação de algoritmos estocásticos:
@@ -258,11 +284,12 @@ O protocolo de execução seguiu as diretrizes para comparação de algoritmos e
 \begin{itemize}
   \tightlist
   \item
-        \textbf{Repetições:} Cada par (algoritmo, instância) foi executado \textbf{26 vezes} independentemente.
+        \textbf{Repetições:} Cada par (algoritmo, instância) foi executado em \textbf{30 repetições} independentes.
   \item
-        \textbf{Sementes Aleatórias:} As sementes foram fixadas e registradas para garantir a reprodutibilidade, mas variaram entre as 26 repetições para amostrar adequadamente o comportamento estocástico.
+        \textbf{Sementes Aleatórias:} As sementes foram fixadas e distintas por repetição --- derivadas da semente base \(42\) somada ao índice da repetição ---, o que torna cada execução reprodutível e amostra adequadamente o comportamento estocástico.
   \item
-        \textbf{Limitação da CPU:} Devido ao tempo proibitivo de execução, a variante \textbf{GeneticAlgorithmCPU} foi executada apenas para instâncias com \(N \le 100\). Para instâncias maiores, as comparações de ganho de performance tomam como base a variante híbrida mais simples ou comparam as variantes GPU entre si.
+        \textbf{Limitação da CPU:} Devido ao tempo proibitivo de execução, a variante \textbf{CPU} foi executada apenas para instâncias com \(n_{coords} \le 400\), ou seja, nas faixas pequena e média da Tabela\textasciitilde{}\ref{tbl:selected-instances}.
+        Para as instâncias com \(n_{coords} > 400\), a referência de comparação passa a ser a variante \textbf{HybridNaive (Híbrida Ingênua)}.
 \end{itemize}
 
 \section{Protocolo de análise estatística}\label{sec-34-protocolo-estatistico}
@@ -279,10 +306,27 @@ A análise dos resultados adota a metodologia recomendada por \textcite{demsar20
   \item
         \textbf{Comparação Múltipla:} Para comparar as quatro variantes simultaneamente, aplica-se o teste de \textbf{Friedman} (não-paramétrico) para detectar se há diferenças significativas nos rankings dos algoritmos.
   \item
-        \textbf{Análise Post-Hoc:} Em caso de rejeição da hipótese nula no teste de Friedman, utiliza-se o teste de \textbf{Nemenyi} para identificar quais pares de algoritmos diferem significativamente entre si.
+        \textbf{Análise Post-Hoc por Diferença Crítica:} Em caso de rejeição da hipótese nula no teste de Friedman, o procedimento de \textbf{Nemenyi} é empregado como teste de \emph{diferença crítica}, e não como um teste que devolve um valor-p por par de algoritmos.
+        Ele resume o desempenho de cada variante em um \emph{rank} médio e calcula o limiar \(CD = q_\alpha \sqrt{k(k+1)/(6N)}\), em que \(q_\alpha\) é a amplitude studentizada dividida por \(\sqrt{2}\), \(k\) é o número de variantes e \(N\) é o número de instâncias.
+        Dois \emph{ranks} médios separados por menos que \(CD\) são considerados estatisticamente indistinguíveis.
+  \item
+        \textbf{Correção para Múltiplas Comparações:} As comparações pareadas do item 2 são corrigidas pelo procedimento \textbf{Holm--Bonferroni} \emph{step-down}, aplicado ao conjunto de valores-p de cada família de comparações.
+        Os valores-p são ordenados de forma crescente e comparados, na ordem, a \(\alpha/(m-i+1)\), em que \(m\) é o número de hipóteses da família e \(i\) é a posição do valor-p; o procedimento para na primeira hipótese não rejeitada e, por ser \emph{step-down}, é uniformemente mais potente que a correção de Bonferroni simples.
+  \item
+        \textbf{Diagramas de Diferença Crítica:} Os resultados são apresentados também em diagramas de diferença crítica, que posicionam as variantes no eixo de \emph{rank} médio e ligam por uma barra horizontal os grupos cujos \emph{ranks} não diferem por mais de \(CD\), tornando visível, de uma só vez, quais variantes se distinguem e quais permanecem empatadas estatisticamente.
   \item
         \textbf{Tamanho de Efeito:} O \textbf{d de Cohen} é calculado para quantificar a magnitude da diferença de desempenho, permitindo distinguir entre melhorias estatisticamente significativas mas irrelevantes na prática, e melhorias com impacto real no tempo de execução.
 \end{enumerate}
+
+As medidas de dispersão reportadas são amostrais.
+Para uma amostra de \(n_{reps}\) repetições, o desvio padrão é calculado com divisor \(n_{reps} - 1\),
+\[
+  s = \sqrt{\frac{1}{n_{reps} - 1} \sum_{i=1}^{n_{reps}} \left(x_i - \bar{x}\right)^2},
+\]
+e não com o divisor \(n_{reps}\) do estimador de máxima verossimilhança.
+A diferença é pequena em amostras grandes, mas não é desprezível nas 30 repetições usadas aqui: o divisor \(n_{reps}\) subestima a variabilidade, o que encolhe os intervalos de confiança e infla a estatística dos testes de hipótese.
+
+Como observação, a análise bayesiana de \textcite{benavoli2017time} não substitui o protocolo acima: ela acrescentaria probabilidades posteriores às decisões baseadas em testes de hipótese, sem alterar as escolhas metodológicas adotadas.
 
 \begin{figure}[htbp]
   \centering

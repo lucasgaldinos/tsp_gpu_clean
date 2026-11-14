@@ -69,7 +69,7 @@ limitantes inferiores fortes e poda efetiva \footnote{A distinção é
   e do conjunto de cortes mantidos durante a busca. Assim, tempo e
   memória devem ser tratados separadamente: o pior caso temporal
   permanece exponencial, enquanto a exaustão prática de RAM ou heap pode
-  ocorrer pelo volume de subproblemas e estruturas auxiliares. % TODO (Orientador): Fundamentação revisada para separar complexidade temporal e espacial no Held-Karp, favor avaliar rigor.
+  ocorrer pelo volume de subproblemas e estruturas auxiliares.
 }.
 
 Ao longo das últimas décadas, o TSP consolidou-se também como um padrão
@@ -241,7 +241,7 @@ da varredura.
 \begin{figure}[htbp]
   \centering
   \begin{mermaid}
-flowchart TD
+    flowchart TD
     Start(["Início: Circuito C"]) --> Init["varredura ← 0"]
     Init --> CheckIter{"varredura < κ?"}
     CheckIter -->|Não| End(["Fim: Retorna C"])
@@ -379,7 +379,7 @@ seja atingido.
 \begin{figure}[htbp]
   \centering
   \begin{mermaid}
-flowchart TD
+    flowchart TD
     Start(["Início"]) --> InitPop["Gerar população inicial P(0)<br/>aleatória ou heurística"]
     InitPop --> Eval0["Avaliar aptidão f(x_i)<br/>para cada indivíduo"]
     Eval0 --> SetT["t ← 0"]
@@ -658,29 +658,17 @@ passos:
         resultantes. Esta etapa é o que transforma o GA em um algoritmo
         memético, introduzindo intensificação explícita da busca.
   \item
-        \textbf{Substituição}: formar a nova população \(P(t+1)\) combinando
-        os melhores indivíduos de \(P(t)\) (elitismo) com os descendentes
-        refinados, garantindo que as melhores soluções sejam preservadas ao
-        longo das gerações.
+        \textbf{Substituição}: formar a nova população \(P(t+1)\) combinando os melhores indivíduos de \(P(t)\) (elitismo) com os descendentes refinados, garantindo que as melhores soluções sejam preservadas ao longo das gerações.
 \end{enumerate}
 
-O processo repete-se até que um critério de parada seja satisfeito
-(número máximo de gerações, estagnação da aptidão ou atingimento do
-custo ótimo conhecido). A
-Figura\textasciitilde{}\ref{fig:ga2opt-flowchart} ilustra o fluxo
-completo do GA+\(2\)-opt memético \autocite{larranaga1999genetic}: a
-busca local de \(2\)-opt (etapa destacada) é aplicada após os operadores
-genéticos (seleção por torneio, cruzamento OX, mutação swap), refinando
-cada descendente com até \(n_{2\text{-opt}}\) varreduras completas de
-\(2\)-opt (\(\mathcal{L}(x, n_{2\text{-opt}})\)), cada uma delas
-escolhendo o melhor movimento da passagem, antes da formação da nova
-população. Esse acoplamento caracteriza o algoritmo como memético,
-combinando exploração global (GA) e intensificação local (\(2\)-opt).
+O processo repete-se até que um critério de parada seja satisfeito (número máximo de gerações, estagnação da aptidão ou atingimento do custo ótimo conhecido).
+A Figura\textasciitilde{}\ref{fig:ga2opt-flowchart} ilustra o fluxo completo do GA+\(2\)-opt memético \autocite{larranaga1999genetic}: a busca local de \(2\)-opt (etapa destacada) é aplicada após os operadores genéticos (seleção por torneio, cruzamento OX, mutação swap), refinando cada descendente com até \(n_{2\text{-opt}}\) varreduras completas de \(2\)-opt (\(\mathcal{L}(x, n_{2\text{-opt}})\)), cada uma delas escolhendo o melhor movimento da passagem, antes da formação da nova população.
+Esse acoplamento caracteriza o algoritmo como memético, combinando exploração global (GA) e intensificação local (\(2\)-opt).
 
 \begin{figure}[htbp]
   \centering
   \begin{mermaid}
-flowchart TD
+    flowchart TD
     Start(["Início"]) --> Init["Gerar população inicial P(0)<br/>(qualquer tipo de heurística construtica)"]
     Init --> Eval0["Avaliar f(x_i) para cada<br/>indivíduo em P(0)"]
     Eval0 --> SetT["gen ← 0"]
@@ -699,58 +687,20 @@ flowchart TD
   \label{fig:ga2opt-flowchart}
 \end{figure}
 
-No contexto deste trabalho, essa etapa de busca local será
-posteriormente mapeada para diferentes implementações em CPU e GPU
-(CPU, Híbrida Ingênua, Híbrida Otimizada, Totalmente em GPU), mantendo
-a mesma lógica de aplicação de \(2\)-opt (mesma vizinhança, mesmos
-limites de iterações \(n_{2\text{-opt}}\)), de forma a preservar o
-caráter estruturalmente equivalente das variantes. Os detalhes
-operacionais, incluindo a forma precisa de parametrizar
-\(n_{2\text{-opt}}\), \(n_{pop}\), \(p_{\text{mut}}\) e os critérios de
-parada do GA, são apresentados no
-\hyperref[cap3-materiais-metodos]{Capítulo 3}.
+No contexto deste trabalho, essa etapa de busca local será posteriormente mapeada para diferentes implementações em CPU e GPU (CPU, Híbrida Ingênua, Híbrida Otimizada, Totalmente em GPU), mantendo a mesma lógica de aplicação de \(2\)-opt (mesma vizinhança, mesmos limites de iterações \(n_{2\text{-opt}}\)), de forma a preservar o caráter estruturalmente equivalente das variantes.
+Os detalhes operacionais, incluindo a forma precisa de parametrizar \(n_{2\text{-opt}}\), \(n_{pop}\), \(p_{\text{mut}}\) e os critérios de parada do GA, são apresentados no \hyperref[cap3-materiais-metodos]{Capítulo 3}.
 
 \section{Computação em GPU e paralelização de meta-heurísticas}\label{sec-26-gpu-metaheuristicas}
 
-Processadores gráficos (GPUs) evoluíram, nas últimas décadas, de
-dispositivos voltados principalmente para renderização gráfica para
-plataformas de computação de uso geral (GPGPU - General-purpose
-computing on GPUs), amplamente utilizadas em aplicações científicas e de
-inteligência artificial \autocite{nvidia2024cuda}. O modelo de
-programação CUDA, por exemplo, organiza o trabalho em grades
-(\emph{grids}) de blocos de threads, seguindo um paradigma de execução
-massivamente paralelo denominado SIMT (Single Instruction, Multiple
-Threads) \autocite{nvidia2024cuda}. Ao passo que as GPUs possuem raízes
-na premissa SIMD da clássica taxonomia de Flynn \autocite{flynn1972taxonomy},
-a NVIDIA estruturou este novo modelo lógico para unir eficiência
-vetorial à abstração de programação escalar % TODO (Orientador): Corrigido anacronismo conceitual que associava SIMT diretamente à década de 60 na taxonomia de Flynn.
-. Nessa configuração, milhares de threads
-executam o mesmo kernel sobre dados distintos, o que é adequado a
-tarefas com alto grau de paralelismo em dados.
+Processadores gráficos (GPUs) evoluíram, nas últimas décadas, de dispositivos voltados principalmente para renderização gráfica para plataformas de computação de uso geral (GPGPU - General-purpose computing on GPUs), amplamente utilizadas em aplicações científicas e de inteligência artificial \autocite{nvidia2024cuda}. O modelo de programação CUDA, por exemplo, organiza o trabalho em grades (\emph{grids}) de blocos de threads, seguindo um paradigma de execução massivamente paralelo denominado SIMT (Single Instruction, Multiple Threads) \autocite{nvidia2024cuda}.
+Ao passo que as GPUs possuem raízes na premissa SIMD da clássica taxonomia de Flynn \autocite{flynn1972taxonomy}, a NVIDIA estruturou este novo modelo lógico para unir eficiência vetorial à abstração de programação escalar.
+Nessa configuração, milhares de threads executam o mesmo kernel sobre dados distintos, o que é adequado a tarefas com alto grau de paralelismo em dados.
 
 Internamente, as threads em uma GPU são agrupadas em \emph{warps}
 (tipicamente 32 threads em arquiteturas NVIDIA), que executam uma mesma
 instrução de forma coordenada segundo o modelo SIMT (\emph{Single
-  Instruction, Multiple Threads}) \autocite{nvidia2024cuda}. Antes de
-comparar isso com CPUs, convém fixar a nomenclatura: CPUs modernas
-\textbf{não} são classificadas como SIMD; arquiteturalmente, elas
-continuam sendo MIMD (\emph{Multiple Instruction, Multiple Data}), pois
-diferentes núcleos e \emph{threads} podem seguir fluxos independentes.
-Quando se fala em ``SIMD de CPU'', fala-se apenas de extensões vetoriais
-dentro de um núcleo. Já em SIMT, cada \emph{thread} possui seu próprio
-estado lógico, mas o hardware agenda grupos de \emph{threads} em passo
-coordenado enquanto não há divergência. Segundo a taxonomia de Flynn
-\autocite{flynn1972taxonomy}, conforme introduzido na
-\hyperref[sec-11-contexto-e-motivacao]{Seção 1.1}, CPUs modernas
-continuam sendo predominantemente MIMD com extensões SIMD \footnote{A
-  classificação arquitetural mais comum para CPUs multicore é MIMD, pois
-  diferentes núcleos ou \emph{threads} podem executar fluxos de
-  instruções independentes. Instruções vetoriais como SSE e AVX
-  adicionam paralelismo SIMD dentro de cada núcleo, acelerando operações
-  sobre vetores de dados sem alterar a classificação geral da CPU.},
-enquanto GPUs maximizam o \emph{throughput} com execução massivamente
-paralela orientada a dados, sendo ideais para cargas em que a mesma
-computação é aplicada a grandes volumes de dados independentes.
+  Instruction, Multiple Threads}) \autocite{nvidia2024cuda}. Já em SIMT, cada \emph{thread} possui seu próprio estado lógico, mas o hardware agenda grupos de \emph{threads} em passo coordenado enquanto não há divergência, diferentemente de uma CPU, que permanece MIMD com extensões SIMD por núcleo \autocite{flynn1972taxonomy}, conforme discutido na \hyperref[sec-11-contexto-e-motivacao]{Seção 1.1}.
+Em contrapartida, GPUs maximizam o \emph{throughput} com execução massivamente paralela orientada a dados, sendo ideais para cargas em que a mesma computação é aplicada a grandes volumes de dados independentes.
 
 \subsection{Taxonomia de paralelização segundo Crainic e Toulouse}\label{sec-261-taxonomia-paralelizacao}
 
@@ -857,7 +807,7 @@ independentes ou cooperativas (Tipo 3).
 \begin{figure}[htbp]
   \centering
   \begin{mermaid}
-flowchart TB
+    flowchart TB
     MH["Meta-heurística sequencial"] --> T1["Tipo 1<br/>(paralelismo em dados)<br/>Avaliar vizinhança/população em paralelo"]
     MH --> T2["Tipo 2<br/>(decomposição do domínio)<br/>Subproblemas com subconjuntos de variáveis"]
     MH --> T3["Tipo 3<br/>(múltiplas trajetórias)<br/>Buscas completas em paralelo<br/>independentes ou cooperativas"]
@@ -1004,11 +954,13 @@ Neste trabalho, esses princípios gerais orientam o desenho experimental
 e a análise dos resultados apresentados nos capítulos seguintes,
 garantindo que as comparações entre variantes em CPU e GPU sejam
 realizadas de forma estatisticamente fundamentada. De maneira mais
-concreta, para cada combinação algoritmo--instância (4 algoritmos vs 38
+concreta, para cada combinação algoritmo--instância (4 algoritmos vs 15
 instâncias), são executadas múltiplas repetições independentes,
 registrando-se, no mínimo, medidas de qualidade da solução (custo final
 ou \emph{gap} em relação ao melhor valor conhecido) e de tempo de
 execução.
+
+Alternativas bayesianas a esse protocolo são discutidas por \textcite{benavoli2017time} e retomadas na \hyperref[sec-64-trabalhos-futuros]{Seção 6}.
 
 \subsection{Comparações pareadas}\label{sec-271-comparacoes-pareadas}
 
@@ -1035,18 +987,11 @@ implementação utilizando bibliotecas em \texttt{python}.
 
 \subsection{Comparações múltiplas}\label{sec-272-comparacoes-multiplas}
 
-Quando três ou mais algoritmos são comparados simultaneamente em um
-conjunto de instâncias (como ocorre com as quatro variantes
-variantes de estrutura algorítmica comum, descritas na \hyperref[obs-envelope-comparacao]{Seção 3.2}), emprega-se o teste de Friedman \autocite{friedman1937use}
-sobre os rankings médios dos algoritmos em cada problema, seguido de
-pós-testes de Nemenyi \autocite{nemenyi1963distribution} quando
-apropriado, conforme recomendado por \textcite{demsar2006statistical}.
-Esse procedimento permite identificar, com controle de erro tipo I,
-quais pares de algoritmos apresentam diferenças estatisticamente
-significativas em termos de desempenho médio. O teste de Friedman
-verifica a hipótese nula de que todos os algoritmos têm desempenho
-equivalente, enquanto o pós-teste de Nemenyi ajusta os valores-p para
-múltiplas comparações, reduzindo o risco de falsos positivos.
+Quando três ou mais algoritmos são comparados simultaneamente em um conjunto de instâncias (como ocorre com as quatro variantes de estrutura algorítmica comum, descritas na \hyperref[obs-envelope-comparacao]{Seção 3.2}), emprega-se o teste de Friedman \autocite{friedman1937use} sobre os rankings médios dos algoritmos em cada problema, seguido de pós-testes de Nemenyi \autocite{nemenyi1963distribution} quando apropriado, conforme recomendado por \textcite{demsar2006statistical}.
+O teste de Friedman verifica a hipótese nula de que todos os algoritmos têm desempenho equivalente.
+O pós-teste de Nemenyi é um procedimento de \textbf{diferença crítica} (\emph{critical difference}): em vez de ajustar valores-p para múltiplas comparações, ele compara a diferença entre os rankings médios de cada par de algoritmos com a quantidade \(CD = q_{\alpha}\sqrt{k(k+1)/(6N)}\), em que \(k\) é o número de algoritmos, \(N\) é o número de instâncias e \(q_{\alpha}\) é o quantil da amplitude studentizada dividido por \(\sqrt{2}\).
+Pares cuja diferença de rankings médios excede \(CD\) são considerados estatisticamente distintos, o que permite identificar quais pares apresentam diferenças em termos de desempenho médio, e o conjunto de comparações é sintetizado em diagramas de diferença crítica.
+Sobre o conjunto de comparações par a par descritas na \hyperref[sec-271-comparacoes-pareadas]{Seção 2.7.1}, emprega-se o procedimento \emph{step-down} de Holm--Bonferroni, que controla a taxa de erro tipo I ao longo de toda a família de comparações \autocite{demsar2006statistical}.
 
 Os detalhes específicos de parametrização desses testes, bem como o
 conjunto exato de métricas analisadas (tempo, qualidade, ganho de
