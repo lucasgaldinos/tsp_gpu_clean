@@ -8,8 +8,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: guide
 scope: global
 modifications:
@@ -285,10 +285,10 @@ $$\operatorname{sgn}(x - y) = \begin{cases} +1 & \text{if } x > y \\ 0 & \text{i
 
 | Absolute Value $|\delta|$ | Qualitative Magnitude | Practical Meaning in Routing Solvers |
 | :--- | :--- | :--- |
-| $|\delta| < 0.147$ | **Negligible** | Stochastic noise; no meaningful difference between solvers. |
-| $0.147 \le |\delta| < 0.330$ | **Small** | Noticeable shift, but overlapping performance. |
-| $0.330 \le |\delta| < 0.474$ | **Medium** | Clear competitive advantage in solution quality or speed. |
-| $|\delta| \ge 0.474$ | **Large** | Decisive algorithmic superiority (e.g., GPU 2-opt vs CPU). |
+| $\lvert\delta\rvert < 0.147$ | **Negligible** | Stochastic noise; no meaningful difference between solvers. |
+| $0.147 \le \lvert\delta\rvert < 0.330$ | **Small** | Noticeable shift, but overlapping performance. |
+| $0.330 \le \lvert\delta\rvert < 0.474$ | **Medium** | Clear competitive advantage in solution quality or speed. |
+| $\lvert\delta\rvert \ge 0.474$ | **Large** | Decisive algorithmic superiority (e.g., GPU 2-opt vs CPU). |
 
 ---
 

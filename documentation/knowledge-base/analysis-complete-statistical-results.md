@@ -8,8 +8,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: analysis
 scope: global
 modifications:
@@ -46,7 +46,7 @@ tags:
   - [1. Two Orthogonal Classification Dimensions](#1-two-orthogonal-classification-dimensions)
     - [1.1 Dimension 1: Parametric vs Non-Parametric](#11-dimension-1-parametric-vs-non-parametric)
     - [1.2 Dimension 2: Paired (Dependent) vs Independent](#12-dimension-2-paired-dependent-vs-independent)
-    - [1.3 The 2×2 Test Classification Matrix](#13-the-22-test-classification-matrix)
+    - [1.3 The 2×2 Test Classification Matrix](#13-the-2×2-test-classification-matrix)
   - [2. The Experimental Benchmark Data Architecture](#2-the-experimental-benchmark-data-architecture)
   - [3. Three-Tier Hierarchical Analysis Protocol](#3-three-tier-hierarchical-analysis-protocol)
     - [3.1 Level 1: Within-Problem Paired Analysis ($n = 15$ Runs)](#31-level-1-within-problem-paired-analysis-n--15-runs)

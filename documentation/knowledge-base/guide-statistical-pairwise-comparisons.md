@@ -8,8 +8,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: guide
 scope: global
 modifications:
@@ -184,7 +184,7 @@ Precision in reporting confidence intervals and $p$-values is mandatory to avoid
 | Statistical Metric | ❌ What You CANNOT Say (Fallacious) | ✅ What You CAN Say (Mathematically Rigorous) |
 | :--- | :--- | :--- |
 | **$95\%$ Confidence Interval**<br>`[12.6s, 22.4s]` | "There is a 95% probability that the true mean speedup $\mu_d$ lies inside $[12.6\text{s}, 22.4\text{s}]$." *(False! In frequentist theory, $\mu_d$ is a fixed constant, not a random variable. The interval either contains $\mu_d$ or it doesn't—probability is 0 or 1).* | "If this benchmark experiment were replicated indefinitely under identical conditions, 95% of the calculated confidence intervals would encompass the true population mean difference $\mu_d$. Our observed interval $[12.6\text{s}, 22.4\text{s}]$ was constructed via this valid procedure." |
-| **$p$-Value**<br>`p = 0.0001` | "There is a 0.01% probability that the null hypothesis is true," or "There is a 99.99% probability that the GPU is faster." | "Assuming the null hypothesis were true ($\mu_d = 0$), the probability of obtaining a test statistic as extreme as or more extreme than $|t| = 6.42$ by pure stochastic sampling variation is $0.01\%$. Because $p \ll 0.05$, we reject $H_0$." |
+| **$p$-Value**<br>`p = 0.0001` | "There is a 0.01% probability that the null hypothesis is true," or "There is a 99.99% probability that the GPU is faster." | "Assuming the null hypothesis were true ($\mu_d = 0$), the probability of obtaining a test statistic as extreme as or more extreme than $\lvert t \rvert = 6.42$ by pure stochastic sampling variation is $0.01\%$. Because $p \ll 0.05$, we reject $H_0$." |
 | **Non-Significance**<br>`p = 0.12` | "We proved that CPU and GPU have equal runtime performance ($H_0$ is true)." | "The observed difference provides insufficient empirical evidence to reject the null hypothesis of equal performance at the $\alpha = 0.05$ significance threshold." |
 | **Effect Magnitude**<br>`p = 10^-8` | "Because $p$ is tiny, the GPU provides a revolutionary speedup." | "The evidence against $H_0$ is overwhelming ($p < 10^{-8}$); however, the magnitude of the practical speedup must be judged by the effect size (Cohen's $d_z$) and raw mean difference." |
 

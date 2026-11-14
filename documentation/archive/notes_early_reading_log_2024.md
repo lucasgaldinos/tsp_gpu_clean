@@ -5,8 +5,8 @@ description: >
 created: 2024-03-10
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: notes
 scope: global
 modifications:

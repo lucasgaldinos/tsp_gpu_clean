@@ -5,8 +5,8 @@ description: >
 created: 2025-01-22
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: notes
 scope: global
 modifications:
@@ -403,5 +403,5 @@ AMD GPUs with ROCm represent a viable alternative to NVIDIA CUDA for GPU computi
 
 **Document Version:** 1.0  
 **Last Updated:** 2025-01-XX  
-**Author:** [[Lucas Galdino]]  
+**Author:** Lucas Galdino  
 **References:** See inline citations throughout document

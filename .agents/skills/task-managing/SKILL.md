@@ -15,6 +15,9 @@ Task-managing is the shared vocabulary that turns review findings into tracked w
 
 A task without a DoD and a file target is underspecified — never write prose bullets in place of a task.
 
+> [!important] Language
+> This skill stays in English. When the plan or walkthrough is written in Portuguese, the structure below is unchanged but the prose follows [prose-language.instructions.md](../../rules/prose-language.instructions.md) — Brazilian register, no calqued headings, technical terms kept verbatim.
+
 ## 1. Directory Structure
 
 Every plan lives in a `plan/` directory:
@@ -46,7 +49,7 @@ Every task is a 5W2H entry. The fields are fixed; each carries its own meaning a
   - **What:** <concrete deliverable — one logical change>
   - **Why:** <root cause / motivation — not a restatement of What>
   - **Who:** Agent (<implementer|reviewer>).
-  - **Where:** [file.ext](../path/to/file.ext#Lnn)
+  - **Where:** [file.py::symbol](../path/to/file.py)
   - **When:** <dependencies; "No dependencies; first in batch" if none>
   - **How:** <the concrete approach — specific files/functions/transforms, not "fix it">
   - **How much:** <Trivial | Low | Medium | High | Very High>.
@@ -69,7 +72,7 @@ Worked bad→good examples of every rule above: [references/task-examples.md](./
 - `Why` — the root cause in plain terms: what is broken or missing today, and what goes wrong if left alone. Not a restatement of `What`.
 - `How` — the concrete approach: the specific files/functions/transforms to touch. Never a tautology ("fix the bug", "implement the feature").
 - `Who` — the worker that owns it (`implementer` for edits, `reviewer` for review). Mark `decision owner: user` when the task hinges on a choice the user must make.
-- `Where` — the file (and line range) the task depends on. Every task has a file target.
+- `Where` — the file and the symbol (or doc heading) the task depends on. Every task has a named target. Never anchor to a line number.
 - `When` — dependency ordering. States which tasks must complete first.
 - `How much` — effort tier; drives the artifact decision ([§7](#7-effort-based-guide)) and the sizing rule ([§2.3](#23-task-sizing)).
 - `Stakeholder Implications` — who/what is affected beyond the change itself.
@@ -83,7 +86,7 @@ After execution, the implementer appends the Solution block under the task (see 
 ```markdown
   + **Solution:**
     - **Changed Files:**
-      + [file.py L42](../path/to/file.py#L42) — brief what changed
+      + [file.py::symbol](../path/to/file.py) — brief what changed
     - **Summary:** 2-3 sentences.
     - **Technical Justification:** 2-4 sentences. WHY, not HOW.
     - **DoD Compliance:** 1-2 sentences.
@@ -175,7 +178,7 @@ Before the reviewer registers a task in the plan, every one of these must hold �
 - [ ] `What` states the deliverable **and** the data/context reality; a domain-aware human can restate the task's intention (what it does and why) in their own words. No line numbers or implementation detail in `What`/`Why`.
 - [ ] `How` describes the concrete approach; `Why` states the root cause in plain terms (not a restatement of `What`).
 - [ ] `DoD` is measurable and scoped to this task alone.
-- [ ] `Where` points at a real file (and line range).
+- [ ] `Where` points at a real file and names the symbol (or heading) that matters; no line-number anchors.
 - [ ] The task is one logical change — no bundled operations, and `How much` is not `High`/`Very High` ([§2.3](#23-task-sizing)).
 - [ ] `Options` records `Recommended` + `Alternative(s)` **and the data reality** wherever the approach hides a genuine decision. A task that presents one approach as obvious when the data makes it ambiguous is a failure.
 

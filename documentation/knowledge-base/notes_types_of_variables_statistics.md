@@ -7,8 +7,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: notes
 scope: global
 modifications:
@@ -75,7 +75,7 @@ A rigorous classification of variables is essential for:
 
 ## 2. Taxonomy of Variable Types
 
-### 2.1 State Variables ($\mathbf{x} \in \mathbb{R}^{n_x}$)
+### 2.1 State Variables
 
 State variables represent the minimal set of internal physical quantities that uniquely define the dynamical condition of a system at any given instant $t$. Knowledge of the state vector $\mathbf{x}(t_0)$ together with input trajectories for $t \ge t_0$ completely determines the future trajectory $\mathbf{x}(t)$.
 
@@ -83,21 +83,21 @@ State variables represent the minimal set of internal physical quantities that u
   $$\frac{\mathrm{d}\mathbf{x}}{\mathrm{d}t} = \mathbf{f}(\mathbf{x}(t), \mathbf{u}(t), \boldsymbol{\theta}, t)$$
 - **Examples**: Electric charge on a capacitor $q(t)$, kinetic velocity of a vehicle $v(t)$, population genotype frequency vector $\mathbf{p}(t)$.
 
-### 2.2 Control Variables ($\mathbf{u} \in \mathbb{R}^{n_u}$)
+### 2.2 Control Variables
 
 Control variables are independent exogenous inputs actively manipulated by an external operator, controller, or algorithm to steer the state trajectory toward an optimal state or objective target.
 
 - **Role**: Free actuators constrained by physical envelopes ($\mathbf{u}_{\text{min}} \le \mathbf{u}(t) \le \mathbf{u}_{\text{max}}$).
 - **Examples**: Throttle actuator angle $\theta_{\text{thr}}(t)$, pump rotational frequency $\omega_{\text{pump}}$, mutation rate $p_m$ in an adaptive genetic algorithm.
 
-### 2.3 Decision Variables ($\mathbf{w} \in \mathcal{W}$)
+### 2.3 Decision Variables
 
 Decision variables are the explicit unknowns solved for in static or combinatorial optimization problems. In optimal control, discrete trajectories of control variables become decision variables.
 
 - **Role**: Determine the configuration of a solution to minimize an objective function $f(\mathbf{w})$ subject to feasibility constraints $\mathbf{g}(\mathbf{w}) \le \mathbf{0}$.
 - **Examples**: Binary edge selections in a Traveling Salesperson Problem permutation matrix $\mathbf{X} \in \{0, 1\}^{n \times n}$, capital allocation amounts in portfolio optimization.
 
-### 2.4 Algebraic Variables ($\mathbf{y}_a \in \mathbb{R}^{n_a}$)
+### 2.4 Algebraic Variables
 
 Algebraic variables are instantaneous dependent quantities whose values are uniquely determined by static algebraic equations relating state, control, and parameter variables, without independent derivative terms.
 
@@ -105,21 +105,21 @@ Algebraic variables are instantaneous dependent quantities whose values are uniq
   $$\mathbf{g}_a(\mathbf{x}(t), \mathbf{u}(t), \mathbf{y}_a(t), \boldsymbol{\theta}) = \mathbf{0}$$
 - **Examples**: Instantaneous mechanical shaft power $P = \tau \omega$, Reynolds number $Re = \frac{\rho v D}{\mu}$, ohmic current $I = V / R$.
 
-### 2.5 Exogenous Variables ($\mathbf{d} \in \mathbb{R}^{n_d}$)
+### 2.5 Exogenous Variables
 
 Exogenous (environmental or disturbance) variables are external inputs that impinge upon the system dynamics but are fundamentally outside the controller's influence.
 
 - **Role**: Modeled as deterministic time series or stochastic processes ($\mathbf{d}(t) \sim \mathcal{GP}(\mathbf{0}, \mathbf{K})$).
 - **Examples**: Ambient road gradient $\theta_{\text{road}}(t)$, wind turbulence vector $\mathbf{v}_{\text{wind}}$, market demand shock $D(t)$.
 
-### 2.6 Parameters ($\boldsymbol{\theta} \in \Theta$)
+### 2.6 Parameters
 
 Parameters are invariant characteristics that specify the physical, geometric, or constitutive properties of a specific system instance. They do not evolve during a simulation run or optimization episode.
 
 - **Role**: Model constants whose sensitivity is evaluated via parametric studies or post-optimality analysis ($\frac{\partial f^*}{\partial \boldsymbol{\theta}}$).
 - **Examples**: Gravitational acceleration constant $g = 9.80665\text{ m/s}^2$, pipe internal roughness $\varepsilon$, city coordinate matrix $\mathbf{C} \in \mathbb{R}^{n \times 2}$ in TSP.
 
-### 2.7 Output Variables ($\mathbf{y} \in \mathbb{R}^{n_y}$)
+### 2.7 Output Variables
 
 Output variables are the measurable, observable signals extracted from the system state and control inputs:
 
@@ -129,7 +129,7 @@ where $\boldsymbol{\eta}(t)$ represents sensor measurement noise.
 
 - **Examples**: Speedometer readout on an instrument dashboard, wall-clock time elapsed per generation $t_{\text{gen}}$, total tour length $L(\pi)$.
 
-### 2.8 Auxiliary Variables ($\mathbf{z} \in \mathbb{R}^{n_z}$)
+### 2.8 Auxiliary Variables
 
 Auxiliary variables are artificial entities introduced to convexify non-linear constraints, linearize objective formulations, or decouple dense computation graphs.
 

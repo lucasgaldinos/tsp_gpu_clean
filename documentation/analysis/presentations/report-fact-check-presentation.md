@@ -7,7 +7,7 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
+  - "Lucas Galdino"
 type: report
 scope: global
 modifications:

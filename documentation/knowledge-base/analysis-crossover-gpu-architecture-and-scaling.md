@@ -13,8 +13,8 @@ date_created: 2026-11-08
 date_changed: 2026-11-10
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: analysis
 scope: global
 modifications:
@@ -101,7 +101,7 @@ tags:
     - [6.1 The Pitfalls of Dynamic Hash Tables on SIMT Hardware](#61-the-pitfalls-of-dynamic-hash-tables-on-simt-hardware)
     - [6.2 The TSP Domain Guarantee: Dense Contiguous Integer Keys](#62-the-tsp-domain-guarantee-dense-contiguous-integer-keys)
     - [6.3 Direct-Address Lookup: Byte Array vs. Bitpacked Array Mechanics](#63-direct-address-lookup-byte-array-vs-bitpacked-array-mechanics)
-    - [6.4 Shared Memory Capacity Verification across TSPLIB Instances](#64-shared-memory-capacity-verification-across-tsplib-instances)
+    - [6.4 Shared Memory Capacity Verification across TSPLIB Instances](#64-shared-memory-capacity-verification-across-tsplib-instances--hardware-occupancy-math)
     - [6.5 Why 2-Opt Tiling ($T=2048$) Does Not Apply to Order Crossover](#65-why-2-opt-tiling-t2048-does-not-apply-to-order-crossover)
   + [7. The Redesigned Architecture: 1 Warp per Route and Warp-Level Cooperativity](#7-the-redesigned-architecture-1-warp-per-route-and-warp-level-cooperativity)
     - [7.1 Decomposing Route Construction across 32 Threads](#71-decomposing-route-construction-across-32-threads)
@@ -544,7 +544,7 @@ In Format A, each city gets **1 full byte** (`uint8_t`) in shared memory:
 
   This is a single 8-bit load instruction (`LDS.U8`) taking $\sim 19$ cycles.
 
-#### Format B: Bitpacked Array (`uint32_t bitmap[n / 32]`) — The Scalability Extension
+#### Format B: Bitpacked Array Scalability Extension
 
 Why would anyone consider an alternative to the simplicity of Format A?
 Because on NVIDIA Pascal GP107, shared memory is capped at **48 KB per thread block**.

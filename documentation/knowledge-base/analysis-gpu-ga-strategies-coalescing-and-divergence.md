@@ -12,8 +12,8 @@ date_created: 2026-11-09
 date_changed: 2026-11-10
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: analysis
 scope: global
 modifications:

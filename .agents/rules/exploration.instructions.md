@@ -39,6 +39,6 @@ Default `eza` exclude set (non-source noise): `.git|.venv|.github|.agents|node_m
 
 ## Output
 
-- Report findings as absolute file links plus reusable symbols.
+- Report findings as repository-relative file links carrying a name anchor — `path::symbol` for code, `path#heading` for docs — plus reusable symbols.
 - Add a short synthesized summary of what was found.
 - Direct answers only; no tour.

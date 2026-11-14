@@ -9,8 +9,8 @@ description: >
 created: 2026-11-11
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: analysis
 scope: global
 modifications:
@@ -52,7 +52,7 @@ tags:
     - [2.3 Query Phase (Direct LDS.U8 Load)](#23-query-phase-direct-ldsu8-load)
     - [2.4 Occupancy & Capacity Math on Pascal GP107 (GeForce GTX 1050)](#24-occupancy--capacity-math-on-pascal-gp107-geforce-gtx-1050)
     - [2.5 Concrete Shared-Memory Footprints Across the TSPLIB95 Cohort](#25-concrete-shared-memory-footprints-across-the-tsplib95-cohort)
-  + [3. Format B: Bitpacked Array (`uint32_t bitmap[⌈n/32⌉]`)](#3-format-b-bitpacked-array-uint32_t-bitmapn32)
+  + [3. Format B: Bitpacked Array](#3-format-b-bitpacked-array)
     - [3.1 Structural Representation & Footprint Reduction](#31-structural-representation--footprint-reduction)
     - [3.2 Bitwise Coordinate Arithmetic](#32-bitwise-coordinate-arithmetic)
     - [3.3 The Write Hazard: Race Conditions & Atomic Serialization](#33-the-write-hazard-race-conditions--atomic-serialization)
@@ -167,7 +167,7 @@ Across the entire TSPLIB95 benchmark suite, Format A consumes at most $16.8\text
 
 ---
 
-## 3. Format B: Bitpacked Array (`uint32_t bitmap[⌈n/32⌉]`)
+## 3. Format B: Bitpacked Array
 
 ### 3.1 Structural Representation & Footprint Reduction
 

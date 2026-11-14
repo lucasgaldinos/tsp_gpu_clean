@@ -15,8 +15,8 @@ modifications:
           unverified DoD greps, and orphaned telemetry keys.
 status: review
 author:
-  - "[[Lucas Galdino]]"
-  - "[[GitHub Copilot]]"
+  - "Lucas Galdino"
+  - "GitHub Copilot"
 type: guide
 scope: global
 related_files:

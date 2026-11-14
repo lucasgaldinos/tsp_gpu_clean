@@ -5,8 +5,8 @@ description: >
 created: 2026-11-06
 status: review
 author:
-  - "[[Lucas Galdino]]"
-  - "[[GitHub Copilot]]"
+  - "Lucas Galdino"
+  - "GitHub Copilot"
 type: analysis
 scope: global
 modifications:

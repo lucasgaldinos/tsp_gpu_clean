@@ -5,8 +5,8 @@ description: >
 created: 2025-01-25
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: guide
 scope: global
 modifications:
@@ -66,7 +66,7 @@ tags:
   - [Appendix A: Hardware Evolution and Speedup Normalization (Warning #1 Answer)](#appendix-a-hardware-evolution-and-speedup-normalization-warning-1-answer)
     - [A.1 Hardware Comparison: GTX 285 (2009) vs GTX 1050 Mobile (2016)](#a1-hardware-comparison-gtx-285-2009-vs-gtx-1050-mobile-2016)
     - [A.2 Roofline Model: Is 2-opt Memory-Bound or Compute-Bound?](#a2-roofline-model-is-2-opt-memory-bound-or-compute-bound)
-    - [A.3 Why Our Speedup (128×) \> Fujimoto's (24.2×)?](#a3-why-our-speedup-128--fujimotos-242)
+    - [A.3 Why Our Speedup (128×) \> Fujimoto's (24.2×)?](#a3-why-our-speedup-128×--fujimotos-242×)
     - [A.4 Speedup Scaling with Hardware](#a4-speedup-scaling-with-hardware)
     - [A.5 Summary: Addressing the Warning](#a5-summary-addressing-the-warning)
     - [A.6 Experimental Validation Protocol](#a6-experimental-validation-protocol)

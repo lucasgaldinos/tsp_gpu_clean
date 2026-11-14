@@ -25,13 +25,13 @@ Do not call it when:
 
 - One search, one file read, or one command answers the question.
 - The next thought would only restate the previous one.
-- The call would replace an actual tool call: running tests, reading `path:line`, searching the repo.
+- The call would replace an actual tool call: running tests, reading `path::symbol`, searching the repo.
 
 ## Field contract
 
 | Field | Type | Required | What it means | How to use it |
 | :-- | :-- | :-- | :-- | :-- |
-| `thought` | string | yes | The reasoning step itself. | One claim or decision per call. Carry evidence (`path:line`, command output) and the next step. Never paste whole files. |
+| `thought` | string | yes | The reasoning step itself. | One claim or decision per call. Carry evidence (`path::symbol`, `path#heading`, command output) and the next step. Never paste whole files. |
 | `thoughtNumber` | integer ≥ 1 | yes | Position in the chain. | Start at `1`, increment by exactly `1`. Never reset or reuse a number inside one chain. |
 | `totalThoughts` | integer ≥ 1 | yes | Current estimate of chain length. | Estimate at thought 1 (3–8 is typical). Revise it in later calls when reality disagrees. It is an estimate, not a cap. |
 | `nextThoughtNeeded` | boolean | yes | Whether another thought follows. | `true` on every intermediate thought; `false` only on the final thought that states the answer. |
@@ -50,9 +50,9 @@ Do not call it when:
 2. **Revise, do not overwrite.** When evidence invalidates thought *n*, submit a new thought with `isRevision: true` and `revisesThought: n`, then continue from the corrected position. Silently contradicting an earlier thought destroys the audit trail.
 3. **Branch, do not abandon.** To compare two designs, open a branch with `branchFromThought` + `branchId`, keep that id stable for the whole branch, and close the branch by stating which line wins and why.
 4. **Adjust `totalThoughts` out loud.** Raise it when the problem is bigger than estimated, lower it when smaller. On the last planned thought, send `nextThoughtNeeded: true` with `needsMoreThoughts: true` if unresolved; send `false` only when the answer is ready.
-5. **Close with a falsifiable hypothesis.** The final thought (`nextThoughtNeeded: false`) states the decision, the evidence, and the check that can fail: a command, a test, or a `path:line` comparison. Without a falsifiable check the chain is not finished.
+5. **Close with a falsifiable hypothesis.** The final thought (`nextThoughtNeeded: false`) states the decision, the evidence, and the check that can fail: a command, a test, or a `path::symbol` comparison. Without a falsifiable check the chain is not finished.
 6. **Thinking is not doing.** A thought chain never replaces the command, test, or file read that verifies it. Run the check after the chain closes; if it fails, reopen the chain with `isRevision: true` against the closing thought.
-7. **Stop on evidence, not on a counter.** If three consecutive thoughts add no new evidence — no new `path:line`, command output, dataset, or external source consulted after checking other files and possibilities — stop the chain and answer with what is known, or ask the user. The loop signal is repetition, not the number of calls.
+7. **Stop on evidence, not on a counter.** If three consecutive thoughts add no new evidence — no new `path::symbol`, command output, dataset, or external source consulted after checking other files and possibilities — stop the chain and answer with what is known, or ask the user. The loop signal is repetition, not the number of calls.
 8. **One chain per task.** `thoughtNumber` increases monotonically within a task. A new, unrelated task starts again at `1`.
 
 ## Worked calls

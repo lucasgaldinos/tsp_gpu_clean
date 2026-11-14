@@ -14,8 +14,8 @@ date_created: 2026-11-09
 date_changed: 2026-11-09
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: analysis
 scope: global
 modifications:
@@ -59,7 +59,7 @@ tags:
     - [2.3 Permutation matrices and adjacency matrices](#23-permutation-matrices-and-adjacency-matrices)
   + [3. Stage 1: Tour cost evaluation via matrix algebra](#3-stage-1-tour-cost-evaluation-via-matrix-algebra)
     - [3.1 The Distance Matrix $\mathbf{D}$](#31-the-distance-matrix-mathbfd)
-    - [3.2 The Frobenius inner-product formulation: $\operatorname{Tr}(\mathbf{A} \mathbf{D}^{\mathsf{T}})$](#32-the-frobenius-inner-product-formulation-operatornametrmathbfa-mathbfdmathsfcalligrapht)
+    - [3.2 The Frobenius inner-product formulation: $\operatorname{Tr}(\mathbf{A} \mathbf{D}^{\mathsf{T}})$](#32-the-frobenius-inner-product-formulation-operatornametrmathbfa-mathbfdmathsft)
     - [3.3 Dense matrix multiply vs. GPU block-stride stream evaluation](#33-dense-matrix-multiply-vs-gpu-block-stride-stream-evaluation)
   + [4. Stage 2: Selection via binary projection matrices](#4-stage-2-selection-via-binary-projection-matrices)
     - [4.1 Tournament selection as a 1-hot transformation matrix $\mathbf{W}$](#41-tournament-selection-as-a-1-hot-transformation-matrix-mathbfw)
@@ -74,7 +74,7 @@ tags:
     - [6.1 The exchange matrix $\mathbf{J}_k$ and segment reversal operator $\mathbf{M}_{\text{inv}}$](#61-the-exchange-matrix-mathbfj_k-and-segment-reversal-operator-mathbfm_textinv)
     - [6.2 Matrix multiplication $\mathbf{p} \mathbf{M}_{\text{inv}}$ vs. cooperative warp reversal](#62-matrix-multiplication-mathbfp-mathbfm_textinv-vs-cooperative-warp-reversal)
   + [7. Stage 5: 2-Opt Local Search move evaluation and application](#7-stage-5-2-opt-local-search-move-evaluation-and-application)
-    - [7.1 The 2-Opt gain matrix $\mathbf{\Delta} \in \mathbb{R}^{n \times n}$](#71-the-2-opt-gain-matrix-mathbfdelta-in-mathbfrn-times-n)
+    - [7.1 The 2-Opt gain matrix $\mathbf{\Delta} \in \mathbb{R}^{n \times n}$](#71-the-2-opt-gain-matrix-mathbfdelta-in-mathbbrn-times-n)
     - [7.2 Tour update as an orthogonal similarity transformation](#72-tour-update-as-an-orthogonal-similarity-transformation)
   + [8. Comprehensive architectural comparison: GEMM vs. GPU streaming kernels](#8-comprehensive-architectural-comparison-gemm-vs-gpu-streaming-kernels)
     - [8.1 Complexity and VRAM footprint across all stages](#81-complexity-and-vram-footprint-across-all-stages)

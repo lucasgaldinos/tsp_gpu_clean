@@ -2,7 +2,7 @@
 title: "Design patterns"
 source: "https://refactoring.guru/design-patterns"
 author:
-  - "[[Alexander Shvets]]"
+  - "Alexander Shvets"
 published:
 created: 2026-04-21
 date_changed: 2026-04-21

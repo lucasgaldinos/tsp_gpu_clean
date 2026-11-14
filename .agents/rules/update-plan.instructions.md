@@ -15,9 +15,9 @@ applyTo: "**"
 
 - For the "Solution / O que foi feito" section, you MUST use the following standard structured list format:
   + **Solution / O que foi feito:**
-    - **Arquivos Alterados:** Use relative markdown links with line anchors (relative to the plan file), e.g., `[filename](../../relative/path/to/file.ext#L<line_number>)`.
-    - **Resumo:** A brief explanation of the changes made.
-    - **Atendimento ao DoD:** Concrete, falsifiable evidence showing how the Definition of Done was satisfied. Any `grep`/`rg` DoD check MUST exclude cache directories (`--exclude-dir={__pycache__,.mypy_cache,.pytest_cache,.ruff_cache}`) so `.pyc` or cache blobs never produce false matches, and the DoD claim must never contradict exceptions noted in `Resumo`.
+    - **Arquivos Alterados:** Use relative markdown links with symbol anchors (relative to the plan file), e.g., `[filename.py::qualname](../../relative/path/to/file.ext)`. Never append `#L<line>` to a code file: line numbers drift. `#L` is allowed only for logs, generated tables, and frozen audit snapshots.
+    - **Resumo:** A brief explanation of the changes made. Write natural pt-BR per [prose-language.instructions.md](./prose-language.instructions.md) — translate the intent, never calque the English heading.
+    - **DoD atendido:** Concrete, falsifiable evidence showing how the Definition of Done was satisfied. Any `grep`/`rg` DoD check MUST exclude cache directories (`--exclude-dir={__pycache__,.mypy_cache,.pytest_cache,.ruff_cache}`) so `.pyc` or cache blobs never produce false matches, and the DoD claim must never contradict exceptions noted in `Resumo`.
 
 - **Never leave incomplete or defective tasks marked `[x]`:** No task may be marked `[x]` without its `Solution` block, and whenever an audit or test run finds missed files, partial fixes, or regressions on a `[x]` task, immediately unmark it back to `[ ]` in place and document what remains.
 

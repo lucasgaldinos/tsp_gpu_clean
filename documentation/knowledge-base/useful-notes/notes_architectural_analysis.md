@@ -10,7 +10,7 @@ description: >
 created: 2026-11-09
 status: final
 author:
-  - "[[Lucas Galdino]]"
+  - "Lucas Galdino"
 type: notes
 scope: global
 modifications:
@@ -429,7 +429,7 @@ bitmap[c >> 5] &= ~(1u << (c & 31));
 > mean distinct addresses and therefore no `atomicOr` contention. Format B is preserved as
 > the scalability roadmap for $n > 10{,}000$ (`DP12-1`, `TASK 12.1`): it is 8× smaller but
 > pays for one atomic per marked city. See
-> [analysis-crossover-gpu-architecture-and-scaling.md §6.4](../analysis-crossover-gpu-architecture-and-scaling.md#64-shared-memory-capacity-verification-across-tsplib-instances)
+> [analysis-crossover-gpu-architecture-and-scaling.md §6.4](../analysis-crossover-gpu-architecture-and-scaling.md#64-shared-memory-capacity-verification-across-tsplib-instances--hardware-occupancy-math)
 > for the capacity table.
 
 ---

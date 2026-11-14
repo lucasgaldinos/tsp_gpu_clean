@@ -187,12 +187,12 @@ After artifacts are created, update the plan file's task entry:
 
 ### 4.1: Append the Solution Section
 
-Add the **brief** solution block (see skill §2.2 for format):
+Add the **brief** solution block (see skill §2.2 for format). In this repository the plan rule localizes the headings to pt-BR — follow [update-plan.instructions.md](../../rules/update-plan.instructions.md):
 
 ```markdown
   + **Solution:**
     - **Changed Files:**
-      + [file.py L42](../path/to/file.py#L42) — brief what changed
+      + [file.py::symbol](../path/to/file.py) — brief what changed
     - **Summary:** 2-3 sentences.
     - **Technical Justification:** 2-4 sentences. WHY, not HOW.
     - **DoD Compliance:** 1-2 sentences.

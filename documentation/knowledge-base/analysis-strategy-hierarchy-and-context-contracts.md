@@ -9,8 +9,8 @@ description: >
 created: 2026-11-04
 status: review
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Claude Opus 4.6]]"
+  - "Lucas Galdino"
+  - "Claude Opus 4.6"
 type: analysis
 scope: global
 modifications:

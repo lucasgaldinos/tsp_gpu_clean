@@ -45,7 +45,7 @@ The following standardized mathematical notation and architectural parameters ar
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning | Units / Scale |
 | :--- | :--- | :--- | :--- |
-| $n_{\text{cities}}$ | Tour vertex cardinality $n = |V|$ | Number of vertices / cities in the TSP instance | Dimensionless integer |
+| $n_{\text{cities}}$ | Tour vertex cardinality $n = \lvert V \rvert$ | Number of vertices / cities in the TSP instance | Dimensionless integer |
 | $W_{\text{total}}$ | $\frac{n(n-3)}{2} \approx \frac{n^2}{2}$ | Total candidate 2-opt move evaluations per local search iteration | Integer evaluations |
 | $N_{\text{SM}}$ | Physical Multiprocessor count | Number of Streaming Multiprocessors ($N_{\text{SM}} = 5$ on GP107) | Hardware count |
 | $W_{\text{SM,max}}$ | Maximum concurrent warps per SM | Architecture warp allocation limit ($64$ warps/SM on Pascal GP107) | Warps |
@@ -131,7 +131,7 @@ def improve_tour_hybrid(tour_gpu, distances_gpu, n):
 
 ### 5.2 Timing Breakdown (Q1 Partial Answer)
 
-(Detailed performance model in [Section 0.4](#04-performance-model-memory-bound-analysis) and [Section 0.5](#05-speedup-formula-synthesis))
+(Detailed performance model in [Section 0.4](./analysis-gpu-2opt-performance-modeling.md#04-performance-model-memory-bound-analysis) and [Section 0.5](./analysis-gpu-2opt-performance-modeling.md#05-speedup-formula-synthesis))
 
 ```text
 Hybrid Execution Timeline (n=3000):
@@ -244,7 +244,7 @@ This section provides the **mathematical analysis** of when the $O(n^2)$ CPU red
 
 ### 7.2 CPU Reduction Time Formula
 
-(Builds on performance model from [Section 0.5](#05-speedup-formula-synthesis))
+(Builds on performance model from [Section 0.5](./analysis-gpu-2opt-performance-modeling.md#05-speedup-formula-synthesis))
 
 **Algorithm:** `numpy.argmin()` performs linear scan:
 

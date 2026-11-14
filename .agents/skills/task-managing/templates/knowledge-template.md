@@ -2,7 +2,7 @@
 title: "Knowledge: {{topic_title}}"
 description: "{{brief_description}}"
 created: "{{date:YYYY-MM-DD HH:mm Z}}"
-author: "[[{{author}}]]"
+author: "{{author}}"
 tags: []
 links:
   - "[{{plan_file}}]({{plan_file_relative_path}})"   # {{plan_file_path}} is relative to this file, e.g. ../plan-<name>.prompt.md

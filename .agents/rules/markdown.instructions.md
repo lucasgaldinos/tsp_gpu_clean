@@ -66,9 +66,14 @@ Default `author` block:
 
 ```yaml
 author:
-  - "[[Lucas Galdino]]"
-  - "[[<LLM-model-name>]]"   # e.g. [[Claude Sonnet 4.6]]
+  - "Lucas Galdino"
+  - "Claude Sonnet 4.6"   # the acting model, as a plain string
 ```
+
+Author names are plain strings, never `[[wiki links]]`: inside a Markdown file the
+`[[...]]` form parses as a shortcut reference link with no definition, so VS Code
+reports `link.no-such-reference` and the name renders with visible double brackets.
+`benchmark_scripts.check_docs` fails on any `[[Name]]` in the documentation tree.
 
 </frontmatter_rules>
 
@@ -130,7 +135,13 @@ Use repo-relative Markdown links (never workstation-absolute `file:///home/...` 
 
 - Cross-file section links: `[file.md §Heading](./relative/path/to/file.md#gfm-header)` — contextualize *which section/paragraph* explains the concept, and keep bidirectional `Links out` / `Backlinks` graphs symmetric when splitting multi-part guides.
 - GFM heading anchor slugs: lowercase, spaces → `-`, strip `.` and backticks, preserve `_`; validate `MD051`/`MD052` after heading edits.
-- Line-drift resilience: in narrative/conceptual prose, link symbols, classes, functions, or section headers rather than hardcoding fragile line numbers in prose text; reserve `#L<line>` anchors for plan `Where`/`Solution` entries and audit citations verified via `grep_search`.
+- Line-drift resilience: anchor to a name, never to a line. Line numbers move with every refactor; symbols, headings, and labels do not.
+  + Code (`.py`, `.cu`, `.cuh`): `[two_opt.py::TwoOpt._compute_gain](../../src/algorithms/strategies/local_search/two_opt.py)` — `::` plus the dotted qualified name, no fragment; separate multiple symbols with commas.
+  + Markdown: `[plan-reorganization-and-typing.plan.md §Task 12.4](./plan-reorganization-and-typing.plan.md#task-124)` — a real GFM heading anchor.
+  + LaTeX: `[second_draft.tex §Method](../tex/second_draft.tex#sec:method)` — the `\label` name.
+  + Config: `[algorithms.json::algorithms[0].selection](../../configs/algorithms.json)` — dotted key path, no fragment.
+  + `#L<line>` is allowed only for targets with no nameable unit (logs, generated tables, frozen audit snapshots). `benchmark_scripts.check_docs` validates `::` symbols for code and reports remaining line anchors as non-fatal findings.
+- Portuguese prose follows [prose-language.instructions.md](./prose-language.instructions.md).
 
 </referencing_rules>
 

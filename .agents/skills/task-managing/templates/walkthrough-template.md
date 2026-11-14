@@ -3,7 +3,7 @@ title: "Walkthrough: Task {{task_id}} — {{task_title}}"
 task_id: "{{task_id}}"
 description: "{{brief_description}}"
 created: "{{date:YYYY-MM-DD HH:mm Z}}"
-author: "[[{{author}}]]"
+author: "{{author}}"
 status: "in-review"
 tags: []
 links:
@@ -25,7 +25,7 @@ links:
 
 | Artifact | Location | Relevant Observation |
 | --- | --- | --- |
-| <!-- component --> | [file](../path/to/file.ext#Lnn) | <!-- what's relevant --> |
+| <!-- component --> | [file.py::symbol](../path/to/file.py) | <!-- what's relevant --> |
 
 ---
 
@@ -63,8 +63,8 @@ links:
 
 ### {{Language/Component Group}} (N files)
 
-1. [file.ext](../path/to/file.ext#Lnn) — Lnn: detailed description of change
-2. [file2.ext](../path/to/file2.ext#Lnn) — Lnn: detailed description of change
+1. [file.py::symbol](../path/to/file.py) — what changed at that symbol
+2. [file2.py::Class.method, helper](../path/to/file2.py) — what changed at each symbol
 
 ---
 

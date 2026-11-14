@@ -5,8 +5,8 @@ description: >
 created: 2025-01-14
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: notes
 scope: global
 modifications:
@@ -70,7 +70,7 @@ Core components:
    - Build an initial solution or population (feasible or not).
 
 2. **Neighborhoods**  
-   - For a solution \(x\), define multiple neighborhoods \(N_i(x)\), \(i=1,\dots,q\).
+   - For a solution $x$, define multiple neighborhoods $N_i(x)$, $i=1,\dots,q$.
    - Have a **neighborhood selection rule** (when to use which neighborhood).
 
 3. **Candidate Selection**  

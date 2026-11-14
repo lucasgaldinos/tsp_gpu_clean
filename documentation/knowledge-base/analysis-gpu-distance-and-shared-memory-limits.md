@@ -8,8 +8,8 @@ description: >
 created: 2026-11-03
 status: review
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Claude Opus 4.6]]"
+  - "Lucas Galdino"
+  - "Claude Opus 4.6"
 type: analysis
 scope: global
 modifications:

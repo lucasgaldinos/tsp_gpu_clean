@@ -38,7 +38,7 @@ tags:
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning |
 | :--- | :--- | :--- |
-| $n_{\text{cities}}$ | Tour vertex cardinality $n = |V|$ | Total cities in TSP instance |
+| $n_{\text{cities}}$ | Tour vertex cardinality $n = \lvert V \rvert$ | Total cities in TSP instance |
 | $W_{\text{total}}$ | Total operation count | Algorithmic operations evaluated per heuristic run |
 | $B$ | Block thread dimension | Threads allocated per CUDA block ($B = 256$ threads) |
 | $N_{\text{SM}}$ | Physical Multiprocessor count | Number of Streaming Multiprocessors ($5$ on GP107) |

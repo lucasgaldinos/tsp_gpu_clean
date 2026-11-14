@@ -46,7 +46,7 @@ The following standardized mathematical notation and architectural parameters ar
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning | Units / Scale |
 | :--- | :--- | :--- | :--- |
-| $n_{\text{cities}}$ | Tour vertex cardinality $n = |V|$ | Number of vertices / cities in the TSP instance | Dimensionless integer |
+| $n_{\text{cities}}$ | Tour vertex cardinality $n = \lvert V \rvert$ | Number of vertices / cities in the TSP instance | Dimensionless integer |
 | $W_{\text{total}}$ | $\frac{n(n-3)}{2} \approx \frac{n^2}{2}$ | Total candidate 2-opt move evaluations per local search iteration | Integer evaluations |
 | $N_{\text{SM}}$ | Physical Multiprocessor count | Number of Streaming Multiprocessors ($N_{\text{SM}} = 5$ on GP107) | Hardware count |
 | $W_{\text{SM,max}}$ | Maximum concurrent warps per SM | Architecture warp allocation limit ($64$ warps/SM on Pascal GP107) | Warps |
@@ -239,7 +239,7 @@ $$
 
 **Speedup vs Serial CPU (NumPy vectorized):**
 
-Serial NumPy baseline: $T_{\text{serial}} \approx 1800 \mu s$ (for $n_{\text{cities}} = 3000$) - see [Section 2.1.1](#211-cpu-vectorization-numpy-simdavx2-speedup)
+Serial NumPy baseline: $T_{\text{serial}} \approx 1800 \mu s$ (for $n_{\text{cities}} = 3000$) - see [Section 2.1.1](./analysis-gpu-2opt-parallel-architectures.md#211-cpu-vectorization-numpy-simdavx2-speedup)
 $$
 \text{Speedup} = \frac{T_{\text{serial}}}{T_{\text{total}}} = \frac{1800}{170} \approx 10.6\times
 $$
@@ -270,10 +270,10 @@ $$
 
 **Applications Throughout Document:**
 
-- **[Section 3.4](#34-complexity-analysis)**: Rocki's $O(n_{\text{cities}}^2)$ thread approach complexity
-- **[Section 4.4](#44-why-256-threads-q4-answer-with-occupancy-formula)**: Occupancy calculation and thread count justification
-- **[Section 5.2](#52-timing-breakdown-q1-partial-answer)**: Hybrid CPU-GPU timing breakdown
-- **[Section 7.2](#72-cpu-reduction-time-formula)**: CPU reduction analysis and break-even points
+- **[Section 3.4](./analysis-gpu-2opt-parallel-architectures.md#34-complexity-analysis)**: Rocki's $O(n_{\text{cities}}^2)$ thread approach complexity
+- **[Section 4.4](./analysis-gpu-2opt-kernel-benchmarking.md#44-why-256-threads-q4-answer-with-occupancy-formula)**: Occupancy calculation and thread count justification
+- **[Section 5.2](./analysis-gpu-2opt-reduction-strategies.md#52-timing-breakdown-q1-partial-answer)**: Hybrid CPU-GPU timing breakdown
+- **[Section 7.2](./analysis-gpu-2opt-reduction-strategies.md#72-cpu-reduction-time-formula)**: CPU reduction analysis and break-even points
 
 **Prediction:** RTX 3090 should achieve ~160 μs / 137 ≈ **1.2 μs** kernel time for $n_{\text{cities}} = 3000$
 

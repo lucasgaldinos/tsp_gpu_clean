@@ -52,7 +52,7 @@ The following standardized mathematical notation and architectural parameters ar
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning | Units / Scale |
 | :--- | :--- | :--- | :--- |
-| $n_{\text{cities}}$ | Tour vertex cardinality $n = | V | $ | Number of vertices / cities in the TSP instance | Dimensionless integer |
+| $n_{\text{cities}}$ | Tour vertex cardinality $n = \lvert V \rvert$ | Number of vertices / cities in the TSP instance | Dimensionless integer |
 | $W_{\text{total}}$ | $\frac{n(n-3)}{2} \approx \frac{n^2}{2}$ | Total candidate 2-opt move evaluations per local search iteration | Integer evaluations |
 | $N_{\text{SM}}$ | Physical Multiprocessor count | Number of Streaming Multiprocessors ($N_{\text{SM}} = 5$ on GP107) | Hardware count |
 | $W_{\text{SM,max}}$ | Maximum concurrent warps per SM | Architecture warp allocation limit ($64$ warps/SM on Pascal GP107) | Warps |
@@ -232,14 +232,14 @@ Each choice creates **cascading trade-offs** affecting performance:
 
 The following sections analyze this design against alternatives:
 
-- **[Section 0](#0-mathematical-foundation-unified-performance-model):** Unified performance model (hardware params, occupancy, speedup formula)
+- **[Section 0](./analysis-gpu-2opt-performance-modeling.md#0-mathematical-foundation-unified-performance-model):** Unified performance model (hardware params, occupancy, speedup formula)
 - **[Section 2](#2-serial-baseline-foundation-for-comparison):** Serial baseline (foundation for comparison, CPU vectorization)
 - **[Section 3](#3-strategy-1-rocki--suda-2013--data-parallelism-with-on_cities2-threads):** Rocki & Suda (2013) — $O(n_{cities}^2)$ threads, GPU reduction
-- **[Section 4](#4-strategy-2-outer-loop-parallelization--fixed-thread-count):** Outer loop parallelization — 256 threads, shared memory reduction
-- **[Section 5](#5-strategy-3-hybrid-cpu-gpu-reduction):** Hybrid CPU-GPU — 256 threads, CPU reduction
-- **[Section 6](#6-side-by-side-cuda-code-comparison-q2-complete-answer):** Side-by-side CUDA code comparison (answers Q2)
-- **[Section 7](#7-when-does-cpu-reduction-matter-q1-complete-answer):** When does CPU reduction matter? (answers Q1)
-- **[Section 8](#8-attribution-literature-search-and-novelty-assessment-q3-complete-answer):** Attribution and novelty (answers Q3)
+- **[Section 4](./analysis-gpu-2opt-kernel-benchmarking.md#4-strategy-2-outer-loop-parallelization--fixed-thread-count):** Outer loop parallelization — 256 threads, shared memory reduction
+- **[Section 5](./analysis-gpu-2opt-reduction-strategies.md#5-strategy-3-hybrid-cpu-gpu-reduction):** Hybrid CPU-GPU — 256 threads, CPU reduction
+- **[Section 6](./analysis-gpu-2opt-kernel-benchmarking.md#6-side-by-side-cuda-code-comparison-q2-complete-answer):** Side-by-side CUDA code comparison (answers Q2)
+- **[Section 7](./analysis-gpu-2opt-reduction-strategies.md#7-when-does-cpu-reduction-matter-q1-complete-answer):** When does CPU reduction matter? (answers Q1)
+- **[Section 8](./analysis-gpu-2opt-literature-attribution.md#8-attribution-literature-search-and-novelty-assessment-q3-complete-answer):** Attribution and novelty (answers Q3)
 - **Section 9:** Mathematical foundations (answers Q4, Q5)
 - **Section 10:** Table of symbols
 - **Section 11:** Summary and recommendations
@@ -445,7 +445,7 @@ $$
 This ~10× gap is explained by:
 
 - **5× from parallelism** (256 threads vs 1 core)
-- **2.8× from bandwidth** (112 GB/s vs 40 GB/s) - see [Section 0.4](#04-performance-model-memory-bound-analysis) for detailed bandwidth analysis
+- **2.8× from bandwidth** (112 GB/s vs 40 GB/s) - see [Section 0.4](./analysis-gpu-2opt-performance-modeling.md#04-performance-model-memory-bound-analysis) for detailed bandwidth analysis
 - Total: $5 \times 2.8 = 14\times$ (roughly matches measured 10.6×)
 
 #### **Code Artifacts**
@@ -582,7 +582,7 @@ $$
 - **Ideal:** All $\frac{n_{cities}^2}{2}$ evaluations in parallel (hardware limited)
 - **Practical:** Fixed threads (e.g., 256) each handle $\frac{n_{cities}^2}{512}$ evaluations
 
-**Three Parallelization Strategies:** (Detailed in [Section 3](#3-strategy-1-rocki--suda-2013--data-parallelism-with-on_cities2-threads), [Section 4](#4-strategy-2-outer-loop-parallelization--fixed-thread-count), [Section 5](#5-strategy-3-hybrid-cpu-gpu-reduction))
+**Three Parallelization Strategies:** (Detailed in [Section 3](#3-strategy-1-rocki--suda-2013--data-parallelism-with-on_cities2-threads), [Section 4](./analysis-gpu-2opt-kernel-benchmarking.md#4-strategy-2-outer-loop-parallelization--fixed-thread-count), [Section 5](./analysis-gpu-2opt-reduction-strategies.md#5-strategy-3-hybrid-cpu-gpu-reduction))
 
 **Speedup Potential:**
 
@@ -783,14 +783,14 @@ Formula Verification (Q5):
 
 1. **Full SM Utilization (per wave):** All 5 SMs are active during each wave → 100% hardware utilization *within* each wave
 2. **Sequential Waves:** Despite full parallelism per wave, 439 waves must execute *sequentially* → creates serialization bottleneck
-3. **Hardware Constraint:** $N_{\text{SM}} = 5$ SMs limit concurrent threads to 10,240, regardless of problem size (see [Section 0.1](#01-hardware-parameters))
+3. **Hardware Constraint:** $N_{\text{SM}} = 5$ SMs limit concurrent threads to 10,240, regardless of problem size (see [Section 0.1](./analysis-gpu-2opt-performance-modeling.md#01-hardware-parameters))
 4. **Scaling Problem:** As $n_{\text{cities}}$ increases, waves scale as $O(n_{\text{cities}}^2)$ → time also scales as $O(n_{\text{cities}}^2)$
 
 **Key Insight:** Despite maximum parallelism **within each wave**, the **439 sequential waves** create serialization overhead.
 
 ### 3.4 Complexity Analysis
 
-(Uses work distribution model from [Section 0.2](#02-algorithm-parameters))
+(Uses work distribution model from [Section 0.2](./analysis-gpu-2opt-performance-modeling.md#02-algorithm-parameters))
 
 **Thread count:** $N_{\text{threads,Rocki}} = \frac{n_{\text{cities}}(n_{\text{cities}}-1)}{2} \approx \frac{n_{\text{cities}}^2}{2}$ threads
 

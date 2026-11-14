@@ -5,9 +5,9 @@ description: >
 created: 2025-11-15
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Claude Opus 4.6]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Claude Opus 4.6"
+  - "Antigravity"
 type: analysis
 scope: global
 modifications:

@@ -8,8 +8,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: guide
 scope: global
 modifications:
@@ -397,7 +397,7 @@ Eliminating per-iteration PCIe round-trips yields a **$17{,}900\times$ reduction
 
 ### 4.4 Roofline Model Comparison
 
-The **Roofline Model** ([Williams, Waterman, & Patterson, 2009](#5-academic-references)) captures how algorithmic performance is bounded by either computational peak performance ($P_{\text{peak}}$, in GFLOP/s or GOp/s) or memory bandwidth ($B$, in GB/s), as a function of **Operational Intensity** $I$ (operations per byte):
+The **Roofline Model** ([Williams, Waterman, & Patterson, 2009](#5-academic-and-industry-references)) captures how algorithmic performance is bounded by either computational peak performance ($P_{\text{peak}}$, in GFLOP/s or GOp/s) or memory bandwidth ($B$, in GB/s), as a function of **Operational Intensity** $I$ (operations per byte):
 
 $$\text{Attainable Performance} = \min\left( P_{\text{peak}}, \; I \times B \right)$$
 

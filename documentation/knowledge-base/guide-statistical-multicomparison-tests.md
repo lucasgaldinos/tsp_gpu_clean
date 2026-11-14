@@ -8,8 +8,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: guide
 scope: global
 modifications:
@@ -61,7 +61,7 @@ tags:
   - [4. Post-Hoc Comparison Against a Control: Dunn's Test with Holm Step-Down](#4-post-hoc-comparison-against-a-control-dunns-test-with-holm-step-down)
     - [4.1 Why All-Pairs Nemenyi Sacrifices Power](#41-why-all-pairs-nemenyi-sacrifices-power)
     - [4.2 Dunn's Procedure for Control Benchmarks ($k - 1 = 3$ Comparisons)](#42-dunns-procedure-for-control-benchmarks-k---1--3-comparisons)
-    - [4.3 Holm Step-Down Algorithm ($p_{(i)} \le \alpha / (m - i + 1)$)](#43-holm-step-down-algorithm-p_i-le-alpha---m---i--1)
+    - [4.3 Holm Step-Down Algorithm ($p_{(i)} \le \alpha / (m - i + 1)$)](#43-holm-step-down-algorithm-p_i-le-alpha--m---i--1)
   - [5. False Discovery Rate (FDR): Benjamini-Hochberg Procedure](#5-false-discovery-rate-fdr-benjamini-hochberg-procedure)
     - [5.1 FWER vs. FDR: Philosophy and Trade-Offs](#51-fwer-vs-fdr-philosophy-and-trade-offs)
     - [5.2 The Benjamini-Hochberg (1995) Algorithm](#52-the-benjamini-hochberg-1995-algorithm)

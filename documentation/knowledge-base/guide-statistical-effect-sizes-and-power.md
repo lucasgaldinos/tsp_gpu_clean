@@ -8,8 +8,8 @@ description: >
 created: 2026-11-05
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: guide
 scope: global
 modifications:
@@ -67,7 +67,7 @@ tags:
     - [5.4 Asymptotic Relative Efficiency ($ARE$) and Wilcoxon Power](#54-asymptotic-relative-efficiency-are-and-wilcoxon-power)
   - [6. Empirical Benchmark Case Studies from TSPLIB](#6-empirical-benchmark-case-studies-from-tsplib)
     - [6.1 Small-Scale Regime: `eil51` and `berlin52`](#61-small-scale-regime-eil51-and-berlin52)
-    - [6.2 Medium-Scale Regime: `ch130` and `kroA100`](#62-medium-scale-regime-ch130-and-kroA100)
+    - [6.2 Medium-Scale Regime: `ch130` and `kroA100`](#62-medium-scale-regime-ch130-and-kroa100)
     - [6.3 Large-Scale Regime: `pr1002`](#63-large-scale-regime-pr1002)
     - [6.4 Meta-Analysis Synthesis Across Problem Sizes](#64-meta-analysis-synthesis-across-problem-sizes)
   - [7. Python Implementation Script](#7-python-implementation-script)

@@ -7,7 +7,7 @@ description: >
 created: 2026-11-05
 status: draft
 author:
-  - "[[Lucas Galdino]]"
+  - "Lucas Galdino"
 type: notes
 scope: global
 date: 2025

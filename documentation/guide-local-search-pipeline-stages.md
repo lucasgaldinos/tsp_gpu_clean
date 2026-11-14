@@ -10,8 +10,8 @@ date_created: 2026-10-29
 date_changed: 2026-10-29
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Gemini 4 Argon]]"
+  - "Lucas Galdino"
+  - "Gemini 4 Argon"
 type: guide
 scope: local
 modifications:

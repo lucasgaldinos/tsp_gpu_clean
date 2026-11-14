@@ -15,8 +15,8 @@ description: >
 created: 2026-11-10
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[GitHub Copilot]]"
+  - "Lucas Galdino"
+  - "GitHub Copilot"
 type: analysis
 scope: global
 modifications:

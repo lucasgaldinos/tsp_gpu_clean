@@ -5,8 +5,8 @@ description: >
 created: 2025-01-14
 status: final
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
+  - "Lucas Galdino"
+  - "Antigravity"
 type: notes
 scope: global
 modifications:
@@ -202,7 +202,7 @@ This is where Cook’s exposition lines up very directly with your **GA+2‑opt*
 - Held–Karp DP $O(n^2 2^n)$ as best known general exact worst‑case bound.
 - Christofides’s 1.5‑approximation (metric TSP).
 - Arora/Mitchell PTAS for Euclidean TSP; practical limitations.
-- Hardness of improving Christofides below ~1.0045 unless \(P = NP\).
+- Hardness of improving Christofides below ~1.0045 unless $P = NP$.
 
 **How you can use this:**
 
@@ -223,7 +223,7 @@ This is where Cook’s exposition lines up very directly with your **GA+2‑opt*
 Cook’s **ch. 1 and 9** are almost tailor‑made for a short complexity subsection in your thesis:
 
 - **Edmonds’s notion of “good algorithms”**:
-  - Polynomial‑time algorithms vs exponential like \(2^n\) and \(n!\).
+  - Polynomial‑time algorithms vs exponential like $2^n$ and $n!$.
 - **Classes P and NP**:
   - P: problems solvable in polynomial time.
   - NP: problems whose *solutions* can be verified in polynomial time (TSP decision version included).
@@ -234,7 +234,7 @@ Cook’s **ch. 1 and 9** are almost tailor‑made for a short complexity subsect
   - Exact DP with running time \(O(n^2 2^n)\); best known general bound today.
 - **Approximations and hardness**:
   - Christofides 1.5 bound for metric TSP.
-  - Lower bounds on possible approximation factors under \(P \neq NP\).
+  - Lower bounds on possible approximation factors under $P \neq NP$.
 - **Euclidean subtleties**:
   - Sum‑of‑square‑roots problem and why Euclidean TSP is not trivially in NP (but has PTAS).
 
@@ -274,7 +274,7 @@ In **ch. 8**, Cook describes the “big league” instances that your GA+GPU fra
   - Cite `[@cook2012pursuit, cap. 8]`.
 - Cap. 4 – Resultados:
   - If you scale your instances (e.g. up to some thousands of cities), you can contextualize:
-    - “Embora os experimentos deste trabalho utilizem instâncias de até \(n_{coords} \approx X\), a literatura de TSP inclui problemas com até milhões de cidades [@cook2012pursuit].”
+    - “Embora os experimentos deste trabalho utilizem instâncias de até $n_{\text{coords}} \approx X$, a literatura de TSP inclui problemas com até milhões de cidades [@cook2012pursuit].”
 
 ---
 
@@ -299,7 +299,7 @@ Here are ready‑made “hooks” you can use directly in your text:
      - “Cook [@cook2012pursuit] documenta como algoritmos de branch‑and‑cut conseguiram resolver instâncias com até 85 900 cidades, em particular um problema real de roteamento de feixes de laser em fabricação de chips.”
 6. **Complexity, P vs NP, NP‑completeness of TSP**  
    - Use in Cap. 2:
-     - “Para uma discussão acessível sobre a NP‑completude do TSP e sua relação com a questão \(P\) versus \(NP\), ver [@cook2012pursuit, cap. 9].”
+     - “Para uma discussão acessível sobre a NP‑completude do TSP e sua relação com a questão $P$ versus $NP$, ver [@cook2012pursuit, cap. 9].”
 7. **Large‑scale artistic and geographic instances (Mona Lisa, World TSP)**  
    - Use in Cap. 1 or Cap. 5:
      - “Instâncias artísticas (como a Mona Lisa com 100 000 pontos) e geográficas de escala planetária (World TSP, com 1,9 milhões de cidades) são descritas em [@cook2012pursuit], destacando o papel do TSP como benchmark extremo.”
