@@ -80,6 +80,18 @@ module = [
 ]
 ignore_missing_imports = true
 
+# Skill scripts under `.agents/skills/*/scripts/` declare their dependencies in PEP 723
+# inline metadata and run under `uv run --script`, so those packages are deliberately
+# absent from the project venv. Mypy cannot read PEP 723, so the imports are ignored here
+# instead of being silenced with `# type: ignore` (which strict mode would then flag as
+# unused once the package happens to be installed).
+[[tool.mypy.overrides]]
+module = [
+    "google",
+    "google.*",
+]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"
