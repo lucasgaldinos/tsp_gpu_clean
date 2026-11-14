@@ -23,10 +23,18 @@ modifications:
           Expanded working-agreement rule 6 from a one-line pointer into a concrete
           `## Handoff` block template with write triggers and the evidence requirement
           for a `done` state.
+  - date_modified: 2026-11-14
+    modifications:
+      - description: >
+          Added rule 11 (stable `path::symbol` references instead of drifting `#L` line
+          anchors) and rule 12 (English for agent-facing files, pt-BR for `documents_tcc/`
+          and walkthroughs), pointing at the new prose-language reference and the
+          `check_docs` symbol-anchor gate.
 related_files:
   - [copilot-instructions.md](./.github/copilot-instructions.md)
   - [markdown.instructions.md](./.agents/rules/markdown.instructions.md)
   - [exploration.instructions.md](./.agents/rules/exploration.instructions.md)
+  - [prose-language.instructions.md](./.agents/rules/prose-language.instructions.md)
 tags:
   - guide/agents
   - guide/instructions
@@ -65,8 +73,8 @@ Applies to every task in this repository.
    `skills: none`) and the step each one covers. If no skill matches, say so instead of
    proceeding silently.
 4. **Executable anchors.** An explanation is incomplete without a runnable snippet, the
-   exact `path:line`, and the expected output. A concept explained a third time becomes a
-   knowledge-base note, not another chat answer.
+   exact `path::symbol` reference, and the expected output. A concept explained a third
+   time becomes a knowledge-base note, not another chat answer.
    Never use terse "caveman" phrasing when explaining Python internals, GPU hardware models,
    mathematical trade-offs, or code reviews: pair an intuitive mental model ("why" in domain
    terms, not restating syntax) with KaTeX equations and primary academic/spec citations
@@ -83,7 +91,7 @@ Applies to every task in this repository.
    - **Last verified observation**: `<command>` -> `<output line>` (YYYY-MM-DD)
    - **Next item**: task id + one-line action
    - **Open decisions**: question | options | owner
-   - **Read first**: `path:line`, `path:line` (max 5 entries)
+   - **Read first**: `path::symbol`, `path#heading` (max 5 entries)
    ```
 
    Write it at every boundary where the next session would otherwise start by guessing:
@@ -112,6 +120,17 @@ Applies to every task in this repository.
     backward-compatibility aliases or "one-release-cycle" deprecation shims when renaming
     classes or functions (e.g., `DataTransformer = ProblemNormalizer`). Delete the old
     symbol and update all callers in `src/`, `tests/`, and `docs/` in the same change.
+11. **Stable references.** Anchor to names, not lines: `[two_opt.py::TwoOpt._compute_gain](path)`
+    for code, `[file.md §Heading](path#heading)` for Markdown, `[file.tex §label](path#label)`
+    for LaTeX. The `::` separator is the pytest node-ID idiom and works for `.py`, `.cu`,
+    and `.cuh`; it is validated by `benchmark_scripts.check_docs`. `#L<line>` is allowed only
+    for targets with no nameable unit (logs, generated tables, frozen audit snapshots).
+    Line numbers drift with every refactor; symbols do not.
+12. **Prose language.** English is the default for agent-facing files (`AGENTS.md`,
+    `.agents/**`, `.github/**`) and for `documentation/knowledge-base/**`. Brazilian
+    Portuguese is mandatory for `documents_tcc/**` and `documentation/walkthroughs/**`.
+    Translation follows [prose-language.instructions.md](./.agents/rules/prose-language.instructions.md):
+    pt-BR register, no calqued headings, technical terms kept verbatim.
 
 ## Repository rules that still apply
 
@@ -119,4 +138,6 @@ Applies to every task in this repository.
   (frontmatter, language tags, filename casing).
 - Workspace exploration follows
   [exploration.instructions.md](./.agents/rules/exploration.instructions.md).
+- Portuguese prose follows
+  [prose-language.instructions.md](./.agents/rules/prose-language.instructions.md).
 - Skills live in `.agents/skills/`; agent definitions in `.agents/agents/`.
