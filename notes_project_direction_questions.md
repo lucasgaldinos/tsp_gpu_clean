@@ -5,8 +5,8 @@ description: >
 created: 2026-05-12
 status: draft
 author:
-  - "[[Lucas Galdino]]"
-  - "[[GPT-5.4]]"
+  - "Lucas Galdino"
+  - "GPT-5.4"
 type: notes
 scope: global
 modifications:

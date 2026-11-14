@@ -2,7 +2,7 @@
 title: "Stanford Agentic Reviewer"
 source: "https://paperreview.ai/review?token=RF0bTRuYQKDqKX2MiI-AnCdFcmjCXw0P5bEZhCkWJNc"
 author:
-  - "[[Stanford ML Group]]"
+  - "Stanford ML Group"
 published:
 created: 2026-05-05
 description: "GPU-accelerated evaluation of iso-algorithmic memetic GA+2-opt variants for the symmetric TSP. Compares CPU-sequential, naive-hybrid, batched-hybrid, and fully GPU-resident designs across 38 TSPLIB instances to characterize runtime vs solution-quality trade-offs, the impact of host–device transfers, and engineering best practices for reproducible GPU metaheuristics."
