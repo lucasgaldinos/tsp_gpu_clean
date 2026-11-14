@@ -2,7 +2,7 @@
 title: "Knowledge: Aritmética TSPLIB e Tipos Inteiros em Pipelines GPU"
 description: "Fundamentação sobre a especificação TSPLIB de distâncias inteiras, implicações de float32 em acumulações de custo, trade-offs de int32 vs long long em kernels CUDA, e análise de overflow para TSP e variantes (VRP, CVRP, MDVRP)."
 created: "2026-05-17 21:00 -0300"
-author: "[[Lucas Galdino]]"
+author: "Lucas Galdino"
 tags: [tsplib, cuda, arithmetic, integer, float32, overflow, precision, kernel, pipeline]
 links:
   - "[plan-roteiro.md](file:///home/lucas_galdino/chimera/gpu_accelerated/documents_tcc/plan/plan-roteiro.md)"

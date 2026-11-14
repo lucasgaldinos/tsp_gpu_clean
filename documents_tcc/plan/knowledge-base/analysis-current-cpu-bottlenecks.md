@@ -8,7 +8,7 @@ description: >
 created: 2026-11-12
 status: development
 author:
-  - "[[Lucas Galdino]]"
+  - "Lucas Galdino"
 type: analysis
 scope: global
 modifications:

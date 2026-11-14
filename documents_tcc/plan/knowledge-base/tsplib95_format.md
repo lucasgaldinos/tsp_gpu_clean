@@ -959,7 +959,7 @@ In addition to the data and solution files, the following special files are cont
 | [ORTEC-n510-k23](https://galgos.inf.puc-rio.br/cvrplib/uploads/instances/CVRP/DIMACS/ORTEC-n510-k23.vrp "Instance File") | 509 | 23 | 145 | [184,529.00](https://galgos.inf.puc-rio.br/cvrplib/uploads/instances/CVRP/DIMACS/ORTEC-n510-k23.sol "Solution File") | no | [](https://galgos.inf.puc-rio.br/cvrplib/index.php/en/plots/278 "Plotted Instance") |
 | [ORTEC-n701-k64](https://galgos.inf.puc-rio.br/cvrplib/uploads/instances/CVRP/DIMACS/ORTEC-n701-k64.vrp "Instance File") | 700 | 64 | 80 | [445,541.00](https://galgos.inf.puc-rio.br/cvrplib/uploads/instances/CVRP/DIMACS/ORTEC-n701-k64.sol "Solution File") | no | [](https://galgos.inf.puc-rio.br/cvrplib/index.php/en/plots/279 "Plotted Instance") |
 | **Set XML ([Queiroga et al., 2022](https://openreview.net/forum?id=yHiMXKN6nTl))** | | | | | | [Set File](https://galgos.inf.puc-rio.br/cvrplib/uploads/instances/CVRP/XML.7z "Set File") |
-| No instances in this set. | | | | | | | |
+| No instances in this set. | | | | | | |
 
 ---
 

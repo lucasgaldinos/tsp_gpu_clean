@@ -59,11 +59,21 @@ modifications:
           `11.12`–`11.16`), criação das `Tasks 11.17`–`11.18` (`@time_strategy` assíncrono,
           sincronização de schema `BenchmarkRunInput` e patch canônico `GEO`), defeitos `BUG-31`
           e `BUG-32`, e inclusão dos blocos de Proof of Concept (PoC) executáveis em cada tarefa.
+  - date_modified: 2026-11-14
+    modifications:
+      - description: >
+          `Task 12.41`: âncoras de linha de `two_opt.py`/`two_opt_single.cu` trocadas por
+          âncoras de símbolo, escopo do `BUG-57` explicitado (o despacho `naive` vai para
+          `_improve_naive`, não para o `_improve_grid` corrigido em `BUG-27`), evidência de
+          `CPU_SIZE_THRESHOLD` acrescentada e delimitadores LaTeX inline convertidos para `$...$`.
+      - description: >
+          Handoff atualizado com a observação verificável de `check_docs` em 2026-11-14 e
+          com referências `path::symbol` no campo "Read first".
 status: review
 author:
-  - "[[Lucas Galdino]]"
-  - "[[Antigravity]]"
-  - "[[Github Copilot]]"
+  - "Lucas Galdino"
+  - "Antigravity"
+  - "Github Copilot"
 type: plan
 scope: global
 related_files:
@@ -128,7 +138,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ## Registro de Tarefas 5W2H
 
-- [x] **[REVIEWED]** **Task 1.1: Registrar Plano 5W2H no Repositório**
+- [x] **REVIEWED** **Task 1.1: Registrar Plano 5W2H no Repositório**
   + **What:** Criar `documents_tcc/plan/plan-reorganization-and-typing.md` e vincular no `plan-roteiro.md`.
   + **Why:** Garantir rastreabilidade contínua das tarefas de engenharia de software dentro da documentação da tese.
   + **Who:** Agente (`implementer`).
@@ -143,7 +153,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Summary:** Criado o plano 5W2H versionado na pasta de planos do repositório.
     - **DoD Compliance:** Plano registrado e pronto para acompanhamento.
 
-- [x] **[REVIEWED]** **Task 1.2: Corrigir Raiz de Importação em `configs/algorithms.json` e `pyproject.toml`**
+- [x] **REVIEWED** **Task 1.2: Corrigir Raiz de Importação em `configs/algorithms.json` e `pyproject.toml`**
   + **What:** Remover o prefixo `src.` de `configs/algorithms.json` e alinhar `pyproject.toml` com a raiz de importação `src/`.
   + **Why:** Com `pythonpath = ["src"]`, `importlib.import_module("src.algorithms...")` falha com `ModuleNotFoundError: No module named 'src'`, quebrando 3 testes do pytest.
   + **Who:** Agente (`implementer`).
@@ -158,7 +168,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Summary:** Removido prefixo `src.` de todos os `class_module` em `algorithms.json` para alinhar com `pythonpath = ["src"]`.
     - **DoD Compliance:** `pytest` executado com sucesso: 18 passed in 9.89s (0 falhas).
 
-- [x] **[REVIEWED]** **Task 2.1: Tipagem Pragmática PEP 695/698 em Protocolos, Timer, Carregadores e Estratégias**
+- [x] **REVIEWED** **Task 2.1: Tipagem Pragmática PEP 695/698 em Protocolos, Timer, Carregadores e Estratégias**
   + **What:** Simplificar `BackendModule` (adicionar `arccos`), anotar atributos de cache preguiçoso em `ProblemContext`, converter `phase_timer.py` para sintaxe PEP 695 `[**P, R]`, aplicar `@override` e casts de retorno nas estratégias, e corrigir tipagem em `pairwise.py`, `tsplib_loader.py`, `database_loader.py` e `full_gpu_monolithic.py`.
   + **Why:** Eliminar mais de 35 erros de `mypy` mantendo as assinaturas de estratégias modulares simples e sem explosão de generics.
   + **Who:** Agente (`implementer`).
@@ -186,7 +196,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Summary:** Simplificado `BackendModule` para protocolo não-genérico com `arccos`, anotados campos de cache preguiçoso em `ProblemContext`, migrado `measure` em `phase_timer.py` para PEP 695 `[**P, R]`, corrigidos tipos de retorno e casts pontuais de rotas/fitness em estratégias e carregadores.
     - **DoD Compliance:** `mypy src/protocols src/algorithms src/distances src/loaders src/utils` executado com `Success: no issues found in 41 source files` (0 erros).
 
-- [x] **[REVIEWED]** **Task 2.2: Refinar Parada Precoce e Exportar Rotas e Metadados nos Checkpoints**
+- [x] **REVIEWED** **Task 2.2: Refinar Parada Precoce e Exportar Rotas e Metadados nos Checkpoints**
   + **What:** Separar `"hit_optimal"` (ótimo estrito) de `"within_1pct_optimal"` (< 1% gap) em `genetic_algorithm.py` e `full_gpu_monolithic.py`; exportar `best_tour`, `raw_best_tours`, `problem_type`, `edge_type` e introspecção das 6 estratégias nos checkpoints JSON.
   + **Why:** Rotas calculadas em cada repetição eram descartadas antes do retorno do sumário; paradas em gaps de 0.31% marcavam indevidamente `hit_optimal`; e introspecção de classe caía sempre no default.
   + **Who:** Agente (`implementer`).
@@ -206,7 +216,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Summary:** Parada precoce agora reserva `"hit_optimal"` estritamente para `best_cost <= optimal_cost + 1e-6` e rotula `< 1.0%` como `"within_1pct_optimal"`. Checkpoints agora exportam o vetor da melhor rota (`best_tour`), lista de rotas por repetição (`raw_best_tours`), metadados `problem_type` e `edge_type`, além de introspecção dos 6 nomes reais de estratégias (`initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation`).
     - **DoD Compliance:** Testes validados em `test_early_stopping.py` e `test_benchmark_selected_problems.py` (5 passed), com verificação de arquivo JSON gerado confirmando presença de todas as chaves e rotas.
 
-- [x] **[REVIEWED]** **Task 3.1: Desacoplar `compare_algorithms` em `aggregate_statistics.py`**
+- [x] **REVIEWED** **Task 3.1: Desacoplar `compare_algorithms` em `aggregate_statistics.py`**
   + **What:** Implementar função pura `compare_algorithms` e `compare_algorithms_by_group`, eliminando a variável indefinida `small_problem_algos` e o limiar estático `cpu_threshold = 100`.
   + **Why:** Corrige 8 erros de `ruff` `F821` e 7 erros de `mypy`, permitindo análises pareadas sobre qualquer conjunto arbitrário de instâncias ou categorias.
   + **Who:** Agente (`implementer`).
@@ -224,7 +234,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Extraída a função pura `compare_algorithms(...)` que valida instâncias com cobertura pareada completa, executa teste de Friedman, calcula distâncias críticas com Nemenyi e computa speedups geométricos em relação a um baseline configurável. Implementada a função `compare_algorithms_by_group(...)` para agrupamentos arbitrários (e.g. `edge_type`). A análise estratificada `perform_cross_problem_analysis_stratified(...)` agora delega ambos os estratos para `compare_algorithms(...)`, definindo `small_problem_algos` dinamicamente e eliminando os erros F821 e de tipagem em `all_algorithm_names`.
     - **Atendimento ao DoD:** `ruff check` e `mypy` passaram com 0 erros em `src/benchmarking_v2/aggregate_statistics.py`. Adicionados testes de unidade cobrindo casos normais, degenerados e agrupamento por metadados em `test_benchmark_selected_problems.py` (todos 6 testes aprovados).
 
-- [x] **[REVIEWED]** **Task 4.1: Reorganizar Diretórios em `src/benchmarking/` e `benchmark_scripts/`**
+- [x] **REVIEWED** **Task 4.1: Reorganizar Diretórios em `src/benchmarking/` e `benchmark_scripts/`**
   + **What:** Consolidar `src/benchmarking_v2/` e `src/benchmarks_v2/` em `src/benchmarking/{runner,analysis,database}/`, mover scripts CLI para `benchmark_scripts/`, ajustar testes e excluir arquivos/diretórios obsoletos.
   + **Why:** Eliminar duplicidade conceitual de pastas `benchmarks_v2` e `benchmarking_v2`, separar CLI da biblioteca e resolver todos os erros restantes do mypy (`fetchone`, tipos genéricos).
   + **Who:** Agente (`implementer`).
@@ -265,7 +275,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Os diretórios `src/benchmarks_v2/` e `src/benchmarking_v2/` foram consolidados na biblioteca limpa `src/benchmarking/` com os subpacotes especializados `runner/`, `analysis/` e `database/`. Todas as APIs públicas foram re-exportadas em `src/benchmarking/__init__.py`. Os scripts executáveis de CLI foram movidos para a raiz em `benchmark_scripts/`. A lista padrão `DEFAULT_SELECTED_TSP_FILES` foi centralizada na biblioteca em `config_loader.py`. Foram sanados todos os retornos anuláveis de `cursor.fetchone()` no DuckDB e desacoplada a circularidade entre `runner` e `analysis` através de importações sob `if TYPE_CHECKING:` com `from __future__ import annotations`. Os diretórios legados foram totalmente removidos.
     - **Atendimento ao DoD:** Executado `pytest` com 19 testes aprovados (0 falhas); `mypy src benchmark_scripts` e `ruff check src tests benchmark_scripts` passaram com 0 erros em modo estrito.
 
-- [x] **[REVIEWED]** **Task 5.1: Desacoplamento de Presets, Estágios Flexíveis de Busca Local e Benchmark Experimental**
+- [x] **REVIEWED** **Task 5.1: Desacoplamento de Presets, Estágios Flexíveis de Busca Local e Benchmark Experimental**
   + **What:** Mover os 4 wrappers de preset para `src/algorithms/presets.py`, remover scripts redundantes em `src/algorithms/metaheuristics/`, desacoplar `GeneticAlgorithm` de hiperparâmetros de estratégias e eliminar a ramificação condicional rígida em `LocalSearchStage`. Corrigir a ordem de `post_evaluation` e refatorar `post_evolution` para aplicar 2-opt em toda a população final `(N, n_cities)`. Criar o script `benchmark_scripts/compare_local_search_stages.py` e executar o benchmark comparativo em `att48.tsp`, `bayg29.tsp` e `bays29.tsp`.
   + **Why:** O diretório `src/algorithms/metaheuristics/` continha arquivos que funcionavam meramente como presets ou re-exportações monolíticas em vez de metaheurísticas puras; hiperparâmetros como `two_opt_iterations` estavam acoplados na classe mãe; a busca local em `post_evolution` refinava apenas 1 rota (`best_tour`), mantendo 255 de 256 blocos CUDA ociosos na GPU; e faltava evidência empírica comparando a colocação de 2-opt após a avaliação de fitness versus a abordagem memética tradicional.
   + **Who:** Agente (`implementer`).
@@ -295,7 +305,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Os presets `GeneticAlgorithmCPU`, `GeneticAlgorithmHybridNaive`, `GeneticAlgorithmHybridOptimized` e `GeneticAlgorithmFullGPUModular` foram movidos para `src/algorithms/presets.py`, limpando `src/algorithms/metaheuristics/` para conter apenas a metaheurística `GeneticAlgorithm`. O método `GeneticAlgorithm.evolve()` foi refatorado para usar uma pipeline ordenada de operadores (`LocalSearchStage`), eliminando condicionais acopladas. Corrigida a fase inicial de `post_evaluation` para avaliar a aptidão antes do 2-opt. Em `post_evolution`, a busca local agora refina a população inteira `(N, n_cities)` via `improve_batch` e `evaluate_batch`, explorando paralelamente 256 regiões na GPU. Criado o script `compare_local_search_stages.py`, que executou o benchmark comparativo em `att48`, `bayg29` e `bays29`. Os resultados mostram que `post_evaluation` atinge 0.00% de gap em `bayg29` (superando `post_mutation`) e reduz o tempo de computação em até 50% em `att48`.
     - **Atendimento ao DoD:** `pytest` passou com 19/19 testes aprovados em 10.52s. `mypy src benchmark_scripts` e `ruff check src tests benchmark_scripts` passaram com 0 erros. Tabelas Markdown e LaTeX geradas com sucesso em `results_v3/local_search_comparison/tables/`.
 
-- [x] **[REVIEWED]** **Task 6.1: Desacoplamento Total de Retrocompatibilidade, Pipelines de Etapas, Composição Declarativa e Eliminação de Shims**
+- [x] **REVIEWED** **Task 6.1: Desacoplamento Total de Retrocompatibilidade, Pipelines de Etapas, Composição Declarativa e Eliminação de Shims**
   + **What:** Eliminar definitivamente `src/algorithms/presets.py` e todos os atalhos/shims de retrocompatibilidade; quebrar as 5 categorias de estratégias em arquivos atômicos por algoritmo de estratégia; eliminar os 10 arquivos `*_strategies.py`; refatorar `GeneticAlgorithm` para suportar AG puro (`local_search=None` por padrão) governado internamente por um pipeline de `GenerationStep`; refatorar `configs/algorithms.json` para composição puramente declarativa com `STRATEGY_REGISTRY`; simplificar scripts em `benchmark_scripts/` para python puro sem verbosidade de `argparse` integrados ao orquestrador central; e resolver as críticas 1 a 8 levantadas.
   + **Why:** O acoplamento com classes de preset e shims de retrocompatibilidade mantinha dívida técnica, duplicação de definições de estratégias e hiperparâmetros hardcoded (`legacy_kwargs`, `two_opt_iterations`, `tournament_size`), impedindo o uso do resolvedor como um Genetic Algorithm puro ou com outros operadores genéticos.
   + **Who:** Agente (`implementer`).
@@ -340,7 +350,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ## Fase 7: Utilitários de Residência CPU/GPU e RNG, Variantes de 2-Opt, GPU Inversion Mutation e Integração Nativa com `tsp.duckdb`
 
-- [x] **[COMPLETED]** **Task 7.1: Documentação Exaustiva de Estágios de Busca Local e Pipelines Customizados (`GenerationStep`)**
+- [x] **COMPLETED** **Task 7.1: Documentação Exaustiva de Estágios de Busca Local e Pipelines Customizados (`GenerationStep`)**
   + **What:** Documentar em `documentation/guide-local-search-pipeline-stages.md` todos os 5 estágios nativos de `LocalSearchStage` (`none`, `post_crossover`, `post_mutation`, `post_evaluation`, `post_evolution`) e 4 padrões de extensão via `GenerationStep` (`PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`, `PeriodicLocalSearchStep` e pipeline multi-estágio).
   + **Why:** Tornar explícito como configurar ou estender o posicionamento da busca local sem acoplamento em `GeneticAlgorithm`, fornecendo contratos exatos de `GenerationState` e templates executáveis.
   + **Who:** Agente (`implementer`).
@@ -356,7 +366,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Criado guia técnico detalhado cobrindo os contratos de `GenerationState` e `GenerationStep`, os 5 modos nativos de `LocalSearchStage`, 4 implementações completas de steps customizados (pós-inicialização, apenas elite, periódico e multi-estágio), configuração declarativa em `configs/algorithms.json` e comando de verificação.
     - **Atendimento ao DoD:** Documento gerado em `./documentation/guide-local-search-pipeline-stages.md` em conformidade com os padrões de Markdown do repositório.
 
-- [x] **[COMPLETED]** **Task 7.2: Centralização dos Utilitários de Residência de Rotas (CPU/GPU) e Resolução de RNG (`SeedLike`)**
+- [x] **COMPLETED** **Task 7.2: Centralização dos Utilitários de Residência de Rotas (CPU/GPU) e Resolução de RNG (`SeedLike`)**
   + **What:** Extrair a verificação repetida de arrays CuPy/NumPy (`is_gpu_array`, `to_cpu_batch`, `restore_routes_shape(..., to_gpu=...)`) e a resolução de geradores pseudoaleatórios (`SeedLike`, `make_rng`, `resolve_rng`) para `src/utils/route_helpers.py` e `src/protocols/types.py`, refatorando todas as estratégias em `src/algorithms/strategies/` para utilizá-los.
   + **Why:** Atualmente, 8 arquivos de estratégia repetem blocos `try: import cupy` e conversões `isinstance(batch, cp.ndarray)` (~12 locais), além de 11 blocos idênticos `if context is not None and hasattr(context, "rng")...` nas estratégias estocásticas.
   + **Who:** Agente (`implementer`).
@@ -385,7 +395,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 > [!WARNING]
 > **Correção Arquitetural (Task 8.10):** A resolução de geradores pseudoaleatórios (`make_rng` e `resolve_rng`) foi originalmente agrupada em `src/utils/route_helpers.py`, gerando acoplamento indevido entre utilitários de shape de rota e geradores pseudoaleatórios. Essa decisão foi corrigida na Task 8.10 com a extração para `src/utils/rng.py` e re-exportação em `src/utils/__init__.py`.
 
-- [x] **[COMPLETED]** **Task 7.3: Implementação de `GPUInversionMutation` (`inversion_mutation.cu`)**
+- [x] **COMPLETED** **Task 7.3: Implementação de `GPUInversionMutation` (`inversion_mutation.cu`)**
   + **What:** Implementar o kernel CUDA dedicado `src/algorithms/strategies/mutation/kernels/inversion_mutation.cu` e a classe `GPUInversionMutation` em `src/algorithms/strategies/mutation/inversion_mutation.py`, registrando-a em `STRATEGY_REGISTRY`.
   + **Why:** `InversionMutation` possuía apenas implementação CPU porque não havia kernel CUDA próprio para reversão estocástica de sub-segmentos; como o operador de mutação opera em rotas independentes (1 thread por rota), o kernel é independente do `two_opt.cu` (que avalia custos $O(n^2)$ na matriz de distâncias).
   + **Who:** Agente (`implementer`).
@@ -404,7 +414,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Criado kernel CUDA `inversion_mutation.cu` onde cada thread inverte o intervalo selecionado `[left..right]` de forma independente para cada rota da população; implementada a classe `GPUInversionMutation` com métricas completas de tempo, bytes transferidos e chamadas de kernel; registrada em `STRATEGY_REGISTRY`.
     - **Atendimento ao DoD:** `GPUInversionMutation` integrada ao `STRATEGY_REGISTRY` e validada por teste unitário em `tests/test_modular_architecture.py`.
 
-- [x] **[COMPLETED]** **Task 7.4: Implementação de Variantes de 2-Opt (`CPUFirstImprovementTwoOpt`, `CPUMultiMoveTwoOpt`, `BatchGPUMultiMoveTwoOpt`)**
+- [x] **COMPLETED** **Task 7.4: Implementação de Variantes de 2-Opt (`CPUFirstImprovementTwoOpt`, `CPUMultiMoveTwoOpt`, `BatchGPUMultiMoveTwoOpt`)**
   + **What:** Implementar variações algorítmicas do 2-opt em `src/algorithms/strategies/local_search/two_opt.py` e `src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu`: (1) First-Improvement (`CPUFirstImprovementTwoOpt`), que aplica imediatamente a primeira troca melhoradora encontrada; e (2) Multi-Move / Disjoint-Segment (`CPUMultiMoveTwoOpt` e `BatchGPUMultiMoveTwoOpt`), que aplica múltiplas reversões de sub-segmentos disjuntos ($j_1 + 1 < i_2$) em uma única varredura $O(n^2)$.
   + **Why:** O 2-opt Best-Improvement tradicional avalia todos os $\approx n^2/2$ pares de arestas mas aplica apenas 1 movimento por varredura, reavaliando pares independentes repetidamente na iteração seguinte. Movimentos em sub-segmentos disjuntos possuem $\Delta$ aditivos e independentes e podem ser aplicados na mesma iteração.
   + **Who:** Agente (`implementer`).
@@ -423,7 +433,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Implementados `CPUFirstImprovementTwoOpt` (aplica a primeira reversão $\Delta < 0$) e `CPUMultiMoveTwoOpt` (aplica reversões de intervalos não-conflitantes na mesma varredura $O(n^2)$); criado o kernel CUDA `two_opt_multi_move.cu` e a classe `BatchGPUMultiMoveTwoOpt`; exportadas em `local_search/__init__.py` e registradas em `STRATEGY_REGISTRY`.
     - **Atendimento ao DoD:** As 3 variantes foram registradas no registry de estratégias e validadas por `test_two_opt_variants` em `tests/test_modular_architecture.py`.
 
-- [x] **[COMPLETED]** **Task 7.5: Adoção Exclusiva do Schema `datasets/tsp.duckdb`, Remoção de `DEFAULT_SELECTED_TSP_FILES` e Metadados Ricos nos Checkpoints**
+- [x] **COMPLETED** **Task 7.5: Adoção Exclusiva do Schema `datasets/tsp.duckdb`, Remoção de `DEFAULT_SELECTED_TSP_FILES` e Metadados Ricos nos Checkpoints**
   + **What:** (1) Remover `DEFAULT_SELECTED_TSP_FILES` de `config_loader.py` (transferindo a seleção de problemas para `benchmark_scripts/run_selected_problems.py`); (2) Reescrever `DatabaseLoader` (`src/loaders/database_loader.py`) e `ingest_tsplib_directory_to_duckdb` (`src/loaders/tsplib_loader.py`) para usar exclusivamente o schema normalizado de `datasets/tsp.duckdb` (`problems`, `tsp_problems`, `atsp_problems`, `cvrp_problems`, `edge_weight_matrices`, `solutions`, `file_tracking`) sem retrocompatibilidade com `routing.duckdb`/`nodes`; (3) Enriquecer `Problem` (`src/data_models/problem.py`) e inserir todos os metadados relevantes do problema nos checkpoints JSON e `problem_statistics` gerados por `orchestration.py`.
   + **Why:** `config_loader.py` continha caminhos hardcoded (`DEFAULT_SELECTED_TSP_FILES`), `DatabaseLoader` falhava ao abrir `datasets/tsp.duckdb` (`BinderError: Referenced column "dimension" not found in FROM clause`), e os checkpoints JSON omitiam metadados ricos presentes no banco (`comment`, `edge_weight_format`, `tsplib_name`, `is_symmetric`, `problem_id`, `has_solution`, `source_file`, `file_checksum`).
   + **Who:** Agente (`implementer`).
@@ -452,7 +462,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ## Fase 8: Hermetismo de Caminhos, Separação Estrita de CLI/Scripts e Isolamento de Testes
 
-- [x] **[COMPLETED]** **Task 8.1: Reversão e Restauração dos Arquivos da Fase 7 Revertidos Indevidamente**
+- [x] **COMPLETED** **Task 8.1: Reversão e Restauração dos Arquivos da Fase 7 Revertidos Indevidamente**
   + **What:** Restaurar integralmente os 8 arquivos modificados na Fase 7 que haviam sido revertidos para o commit `HEAD` (`62edcbd`), resgatando as implementações de `route_helpers.py`, schema normalizado de `database_loader.py`, variantes de 2-opt em `two_opt.py`, operadores genéticos centrais com `make_rng` e re-exportação de `GPUInversionMutation`.
   + **Why:** O reset acidental para o commit `HEAD` apagou utilitários essenciais (`is_gpu_array`, `restore_routes_shape`, `make_rng`), variantes algorítmicas de 2-opt e queries normalizadas do DuckDB, quebrando consumidores e a suite de tipos.
   + **Who:** Agente (`implementer`).
@@ -475,7 +485,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Restaurados integralmente os 8 módulos da Fase 7 que haviam sido redefinidos para o estado do `HEAD`.
     - **Atendimento ao DoD:** `mypy` e verificação de imports concluídos com 0 erros nos 24 arquivos de estratégia e loaders.
 
-- [x] **[COMPLETED]** **Task 8.2: Limpeza de Caminhos Hardcoded nas Camadas de Carregamento (`TsplibLoader`, `DatabaseLoader`)**
+- [x] **COMPLETED** **Task 8.2: Limpeza de Caminhos Hardcoded nas Camadas de Carregamento (`TsplibLoader`, `DatabaseLoader`)**
   + **What:** Eliminar valores padrão hardcoded para caminhos de datasets (`datasets/tsp` e `datasets/tsp.duckdb`) das assinaturas de `TsplibLoader.__init__`, `ingest_tsplib_directory_to_duckdb` e `DatabaseLoader.__init__`, tornando os caminhos argumentos obrigatórios na API da biblioteca.
   + **Why:** Valores padrão relativos à raiz do projeto quebram chamadas a partir de outros diretórios de execução, impedem testes herméticos e violam o princípio de projeto de que bibliotecas sob `src/` não devem ter caminhos externos fixos.
   + **Who:** Agente (`implementer`).
@@ -495,7 +505,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** `tsp_dir` e `db_path` foram transformados em parâmetros obrigatórios em todos os loaders de `src/loaders/`; docstrings de exemplo foram atualizadas.
     - **Atendimento ao DoD:** Nenhuma chamada com default de arquivo remanescente na API de `loaders`.
 
-- [x] **[COMPLETED]** **Task 8.3: Limpeza de Caminhos Hardcoded no Framework de Benchmarking**
+- [x] **COMPLETED** **Task 8.3: Limpeza de Caminhos Hardcoded no Framework de Benchmarking**
   + **What:** Eliminar a função `default_config_dir()`, caminhos hardcoded para `datasets/tsp.duckdb`, diretórios de checkpoints fixos (`results_v3/checkpoints`) e referências ao objeto `argparse.Namespace` em `orchestration.py`, `config_loader.py`, `checkpoint_io.py` e `import_checkpoints.py`.
   + **Why:** O benchmark central continha fallbacks como `project_root / "datasets" / "tsp.duckdb"` e caminhos padrão `results_v3`, além de acoplar `run_comprehensive_benchmark` com o parser CLI (`args: Namespace`).
   + **Who:** Agente (`implementer`).
@@ -516,7 +526,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** `default_config_dir` e referências a caminhos padrão no disco foram eliminados; `run_comprehensive_benchmark` agora exige `config_dir` e `output_dir` explicitamente; `CheckpointManager` e `import_checkpoints` exigem caminhos nominais.
     - **Atendimento ao DoD:** `mypy src/benchmarking` reporta `Success: no issues found in 17 source files`.
 
-- [x] **[COMPLETED]** **Task 8.4: Criação do Pacote `src/cli/` e Registro de Entrypoints em `pyproject.toml`**
+- [x] **COMPLETED** **Task 8.4: Criação do Pacote `src/cli/` e Registro de Entrypoints em `pyproject.toml`**
   + **What:** Extrair toda a lógica de parsing de linha de comando (`argparse`) dispersa em loaders e módulos de banco de dados para um pacote dedicado `src/cli/`, e registrar comandos executáveis em `[project.scripts]` no `pyproject.toml`.
   + **Why:** Invocadores CLI (`argparse.ArgumentParser` e blocos `if __name__ == '__main__':`) poluíam `tsplib_loader.py`, `import_checkpoints.py` e `validate_consistency.py`. O isolamento em `src/cli/` separa estritamente a API programática das interfaces de terminal.
   + **Who:** Agente (`implementer`).
@@ -539,7 +549,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Criado o pacote `src/cli/` contendo os submódulos `tsplib`, `benchmark` e `checkpoints`; removido todo o código de parsing CLI dos módulos de biblioteca; registrados 4 scripts no `pyproject.toml` (`tsp-ingest`, `tsp-benchmark`, `tsp-import-checkpoints`, `tsp-validate-db`).
     - **Atendimento ao DoD:** `mypy src/cli` executado com 0 erros; entrypoints instaláveis funcionais.
 
-- [x] **[COMPLETED]** **Task 8.5: Conversão de `benchmark_scripts/` em Runners Experimentais Puros em python**
+- [x] **COMPLETED** **Task 8.5: Conversão de `benchmark_scripts/` em Runners Experimentais Puros em python**
   + **What:** Atualizar todos os scripts em `benchmark_scripts/` para chamarem as funções da biblioteca `benchmarking` com argumentos nominais explícitos baseados em constantes do próprio script (`PROJECT_ROOT`, `CONFIG_DIR`, `DB_PATH`, `OUTPUT_DIR`), eliminando qualquer dependência de `argparse` em scripts de experimentação.
   + **Why:** Scripts experimentais devem se comportar como cadernos reproduzíveis (notebooks python), declarando explicitamente suas entradas e saídas sem suposições ocultas ou parsing desnecessário de terminal.
   + **Who:** Agente (`implementer`).
@@ -559,7 +569,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Adaptados todos os scripts de experimentação para uso de caminhos explícitos via constantes dedicadas, eliminando referências a `default_config_dir` e `argparse`.
     - **Atendimento ao DoD:** `mypy benchmark_scripts` passa com 0 erros em 6 arquivos-fonte.
 
-- [x] **[COMPLETED]** **Task 8.6: Reversão de `pythonpath = ["src", "."]` para `pythonpath = ["src"]` e Criação de Fixtures Herméticas**
+- [x] **COMPLETED** **Task 8.6: Reversão de `pythonpath = ["src", "."]` para `pythonpath = ["src"]` e Criação de Fixtures Herméticas**
   + **What:** Reverter `pythonpath` em `pyproject.toml` para `["src"]`, remover `"benchmark_scripts"` de `known-first-party` do Ruff e criar diretórios de fixtures herméticos (`tests/fixtures/tsp/` com 5 arquivos de amostra: `burma14`, `gr17`, `bayg29`, `att48`, `berlin52`; `tests/fixtures/configs/` com `algorithms.json`, `benchmark.json`, `problems.json`; e `tests/conftest.py` com fixtures pytest).
   + **Why:** A inclusão indevida de `"."` tornava todo o repositório raiz importável (inclusive scripts e pastas temporárias), mascarando problemas de empacotamento e quebrando o isolamento hermético.
   + **Who:** Agente (`implementer`).
@@ -584,7 +594,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** `pythonpath` revertido para `["src"]`; suite de fixtures independentes criada com instâncias cobrindo todos os formatos de peso de aresta (`GEO`, `EXPLICIT`, `ATT`, `EUC_2D`); fixtures de sessão criadas para banco temporário DuckDB e instâncias pré-carregadas.
     - **Atendimento ao DoD:** `pyproject.toml` estritamente alinhado com o empacotamento padrão; testes isolados do filesystem externo.
 
-- [x] **[COMPLETED]** **Task 8.7: Refatoração dos Testes Automatizados para Uso de Fixtures e Criação de `test_benchmarking_pipeline.py` e `test_cli.py`**
+- [x] **COMPLETED** **Task 8.7: Refatoração dos Testes Automatizados para Uso de Fixtures e Criação de `test_benchmarking_pipeline.py` e `test_cli.py`**
   + **What:** (1) Deletar o arquivo de teste acoplado a scripts `tests/test_benchmark_selected_problems.py`; (2) Criar `tests/test_benchmarking_pipeline.py` testando exaustivamente o pipeline de benchmark e estatísticas usando fixtures; (3) Criar `tests/test_cli.py` cobrindo os 4 entrypoints de terminal; (4) Atualizar `test_modular_architecture.py`, `test_early_stopping.py` e `test_incremental_checkpoints.py` para usar fixtures.
   + **Why:** O teste antigo importava scripts e usava caminhos hardcoded que falhavam caso a base de dados não estivesse gerada previamente no workspace.
   + **Who:** Agente (`implementer`).
@@ -605,7 +615,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** `tests/test_benchmark_selected_problems.py` foi substituído por `test_benchmarking_pipeline.py` (focado na biblioteca) e `test_cli.py` (focado nos comandos CLI); todos os testes foram adaptados para utilizar fixtures injetadas pelo pytest.
     - **Atendimento ao DoD:** 30 testes unitários e de integração executados com 100% de aprovação (30 passed em ~9s); zero erros em 74 arquivos de `mypy` e zero violações no `ruff`.
 
-- [x] **[COMPLETED]** **Task 8.10: Extração de Utilitários RNG para `src/utils/rng.py` e Isolamento de Responsabilidade Única (SRP)**
+- [x] **COMPLETED** **Task 8.10: Extração de Utilitários RNG para `src/utils/rng.py` e Isolamento de Responsabilidade Única (SRP)**
   + **What:** Extrair `make_rng` e `resolve_rng` de `src/utils/route_helpers.py` para um módulo dedicado `src/utils/rng.py`, re-exportando-os em `src/utils/__init__.py`, atualizando todos os consumidores em `src/algorithms/strategies/` e criando a suíte unitária `tests/utils/test_unit_rng.py`.
   + **Why:** O agrupamento de geração pseudoaleatória (`make_rng`, `resolve_rng`) dentro de `route_helpers.py` violava o princípio de responsabilidade única (SRP), forçando classes focadas puramente em lógica estocástica a importar rotinas de conversão e normalização de arrays de rotas.
   + **Who:** Agente (`implementer`).
@@ -624,7 +634,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Criado o módulo `src/utils/rng.py` centralizando a lógica de resolução de `np.random.Generator` a partir de `SeedLike` (`int`, `Generator`, factory ou `None`), desacoplando-o de `route_helpers.py`. Todos os 8 arquivos de estratégias estocásticas e o teste unitário foram atualizados para importar de `utils.rng`.
     - **Atendimento ao DoD:** Zero ocorrências de `make_rng` em `route_helpers.py`; 14 testes passando e 1 xfail documentado em `tests/utils/test_unit_rng.py`.
 
-- [x] **[COMPLETED]** **Task 8.9: Desacoplamento de `DatabaseLoader` via Handlers Polimórficos de Formulação de Problemas**
+- [x] **COMPLETED** **Task 8.9: Desacoplamento de `DatabaseLoader` via Handlers Polimórficos de Formulação de Problemas**
   + **What:** Refatorar `DatabaseLoader` para eliminar blocos condicionais encadeados `if problem_type == "TSP": ... elif` em `list_instances()` e `_load_metadata()`, introduzindo um protocolo polimórfico `ProblemTypeHandler` e um registro indexado por formulação (`TSP`, `ATSP`, `CVRP`).
   + **Why:** A lógica atual viola o princípio Aberto/Fechado (OCP). Adicionar suporte a novas variantes e problemas de roteamento (ex.: MDVRP, VRPTW, mTSP) exige editar o corpo de `DatabaseLoader` e duplicar projeções SQL e transformações de metadados.
   + **Who:** Desenvolvedor / Agente (`implementer`).
@@ -647,7 +657,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Criado o protocolo polimórfico `ProblemTypeHandler` e suas implementações concretas `TspHandler`, `AtspHandler` e `CvrpHandler` em `src/loaders/problem_type_handlers.py`, além do registro global extensível `PROBLEM_TYPE_HANDLERS`. `DatabaseLoader` foi refatorado para delegar a consulta de catálogo (`list_problems`) e extração de metadados (`load_metadata`) ao handler do tipo correspondente, permitindo injeção de dependência via `handlers=` e levantando `UnsupportedProblemTypeError` para formulações não suportadas.
     - **Atendimento ao DoD:** Eliminados todos os blocos condicionais `if problem_type == ...` de `DatabaseLoader`; 100% de aprovação na nova suíte `tests/loaders/test_unit_problem_type_handlers.py` (8 testes passando) e testes de integração existentes.
 
-- [x] **[COMPLETED]** **Task 8.11: Fechamento de Lacunas nos Parâmetros CLI, Paridade de Overrides e Proteção de Sobrescrita no Banco**
+- [x] **COMPLETED** **Task 8.11: Fechamento de Lacunas nos Parâmetros CLI, Paridade de Overrides e Proteção de Sobrescrita no Banco**
   + **What:** Expandir os argumentos de linha de comando em `src/cli/benchmark.py` (`--patience`, `--seed`, `--population-size`, `--mutation-rate`, `--strategy-param`, `--incremental-runs`/`--no-incremental-runs`, `--log-level`), restringir choices de `--local-search-stage` aos literais válidos de `LocalSearchStage`, propagar overrides através de `AlgorithmConfig.instantiate` e `orchestration.py`, corrigir o bug onde repetições ignoravam `effective_seed` caindo no default hardcoded `seed_base=42`, e implementar proteção de sobrescrita com `DatabaseNotEmptyError` e flag `--overwrite` em `ingest_tsplib_directory_to_duckdb` e `src/cli/tsplib.py`.
   + **Why:** O benchmark CLI carecia de flags essenciais para controle fino de hiperparâmetros de GA e estratégias sem necessidade de alterar arquivos JSON no disco. Além disso, a ingestão em DuckDB realizava `DELETE FROM` incondicionalmente em bancos existentes caso invocada sem salvaguardas.
   + **Who:** Agente (`implementer`).
@@ -1447,7 +1457,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       + [test_unit_gpu_strategy_fail_loud.py](../../tests/algorithms/test_unit_gpu_strategy_fail_loud.py#L1) *(novo)*, [test_unit_two_opt_synchronization.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_synchronization.py#L79), [guide-local-search-pipeline-stages.md](../../documentation/guide-local-search-pipeline-stages.md#L385)
     - **Resumo:** `CUPY_AVAILABLE` desapareceu de `src/` e `tests/`. As 7 estratégias GPU resolvem o dispositivo por `require_gpu()` e levantam `GPUUnavailableError` em vez de delegar à variante CPU; `route_helpers`, `phase_timer`, `GeneticAlgorithm`, `algorithm_runner` e `orchestration` passaram a usar `cupy_backend()`/`gpu_available()`, com `orchestration` concentrando a liberação de VRAM em `_release_gpu_memory()`. O fixture de `test_unit_two_opt_synchronization.py` passou a injetar o proxy contador em `require_gpu`, e o exemplo do guia de estágios usa `is_gpu_array`/`cupy_backend()`.
     - **Atendimento ao DoD (Revisado 5+1 eixos):** `grep -rn "CUPY_AVAILABLE" src/ tests/ --exclude-dir={__pycache__,.mypy_cache,.pytest_cache,.ruff_cache}` → 0 ocorrências (HEAD tinha 25 ocorrências em 7 módulos de estratégia, todos com 0 `require_gpu`); `pytest tests/algorithms/test_unit_gpu_strategy_fail_loud.py -q` → `14 passed` em CPU sem `@pytest.mark.gpu`; `pytest tests -m "not slow" -q` → `839 passed, 2 deselected` (`0 failed`); `mypy src tests benchmark_scripts` → `Success: no issues found in 127 source files`; `ruff check src tests benchmark_scripts` → `All checks passed!`; `results_v3/selected_10/results.duckdb` reimportado (39 duplicatas/39 runs) e validado com `Databases are identical` + `39/39 records`.
-- [x] **[REVIEWED]** **Task 11.6: Refinamento Opcional da População Inicial como Etapa de Pipeline Configurável (`DP11-6`, `BUG-30`)**
+- [x] **REVIEWED** **Task 11.6: Refinamento Opcional da População Inicial como Etapa de Pipeline Configurável (`DP11-6`, `BUG-30`)**
   + **What:**
     1. Criar `src/algorithms/pipeline_steps.py` com **apenas** o `GenerationStep` de refinamento de $P_0$ — `PostInitLocalSearchStep` (refina `state.population` quando `state.generation == 1`, e somente então, devendo ser o primeiro elemento da pipeline) — mais `PIPELINE_STEP_REGISTRY` e `__all__`. `EliteOnlyLocalSearchStep` e `PeriodicLocalSearchStep` **saem desta tarefa** e passam para a `Task 11.9`;
     2. Estender `AlgorithmConfig.instantiate` para aceitar `params["pipeline"]` como lista de especificações `{"class": <chave do registro>, "params": {...}}`, instanciar cada etapa após as estratégias e repassar `pipeline=` ao `GeneticAlgorithm`;
@@ -1483,7 +1493,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       # -> 2 passed
       ```
 
-- [x] **[REVIEWED]** **Task 11.7: Persistir e Reportar os Tempos por Fase e Contabilizar Latências de Transferência/Overhead (`DP11-7`, `DP11-13`, `BUG-30`)**
+- [x] **REVIEWED** **Task 11.7: Persistir e Reportar os Tempos por Fase e Contabilizar Latências de Transferência/Overhead (`DP11-7`, `DP11-13`, `BUG-30`)**
   + **What:**
     1. Fazer `run_single_algorithm` capturar `stats["phase_timings"]` de cada repetição, acumulando `raw_phase_timings` e `mean_phase_timings` por algoritmo;
     2. Calcular `phase_share_pct`, a fração de `mean_time` consumida por `initialization`, `selection`, `crossover`, `mutation`, `local_search`, `evaluation` e `host_sync`;
@@ -1519,7 +1529,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       .venv/bin/python -m pytest tests/benchmarking/test_unit_runner_telemetry.py tests/algorithms/metaheuristics/test_unit_best_tour_transfer.py -q  # -> 3 passed
       ```
 
-- [x] **[REVIEWED]** **Task 11.8: Remover a Busca Local da Geração 0 e Centralizar o Despacho de Estágios em uma Tabela Única (`DP11-8`, `DP11-9`, `BUG-21`, `BUG-30`)**
+- [x] **REVIEWED** **Task 11.8: Remover a Busca Local da Geração 0 e Centralizar o Despacho de Estágios em uma Tabela Única (`DP11-8`, `DP11-9`, `BUG-21`, `BUG-30`)**
   + **What:** Eliminar o bloco pré-laço remanescente em `evolve`, de modo que a geração 0 seja sempre `initialization.initialize()` seguida de `evaluation.evaluate_batch()` crua, para os cinco estágios (`none`, `post_crossover`, `post_mutation`, `post_evaluation`, `post_evolution`); e, no mesmo change, substituir as cadeias de `if` que hoje decidem **onde** a busca local entra por uma tabela única de estágios, para que a duplicação que produziu o `BUG-21` não sobreviva à sua correção. Atualizar a documentação dos estágios e fixar o contrato com teste parametrizado nos cinco valores.
   + **Why:** O refinamento automático da geração 0 foi removido para `post_crossover` e `post_mutation`, mas `post_evaluation` continua refinando $P_0$ antes da primeira geração ([genetic_algorithm.py#L473-L491](../../src/algorithms/metaheuristics/genetic_algorithm.py#L473-L491)). Isso contradiz o nome do estágio (refinar sobreviventes **após** a avaliação de uma geração, não antes da primeira), produz duas passadas consecutivas de 2-opt sem nenhum operador genético entre elas, e faz `initial_fitness` depender do estágio escolhido — a mesma classe de artefato que motivou a correção anterior.
   + **Por que a centralização vem junto (auditoria de 2026-11-06):** o despacho comportamental de `local_search_stage` está espalhado por três cadeias dentro do **mesmo** arquivo — `_build_default_pipeline` ([#L311](../../src/algorithms/metaheuristics/genetic_algorithm.py#L311) guarda `has_ls`, [#L314](../../src/algorithms/metaheuristics/genetic_algorithm.py#L314) `post_crossover`, [#L319](../../src/algorithms/metaheuristics/genetic_algorithm.py#L319) `post_mutation`, [#L325](../../src/algorithms/metaheuristics/genetic_algorithm.py#L325) `post_evaluation`), o pré-laço de `evolve` ([#L470](../../src/algorithms/metaheuristics/genetic_algorithm.py#L470) e [#L473](../../src/algorithms/metaheuristics/genetic_algorithm.py#L473), `post_evaluation` **de novo**) e o pós-laço ([#L547](../../src/algorithms/metaheuristics/genetic_algorithm.py#L547), `post_evolution`). `post_evaluation` é o único estágio tratado em **dois** sítios, e é exatamente por isso que ele refina $P_0$: a duplicação **é** o bug, não um vizinho dele. Remover só o bloco pré-laço fecha o sintoma e deixa o mecanismo intacto para o sexto estágio. A boa notícia é que todo o despacho vive em `genetic_algorithm.py`, então a tabela é local a um arquivo: `{estágio: (passos a inserir, posição, hook pré/pós-laço)}`, com `_build_default_pipeline` e `evolve` lendo a mesma fonte.
@@ -1553,7 +1563,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       # -> 5 passed
       ```
 
-- [x] **[REVIEWED]** **Task 11.9: Implementar `EliteOnlyLocalSearchStep` e `PeriodicLocalSearchStep` como Etapas de Pipeline Reais (`DP11-10`, `BUG-30`)**
+- [x] **REVIEWED** **Task 11.9: Implementar `EliteOnlyLocalSearchStep` e `PeriodicLocalSearchStep` como Etapas de Pipeline Reais (`DP11-10`, `BUG-30`)**
   + **What:** Implementar em `src/algorithms/pipeline_steps.py` (criado na `Task 11.6`) as duas etapas que hoje existem **apenas como texto** na documentação: `EliteOnlyLocalSearchStep` (refina somente os `elite_count` melhores indivíduos da população, após o `SurvivalStep`) e `PeriodicLocalSearchStep` (refina a população inteira a cada `interval` gerações, usando `state.generation` como contador). Registrar ambas em `PIPELINE_STEP_REGISTRY`, cobrir com teste e substituir os templates do guia por referências ao código real.
   + **Why:** [Task 7.1](#fase-7-utilitários-de-residência-cpugpu-e-rng-variantes-de-2-opt-gpu-inversion-mutation-e-integração-nativa-com-tspduckdb) está corretamente marcada `[x]`: seu escopo era **documentar** quatro padrões de extensão via `GenerationStep`, e ela o cumpriu. Nenhuma tarefa de implementação foi jamais criada, então o guia publica dois blocos de código copiáveis que nenhum teste executa e que podem divergir silenciosamente do `GenerationState` real — a mesma classe de problema que a `Task 11.8` está fechando do lado do despacho de estágios. A auditoria de 2026-11-06 confirmou zero ocorrências de ambos os nomes em `src/` e `tests/`. Esta tarefa fecha a lacuna entre o que o guia promete e o que o pacote entrega.
   + **Who:** Agente (`implementer`).
@@ -1582,7 +1592,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       # -> 8 passed
       ```
 
-- [x] **[REVIEWED]** **Task 11.10: Corrigir a Complexidade e a Ocupação de `order_crossover_kernel` (`DP11-11`, `DP11-19`, `DP11-20`, `BUG-22`, `BUG-24`, `OX-A`, `OX-B`)**
+- [x] **REVIEWED** **Task 11.10: Corrigir a Complexidade e a Ocupação de `order_crossover_kernel` (`DP11-11`, `DP11-19`, `DP11-20`, `BUG-22`, `BUG-24`, `OX-A`, `OX-B`)**
   + **What:** Atacar os limites independentes do kernel de Order Crossover modular: (i) substituir o teste de pertinência por varredura linear por uma **tabela de pertinência em memória compartilhada no Formato A** (`uint8_t in_segment[n]`, 1 byte por cidade, livre de `atomicOr` e bit shifts para todas as instâncias TSPLIB95 $n \le 2{,}103$ até $n = 6{,}144$; o Formato B bitpacked permanece registrado para $n > 10{,}000$ na `DP12-1`), levando cada rota de $\mathcal{O}(n^2)$ para $\mathcal{O}(n)$; (ii) passar de **uma thread por rota** para **uma warp por rota**, elevando a ocupação para saturação dos 5 SMs da GTX 1050; e (iii) corrigir as **3 divergências algorítmicas CPU vs. GPU** (`OX-A`): pareamento de pais disjuntos $(2k, 2k+1)$ em vez de anel cíclico, amostragem de cortes sem reposição (`replace=False`, $c_1 < c_2$) em vez de inteiros com reposição, e preservação de nós de depósito nas pontas em rotas fechadas. Reexecutar a varredura de dimensionamento e registrar a curva nova.
   + **Why:** Medido em 2026-11-06 com $N=256$ (`CrossoverOrder` vs `CrossoverGPUOrder`, mediana de 3 chamadas após aquecimento): o GPU vence por 11,2× em $n=52$ (0,78 vs 8,79 ms), empata em $n \approx 800$ e perde por 3,6× em $n=2000$ (742,05 vs 206,81 ms). O ajuste de potência expõe causas distintas, não um fator constante: CPU $\propto n^{0.87}$ (linear), GPU $\propto n^{1.88}$ (quadrática). O termo quadrático vem da varredura `for j in [c1..c2]` ([order_crossover.cu#L49-L54](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu#L49)) dentro de um laço de $n$ cidades, enquanto a versão CPU usa `in_segment = set(...)` ([order_crossover.py#L67](../../src/algorithms/strategies/crossover/order_crossover.py#L67)), $\mathcal{O}(1)$. A segunda causa é independente: `blocks = (256 + 128 - 1) // 128 = 2` ([order_crossover.py#L198](../../src/algorithms/strategies/crossover/order_crossover.py#L198)) ocupa 2 dos 5 SMs da GTX 1050 — 40 % da GPU ociosa — e **nenhuma** correção de pertinência resolve isso, porque a paralelização está limitada ao tamanho da população. A terceira causa é a quebra de comparabilidade: a CPU gera filhos simétricos em pares disjuntos com cortes estritos, enquanto a GPU cruza em anel cíclico com cortes degenerados ($c_1=c_2$). Consequência para a tese: em `FullGPUModular` o crossover domina a geração (63,6 % em `pr1002`), então qualquer speedup reportado mede esse freio e uma semântica divergente.
   + **Who:** Agente (`implementer`).
@@ -1612,7 +1622,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       .venv/bin/python -m pytest tests/algorithms/strategies/crossover -q  # -> 41 passed
       ```
 
-- [x] **[REVIEWED]** **Task 11.11: Executar Warm-up Run Obrigatório em Benchmarks com GPU (`DP11-12`, `DP11-21`, `BUG-23`, `BUG-25`)**
+- [x] **REVIEWED** **Task 11.11: Executar Warm-up Run Obrigatório em Benchmarks com GPU (`DP11-12`, `DP11-21`, `BUG-23`, `BUG-25`)**
   + **What:** Introduzir uma execução de aquecimento (warm-up run) preliminar descartada no runner de benchmarks (`src/benchmarking/runner/`) para qualquer execução de variante que utilize backend GPU, antes de iniciar o laço oficial de repetições medidas (`repetitions`).
   + **Why:** Medido em 2026-11-06 (`berlin52`, `FullGPUModular`): a repetição 1 leva ~66 ms, enquanto as repetições 2–5 levam ~14 ms estáveis. O atraso na repetição 1 decorre da inicialização pontual do driver CUDA, alocação inicial de pools de memória CuPy e compilação JIT de kernels CUDA (`order_crossover.cu`, `two_opt.cu`). Sem warm-up, esse custo inicial contamina `mean_time` e infla artificialmente o coeficiente de variação de parede (`wall_cv_pct` medido em até 157 % em execuções curtas), distorcendo as conclusões e a comparabilidade estatística do Capítulo 4.
   + **Who:** Agente (`implementer`).
@@ -1642,7 +1652,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       .venv/bin/python -m pytest tests/benchmarking/test_unit_runner_warmup.py -q  # -> 8 passed
       ```
 
-- [x] **[REVIEWED]** **Task 11.12: Otimização e Equivalência Iso-Algorítmica de `MutationGPUSwap` (`DP11-14`, `DP11-19`, `DP11-20`, `SWAP-A`, `BUG-28`)**
+- [x] **REVIEWED** **Task 11.12: Otimização e Equivalência Iso-Algorítmica de `MutationGPUSwap` (`DP11-14`, `DP11-19`, `DP11-20`, `SWAP-A`, `BUG-28`)**
   + **What:** Alinhar `MutationGPUSwap.mutate_batch()` ao contrato de sincronização assíncrona (`DP10-18`/`BUG-15`) removendo a chamada incondicional a `cp.cuda.Stream.null.synchronize()`, e manter a geração de pares de troca no host via `ProblemContext.rng` para estrita reprodutibilidade e equivalência bit-a-bit à versão CPU `MutationSwap`.
   + **Why:** A sincronização incondicional bloqueia a CPU desnecessariamente a cada geração mesmo quando a população reside na VRAM, gerando overhead de ~12% medido em instâncias pequenas. Manter o RNG unificado no host garante que as trajetórias estocásticas de CPU e GPU sejam idênticas.
   + **Who:** Agente (`implementer`).
@@ -1670,7 +1680,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       pytest tests/algorithms/strategies/mutation -q   # -> green; open-TSP endpoints mutáveis, CVRP fechados preservados
       ```
 
-- [x] **[REVIEWED]** **Task 11.13: Otimização de Coalescência e Redução por Warp Shuffle em `cost_calculator.cu` (`DP11-15`, `EVAL-A`, `BUG-26`)**
+- [x] **REVIEWED** **Task 11.13: Otimização de Coalescência e Redução por Warp Shuffle em `cost_calculator.cu` (`DP11-15`, `EVAL-A`, `BUG-26`)**
   + **What:** Otimizar o kernel `cost_calculator.cu` substituindo o particionamento por fatias contíguas (`start = tid * chunk`) por um laço em stride de bloco (`for (i = tid; i < n; i += blockDim.x)`), garantindo acessos 100% coalescidos à memória global (VRAM), e substituir as 5 barreiras finais de shared memory (`__syncthreads()`) por uma redução intra-warp em registradores via `__shfl_down_sync`.
   + **Why:** O particionamento em `chunk` fazia com que threads adjacentes do warp acessassem endereços separados por `chunk * 4` bytes, fragmentando transações de 128 bytes da VRAM. Como a memória compartilhada armazena apenas as 256 somas parciais dos threads (`s_partials[256]` = 2 KB), o kernel **nunca** esteve limitado ao teto de $n = 11{,}425$ e não requer divisão em ladrilhos (tiling). A redução final por warp shuffle elimina 5 barreiras completas de bloco.
   + **Who:** Agente (`implementer`).
@@ -1694,7 +1704,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
           self.h2d_bytes += int(d_population.nbytes)
       ```
 
-- [x] **[REVIEWED]** **Task 11.14: Otimização de Coalescência de Memória em `SelectionGPUTournament` (`DP11-16`, `SEL-A`, `BUG-28`)**
+- [x] **REVIEWED** **Task 11.14: Otimização de Coalescência de Memória em `SelectionGPUTournament` (`DP11-16`, `SEL-A`, `BUG-28`)**
   + **What:** Substituir a cópia de rotas não coalescida (stride $n$) dentro de [tournament_selection.cu](../../src/algorithms/strategies/selection/kernels/tournament_selection.cu#L37-L41) pela emissão apenas do vetor 1D `winner_indices[N]`, delegando a coleta 2D de rotas ao indexador vetorizado do CuPy (`parents_out = population[winner_indices]`), mantendo a amostragem de candidatos no host via `ProblemContext.rng` e removendo a chamada incondicional a `cp.cuda.Stream.null.synchronize()` em [tournament_selection.py](../../src/algorithms/strategies/selection/tournament_selection.py#L251).
   + **Why:** Em `tournament_selection.cu`, 1 thread por vencedor copia uma rota inteira com stride $n$, emitindo 32 transações DRAM de 128 bytes separadas por warp e desperdiçando até 96,9 % da largura de banda física da VRAM, além de bloquear a CPU com `Stream.null.synchronize()`. O gather 2D do CuPy (NVIDIA CUB `DeviceGather`) lê horizontalmente ao longo das linhas com cargas vetorizadas `int4` (100 % coalescido).
   + **Who:** Agente (`implementer`).
@@ -1720,7 +1730,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
       pytest tests/algorithms/strategies/selection -q   # -> green com teste de dtype e de identidade CPU/GPU
       ```
 
-- [x] **[REVIEWED]** **Task 11.15: Eliminação de Divergência de Warp e Reversão Cooperativa em `MutationGPUInversion` (`DP11-17`, `DP11-19`, `DP11-20`, `INV-A`, `BUG-28`)**
+- [x] **REVIEWED** **Task 11.15: Eliminação de Divergência de Warp e Reversão Cooperativa em `MutationGPUInversion` (`DP11-17`, `DP11-19`, `DP11-20`, `INV-A`, `BUG-28`)**
   + **What:** Reestruturar [inversion_mutation.cu](../../src/algorithms/strategies/mutation/kernels/inversion_mutation.cu#L20-L38) e [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py#L142-L232) para atribuir **1 warp (32 threads) por rota** (`route_idx = warp_id`, `lane_id = tid % 32`), eliminando a divergência intra-warp sob baixa taxa de mutação ($p_m = 0.10$), revertendo o segmento `[left..right]` em paralelo pelas 32 lanes, mantendo `ProblemContext.rng` no host e removendo `cp.cuda.Stream.null.synchronize()`.
   + **Why:** Com 1 thread por rota e $p_m = 0.10$, ~29 das 32 threads de cada warp ficam ociosas em lockstep SIMT aguardando ~3 threads executarem até $n/2$ iterações sequenciais de `while (left < right)`. Com 1 warp por rota, todas as 32 lanes testam o mesmo escalar `probs[route_idx] < mutation_rate` (zero divergência intra-warp: rotas não mutadas saem em 1 ciclo; rotas mutadas dividem os `num_swaps` pares entre as 32 lanes em paralelo coalescido).
   + **Who:** Agente (`implementer`).
@@ -1847,29 +1857,6 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ### Tarefas da fase 12
 
-- [ ] **Task 12.1: Documentar Formato B de Bitpacking em Shared Memory para Crossover como Trabalho Futuro na Dissertação (`DP12-1`)**
-  + **What:** Documentar na seção de trabalhos futuros da dissertação ([second_draft.tex](../../documents_tcc/tex/second_draft.tex) / [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex)) a transição analítica do Formato A (byte array $\mathcal{O}(n)$, $n \le 2.103$) para o Formato B (bitpacked array $\lceil n/32 \rceil \times 4$ bytes) com `atomicOr`, fundamentada em [analysis-crossover-gpu-architecture-and-scaling.md](../../documentation/knowledge-base/analysis-crossover-gpu-architecture-and-scaling.md#format-b-bitpacked-array-uint32_t-bitmapn--32).
-  + **Why:** O benchmark atual comprova que o byte array é suficiente e livre de contenção para toda a TSPLIB95; registrar a variante bitpacked como trabalho futuro consolida o rigor analítico da dissertação demonstrando que o algoritmo escala teoricamente para instâncias com mais de 10.000 vértices sem estourar os 48 KB de SRAM do multiprocessador.
-  + **Who:** Autor e Agente.
-  + **Where:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [table-of-symbols.plan.md](./table-of-symbols.plan.md), [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex).
-  + **When:** Início da Fase 12.
-  + **How:** Inserir item detalhado no capítulo de conclusões e trabalhos futuros de `second_draft.tex` citando os limites de 48 KB por SM e a economia de $8\times$ em memória compartilhada com o Formato B.
-  + **How much:** Baixo — ~25 linhas de texto LaTeX e referências aos limites de hardware.
-  + **Stakeholder Implications:** Valoriza a contribuição metodológica da dissertação perante a banca examinadora ao antecipar os limites físicos de escala do solver.
-  + **DoD:** `Task 12.1` e `DP12-1` devidamente registrados em `table-of-symbols.plan.md` e `plan-reorganization-and-typing.plan.md`; `python -m benchmark_scripts.check_docs` executado com `undefined symbols: 0`.
-  + **Status / Pendência:** Reaberta a pedido do usuário para revisão aprofundada da redação e adequação de conteúdo em `parts/06-conclusoes.tex` (linhas 79-87).
-
-- [ ] **Task 12.2: Documentar Extensões de Operadores e Micro-otimizações de Kernels CUDA na Dissertação (`DP12-2`)**
-  + **What:** Documentar na seção de trabalhos futuros ([parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex)) e fundamentação as oportunidades de extensão algorítmica (cruzamento EAX com ciclos AB, 3-opt / Or-opt para grafos direcionados ATSP preservando orientação de arestas, modelo em ilhas multi-stream) e micro-otimizações de kernels GPU (reduções com warp shuffles `__shfl_down_sync`, padding de shared memory para eliminação de bank conflicts, persistent threads / grid-stride loops e textura/read-only cache via `__ldg`).
-  + **Why:** Fornece um roteiro concreto de engenharia e pesquisa de alto impacto para trabalhos subsequentes, demonstrando domínio profundo sobre as arquiteturas CUDA e metaheurísticas de ponta para roteamento.
-  + **Who:** Autor e Agente.
-  + **Where:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [table-of-symbols.plan.md](./table-of-symbols.plan.md), [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex).
-  + **When:** Após Task 12.1.
-  + **How:** Adicionar itens estruturados de trabalhos futuros em `06-conclusoes.tex` com equações KaTeX e citações acadêmicas primárias.
-  + **How much:** Baixo — ~35 linhas de texto LaTeX.
-  + **Stakeholder Implications:** Consolida o valor acadêmico da dissertação para publicação em periódicos e conferências.
-  + **DoD:** `Task 12.2` e `DP12-2` registrados em `table-of-symbols.plan.md` e `plan-reorganization-and-typing.plan.md`; `python -m benchmark_scripts.check_docs` com 0 erros.
-
 - [x] **Task 12.3: Avaliação de Viabilidade e Descapamento do Benchmark de CPU com Listas de Candidatos (`DP12-3`)**
   + **What:** Avaliar a viabilidade de remover ou elevar o corte preliminar de CPU ($N \le 100$) em [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py) e no orquestrador de benchmark, aproveitando a aceleração de $2.6\times$ a $8.2\times$ propiciada por listas de candidatos ($k=20$) na busca local 2-opt em CPU, definindo um teto de timeout seguro por instância e parametrizando a seleção do algoritmo de referência (`baseline_algorithm="CPU"`).
   + **Why:** O corte em $N \le 100$ foi imposto quando o 2-opt em CPU demorava minutos por instância. Com a implementação modular e vetorizada, instâncias de porte médio ($100 < n \le 400$, ex.: `ch150`, `pr264`, `lin318`) podem ser executadas em tempo tratável, expandindo a linha de base de comparação direta CPU vs GPU na dissertação.
@@ -1885,7 +1872,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Resumo:** Parametrizada a seleção do algoritmo de referência (`baseline_algorithm="CPU"`) em `report_generator.py` e `orchestration.py`, eliminando a assunção fixa de `HybridNaive`. Em `run_selected_problems.py`, o corte preliminar de CPU foi elevado para $n < 400$ (`CPU_SIZE_THRESHOLD = 400`), as repetições reduzidas para 5, e instâncias micro ($n < 48$: `gr17`, `gr21`, `gr24`, `bayg29`, `bays29`, `gr48`) que sofriam distorção de runtime floor (<100 ms) foram substituídas por uma coorte balanceada de 10 problemas cobrindo $48 \le n < 400$ (`att48`, `berlin52`, `st70`, `eil76`, `gr96`, `kroA100`, `ch150`, `brg180`, `pr264`, `lin318`) em todos os formatos de distância (`ATT`, `EUC_2D`, `GEO`, `EXPLICIT`).
     - **Atendimento ao DoD:** `run_comprehensive_benchmark` e `generate_result_tables` suportam `baseline_algorithm` e `cpu_size_threshold=400`; `pytest tests/benchmarking/test_integration_pipeline.py -q` $\to$ 10 passed; `ruff` e `mypy` limpos; `python -m benchmark_scripts.check_docs` executado com zero drift (`stale docstrings: 0`, `dead links: 0`, `undefined symbols: 0`, exit code 0).
 
-- [ ] :running: **Task 12.4: Coleta Integral dos Resultados Experimentais da Dissertação e Atualização de Tabelas e DuckDB (`DP12-4`)**
+- [ ] **Task 12.4: Coleta Integral dos Resultados Experimentais da Dissertação e Atualização de Tabelas e DuckDB (`DP12-4`)**
   + **What:** Executar a coleta experimental completa do benchmark para a coorte da dissertação (10 repetições independentes com sementes determinísticas) nas variantes ativas, persistindo checkpoints em JSON, registros no banco `datasets/tsp.duckdb` e gerando as tabelas estatísticas finais (`selected_10_validation.md`/`.tex` ou coorte de 38 instâncias) com telemetria fina de 8 fases e $ddof=1$.
   + **Why:** Os números presentes no rascunho da dissertação ainda possuem avisos de dados provisórios (`\begin{warning}[Resultados provisórios]`). A coleta com o solver unificado da Fase 11 consolida o conjunto definitivo de dados para a defesa de mestrado.
   + **Who:** Autor e Agente.
@@ -1895,17 +1882,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **How much:** Alto em tempo de processamento computacional; baixo em complexidade de código (pipeline já validado na Fase 11).
   + **Stakeholder Implications:** Disponibiliza o corpo definitivo de evidências empíricas para a banca examinadora.
   + **DoD:** Checkpoints gerados e validados contra schema; tabelas Markdown e LaTeX exportadas com 100% de fechamento de balanço temporal (`Sum/Wall %` entre 97% e 100%); DuckDB populado.
-
-- [ ] **Task 12.5: Síntese da Evolução do Projeto, Lições de Engenharia e Atualização Textual da Dissertação (`DP12-5`)**
-  + **What:** Atualizar os capítulos da dissertação ([second_draft.tex](../../documents_tcc/tex/second_draft.tex), [parts/04-resultados.tex](../../documents_tcc/tex/parts/04-resultados.tex), [parts/05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex), [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex)) com as métricas consolidadas da Task 12.4, removendo os avisos de dados provisórios, e sintetizar na discussão as lições de engenharia e evolução do projeto documentadas em [notes_project_direction_questions.md](../../notes_project_direction_questions.md) (hermetismo de residência, eliminação de gargalos host-device via amostragem vetorizada, warmup AOT de kernels e invariantes estritos).
-  + **Why:** Transforma o rascunho provisório em um texto de defesa final e coeso, destacando não apenas os speedups brutos mas a contribuição metodológica de engenharia de software para aceleração em GPU.
-  + **Who:** Autor e Agente.
-  + **Where:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [table-of-symbols.plan.md](./table-of-symbols.plan.md), [documents_tcc/tex/parts/](../../documents_tcc/tex/parts/).
-  + **When:** Após a conclusão da coleta experimental (Task 12.4).
-  + **How:** Atualizar números, tabelas e parágrafos de discussão nas partes TeX correspondentes, verificando compilação com `latexmk -lualatex`.
-  + **How much:** Médio — revisão textual e compilação de capítulos.
-  + **Stakeholder Implications:** Conclui formalmente a dissertação para submissão e agendamento da defesa.
-  + **DoD:** Dissertação atualizada com dados reais sem avisos de dados provisórios; `python -m benchmark_scripts.check_docs` com exit 0; compilação LaTeX validada.
+  + **Status / Pendência:** Coleta **pausada pelo usuário** em 2026-11-13 16:2x com `51/54` células em `30/30` repetições; `pr1002_HybridNaive` em `5/30` (última repetição salva 16:13:13) e `pr1002_HybridOptimized`/`pr1002_FullGPUModular` ainda não iniciadas. Protocolo executado usa `30` repetições (`REPETITIONS` em [run_chapter4_benchmark.py#L108](../../benchmark_scripts/run_chapter4_benchmark.py#L108)), não as `10` descritas no `What`. Retomar com `--no-incremental` (o default `INCREMENTAL_RUNS=True` adicionaria 30 repetições a todas as células completas).
 
 - [x] **Task 12.6: Integração no Pipeline da Geração de Diagramas de Diferença Crítica de Demšar em TikZ (`DP12-6`)**
   + **What:** Implementar a geração automatizada de diagramas de diferença crítica (CD) de Demšar (1986, 2006) em formato vetorial TikZ (`.tikz`) a partir dos resultados agregados do benchmark, fundamentada em [analysis-demsar-critical-difference-diagrams.md](./knowledge-base/analysis-demsar-critical-difference-diagrams.md) e [guide-statistical-demsar-post-hoc-tests.md](../../documentation/knowledge-base/guide-statistical-demsar-post-hoc-tests.md), com teste omnibus de Friedman, pós-hoc de Nemenyi com fator de Studentized range corrigido ($q_\alpha = Q_\alpha / \sqrt{2}$ prevenindo inflação de 41,4%), detecção de cliques e exportação de arquivo compilável para o capítulo de resultados de [second_draft.tex](../../documents_tcc/tex/second_draft.tex).
@@ -2449,7 +2426,7 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
     - **Atendimento ao DoD:** `test_select_proximity_index_singleton_and_empty_guards` verde em [test_unit_swap_mutation.py#L198](../../tests/algorithms/strategies/mutation/test_unit_swap_mutation.py#L198) (batch dedicado -> `67 passed, 1 deselected in 0.60s`); suíte completa `981 passed, 208 deselected`; `mypy`, `ruff` e `check_docs` exit `0` (2026-11-13).
 
 - [x] **Task 12.38: Contrato Explícito 3D e Validação `NULL` em Loaders TSPLIB/DuckDB (`DP12-28`, `BUG-53`)**
-  + **What:** Corrigir [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L168-L180) e [database_loader.py](../../src/loaders/database_loader.py#L231, L272-L273) para: (1) não descartar silenciosamente a 3ª coordenada (`z`) quando métricas 3D (`EUC_3D`, `MAN_3D`, `MAX_3D`) forem encontradas — decidindo entre suporte completo a `(x, y, z)` ou rejeição explícita com `UnsupportedEdgeTypeError`/`InvalidProblemDataError` na ingestão; e (2) validar `matrix_raw is None` em `database_loader._load_distance_matrix` levantando `InvalidProblemDataError`.
+  + **What:** Corrigir [tsplib_loader.py](../../src/loaders/tsplib_loader.py#L168-L180) e [database_loader.py](../../src/loaders/database_loader.py) para: (1) não descartar silenciosamente a 3ª coordenada (`z`) quando métricas 3D (`EUC_3D`, `MAN_3D`, `MAX_3D`) forem encontradas — decidindo entre suporte completo a `(x, y, z)` ou rejeição explícita com `UnsupportedEdgeTypeError`/`InvalidProblemDataError` na ingestão; e (2) validar `matrix_raw is None` em `database_loader._load_distance_matrix` levantando `InvalidProblemDataError`.
   + **Why:** Descartar `z` silenciosamente gera matrizes de distância 2D incorretas para instâncias 3D, e `np.asarray(None)` em `_load_distance_matrix` levanta `TypeError` críptico em vez de erro de domínio.
   + **Who:** Agente (aguarda aprovação do plano).
   + **Where:** [tsplib_loader.py#L149-L175](../../src/loaders/tsplib_loader.py#L149-L175) (`_bundle_from_normalized`), [tsplib_loader.py#L395-L424](../../src/loaders/tsplib_loader.py#L395-L424) (`_problem_payload`), [database_loader.py#L267-L282](../../src/loaders/database_loader.py#L267-L282), `tests/loaders/`, [table-of-symbols.plan.md](./table-of-symbols.plan.md).
@@ -2498,6 +2475,72 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
   + **Stakeholder Implications:** Impede que a dissertação reporte speedups relativos a baselines diferentes entre o texto e as tabelas.
   + **DoD:** Com `baseline_algorithm=None`, estatísticas e tabelas nomeiam a mesma baseline para o mesmo problema; `pytest tests/ -m "not gpu"`, `mypy`, `ruff` e `check_docs` exit `0`.
 
+- [x] **Task 12.41: Alinhar `candidate_k` da Variante Ingênua com o Kernel por Rota (`BUG-57`)**
+  + **What:** `configs/algorithms.json` declara `candidate_k = 20` para `HybridNaive`, mas `_improve_naive` ([two_opt.py::LocalSearchGPUTwoOpt._improve_naive](../../src/algorithms/strategies/local_search/two_opt.py)) não repassa listas de candidatos ao kernel [two_opt_single.cu::two_opt_kernel](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu), que varre a vizinhança completa no laço `j`. O caminho `naive` é despachado por `improve_batch` para `_improve_naive`, e não para `_improve_grid` — este último é o que `BUG-27` corrigiu (modos `batch` e `multi_move`, via `resolve_candidates`). Decidir entre (a) passar as listas ao kernel, (b) rejeitar `candidate_k` nesse modo com erro explícito ou (c) removê-lo da configuração da variante, e refletir a decisão em §3.2.1 e §5.3.1.1.
+  + **Why:** É a mesma classe de defeito de `BUG-52`: um parâmetro aceito e silenciosamente ignorado faz a configuração declarar um orçamento que o código não executa. Agrava-se porque `HybridNaive` é a referência de comparação para $n_{\text{coords}} > 400$.
+  + **Who:** Agente (aguarda decisão de política).
+  + **Where:** [two_opt.py::LocalSearchGPUTwoOpt._improve_naive](../../src/algorithms/strategies/local_search/two_opt.py), [two_opt_single.cu::two_opt_kernel](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu), [configs/algorithms.json](../../configs/algorithms.json), [run_chapter4_benchmark.py::CPU_SIZE_THRESHOLD](../../benchmark_scripts/run_chapter4_benchmark.py), [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex).
+  + **When:** **Bloqueia `Task 12.4`**: a variante afetada é a referência de comparação para $n_{\text{coords}} > 400$, e as células dela precisam ser recoletadas. A recoleta pode ser feita apenas para `HybridNaive`, preservando os checkpoints das demais variantes.
+  + **Status / Pendência:** `configs/algorithms.json` declara `candidate_k = 20` para a variante ingênua, mas `_improve_naive` chama o kernel com quatro argumentos e nunca resolve a tabela de candidatos; [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) não possui parâmetro de candidatos, porque foi escrito antes de as listas existirem. Enquanto a correção não entra, §3.2.1 e §5.3.1.1 descrevem a configuração pretendida ($\kappa = 20$ em todas as variantes), e não o comportamento atual do kernel ingênuo.
+  + **How:** Preferir a opção que torne o contrato explícito (falhar alto no modo ingênuo se `candidate_k` for informado, ou consumi-lo no kernel), com teste que falhe se o parâmetro voltar a ser aceito sem efeito; ajustar os dois trechos do texto conforme a decisão.
+  + **Blast Radius:** `src/algorithms/strategies/local_search/`, `configs/algorithms.json`, `tests/algorithms/strategies/local_search/`, §3.2.1 e §5.3.1.1.
+  + **Relação com outras tarefas:** Descoberto na revisão de `Task 13.4`; complementa `Task 12.36` (`BUG-52`, mesmo padrão de nome/contrato divergente).
+  + **How much:** Baixo — um ponto de chamada, uma validação e um teste.
+  + **Stakeholder Implications:** Impede que a dissertação descreva um orçamento de busca que a variante de referência não executa.
+  + **DoD:** Configuração e kernel concordam sobre o orçamento da variante ingênua, com teste que falha se o parâmetro voltar a ser ignorado; §3.2.1 e §5.3.1.1 descrevem o comportamento real; `pytest tests/ -m "not gpu"`, `mypy`, `ruff` e `check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) (assinatura e partição da memória compartilhada), [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) (mapa inverso), [two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) (laço por candidatos), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py) (resolução da tabela e orçamento de memória), [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py) (lançamento), [test_unit_two_opt_boundaries.py](../../tests/algorithms/strategies/local_search/test_unit_two_opt_boundaries.py) (três testes).
+    - **Resumo:** O kernel por rota recebeu `candidates` e `candidate_k`; quando há tabela, ele constrói o mapa inverso `s_pos[tour[idx]] = idx` na memória compartilhada (mais `n` inteiros reservados) e percorre apenas os \(\kappa\) vizinhos de `node_i`, com a mesma expressão de ganho e o mesmo filtro de triângulo superior do kernel em lote; sem tabela, o laço exaustivo original permanece intacto. `_improve_naive` passou a usar a mesma guarda (`_uses_candidates`) e o mesmo cache de tabela (`resolve_candidates`) do caminho em lote, contabilizando os bytes de upload.
+    - **Atendimento ao DoD:** a política adotada foi consumir `candidate_k` no kernel, igualando o orçamento das quatro variantes. Prova de falsificabilidade: `test_naive_gpu_candidate_mode_differs_from_the_full_scan` usa uma instância construída em que o único movimento de melhoria sai da lista dos 20 vizinhos de `node 0`, e falha (`Mismatched elements: 2 / 26`) quando o lançamento volta a passar `candidate_count = 0`. `test_naive_and_batch_gpu_candidate_mode_are_bit_identical` compara `naive(κ=20)` com `batch(κ=20)` em uma passada e exige tours idênticos. Verificação independente: `pytest -W error -m "not gpu" tests/` -> `983 passed, 209 deselected in 20.93s`; `pytest -m gpu tests/algorithms/strategies/local_search/` -> `27 passed, 26 deselected in 1.16s`; `mypy` -> `Success: no issues found in 147 source files`; `ruff` -> `All checks passed!`; `check_docs` -> `0/0/0`, exit `0` (2026-11-14).
+    - **Correção do orçamento de memória compartilhada:** a primeira versão montava o mapa inverso em memória compartilhada (`s_pos`, mais \(n\) inteiros), o que derrubava o teto do kernel por rota de 11.520 para 5.760 cidades. O padrão correto já existia no arquivo: `_improve_grid` aloca `positions` como scratch em memória global. O kernel por rota passou a receber `int *positions` e o lançamento deixou de reservar o buffer extra, de modo que o modo por candidatos e a varredura exaustiva compartilham o mesmo teto, ditado apenas por `s_tour` e por `max_shared_tour_cities`. `_uses_candidates` continua devolvendo `False` acima de 11.520, mas esse regime é inalcançável para esta variante, porque o próprio `s_tour` já não caberia nos 48 KB.
+    - **Atendimento ao DoD (invariante do teto):** `test_per_route_shared_memory_ceiling_is_the_documented_limit` fixa a relação entre `_DEFAULT_MAX_SHARED_TOUR_CITIES`, o layout de lançamento e o limite físico de 48 KB: a constante cabe e uma cidade a mais não cabe, e a coorte inteira da TSPLIB95 (2.103 cidades) fica abaixo do limite.
+    - **Unificação da aritmética com o cabeçalho compartilhado:** o kernel por rota não incluía `two_opt_common.cuh` e repetia inline o cálculo do ganho e o registro do melhor movimento, embora o próprio cabeçalho declare ser a fonte única dessa aritmética para os kernels de 2-opt. A primeira versão da correção de `BUG-57` propagou a duplicação. O kernel passou a incluir o cabeçalho e a usar `two_opt_delta`/`two_opt_consider`, com o melhor movimento de cada thread já residente nos slots compartilhados da redução; a aritmética do ganho tem agora uma única definição no repositório.
+    - **Atendimento ao DoD (unificação):** `test_naive_and_batch_gpu_candidate_mode_are_bit_identical` só continua verde porque as duas rotas passam pela mesma função de ganho; `pytest -m gpu tests/algorithms/strategies/local_search/` -> `27 passed, 27 deselected in 1.09s`; `pytest -W error -m "not gpu" tests/` -> `984 passed, 209 deselected in 16.25s`; `mypy` e `ruff` limpos; `check_docs` exit `0` (2026-11-14).
+
+- [ ] **Task 12.42: Arquivamento dos Checkpoints Pré-Correção da `HybridNaive` e Recoleta da Variante (`BUG-57`)**
+  + **What:** Mover os 15 checkpoints `results_v4/checkpoints/*_HybridNaive.json` para `results_v4/checkpoints/pre_bug57/` e executar `python -m benchmark_scripts.run_chapter4_benchmark --no-incremental` para recomputar a variante com o kernel corrigido.
+  + **Why:** Com `--no-incremental`, células completas são apenas carregadas do checkpoint, não recalculadas; sem mover os arquivos, a `HybridNaive` continuaria com os tempos e custos medidos sob a varredura exaustiva, que deixaram de corresponder ao código. Arquivar em vez de apagar preserva a comparação antes/depois do efeito de `BUG-57`, que é evidência útil na defesa.
+  + **Who:** Autor.
+  + **Where:** `results_v4/checkpoints/`, [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py), [configs/algorithms.json](../../configs/algorithms.json).
+  + **When:** Antes de retomar `Task 12.4`. O script não possui `--algorithms`, de modo que recortar a coorte por variante passa necessariamente pelos checkpoints.
+  + **How:** `mkdir -p results_v4/checkpoints/pre_bug57 && mv results_v4/checkpoints/*_HybridNaive.json results_v4/checkpoints/pre_bug57/`, seguido de `python -m benchmark_scripts.run_chapter4_benchmark --no-incremental`. As demais variantes, completas, são carregadas sem recálculo; `pr1002` de `HybridOptimized` e `FullGPUModular` continua pendente e roda na mesma execução.
+  + **Blast Radius:** 15 arquivos movidos e 15 regravados; nenhum código alterado.
+  + **Relação com outras tarefas:** Desbloqueia `Task 12.4` após `Task 12.41`; o texto de §3.2.1 e §5.3.1.1 já descreve o comportamento corrigido.
+  + **How much:** Baixo em trabalho, alto em tempo de máquina — cerca de 85 repetições em `pr1002` mais as demais instâncias da variante.
+  + **Stakeholder Implications:** Garante que os números da `HybridNaive` na dissertação correspondam ao código entregue.
+  + **DoD:** 15 arquivos em `pre_bug57/`; 15 checkpoints novos de `HybridNaive` com `repetitions: 30` e carimbo posterior ao movimento; `pr1002` com as três variantes de GPU completas.
+
+- [x] **Task 12.43: Invalidação do Cache de Compilação de Kernel por Conteúdo da Fonte (`BUG-58`)**
+  + **What:** Fazer `load_kernel` invalidar o cache de compilação quando o conteúdo do `.cu` muda, em vez de reutilizar o binário compilado a partir da revisão anterior.
+  + **Why:** `_compile_kernel_cached` é memoizado com `lru_cache` cuja chave é o caminho, nunca o conteúdo. Num processo longo --- uma coleta de benchmark, uma sessão interativa ---, editar um kernel e continuar executando mantém o PTX antigo em memória, sem erro e sem log, de modo que os números coletados passam a vir de um código que não está no repositório. Isso contradiz a afirmação de reprodutibilidade do Apêndice A.
+  + **Who:** Agente.
+  + **Where:** [gpu_helpers.py](../../src/utils/gpu_helpers.py), [test_unit_gpu_helpers.py](../../tests/utils/test_unit_gpu_helpers.py).
+  + **When:** 2026-11-14, descoberto ao revisar a recompilação do kernel de 2-opt por rota.
+  + **How:** Guardar o digest SHA-256 da fonte por caminho; ao carregar, comparar com o digest anterior e limpar o cache inteiro quando diferir, preservando a semântica de `cache_info()`/`cache_clear()` de que o protocolo de aquecimento AOT depende (`DP11-21`).
+  + **Blast Radius:** `src/utils/gpu_helpers.py` (dois pontos) e o teste de cache; nenhum chamador precisa mudar.
+  + **Relação com outras tarefas:** Protege `DP11-21` (aquecimento determinístico) e `Task 12.4`; independente de `BUG-56` e `BUG-57`.
+  + **How much:** Baixo — ~15 linhas e um teste de dispositivo.
+  + **Stakeholder Implications:** Garante que uma coleta longa execute exatamente o código versionado.
+  + **DoD:** Teste que falha sem a correção e passa com ela; `pytest -m gpu tests/utils/`, `pytest -m "not gpu" tests/`, `mypy` e `ruff` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [gpu_helpers.py](../../src/utils/gpu_helpers.py) (dicionário de digests e `_invalidate_if_source_changed`), [test_unit_gpu_helpers.py](../../tests/utils/test_unit_gpu_helpers.py) (teste de dispositivo).
+    - **Resumo:** `load_kernel` calcula o SHA-256 da fonte a cada busca e compara com o digest registrado para aquele caminho; quando difere, chama `_compile_kernel_cached.cache_clear()` antes de compilar, de modo que a revisão editada entra em vigor imediatamente. A assinatura pública, a chave do `lru_cache` e `cache_info()` continuam iguais, preservando a métrica de aquecimento AOT e o teste existente de hit/miss.
+    - **Atendimento ao DoD:** o teste `test_load_kernel_recompiles_when_the_source_changes` observa o efeito no dispositivo (a primeira versão escreve `1`, a segunda `2`) e falha quando a invalidação é desligada: `AssertionError: a rewritten kernel source must be recompiled, not served from cache` / `assert 1 == 2`. Com a correção: `pytest -m gpu tests/utils/ tests/algorithms/strategies/local_search/` -> `29 passed, 125 deselected in 0.96s`; `pytest -W error -m "not gpu" tests/` -> `984 passed, 210 deselected in 19.19s`; `mypy` -> `Success: no issues found in 147 source files`; `ruff` -> `All checks passed!` (2026-11-14).
+
+- [ ] **Task 12.44: Reaproveitar a Lista de Candidatos entre Repetições (`BUG-59`)**
+  + **What:** Construir a lista de candidatos \(N_\kappa\) uma única vez por instância e reaproveitá-la em todas as repetições, em vez de reconstruí-la no início de cada repetição dentro da janela medida.
+  + **Why:** `ProblemContext` é criado por repetição em `run_single_algorithm`, e o cache de \(N_\kappa\) vive no contexto; o contexto de aquecimento é outro objeto e é descartado, de modo que a construção (vetorizada em blocos, \(\Theta(n^2)\)) é refeita e cronometrada a cada repetição, nas quatro variantes. O custo é de preparação, não do algoritmo.
+  + **Who:** Agente (aguarda decisão de momento).
+  + **Where:** [problem_context.py::ProblemContext](../../src/protocols/problem_context.py), [algorithm_runner.py::run_single_algorithm](../../src/benchmarking/runner/algorithm_runner.py), `tests/protocols/`.
+  + **When:** Antes de `Task 12.42`, se o impacto justificar; o texto de §3.2.1 diz "uma vez por execução" até que a correção entre.
+  + **How:** Aceitar um cache opcional no construtor do contexto e passar o mesmo dicionário ao contexto de aquecimento e a todas as repetições; teste sem dispositivo garantindo que dois contextos que compartilham o cache recebem o mesmo array.
+  + **Blast Radius:** construtor de `ProblemContext` (compatível por valor padrão), `run_single_algorithm`, testes de protocolo.
+  + **Relação com outras tarefas:** Descoberto na revisão da `Task 12.41`; afeta a higidez de `Task 12.4` e da recoleta de `Task 12.42`.
+  + **How much:** Baixo — ~20 linhas e um teste.
+  + **Stakeholder Implications:** Retira do tempo medido um custo de preparação que não pertence ao algoritmo.
+  + **DoD:** A lista é construída uma vez por instância em toda a execução do benchmark; dois contextos que compartilham o cache devolvem o mesmo objeto; `pytest tests/ -m "not gpu"`, `mypy` e `ruff` exit `0`.
+  + **Impacto medido (ordem de grandeza):** \(\Theta(n^2)\) vetorizado por repetição — da ordem de dezenas de milissegundos em \(n = 1002\), contra repetições de milhares de segundos; abaixo de \(0{,}01\%\) do tempo medido em toda a coorte. Por isso a correção é de higidez de medição, não de resultado.
+
 #### Plano de Lotes — Remediação das Revisões Passo A e Passo B (`Task 12.30`–`12.39`)
 
 1. [x] **Lote 1 — Bloqueadores Estatísticos, Runner e DuckDB em `src/benchmarking/` (`Task 12.30`, `12.31`, `12.32`, `12.33`, `12.34` / `BUG-46`–`BUG-50`)**: Concluído por `4eb81a31` e homologado no portão de revisão `22c181dd` (`PASS`) — corrigidas as 3 falhas `BLOCKING` (`holm_bonferroni_correction`, `nemenyi_posthoc` $q/\sqrt{2}$, remoção de fallback `raw_costs -> initial_costs`) e as 2 `MAJOR` (idempotência DuckDB por `(problem_name, algorithm)` e cobertura integral na Tabela 3).
@@ -2505,16 +2548,192 @@ Este plano operacional formaliza a execução das decisões de arquitetura e tip
 
 ---
 
+## Fase 13: Redação e Atualização Textual da Dissertação (`second_draft.tex`)
+
+Tarefas de escrita herdadas da Fase 12. Mantêm os identificadores originais (`Task 12.1`, `12.2`, `12.5` — o número da tarefa é o seu ID) e só avançam depois que `Task 12.4` fechar a coleta experimental.
+
+**Decisões da fase:**
+
+- **DP13-1 (Variantes Análogas, Não Equivalentes, e Números Canônicos do Protocolo)**: A dissertação declara as quatro variantes como **análogas** — mesmo envelope algorítmico e mesmos hiperparâmetros globais, com semântica de operador distinta documentada em §5.3.1.1 — e adota como canônicos a coorte de **15 instâncias**, **30 repetições** e `CPU_SIZE_THRESHOLD = 400` de [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py#L83-L110), com `configs/benchmark.json` alinhado ao mesmo valor. A equivalência bit a bit entre CPU e GPU é inatingível por construção (ordem de reduções, FMA, arredondamento), de modo que "análogas" é a afirmação correta independentemente do resultado da re-coleta (`TASK 13.2`, `TASK 13.3`, `TASK 13.4`).
+- **DP13-2 (Bayesiano como Complemento, Não Substituto, do Protocolo Frequente)**: O protocolo Friedman/Nemenyi/Holm permanece o método adotado; a análise bayesiana entra como trabalho futuro em §6, com uma menção de uma frase em §2.7 e uma observação em §3.4, sem repetição e sem deslocar o foco dos métodos escolhidos (`TASK 13.1`).
+
+- [ ] **Task 12.1: Documentar Formato B de Bitpacking em Shared Memory para Crossover como Trabalho Futuro na Dissertação (`DP12-1`)**
+  + **What:** Documentar na seção de trabalhos futuros da dissertação ([second_draft.tex](../../documents_tcc/tex/second_draft.tex) / [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex)) a transição analítica do Formato A (byte array $\mathcal{O}(n)$, $n \le 2.103$) para o Formato B (bitpacked array $\lceil n/32 \rceil \times 4$ bytes) com `atomicOr`, fundamentada em [analysis-crossover-gpu-architecture-and-scaling.md](../../documentation/knowledge-base/analysis-crossover-gpu-architecture-and-scaling.md#format-b-bitpacked-array-scalability-extension).
+  + **Why:** O benchmark atual comprova que o byte array é suficiente e livre de contenção para toda a TSPLIB95; registrar a variante bitpacked como trabalho futuro consolida o rigor analítico da dissertação demonstrando que o algoritmo escala teoricamente para mais de 10.000 vértices sem estourar os 48 KB de SRAM do multiprocessador.
+  + **Who:** Autor e Agente.
+  + **Where:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [table-of-symbols.plan.md](./table-of-symbols.plan.md), [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex).
+  + **When:** Início da Fase 13.
+  + **How:** Inserir item detalhado no capítulo de conclusões e trabalhos futuros de `second_draft.tex` citando os limites de 48 KB por SM e a economia de $8\times$ em memória compartilhada com o Formato B.
+  + **How much:** Baixo — ~25 linhas de texto LaTeX e referências aos limites de hardware.
+  + **Stakeholder Implications:** Valoriza a contribuição metodológica da dissertação perante a banca examinadora ao antecipar os limites físicos de escala do solver.
+  + **DoD:** `Task 12.1` e `DP12-1` devidamente registrados em `table-of-symbols.plan.md` e `plan-reorganization-and-typing.plan.md`; `python -m benchmark_scripts.check_docs` executado com `undefined symbols: 0`.
+  + **Status / Pendência:** Rascunho do item de §6 reescrito em 2026-11-14 para linguagem acessível (sem identificadores de código); aguarda revisão do autor.
+
+- [ ] **Task 12.2: Documentar Extensões de Operadores e Micro-otimizações de Kernels CUDA na Dissertação (`DP12-2`)**
+  + **What:** Documentar na seção de trabalhos futuros ([parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex)) e fundamentação as oportunidades de extensão algorítmica (cruzamento EAX com ciclos AB, 3-opt / Or-opt para grafos direcionados ATSP preservando orientação de arestas, modelo em ilhas multi-stream) e micro-otimizações de kernels GPU (reduções com warp shuffles `__shfl_down_sync`, padding de shared memory para eliminação de bank conflicts, persistent threads / grid-stride loops e textura/read-only cache via `__ldg`).
+  + **Why:** Fornece um roteiro concreto de engenharia e pesquisa de alto impacto para trabalhos subsequentes, demonstrando domínio profundo sobre as arquiteturas CUDA e metaheurísticas de ponta para roteamento.
+  + **Who:** Autor e Agente.
+  + **Where:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [table-of-symbols.plan.md](./table-of-symbols.plan.md), [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex).
+  + **When:** Após `Task 12.1` (Fase 13).
+  + **How:** Adicionar itens estruturados de trabalhos futuros em `06-conclusoes.tex` com equações KaTeX e citações acadêmicas primárias.
+  + **How much:** Baixo — ~35 linhas de texto LaTeX.
+  + **Stakeholder Implications:** Consolida o valor acadêmico da dissertação para publicação em periódicos e conferências.
+  + **DoD:** `Task 12.2` e `DP12-2` registrados em `table-of-symbols.plan.md` e `plan-reorganization-and-typing.plan.md`; `python -m benchmark_scripts.check_docs` com 0 erros.
+
+- [ ] **Task 12.5: Síntese da Evolução do Projeto, Lições de Engenharia e Atualização Textual da Dissertação (`DP12-5`)**
+  + **What:** Atualizar os capítulos da dissertação ([second_draft.tex](../../documents_tcc/tex/second_draft.tex), [parts/04-resultados.tex](../../documents_tcc/tex/parts/04-resultados.tex), [parts/05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex), [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex)) com as métricas consolidadas da Task 12.4, removendo os avisos de dados provisórios, e sintetizar na discussão as lições de engenharia e evolução do projeto documentadas em [notes_project_direction_questions.md](../../notes_project_direction_questions.md) (hermetismo de residência, eliminação de gargalos host-device via amostragem vetorizada, warmup AOT de kernels e invariantes estritos).
+  + **Why:** Transforma o rascunho provisório em um texto de defesa final e coeso, destacando não apenas os speedups brutos mas a contribuição metodológica de engenharia de software para aceleração em GPU.
+  + **Who:** Autor e Agente.
+  + **Where:** [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md), [table-of-symbols.plan.md](./table-of-symbols.plan.md), [documents_tcc/tex/parts/](../../documents_tcc/tex/parts/).
+  + **When:** Após a conclusão da coleta experimental (`Task 12.4`).
+  + **How:** Atualizar números, tabelas e parágrafos de discussão nas partes TeX correspondentes, verificando compilação com `latexmk -lualatex`.
+  + **How much:** Médio — revisão textual e compilação de capítulos.
+  + **Stakeholder Implications:** Conclui formalmente a dissertação para submissão e agendamento da defesa.
+  + **DoD:** Dissertação atualizada com dados reais sem avisos de dados provisórios; `python -m benchmark_scripts.check_docs` com exit 0; compilação LaTeX validada.
+
+- [x] **Task 13.1: Complemento Bayesiano à Comparação de Variantes (`DP13-2`)**
+  + **What:** Acrescentar **um parágrafo** em §6 (Trabalhos Futuros) sobre comparação bayesiana: teste $t$ correlacionado bayesiano para repetições na mesma instância, signed-rank bayesiano com priori de processo de Dirichlet para comparações pareadas entre instâncias (produzindo $P(A \prec B)$, $P(A = B)$ e $P(A \succ B)$ sob uma região de equivalência prática de largura $r$) e modelo hierárquico para $k > 2$ variantes. Em §2.7, **apenas uma frase** de menção dentro da revisão bibliográfica; em §3.4, **apenas uma observação** de que o protocolo adotado é frequente e a análise bayesiana é complemento. Registrar `benavoli2017time` em [refs.bib](../tex/refs.bib).
+  + **Why:** O artigo de Benavoli et al. (2017) sistematiza as críticas ao NHST e oferece alternativas com semântica de probabilidade posterior, exatamente o tipo de pergunta que a banca faz ("qual a probabilidade de A ser melhor?"). Registrá-lo como trabalho futuro demonstra domínio da fronteira metodológica sem comprometer o foco nos métodos efetivamente adotados.
+  + **Who:** Autor e Agente.
+  + **Where:** [parts/06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex), [parts/02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex), [parts/03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex), [refs.bib](../../documents_tcc/tex/refs.bib).
+  + **When:** Após `Task 13.5` (mesmo arquivo de §6).
+  + **How:** Escrever o parágrafo como pergunta de pesquisa (padrão de §6), com `\autocite{benavoli2017time}` e sem repetir a crítica ao NHST em §2.7/§3.4; adicionar a entrada BibTeX (`@article{benavoli2017time, ... journal={Journal of Machine Learning Research}, volume={18}, number={77}, pages={1--44}, year={2017}}`).
+  + **Blast Radius:** §6 (um item), §2.7 (uma frase), §3.4 (uma observação), `refs.bib` (uma entrada).
+  + **Relação com outras tarefas:** Complementa `Task 12.6` (diagramas CD) e `Task 12.30`–`12.31` (Holm/Nemenyi), que permanecem o protocolo adotado.
+  + **How much:** Baixo — 1 parágrafo + 2 menções curtas + 1 entrada BibTeX.
+  + **Stakeholder Implications:** Antecipa a crítica metodológica mais comum a comparações de meta-heurísticas e amplia o horizonte de publicação.
+  + **DoD:** `rg -n "benavoli2017time" documents_tcc/tex/parts documents_tcc/tex/refs.bib` retorna 3 ocorrências (1 por menção + chave BibTeX); §2.7 e §3.4 têm no máximo uma frase cada; `python -m benchmark_scripts.check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex) (item de §6), [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex) (uma frase em §2.7), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (uma observação em §3.4), [refs.bib#L126-L135](../../documents_tcc/tex/refs.bib#L126-L135).
+    - **Resumo:** §6 ganhou um item formulado como pergunta de pesquisa que apresenta o teste $t$ correlacionado bayesiano (repetições de uma mesma instância), o \emph{signed-rank} bayesiano com priori de processo de Dirichlet sobre as diferenças pareadas — resumido em $P(A \prec B)$, $P(A = B)$ e $P(A \succ B)$ sob região de equivalência prática de largura $r$ — e o modelo hierárquico para mais de duas variantes, além da regra de decisão por matriz de perdas e da referência `BayesianTestsML/tutorial`. §2.7 e §3.4 receberam **uma** frase cada, remetendo a §6 sem repetir a crítica ao NHST (`DP13-2`).
+    - **Atendimento ao DoD:** `rg -c "benavoli2017time"` -> `02:1`, `03:1`, `06:1`, `refs.bib:1`; `rg -n "label\{sec-64-trabalhos-futuros\}" 06-conclusoes.tex` -> `58:` (o `\hyperref` de §2.7 resolve); `rg -n "Alternativas bayesianas" 02-fundamentacao.tex` -> `1013` (frase única, sem repetição da crítica); `check_docs` -> `0/0/0`, exit `0` (2026-11-13). Correção pós-revisão: a redação original do subagente em §2.7 dizia "complementar … como complemento … não substitutiva … não substituição" em uma frase só; foi condensada atendendo ao requisito de não repetir. Nenhuma compilação LaTeX executada (sem toolchain na máquina).
+
+- [x] **Task 13.2: Reescrita do Capítulo 1 (Introdução) (`DP13-1`)**
+  + **What:** Corrigir [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex): remover o `warning` de §1.3 (caveat de resultados dentro de "Objetivo geral"); trocar "mesmos operadores, diferindo apenas na plataforma" por **variantes análogas** citando §5.3.1.1; substituir os nomes de classe por nomes de variante (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`) e descrever o `GeneticAlgorithm` único com slots de estratégia; incluir Holm–Bonferroni, diagramas de diferença crítica e `ddof=1` nos objetivos estatísticos; corrigir "busquei implementar" e a frase quebrada de §1.5; nomear a taxonomia de Crainic ao introduzir "tipo 1"; dar destino à menção de "notas técnicas"; atualizar §1.6 (arquitetura por estratégias e extensões de §6) e acrescentar as contribuições de reprodutibilidade (DuckDB, checkpoints atômicos por repetição, telemetria de 8 fases) e do descapamento de CPU (listas de candidatos).
+  + **Why:** São as seções lidas primeiro pela banca; hoje elas contradizem o Capítulo 5 (equivalência de operadores), citam classes que não existem mais e omitem as contribuições metodológicas que o trabalho efetivamente entrega.
+  + **Who:** Autor e Agente.
+  + **Where:** [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex).
+  + **When:** Imediato — não depende de `Task 12.4`.
+  + **How:** Editar por seção (1.1 a 1.6), preservando estrutura, rótulos `sec-*` e citações existentes; nenhuma alteração de `second_draft.tex`.
+  + **Blast Radius:** Capítulo 1 completo; referência cruzada para §5.3.1.1 e §3.2.
+  + **Relação com outras tarefas:** Depende de `DP13-1`; prepara terreno para `Task 12.5`.
+  + **How much:** Médio — ~120 linhas de LaTeX.
+  + **Stakeholder Implications:** Primeira impressão do trabalho passa a refletir o que foi de fato implementado.
+  + **DoD:** `rg -n "GeneticAlgorithmCPU|GeneticAlgorithmHybridNaive|GeneticAlgorithmHybridOptimized|GeneticAlgorithmFullGPU" documents_tcc/tex/parts/01-introducao.tex` -> `0`; `rg -n "busquei implementar|quanto para, medidas" ...` -> `0`; `rg -n "\\\\begin\{warning\}" ...` -> `0`; `rg -n "Holm|diferença crítica|ddof" ...` -> `>=3`; `check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (taxonomia nomeada, destino das "notas técnicas", parágrafo de reprodutibilidade), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (registro impessoal, "análoga"), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (âncora `obs-ajustes`), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (análogas + Holm + CD), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (CPU até 400), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (variantes como configurações), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (`ddof=1`), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (descapamento de CPU + frase quebrada), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (justificativa), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (§1.6).
+    - **Resumo:** o bloco `warning` saiu de §1.3; a equivalência virou "análogas, não equivalentes" com remissão a §5.3.1.1; os nomes de classe foram substituídos por `CPU`/`HybridNaive`/`HybridOptimized`/`FullGPUModular` como configurações de um único `GeneticAlgorithm` com seis slots; Holm--Bonferroni, diagramas CD e `ddof=1` entraram nos objetivos; "busquei implementar" e a frase quebrada de §1.5 foram corrigidos; a taxonomia de Crainic foi nomeada no primeiro uso de "tipo 1"; entrou um parágrafo de reprodutibilidade (checkpoints atômicos, DuckDB, telemetria por fase, H2D/D2H, lançamentos) e uma frase sobre listas de candidatos ($2{,}6$--$8{,}2\times$) que justifica manter a linha de base em CPU até $n_{\text{coords}} = 400$.
+    - **Atendimento ao DoD:** os quatro `rg` do DoD -> `0`, `0`, `0` e `6` ocorrências; `check_docs` -> `0/0/0`, exit `0` (2026-11-13). Correções pós-revisão: (i) o subagente deixou `\label{obs-ajustes}` solto sob o título de §1.3, o que faria as **seis** remissões de 00/04/05/06 apontarem para uma seção que não descreve mais a execução anterior — substituído por uma frase factual que preserva o rótulo; (ii) §1.4 ainda dizia CPU "até 100", corrigido para 400 (`DP13-1`).
+
+- [x] **Task 13.3: Reescrita do Capítulo 2 (Fundamentação e Revisão Bibliográfica) (`DP13-1`, `DP13-2`)**
+  + **What:** Em [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex): remover o comentário `% TODO (Orientador)` e a repetição do argumento MIMD/SIMD de §2.6 (já dado em §1.1); trocar "4 algoritmos vs 38 instâncias" por 15; corrigir §2.7.2 — Nemenyi é procedimento de **diferença crítica** sobre a estatística da amplitude studentizada, não ajuste de valores-p — e acrescentar Holm–Bonferroni e diagramas CD; corrigir o typo "variantes variantes"; acrescentar a frase única sobre a alternativa bayesiana (`DP13-2`).
+  + **Why:** §2.7.2 descreve errado o teste que o código implementa desde `BUG-47`, e a contagem de instâncias contradiz a coorte executada.
+  + **Who:** Autor e Agente.
+  + **Where:** [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex) (§2.6, §2.7, §2.7.1, §2.7.2).
+  + **When:** Imediato.
+  + **How:** Edições pontuais; manter as três figuras CPU/GPU e seus `\autocite` intactos; não reescrever §2.1–§2.5.
+  + **Blast Radius:** §2.6 e §2.7; referência para §3.4.
+  + **Relação com outras tarefas:** Alinha com `Task 13.1` (menção bayesiana) e `Task 13.4` (protocolo).
+  + **How much:** Baixo — ~40 linhas.
+  + **Stakeholder Implications:** A fundamentação estatística passa a descrever exatamente o teste aplicado.
+  + **DoD:** `rg -n "38 instâncias|variantes variantes|ajusta os valores-p" documents_tcc/tex/parts/02-fundamentacao.tex` -> `0`; `rg -n "TODO \(Orientador\)" ...` -> `0`; `rg -n "Holm|diferença crítica|critical difference" ...` -> `>=2`; `check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex) (remoção do `% TODO` remanescente em §2.1), [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex) (§2.6 sem o comentário e sem a repetição MIMD/SIMD), [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex) (38 -> 15 instâncias), [02-fundamentacao.tex](../../documents_tcc/tex/parts/02-fundamentacao.tex) (§2.7.2 reescrita).
+    - **Resumo:** §2.6 perdeu o comentário `% TODO (Orientador)` e teve o argumento MIMD/SIMD de §1.1 comprimido em uma frase (footnote de SSE/AVX removida por duplicação; conteúdo SIMT/warp intacto); §2.7 passou a declarar a coorte de 15 instâncias; §2.7.2 corrigiu o typo e substituiu a alegação de que Nemenyi "ajusta valores-p" pela definição correta de procedimento de diferença crítica com $CD = q_{\alpha}\sqrt{k(k+1)/(6N)}$ e $q_{\alpha}$ dividido por $\sqrt{2}$, acrescentando Holm--Bonferroni e os diagramas de diferença crítica.
+    - **Atendimento ao DoD:** `rg` de "38 instâncias|variantes variantes|ajusta os valores-p" -> `0 matches`; `rg "TODO \(Orientador\)"` -> `0 matches` (o segundo comentário, em §2.1, foi removido na revisão — o subagente o havia deixado por respeitar a restrição de não tocar §2.1–§2.5); `rg -c "Holm|diferença crítica"` -> `3`; `rg -c "benavoli2017time"` -> `1`; `check_docs` -> `0/0/0`, exit `0` (2026-11-13). Correção pós-revisão: o texto afirmava Holm aplicado "contra uma referência comum", mas [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py) monta **todos** os pares $C(k,2)$; a frase foi corrigida para "conjunto de comparações par a par". Nenhuma compilação LaTeX executada (sem toolchain).
+
+- [x] **Task 13.4: Reescrita do Capítulo 3 (Materiais e Métodos) (`DP13-1`)**
+  + **What:** Em [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex): atualizar §3.2.2 para os nomes de variante vigentes (`FullGPUModular`) e para o `GeneticAlgorithm` único + slots de estratégia; documentar `candidate_k = 20` (listas de candidatos no 2-opt de CPU) e `local_search_stage = post_mutation`; reescrever §3.3 com a coorte de **15 instâncias** (berlin52, eil51, att48, gr96, kroA100, ch150, d198, pr264, lin318, pcb442, att532, si535, gr666, rat783, pr1002; 48–1002 cidades), **30 repetições** e CPU até $n_{\text{coords}} \le 400$; atualizar §3.4 com Holm–Bonferroni, diagramas CD e enquadramento correto de Nemenyi.
+  + **Why:** Três números do capítulo (38 instâncias, 26 repetições, CPU $\le 100$) contradizem o protocolo executado, e a ausência de `candidate_k` esconde a assimetria que §5.3.1.1 denuncia.
+  + **Who:** Autor e Agente.
+  + **Where:** [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (§3.2.1, §3.2.2, §3.3, §3.4).
+  + **When:** Imediato; os números de resultado só entram em `Task 12.5`.
+  + **How:** Substituir a tabela de 38 instâncias pela de 15 (mesmo formato `longtable`), atualizar contagens e justificar o limiar de CPU em 400.
+  + **Blast Radius:** §3.2–§3.4; `\ref{tbl:selected-instances}` usada em §4.
+  + **Relação com outras tarefas:** Habilita `Task 12.5`; consistente com `DP13-1`.
+  + **How much:** Médio — ~80 linhas, incluindo tabela.
+  + **Stakeholder Implications:** O protocolo descrito passa a ser o protocolo executado.
+  + **DoD:** `rg -n "38 instâncias|26 vezes|GeneticAlgorithmCPU|GeneticAlgorithmFullGPU" documents_tcc/tex/parts/03-materiais-metodos.tex` -> `0`; `rg -n "candidate_k|post_mutation|30 repetições|400" ...` -> `>=4`; tabela com exatamente 15 instâncias; `check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (diagrama de classes reescrito), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (§3.2.1), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (§3.2.2), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) e [L259-L264](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (§3.3 + tabela), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (protocolo), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex) (§3.4).
+    - **Resumo:** §3.2.2 passou a apresentar as quatro variantes como configurações da mesma classe com seis slots; §3.2.1 corrigiu o estágio (`post_mutation`, sobre os descendentes mutados) e o orçamento da busca local; §3.3 trocou as 38 instâncias pelas 15 efetivamente executadas (48--1002 cidades, tabela reconstruída no mesmo `longtable`, rótulo `tbl:selected-instances` preservado), adotou 30 repetições com sementes derivadas da base 42 e CPU até $n_{\text{coords}} \le 400$; §3.4 trocou o enquadramento de Nemenyi para diferença crítica e acrescentou Holm--Bonferroni e diagramas CD.
+    - **Atendimento ao DoD:** `rg` dos padrões obsoletos -> `0` (os quatro acertos remanescentes apontados pelo subagente estavam no diagrama de classes de §3.1.3, resolvido na revisão); `rg -c` dos padrões exigidos -> `9`; `rg -n "label\{tbl:selected-instances\}"` -> presente; `check_docs` -> `0/0/0`, exit `0` (2026-11-13). Correções pós-revisão: (i) o diagrama `fig:class-diagram` ainda mostrava `GeneticAlgorithmBase` + quatro subclasses (Template Method), contradizendo §3.2.2 — foi reescrito como composição de `GeneticAlgorithm` + seis protocolos de estratégia, com a nota de que a variante vem de `configs/algorithms.json`; (ii) a frase sobre as variantes de GPU ("Totalmente em GPU varre até não haver melhoria; híbridas fazem uma passada por kernel") não corresponde aos kernels — `_improve_naive` e `_improve_grid` iteram `max_iterations` no hospedeiro e só a variante ingênua varre a vizinhança completa — e foi substituída pelos fatos verificados em `two_opt.py` e nos `.cu`. O valor de `candidate_k` configurado para a variante ingênua é ignorado pelo kernel por rota: registrado como `BUG-57` / `Task 12.41`.
+
+- [x] **Task 13.5: Correção de Afirmações Obsoletas nos Capítulos 5 e 6 (`DP13-1`)**
+  + **What:** Corrigir apenas o que é **falso sobre o código**, independentemente dos números novos: §5.3.2 deixa de afirmar ausência total de instrumentação (existem 8 fases via eventos CUDA, contadores H2D/D2H e lançamentos de kernel; resta o *profiling* por contadores de hardware) e é renomeada; §5.3.4 passa de "CPU só até 100" para "até 400"; §5.3.5 remove "não foram medidos tempos por fase"; remover o `% TODO Ask about this later` de §5.3.1.1; em §6, reescrever os dois primeiros itens (re-execução com limite igualado e instrumentação por eventos CUDA) como concluídos ou removê-los, mantendo ATSP e Formato B.
+  + **Why:** Quatro afirmações do texto já não descrevem o sistema; mantê-las até a coleta terminar significa defender algo demonstrável como incorreto.
+  + **Who:** Autor e Agente.
+  + **Where:** [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex), [06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex).
+  + **When:** Imediato.
+  + **How:** Edições pontuais por subseção; não tocar nos `warning` de resultados provisórios nem em tabelas/valores.
+  + **Blast Radius:** §5.3.1.1, §5.3.2, §5.3.4, §5.3.5 e §6 (dois itens).
+  + **Relação com outras tarefas:** `Task 12.5` continua dono dos números, tabelas e remoção dos avisos; esta tarefa só corrige o que independe dos dados.
+  + **How much:** Baixo — ~30 linhas.
+  + **Stakeholder Implications:** Elimina afirmações indefensáveis sem esperar a coleta.
+  + **DoD:** `rg -n "Instrumentação de desempenho ausente|não foram medidos.*tempo por fase|TODO Ask about this" documents_tcc/tex/parts/05-discussao.tex` -> `0`; `rg -n "n_\{\\\\mathrm\{coords\}\} \\\\le 100" documents_tcc/tex/parts/05-discussao.tex` -> `0`; `check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex) (remoção do `% TODO`), [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex) (§5.3.2 renomeada e reformulada), [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex) (§5.3.4), [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex) (§5.3.5), [06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex) (síntese das limitações), [06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex) (itens concluídos de §6).
+    - **Resumo:** §5.3.2 deixou de afirmar ausência de instrumentação e passou a isolar a lacuna correta (contadores de hardware tipo Nsight), mantendo o rótulo `sec-532-instrumentacao`; §5.3.4 corrigiu o limiar de CPU de $100$ para $400$ e as consequências para $n_{\text{coords}} > 400$; §5.3.5 removeu a alegação de que tempos por fase não foram medidos e teve a primeira frase corrigida para refletir as métricas realmente coletadas (fases, H2D/D2H e lançamentos de kernel); §6 removeu os dois itens de trabalhos futuros já realizados (re-execução normalizada e instrumentação por eventos) e a síntese de limitações passou de cinco para quatro frentes.
+    - **Atendimento ao DoD:** `rg -n "Instrumentação de desempenho ausente|não foram medidos.*tempo por fase|TODO Ask about this" documents_tcc/tex/parts/05-discussao.tex` -> `NONE`; `rg -n "n_\{\\\\mathrm\{coords\}\} \\\\le 100" ...` -> `NONE`; `rg -n "label\{sec-532-instrumentacao\}" ...` -> `96:\subsection{Ausência de \emph{profiling} por contadores de hardware}\label{sec-532-instrumentacao}`; `check_docs` -> `0/0/0`, exit `0` (2026-11-13). Correção pós-revisão: a primeira versão do subagente afirmava "oito fases cronometradas por eventos CUDA", o que é falso — `PhaseTimer` é instanciado em [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py) com `use_cuda_events=False`; o texto foi corrigido para "relógio de hospedeiro, com eventos CUDA disponíveis por opção de estratégia". Nenhuma compilação LaTeX foi executada: não há `latexmk`/`lualatex` nesta máquina.
+- [x] **Task 13.6: Revisão de Registro, Terminologia e Nível de Detalhe do Texto (`DP13-1`)**
+  + **What:** Passar o texto dos capítulos 1, 3, 5 e 6 por uma revisão de registro em pt-BR e de adequação ao leitor acadêmico: eliminar construções empíricas ou de tradução literal, remover identificadores de código e caminhos de arquivo do corpo do texto, mover detalhes de infraestrutura para nota de rodapé ou apêndice, substituir por descrição em linguagem corrente os detalhes de implementação que não sustentam argumento, e registrar no glossário os estrangeirismos mantidos.
+  + **Why:** A banca avalia o argumento e o método, não a organização do repositório; nomes de arquivo, nomes de classe e parâmetros internos obrigam o leitor a conhecer a implementação para entender a frase. Além disso, várias construções herdadas de tradução literal dificultam a leitura sem acrescentar precisão.
+  + **Who:** Agente, com revisão do autor.
+  + **Where:** [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex), [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex), [06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex), [00-frontmatter.tex](../../documents_tcc/tex/parts/00-frontmatter.tex) (glossário).
+  + **When:** 2026-11-14, durante a revisão do autor.
+  + **How:** Substituições pontuais por arquivo, preservando rótulos e referências; glossário ampliado com `baseline`, `bitmap` e `thread`.
+  + **Blast Radius:** §1.1–§1.6, §3.1.3, §3.2.1, §3.2.2, §5.3.1.1, §5.3.2, §5.3.5, §6 e o glossário.
+  + **Relação com outras tarefas:** Complementa `Task 13.2`–`13.5` e `Task 13.1`; não altera números.
+  + **How much:** Médio — ~40 substituições distribuídas em cinco arquivos.
+  + **Stakeholder Implications:** Texto legível por quem não conhece o código, que é a condição de leitura da banca.
+  + **DoD:** `rg -n "configs/|\.py|\.cu|Formato B|candidate\\\\_k|max\\\\_iterations|ddof|linha de base" documents_tcc/tex/parts/` -> `0`; `check_docs` exit `0`; balanço de chaves e ambientes `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex), [03-materiais-metodos.tex](../../documents_tcc/tex/parts/03-materiais-metodos.tex), [04-resultados.tex](../../documents_tcc/tex/parts/04-resultados.tex), [05-discussao.tex](../../documents_tcc/tex/parts/05-discussao.tex), [06-conclusoes.tex](../../documents_tcc/tex/parts/06-conclusoes.tex), [00-frontmatter.tex](../../documents_tcc/tex/parts/00-frontmatter.tex), [refs.bib](../../documents_tcc/tex/refs.bib).
+    - **Resumo:** O parágrafo de infraestrutura de §1.1 virou nota de rodapé; o aviso de resultados provisórios saiu de §1.3 e as oito remissões a ele em 00, 04, 05 e 06 foram removidas; a afirmação de equivalência de operadores foi substituída pela distinção correta entre mesmos operadores (com paridade verificada) e trajetórias distintas; nomes de arquivo, de classe e de parâmetro saíram do corpo do texto; `ddof` foi retirado da introdução; a lista de limitações de §6 foi reescrita em frases curtas; o item bayesiano de §6 passou a explicar por que a análise bayesiana é mais informativa e para que serve, em vez de enumerar testes; §5.3.2 e §5.3.5 foram enxugadas; o item de memória compartilhada de §6 foi reescrito sem identificadores; o glossário ganhou `baseline`, `bitmap` e `thread`.
+    - **Complemento:** §3.4 recebeu a explicação da variância amostral em linguagem corrente, com a fórmula e o divisor \(n_{reps} - 1\), e a razão de não se usar o divisor \(n_{reps}\): com 30 repetições, este último subestima a variabilidade, encolhe os intervalos de confiança e infla a estatística dos testes.
+    - **Atendimento ao DoD:** `rg` dos padrões proibidos -> `0`; `rg -n "obs-ajustes"` -> `0`; balanço de chaves e ambientes `0` nos seis arquivos (o desbalanço de `\begin{document}` em `00-frontmatter.tex` é pré-existente, com `\end{document}` em `second_draft.tex`); `check_docs` -> `0/0/0`, exit `0` (2026-11-14). Nenhuma compilação LaTeX executada: não há `latexmk`/`lualatex` nesta máquina.
+
+- [x] **Task 13.7: Apêndice A — Arquitetura do Framework, Infraestrutura de Dados e Reprodutibilidade (`DP13-1`)**
+  + **What:** Criar o apêndice que hoje falta: descrição da organização do código, do formato dos registros de execução, da base de dados de resultados e do procedimento de reprodução de um experimento, absorvendo a nota de rodapé de §1.1 e as menções técnicas que sobraram no corpo do texto.
+  + **Why:** A dissertação precisa documentar o que permite reproduzir o experimento, mas esse material não pertence ao argumento dos capítulos; sem apêndice, ele vaza para a introdução ou fica ausente.
+  + **Who:** Autor e Agente.
+  + **Where:** [second_draft.tex](../../documents_tcc/tex/second_draft.tex) (`\appendix` + `\input`), novo `parts/07-apendices.tex`, [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (nota de rodapé de §1.1).
+  + **When:** Após `Task 12.5`, com os números finais.
+  + **How:** Um arquivo por apêndice, com diagrama de módulos, formato dos registros e roteiro de reprodução; a nota de rodapé de §1.1 passa a apontar para o apêndice.
+  + **Blast Radius:** `second_draft.tex`, novo arquivo de apêndice, uma nota de rodapé.
+  + **Relação com outras tarefas:** Absorve a pendência criada em `Task 13.6`.
+  + **How much:** Médio — 1 arquivo novo e 1 `\input`.
+  + **Stakeholder Implications:** Fecha o requisito de reprodutibilidade sem poluir os capítulos de argumento.
+  + **DoD:** Apêndice compilando, com diagrama e roteiro; nota de rodapé de §1.1 apontando para ele; `check_docs` exit `0`.
+  + **Solution / O que foi feito:**
+    - **Arquivos Alterados:** [07-apendices.tex](../../documents_tcc/tex/parts/07-apendices.tex) (novo), [second_draft.tex](../../documents_tcc/tex/second_draft.tex) (`\appendix` + `\input`), [01-introducao.tex](../../documents_tcc/tex/parts/01-introducao.tex) (nota de rodapé reapontada).
+    - **Resumo:** Criado o Apêndice A com cinco seções: organização do código em pacotes, formato e atomicidade dos registros de execução, consolidação idempotente no banco de resultados, telemetria por fase com a justificativa de medir no relógio do hospedeiro, e roteiro de reprodução em cinco passos com sementes determinísticas e registro do ambiente. A nota de rodapé de §1.1 passou a apontar para o apêndice em vez da Seção 3.1.3.
+    - **Atendimento ao DoD:** `rg -n "apendice-framework|apendice-telemetria"` -> rótulos definidos em `07-apendices.tex#L1` e `#L42`, referenciados em `01-introducao.tex#L36` e no próprio apêndice; balanço de chaves e ambientes `0/0` em `07-apendices.tex`; `check_docs` -> `0/0/0`, exit `0` (2026-11-14). Nenhuma compilação LaTeX executada: não há `latexmk`/`lualatex` nesta máquina, de modo que a primeira compilação fica a cargo do autor.
+
+- [ ] **Task 13.8: Atualizar Resumo e Abstract com os Números da Coorte Final (`DP13-1`)**
+  + **What:** Substituir no Resumo (e no Abstract) o conjunto de 38 instâncias, os ganhos medianos e o gap médio pelos valores calculados sobre a coorte de 15 instâncias, depois da recoleta.
+  + **Why:** O Resumo ainda publica números da coleta anterior a `BUG-45` e `BUG-57` (38 instâncias, ganho mediano de `5,69×` e gap médio de `0,88%`), que não descrevem a coorte atual nem o benchmark corrigido; um resumo com números que o Capítulo 5 não reproduz invalida a leitura da banca na primeira página.
+  + **Who:** Autor e Agente.
+  + **Where:** [00-frontmatter.tex](../../documents_tcc/tex/parts/00-frontmatter.tex).
+  + **When:** Depois de `Task 12.42` e `Task 12.4`, junto de `Task 12.1`, `12.2` e `12.5`.
+  + **How:** Recalcular cada número a partir do banco consolidado de `results_v4/` e reescrever as frases de resultado do Resumo com os valores novos, mantendo o registro do [prose-language.instructions.md](../../.agents/rules/prose-language.instructions.md).
+  + **Blast Radius:** Resumo e Abstract apenas.
+  + **How much:** Baixo — um parágrafo.
+  + **Stakeholder Implications:** Garante que a primeira página do trabalho descreva a mesma coorte que os capítulos de resultados.
+  + **DoD:** Nenhuma ocorrência de `38 instâncias` no Resumo, e cada número do Resumo rastreável a uma tabela do Capítulo 5; `check_docs` exit `0`.
+
+---
+
 ## Handoff
 
-- **State**: in progress — Lote 2 concluído; Fase 12 aberta em `Task 12.1`, `12.2`, `12.4`, `12.5` e `12.40`
+- **State**: in progress — `BUG-57`, `BUG-58` e as revisões de texto da Fase 13 fechadas; `BUG-59` registrado e aberto; `Task 12.42` (recoleta de `HybridNaive`) aguarda ação do autor
 - **Last verified observation**:
-  + `CUDA_VISIBLE_DEVICES="" pytest -W error -m "not gpu" tests/ -q --deselect tests/benchmarking/test_unit_runner_warmup.py` -> `981 passed, 208 deselected in 17.76s` (2026-11-13)
-  + `mypy src tests benchmark_scripts` -> `Success: no issues found in 147 source files`; `ruff check src tests benchmark_scripts` -> `All checks passed!` (2026-11-13)
-  + `python -m benchmark_scripts.check_docs` -> `stale docstrings: 0`, `dead links: 0`, `undefined symbols: 0` (2026-11-13)
-  + `grep -rn "next_power_of_2" src tests benchmark_scripts --include=*.py --include=*.cu | wc -l` -> `0`; `grep -rn "from protocols import .*ensure_routes_batch\|BinPackingStrategy" src --include=*.py | wc -l` -> `0` (2026-11-13)
-  + `pytest -W error tests/utils/test_unit_phase_timer.py tests/utils/test_unit_gpu_helpers.py tests/algorithms/strategies/mutation/test_unit_swap_mutation.py tests/loaders/test_unit_database_loader_errors.py` -> `67 passed, 1 deselected in 0.60s` (2026-11-13)
-- **Status of Fase 12**: Backlog com 40 tarefas (`Task 12.1` a `Task 12.40`), 29 decisões (`DP12-1` a `DP12-29`) e 24 correções analíticas (`BUG-33` a `BUG-56`). Concluídas e homologadas: **35 de 40 tarefas** (`Task 12.3`, `12.6`–`12.39`; `BUG-33` a `BUG-55` resolvidos). Em aberto: `Task 12.1`, `12.2`, `12.5` (dissertação `.tex`), `Task 12.4` (coleta integral em execução fora desta sessão) e `Task 12.40` (`BUG-56`, bloqueada por `Task 12.4`).
-- **Next item**: acompanhar `Task 12.4` — `run_chapter4_benchmark --no-incremental` (PID 1413824) no problema 15/15 (`pr1002`), algoritmo 1/3 (`HybridNaive`), repetição 5/30, ~35 min por repetição; em seguida decidir `DP12-29` e executar `Task 12.40`.
-- **Open decisions**: `DP12-29` — ordem canônica para resolução de baseline quando `baseline_algorithm=None`: ordem de execução (atual em `problem_statistics.py#L217`, preserva os números já gravados) ou alfabética (atual em `report_generator.py#L711-L714`)? | Lucas Galdino
-- **Read first**: [stats_utils.py#L169-L194](../../src/benchmarking/analysis/stats_utils.py#L169-L194), [analysis-current-cpu-bottlenecks.md](./knowledge-base/analysis-current-cpu-bottlenecks.md#L30), [review-benchmarking-architecture-and-operators.md](./knowledge-base/review-benchmarking-architecture-and-operators.md#L50), [table-of-symbols.plan.md](./table-of-symbols.plan.md#L223)
+  + `pytest -W error -m gpu tests/utils/ tests/algorithms/strategies/local_search/` -> `29 passed, 125 deselected in 0.96s` (2026-11-14)
+  + `CUDA_VISIBLE_DEVICES="" pytest -W error -m "not gpu" tests/ -q` -> `984 passed, 210 deselected in 19.19s` (2026-11-14)
+  + `mypy src tests benchmark_scripts` -> `Success: no issues found in 147 source files`; `ruff check src tests benchmark_scripts` -> `All checks passed!` (2026-11-14)
+  + `python -m benchmark_scripts.check_docs` -> `0/0/0` (2026-11-14)
+  + Coleta `results_v4`: `51/54` células em `30/30`; `pr1002_HybridNaive` em `5/30`, **inválida** e a ser recoletada (2026-11-13)
+- **Status das fases**: **Fase 12** — `Task 12.1`–`12.44`; abertas `12.1`, `12.2`, `12.4` (recoleta), `12.5`, `12.40` (`BUG-56`), `12.42` (recoleta de `HybridNaive`) e `12.44` (`BUG-59`). **Fase 13** — `13.1`–`13.8`; `13.1`–`13.7` concluídas, `13.8` aberta (depende dos números finais). Decisões `DP12-1`–`DP12-29`, `DP13-1`, `DP13-2`; correções `BUG-33`–`BUG-59`, com `BUG-56` e `BUG-59` abertos.
+- **Next item**: `Task 12.44` (opcional, higidez de medição: construir \(N_\kappa\) uma vez por instância) e então `Task 12.42` — mover os 15 checkpoints de `HybridNaive` para `results_v4/checkpoints/pre_bug57/` e rodar `run_chapter4_benchmark --no-incremental`; depois `Task 12.4` fecha `pr1002` e libera `Task 12.1`, `12.2` e `13.8`.
+- **Open decisions**: `DP12-29` — ordem canônica de baseline com `baseline_algorithm=None`: execução (`problem_statistics.py`) ou alfabética (`report_generator.py`)? | Lucas Galdino. Corrigir `BUG-59` antes da recoleta ou aceitar o custo (abaixo de `0,01%` por repetição) e manter o texto como "uma vez por execução"? | Lucas Galdino
+- **Read first**: [walkthrough_13.4.md](./task-resolutions/walkthrough_13.4.md), [two_opt.py::LocalSearchGPUTwoOpt._improve_naive](../../src/algorithms/strategies/local_search/two_opt.py), [two_opt_single.cu::two_opt_kernel](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu), [07-apendices.tex](../../documents_tcc/tex/parts/07-apendices.tex), [analysis-current-cpu-bottlenecks.md](./knowledge-base/analysis-current-cpu-bottlenecks.md)

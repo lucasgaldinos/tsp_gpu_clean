@@ -2,7 +2,7 @@
 title: "Knowledge: Ferramentas de Perfilação CUDA"
 description: "Comparação entre Nsight Systems, Nsight Compute e CUDA Events (CuPy) para perfilação de kernels GPU. Inclui plano de instrumentação em 3 fases para o projeto Chimera."
 created: "2026-05-14 18:30 -0300"
-author: "[[Lucas Galdino]]"
+author: "Lucas Galdino"
 tags: [cuda, profiling, nsight, cupy, performance, investigation, kernel]
 links:
   - "[plan-roteiro.md](file:///home/lucas_galdino/chimera/gpu_accelerated/documents_tcc/plan/plan-roteiro.md)"
