@@ -30,6 +30,7 @@ References:
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -49,6 +50,8 @@ from utils.route_helpers import (
 from ..base import StrategyBase
 
 if TYPE_CHECKING:
+  from collections.abc import Iterator
+
   from protocols.problem_context import ProblemContext
   from protocols.types import Route, RouteOrRoutes
 
@@ -194,6 +197,76 @@ def _resolve_candidates(
   return candidates
 
 
+#: Largest number of `(i, j)` pair entries evaluated per NumPy block by the
+#: exhaustive scan. Bounds the peak temporaries at a few megabytes for the largest
+#: TSPLIB cohort (`n = 1002`), where the pair set alone is `~5e5` entries.
+_PAIR_BLOCK: int = 1 << 18
+
+
+@lru_cache(maxsize=2)
+def _exhaustive_pairs(n: int) -> tuple[np.ndarray, np.ndarray]:
+  """Return the exhaustive 2-opt pair set `(i, j)` in ascending scan order.
+
+  The neighbourhood is every pair with `i + 2 <= j`, minus the pair `(0, n - 1)`:
+  reversing `tour[1:n]` is the identity move, so a sequential scan stops one short
+  at `j = i` and at `j = n - 1` when `i == 0`. `np.triu_indices` produces exactly
+  that order in one vectorised pass, which lets the three acceptance rules share a
+  single enumeration instead of three copies of the same nested loop.
+
+  Args:
+      n: Tour length. Cached per `n` because the pair set depends on nothing else,
+          and every route of a population shares the same length.
+
+  Returns:
+      `(i_idx, j_idx)` `int32` arrays aligned by position.
+  """
+  i_idx, j_idx = np.triu_indices(n, k=2)
+  keep: np.ndarray = ~((i_idx == 0) & (j_idx == n - 1))
+  return i_idx[keep].astype(np.int32, copy=False), j_idx[keep].astype(np.int32, copy=False)
+
+
+def _pair_deltas(
+  tour: np.ndarray,
+  next_node: np.ndarray,
+  edge_costs: np.ndarray,
+  distances: np.ndarray,
+  i_idx: np.ndarray,
+  j_idx: np.ndarray,
+) -> np.ndarray:
+  """Return the `int64` gain of reversing `tour[i + 1 : j + 1]` for each pair.
+
+  The move replaces edges `(a, b)` and `(c, d)` with `(a, c)` and `(b, d)`, so the
+  gain is `d(a, c) + d(b, d) - d(a, b) - d(c, d)`; negative means the reversal
+  shortens the tour.
+
+  `next_node` is `tour` rotated left by one and `edge_costs[k]` is `d(tour[k],
+  tour[k + 1])`, so the two retired edges are two lookups into a length-`n` vector
+  instead of two more gathers from the dense `(n, n)` matrix. Arithmetic is widened
+  to `int64` before summing: the matrix is `int32` and a tour cost near the TSPLIB
+  ceiling makes `d(a, c) + d(b, d)` exceed the `int32` range even though each edge
+  fits.
+
+  Args:
+      tour: Current tour, `(n,)` node ids.
+      next_node: `tour` rotated left by one, `(n,)`.
+      edge_costs: `int64` cost of each consecutive edge, `(n,)`.
+      distances: `(n, n)` `int32` distance matrix.
+      i_idx: Positions of the first break point, `(p,)`.
+      j_idx: Positions of the second break point, `(p,)`.
+
+  Returns:
+      `int64` array `(p,)` of gains, aligned with `i_idx` and `j_idx`.
+  """
+  a: np.ndarray = tour[i_idx]
+  b: np.ndarray = next_node[i_idx]
+  c: np.ndarray = tour[j_idx]
+  d: np.ndarray = next_node[j_idx]
+  d_ac: np.ndarray = np.asarray(distances[a, c], dtype=np.int64)
+  d_bd: np.ndarray = np.asarray(distances[b, d], dtype=np.int64)
+  gain: np.ndarray = d_ac + d_bd - edge_costs[i_idx] - edge_costs[j_idx]
+  return gain
+
+
 class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
   """
   CPU 2-opt local search with a selectable acceptance rule.
@@ -233,50 +306,100 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     self.max_iterations: int = max_iterations
     self.candidate_k: int | None = candidate_k
 
-  def _step_best(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
-    """Apply the single steepest improving move; return whether one was applied."""
+  def _pair_blocks(
+    self,
+    tour: np.ndarray,
+    positions: np.ndarray | None,
+    candidates: np.ndarray | None,
+  ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+    """Yield the `(i, j)` break-point pairs of one scan, in ascending scan order.
+
+    Both neighbourhood flavours reduce to the same flat pair enumeration, so the
+    three acceptance rules consume one generator instead of each carrying its own
+    nested loop:
+
+    - exhaustive (`candidates is None`): every pair with `i + 2 <= j`, in blocks of
+      `_PAIR_BLOCK` to bound temporaries;
+    - candidate mode: exactly the pairs a sequential `for r in range(k)` visit
+      would reach, including duplicates when two neighbours of `a` share a
+      position — the acceptance rules are order- and multiplicity-sensitive, so
+      deduplicating here would silently change the tour sequence.
+
+    Args:
+        tour: Current tour, `(n,)` node ids.
+        positions: `inverse_positions(tour)` in candidate mode, `None` otherwise.
+        candidates: `(n, k_eff)` nearest-neighbour table, or `None`.
+
+    Yields:
+        `(i_idx, j_idx)` `int32` arrays aligned by position.
+    """
     n: int = len(tour)
+    if candidates is None or positions is None:
+      i_all, j_all = _exhaustive_pairs(n)
+      for start in range(0, i_all.size, _PAIR_BLOCK):
+        yield i_all[start : start + _PAIR_BLOCK], j_all[start : start + _PAIR_BLOCK]
+      return
+
+    rows: int = n - 2
+    neighbours: np.ndarray = candidates[tour[:rows]]
+    in_range: np.ndarray = (neighbours >= 0) & (neighbours < positions.size)
+    # `positions[neighbour]` is the position of that node in the tour, or `-1` when
+    # the node is absent (sparse CVRP sub-route), which the bounds test below rejects.
+    j_mat: np.ndarray
+    if bool(in_range.all()):
+      j_mat = positions[neighbours]
+    else:
+      j_mat = np.where(in_range, positions[np.clip(neighbours, 0, max(positions.size - 1, 0))], -1)
+    i_mat: np.ndarray = np.arange(rows, dtype=np.int32)[:, np.newaxis]
+    # `i == 0` must stop at `n - 1`: reversing `tour[1:n]` is the identity move.
+    keep: np.ndarray = (j_mat > i_mat + 1) & (j_mat < n)
+    if rows:
+      keep[0, :] &= j_mat[0, :] < n - 1
+    i_keep, _ = np.nonzero(keep)
+    yield i_keep.astype(np.int32, copy=False), j_mat[keep]
+
+  def _scan_context(
+    self,
+    tour: np.ndarray,
+    distances: np.ndarray,
+    candidates: np.ndarray | None,
+  ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    """Return `(next_node, edge_costs, positions)` shared by one scan pass.
+
+    Recomputing the retired-edge vector costs `O(n)` per pass, but it replaces the
+    `2 n^2` matrix gathers a sequential scan performs, which is the difference this
+    vectorisation buys.
+    """
+    next_node: np.ndarray = np.roll(tour, -1)
+    edge_costs: np.ndarray = distances[tour, next_node].astype(np.int64)
+    positions: np.ndarray | None = inverse_positions(tour) if candidates is not None else None
+    return next_node, edge_costs, positions
+
+  def _step_best(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
+    """Apply the single steepest improving move; return whether one was applied.
+
+    Ties resolve to the first pair in scan order, matching the strict `<` of a
+    sequential scan, so the resulting tour sequence stays bit-identical to the
+    scalar reference (`TASK 13.14`).
+    """
+    n: int = len(tour)
+    if n < 4:
+      return False
+    next_node, edge_costs, positions = self._scan_context(tour, distances, candidates)
+
     best_delta: int = 0
     best_i: int = -1
     best_j: int = -1
-
-    if candidates is None:
-      for i in range(n - 2):
-        a: int = int(tour[i])
-        b: int = int(tour[i + 1])
-        d_ab: int = int(distances[a, b])
-        c: int = int(tour[i + 2])
-        limit_j = n - 1 if i == 0 else n
-        for j in range(i + 2, limit_j):
-          d: int = int(tour[(j + 1) % n])
-          delta: int = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
-          if delta < best_delta:
-            best_delta = delta
-            best_i = i
-            best_j = j
-          c = d
-    else:
-      pos: np.ndarray = inverse_positions(tour)
-      neighbors: int = int(candidates.shape[1])
-      for i in range(n - 2):
-        a = int(tour[i])
-        b = int(tour[i + 1])
-        d_ab = int(distances[a, b])
-        limit_j = n - 1 if i == 0 else n
-        for r in range(neighbors):
-          neighbor = int(candidates[a, r])
-          if neighbor < 0 or neighbor >= pos.size:
-            continue
-          j = int(pos[neighbor])
-          if j <= i + 1 or j >= limit_j:
-            continue
-          c = int(tour[j])
-          d = int(tour[(j + 1) % n])
-          delta = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
-          if delta < best_delta:
-            best_delta = delta
-            best_i = i
-            best_j = j
+    for i_idx, j_idx in self._pair_blocks(tour, positions, candidates):
+      if i_idx.size == 0:
+        continue
+      deltas: np.ndarray = _pair_deltas(tour, next_node, edge_costs, distances, i_idx, j_idx)
+      pos: int = int(np.argmin(deltas))
+      gain: int = int(deltas[pos])
+      if gain < best_delta:
+        best_delta = gain
+        best_i = int(i_idx[pos])
+        best_j = int(j_idx[pos])
 
     if best_delta < 0:
       tour[best_i + 1 : best_j + 1] = tour[best_i + 1 : best_j + 1][::-1]
@@ -284,97 +407,73 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     return False
 
   def _step_first(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
-    """Apply the first improving move found; return whether one was applied."""
+    """Apply the first improving move found in scan order; return whether one was applied."""
     n: int = len(tour)
-    if candidates is None:
-      for i in range(n - 2):
-        a: int = int(tour[i])
-        b: int = int(tour[i + 1])
-        d_ab: int = int(distances[a, b])
-        c: int = int(tour[i + 2])
-        limit_j = n - 1 if i == 0 else n
-        for j in range(i + 2, limit_j):
-          d: int = int(tour[(j + 1) % n])
-          delta: int = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
-          if delta < 0:
-            tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
-            return True
-          c = d
+    if n < 4:
       return False
+    next_node, edge_costs, positions = self._scan_context(tour, distances, candidates)
 
-    pos: np.ndarray = inverse_positions(tour)
-    neighbors: int = int(candidates.shape[1])
-    for i in range(n - 2):
-      a = int(tour[i])
-      b = int(tour[i + 1])
-      d_ab = int(distances[a, b])
-      limit_j = n - 1 if i == 0 else n
-      for r in range(neighbors):
-        neighbor = int(candidates[a, r])
-        if neighbor < 0 or neighbor >= pos.size:
-          continue
-        j = int(pos[neighbor])
-        if j <= i + 1 or j >= limit_j:
-          continue
-        c = int(tour[j])
-        d = int(tour[(j + 1) % n])
-        delta = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
-        if delta < 0:
-          tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
-          return True
+    for i_idx, j_idx in self._pair_blocks(tour, positions, candidates):
+      if i_idx.size == 0:
+        continue
+      improving: np.ndarray = _pair_deltas(tour, next_node, edge_costs, distances, i_idx, j_idx) < 0
+      if not bool(improving.any()):
+        continue
+      # `argmax` on a boolean mask returns the first `True` in scan order.
+      pos: int = int(np.argmax(improving))
+      i: int = int(i_idx[pos])
+      j: int = int(j_idx[pos])
+      tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
+      return True
     return False
 
   def _step_multi_move(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
-    """Apply every mutually disjoint improving move of one scan; return whether any was applied."""
+    """Apply every mutually disjoint improving move of one scan; return whether any was applied.
+
+    The disjoint selection is inherently sequential — each accepted reversal removes
+    its window from the candidates — so only that part stays a Python loop, over the
+    improving moves of the pass rather than over all `O(n^2)` pairs. A boolean
+    occupancy vector replaces the quadratic `any()` overlap check: two windows
+    conflict exactly when their inclusive index ranges intersect, which is what
+    marking `[i, j]` and testing the slice reports.
+    """
     n: int = len(tour)
-    moves: list[tuple[int, int, int]] = []
+    if n < 4:
+      return False
+    next_node, edge_costs, positions = self._scan_context(tour, distances, candidates)
 
-    if candidates is None:
-      for i in range(n - 2):
-        a: int = int(tour[i])
-        b: int = int(tour[i + 1])
-        d_ab: int = int(distances[a, b])
-        c: int = int(tour[i + 2])
-        limit_j = n - 1 if i == 0 else n
-        for j in range(i + 2, limit_j):
-          d: int = int(tour[(j + 1) % n])
-          delta: int = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
-          if delta < 0:
-            moves.append((delta, i, j))
-          c = d
-    else:
-      pos: np.ndarray = inverse_positions(tour)
-      neighbors: int = int(candidates.shape[1])
-      for i in range(n - 2):
-        a = int(tour[i])
-        b = int(tour[i + 1])
-        d_ab = int(distances[a, b])
-        limit_j = n - 1 if i == 0 else n
-        for r in range(neighbors):
-          neighbor = int(candidates[a, r])
-          if neighbor < 0 or neighbor >= pos.size:
-            continue
-          j = int(pos[neighbor])
-          if j <= i + 1 or j >= limit_j:
-            continue
-          c = int(tour[j])
-          d = int(tour[(j + 1) % n])
-          delta = (int(distances[a, c]) + int(distances[b, d])) - (d_ab + int(distances[c, d]))
-          if delta < 0:
-            moves.append((delta, i, j))
-
-    if not moves:
+    gains: list[np.ndarray] = []
+    starts: list[np.ndarray] = []
+    ends: list[np.ndarray] = []
+    for i_idx, j_idx in self._pair_blocks(tour, positions, candidates):
+      if i_idx.size == 0:
+        continue
+      deltas: np.ndarray = _pair_deltas(tour, next_node, edge_costs, distances, i_idx, j_idx)
+      improving: np.ndarray = deltas < 0
+      if not bool(improving.any()):
+        continue
+      gains.append(deltas[improving])
+      starts.append(i_idx[improving])
+      ends.append(j_idx[improving])
+    if not gains:
       return False
 
-    moves.sort(key=lambda move: move[0])
-    applied_intervals: list[tuple[int, int]] = []
-    for _delta, i, j in moves:
-      conflict = any(not (j < start or i > end) for start, end in applied_intervals)
-      if conflict:
+    # Stable sort on the gain keeps scan order among equal gains, so the greedy
+    # pass applies the same windows in the same sequence as `list.sort(key=...)`.
+    order: np.ndarray = np.argsort(np.concatenate(gains), kind="stable")
+    from_idx: np.ndarray = np.concatenate(starts)
+    to_idx: np.ndarray = np.concatenate(ends)
+    occupied: np.ndarray = np.zeros(n, dtype=bool)
+    applied: bool = False
+    for slot in order:
+      i: int = int(from_idx[slot])
+      j: int = int(to_idx[slot])
+      if occupied[i : j + 1].any():
         continue
       tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
-      applied_intervals.append((i, j))
-    return bool(applied_intervals)
+      occupied[i : j + 1] = True
+      applied = True
+    return applied
 
   def _refine(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> np.ndarray:
     """Run up to `max_iterations` acceptance steps on a copy of `tour`."""
