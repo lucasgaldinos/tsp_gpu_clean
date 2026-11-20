@@ -141,8 +141,7 @@ class ProblemContext:
               on-the-fly distances (`DP10-19`). Configurable for testing.
         candidate_cache: Cache of `N_k` shared by every context that serves the
               same problem. Pass one mapping to all contexts of a run so the blocked
-              `Theta(n^2)` construction happens once instead of once per context
-              (`BUG-59`). Defaults to a fresh per-context cache.
+              `Theta(n^2)` construction happens once instead of once per context. Defaults to a fresh per-context cache.
 
     Raises:
         GPUUnavailableError: If xp is CuPy but CuPy is not installed or CUDA device is unavailable.
@@ -474,11 +473,7 @@ class ProblemContext:
         with a coordinate-based `EDGE_WEIGHT_TYPE`.
     """
     threshold = self.max_matrix_dimension if max_matrix_dimension is None else max_matrix_dimension
-    return (
-      n > threshold
-      and self.problem.edge_type != "EXPLICIT"
-      and self.problem.coordinates is not None
-    )
+    return n > threshold and self.problem.edge_type != "EXPLICIT" and self.problem.coordinates is not None
 
   def get_gpu_distance_operands(
     self,

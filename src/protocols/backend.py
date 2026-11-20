@@ -57,6 +57,11 @@ class BackendModule(Protocol):
     ...
 
   @property
+  def float64(self) -> type[np.float64]:
+    """64-bit float dtype (numpy's, re-exported by cupy)."""
+    ...
+
+  @property
   def random(self) -> Any:
     """Random number generation module."""
     ...
@@ -145,6 +150,14 @@ class BackendModule(Protocol):
 
   def trunc(self, *args: Any, **kwargs: Any) -> Array:
     """Truncate toward zero."""
+    ...
+
+  def minimum(self, *args: Any, **kwargs: Any) -> Array:
+    """Element-wise minimum of two arrays."""
+    ...
+
+  def maximum(self, *args: Any, **kwargs: Any) -> Array:
+    """Element-wise maximum of two arrays."""
     ...
 
   # --- in-place / scalar-returning -----------------------------------------

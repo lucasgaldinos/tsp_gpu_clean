@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
-from .pairwise import EARTH_RADIUS_KM, PI, get_distance_function
+from .pairwise import EARTH_RADIUS_KM, PI
 
 if TYPE_CHECKING:
   from protocols.backend import BackendModule
@@ -49,18 +49,29 @@ def _geo_to_radians(coord_array: Any, xp: BackendModule) -> Any:
   return PI * (deg + 5.0 * minutes / 3.0) / 180.0
 
 
+#: XRAY1 motor speeds for the three axes (`DEQ` routine, TSPLIB95 §2.7). XRAY2 differs
+#: from XRAY1 only in these constants, which is why they are named rather than inlined.
+_XRAY1_SPEEDS: tuple[float, float, float] = (1.0, 1.0, 1.0)
+
+
 def _xray_block(rows: Any, all_coords: Any, xp: BackendModule) -> Any:
-  """Compute an ``(m, n)`` XRAY1 block with the scalar crystallography formula."""
-  distance_fn = get_distance_function("XRAY1")
-  row_count: int = int(rows.shape[0])
-  column_count: int = int(all_coords.shape[0])
-  result: Any = xp.zeros((row_count, column_count), dtype=xp.int32)
-  for i in range(row_count):
-    coord_i = tuple(float(value) for value in rows[i])
-    for j in range(column_count):
-      coord_j = tuple(float(value) for value in all_coords[j])
-      result[i, j] = distance_fn(coord_i, coord_j)
-  return result
+  """Compute an ``(m, n)`` XRAY1 block with the vectorised crystallography formula.
+
+  XRAY1 reads the three coordinates as motor positions: the ``PHI`` axis is an angle, so
+  its difference wraps at 360°, each axis difference is scaled by its motor speed, and
+  the largest scaled difference times 100 gives the integer distance. Every step is
+  elementwise, so the block is one broadcast pair instead of ``m * n`` calls into the
+  scalar reference; the scalar ``compute_xray1`` stays the oracle the parity tests pin.
+  """
+  sx, sy, sz = _XRAY1_SPEEDS
+  rows_f: Any = rows.astype(xp.float64)
+  all_f: Any = all_coords.astype(xp.float64)
+  phi: Any = xp.abs(rows_f[:, np.newaxis, 0] - all_f[np.newaxis, :, 0])
+  dist_phi: Any = xp.minimum(phi, xp.abs(phi - 360.0))
+  dist_chi: Any = xp.abs(rows_f[:, np.newaxis, 1] - all_f[np.newaxis, :, 1])
+  dist_two_theta: Any = xp.abs(rows_f[:, np.newaxis, 2] - all_f[np.newaxis, :, 2])
+  cost: Any = xp.maximum(xp.maximum(dist_phi / sx, dist_chi / sy), dist_two_theta / sz)
+  return xp.trunc(100.0 * cost + 0.5).astype(xp.int32)
 
 
 def _distance_block(rows: Any, all_coords: Any, edge_weight_type: str, xp: BackendModule) -> Any:
