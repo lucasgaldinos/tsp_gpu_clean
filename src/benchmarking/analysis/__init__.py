@@ -14,7 +14,7 @@ from benchmarking.analysis.problem_statistics import (
   holm_bonferroni_correction,
   perform_statistical_analysis,
 )
-from benchmarking.analysis.report_generator import generate_result_tables
+from benchmarking.analysis.report_generator import generate_latex_macros, generate_result_tables
 from benchmarking.analysis.statistics import StatisticalAnalyzer, StatisticalSummary
 from benchmarking.analysis.stats_utils import (
   adjusted_r2,
@@ -37,6 +37,7 @@ __all__ = [
   "compare_algorithms_by_group",
   "compute_cd_diagram_data",
   "export_cd_diagram_tikz",
+  "generate_latex_macros",
   "generate_result_tables",
   "holm_bonferroni_correction",
   "loocv_regression",

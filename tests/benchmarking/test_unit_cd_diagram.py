@@ -61,9 +61,54 @@ def test_cd_calculation_and_rank_conservation_k4_n38() -> None:
   # Critical difference check for k=4, N=38: CD ~= 0.7609
   assert results.critical_difference == pytest.approx(0.7609, abs=1e-3)
 
-  # Friedman test must reject null hypothesis (p < 0.001)
+  # Friedman Iman-Davenport F_F test must reject null hypothesis (p < 0.001)
   assert results.friedman_pvalue < 1e-3
-  assert results.friedman_chi2 > 50.0
+  assert results.friedman_f > 50.0
+
+
+def test_cd_diagram_computes_iman_davenport_f_and_handles_ties() -> None:
+  """WHAT: compute_cd_diagram_data computes finite Iman-Davenport F_F and handles all-tied inputs.
+
+  WHY: Task 13.9 (BUG-61 / DP13-3) — CDResults exposes only friedman_f (matching Iman & Davenport 1980)
+  with no legacy chi-square field, and complete intra-block ties must yield F_F=0.0, p=1.0.
+  """
+  from dataclasses import fields
+
+  from scipy import stats
+
+  expected_fields = {
+    "k_algorithms",
+    "n_instances",
+    "ranks",
+    "rank_sum",
+    "critical_difference",
+    "friedman_f",
+    "friedman_pvalue",
+    "cliques",
+    "alpha",
+  }
+  assert {f.name for f in fields(CDResults)} == expected_fields
+
+  alg_names = ["A", "B", "C"]
+  # N=6, k=3 -> chi2=7.0, F_F=7.0, df1=2, df2=10
+  mat = np.array(
+    [
+      [1.0, 2.0, 3.0],
+      [2.0, 1.0, 3.0],
+      [1.0, 3.0, 2.0],
+      [2.0, 1.0, 3.0],
+      [1.0, 2.0, 3.0],
+      [1.0, 2.0, 3.0],
+    ]
+  )
+  results = compute_cd_diagram_data(mat, alg_names, alpha=0.05)
+  assert results.friedman_f == pytest.approx(7.0, rel=1e-12)
+  assert results.friedman_pvalue == pytest.approx(float(stats.f.sf(7.0, 2, 10)), rel=1e-12)
+
+  tied_mat = np.full((4, 3), 5.0)
+  tied_results = compute_cd_diagram_data(tied_mat, alg_names, alpha=0.05)
+  assert tied_results.friedman_f == 0.0
+  assert tied_results.friedman_pvalue == 1.0
 
 
 def test_connected_maximal_clique_detection() -> None:
@@ -142,10 +187,37 @@ def test_export_cd_diagram_tikz_contains_required_elements(tmp_path: Path) -> No
   assert "CPU" in tikz_code
 
   # Standalone document mode
-  standalone_code = export_cd_diagram_tikz(results, standalone=True)
+  standalone_code = export_cd_diagram_tikz(results, standalone=True, metric_label="Execution Time")
   assert r"\documentclass[tikz,border=10pt]{standalone}" in standalone_code
   assert r"\usepackage{tikz}" in standalone_code
   assert r"\usetikzlibrary{arrows.meta,positioning,calc}" in standalone_code
+  assert "% Metric: Execution Time" in standalone_code
+
+
+def test_export_cd_diagram_tikz_separates_tied_and_proximate_rank_labels() -> None:
+  """WHAT: Tied and proximate average ranks receive distinct label coordinates.
+
+  WHY: Identical variants (e.g. HybridNaive and HybridOptimized) tie in rank; placing
+  all labels at (r, -0.45) causes exact text overlap in compiled TikZ figures.
+  EXPECTED: Every algorithm labelnode is placed at a unique (x, y) coordinate.
+  """
+  import re
+
+  tied_cd = CDResults(
+    k_algorithms=4,
+    n_instances=15,
+    ranks={"CPU": 2.933, "HybridNaive": 2.300, "HybridOptimized": 2.300, "FullGPUModular": 2.467},
+    rank_sum=10.0,
+    critical_difference=1.211,
+    friedman_f=0.890,
+    friedman_pvalue=0.4543,
+    cliques=[("HybridNaive", "CPU", 2.300, 2.933)],
+    alpha=0.05,
+  )
+  tikz_code = export_cd_diagram_tikz(tied_cd, metric_label="Optimality Gap")
+  positions = re.findall(r"\\node\[labelnode[^\]]*\]\s+at\s+\(([^)]+)\)", tikz_code)
+  assert len(positions) == 4
+  assert len(set(positions)) == 4
 
 
 def test_compute_cd_diagram_data_validation_errors() -> None:

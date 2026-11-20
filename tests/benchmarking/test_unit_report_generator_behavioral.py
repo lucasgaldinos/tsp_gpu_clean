@@ -47,20 +47,20 @@ def test_behavioral_case1_arbitrary_exotic_algorithm_names(tmp_path: Path) -> No
   dynamic baseline selection picks the first exotic name when baseline is omitted.
   """
   exotic_algs = [
-    "CrazyCpuGpuLocalSearchEveryStep",
-    "GA-Custom_v2",
     "2-Opt_GPU",
+    "GA-Custom_v2",
+    "CrazyCpuGpuLocalSearchEveryStep",
   ]
   all_results: dict[str, dict[str, dict[str, Any]]] = {
     "prob_exotic_1": {
-      "CrazyCpuGpuLocalSearchEveryStep": {"mean_time": 2.0, "mean_cost": 100.0, "std_cost": 0.0, "mean_gap": 0.0},
-      "GA-Custom_v2": {"mean_time": 1.0, "mean_cost": 105.0, "std_cost": 0.0, "mean_gap": 5.0},
       "2-Opt_GPU": {"mean_time": 0.5, "mean_cost": 102.0, "std_cost": 0.0, "mean_gap": 2.0},
+      "GA-Custom_v2": {"mean_time": 1.0, "mean_cost": 105.0, "std_cost": 0.0, "mean_gap": 5.0},
+      "CrazyCpuGpuLocalSearchEveryStep": {"mean_time": 2.0, "mean_cost": 100.0, "std_cost": 0.0, "mean_gap": 0.0},
     },
     "prob_exotic_2": {
-      "CrazyCpuGpuLocalSearchEveryStep": {"mean_time": 4.0, "mean_cost": 200.0, "std_cost": 0.0, "mean_gap": 0.0},
-      "GA-Custom_v2": {"mean_time": 2.0, "mean_cost": 210.0, "std_cost": 0.0, "mean_gap": 5.0},
       "2-Opt_GPU": {"mean_time": 1.0, "mean_cost": 204.0, "std_cost": 0.0, "mean_gap": 2.0},
+      "GA-Custom_v2": {"mean_time": 2.0, "mean_cost": 210.0, "std_cost": 0.0, "mean_gap": 5.0},
+      "CrazyCpuGpuLocalSearchEveryStep": {"mean_time": 4.0, "mean_cost": 200.0, "std_cost": 0.0, "mean_gap": 0.0},
     },
   }
   problem_configs = [
@@ -68,8 +68,8 @@ def test_behavioral_case1_arbitrary_exotic_algorithm_names(tmp_path: Path) -> No
     ProblemConfig(name="prob_exotic_2", optimal=200.0, size=100),
   ]
 
-  # 1. Verify dynamic baseline selection with exotic names (sorted order in table generator)
-  resolved_baseline = resolve_baseline_algorithm(sorted(exotic_algs))
+  # 1. Verify dynamic baseline selection with exotic names (insertion order in table generator)
+  resolved_baseline = resolve_baseline_algorithm(exotic_algs)
   assert resolved_baseline == "2-Opt_GPU"
 
   # 2. Generate result tables without explicit baseline override (picks 2-Opt_GPU dynamically)
@@ -566,7 +566,7 @@ def test_behavioral_latex_escaping_across_all_four_tables(tmp_path: Path) -> Non
 
   # 4. In LaTeX Table 3 (Size Categories):
   # Problem list and winner algorithm names are escaped:
-  table3_small = next(line for line in tex_lines if line.startswith("Small (n<100)"))
+  table3_small = next(line for line in tex_lines if line.startswith("Small (n≤100)"))
   assert "prob\\_alpha\\_1" in table3_small
   assert "Base\\_Alg" in table3_small or "Fast\\_100\\%\\_GPU" in table3_small
   table3_medium = next(line for line in tex_lines if line.startswith("Medium"))

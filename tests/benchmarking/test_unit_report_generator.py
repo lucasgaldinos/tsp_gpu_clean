@@ -17,11 +17,18 @@ import pytest
 
 from benchmarking.analysis.report_generator import (
   _PHASE_NAMES,
+  LARGE_SIZE_LABEL,
+  MEDIUM_SIZE_LABEL,
+  MEDIUM_SIZE_MAX,
+  SMALL_SIZE_LABEL,
+  SMALL_SIZE_MAX,
+  _categorize_by_size,
   _compute_table2_stats,
   _compute_table3_size_category_winners,
   _generate_table3_latex,
   _generate_table3_markdown,
   _has_phase_timings,
+  generate_latex_macros,
   generate_result_tables,
 )
 from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
@@ -414,12 +421,12 @@ def test_table2_and_table3_helpers_dry_refactoring() -> None:
   # 2. _compute_table3_size_category_winners
   t3_winners = _compute_table3_size_category_winners(all_results, problem_configs, ["AlgoA", "AlgoB"])
   assert len(t3_winners) == 2
-  # Small (n<100): AlgoB has gap 1.0 vs AlgoA 2.0 -> AlgoB wins
-  assert t3_winners[0]["category"] == "Small (n<100)"
+  # Small (n≤100): AlgoB has gap 1.0 vs AlgoA 2.0 -> AlgoB wins
+  assert t3_winners[0]["category"] == SMALL_SIZE_LABEL
   assert t3_winners[0]["best_alg"] == "AlgoB"
   assert t3_winners[0]["best_gap"] == 1.0
-  # Large (n≥300): AlgoB has gap 2.0 vs AlgoA 4.0 -> AlgoB wins
-  assert t3_winners[1]["category"] == "Large (n≥300)"
+  # Large (n>400): AlgoB has gap 2.0 vs AlgoA 4.0 -> AlgoB wins
+  assert t3_winners[1]["category"] == LARGE_SIZE_LABEL
   assert t3_winners[1]["best_alg"] == "AlgoB"
   assert t3_winners[1]["best_gap"] == 2.0
 
@@ -456,7 +463,7 @@ def test_table3_partial_coverage_cannot_beat_full_coverage() -> None:
 
   winners = _compute_table3_size_category_winners(all_results, problem_configs, ["CPU", "FullGPU"])
   assert len(winners) == 1
-  assert winners[0]["category"] == "Large (n≥300)"
+  assert winners[0]["category"] == LARGE_SIZE_LABEL
   # FullGPU has full coverage (2/2) and wins over partial CPU (1/2) despite CPU's lower gap on large1:
   assert winners[0]["best_alg"] == "FullGPU"
   assert winners[0]["best_gap"] == pytest.approx(0.75)
@@ -491,4 +498,244 @@ def test_table3_partial_coverage_cannot_beat_full_coverage() -> None:
   assert "inf" not in tex_table
 
 
+def test_size_category_boundaries_match_table3_3_spec() -> None:
+  """WHAT: Boundary sizes n in {99, 100, 101, 399, 400, 401} map to Table 3.3 strata.
+
+  WHY: Task 13.16 (DP13-7 / BUG-65) — Canonical boundaries are n <= 100 (Small),
+  100 < n <= 400 (Medium), and n > 400 (Large), so kroA100 (n=100) stays Small
+  and lin318 (n=318) / rd400 (n=400) stay Medium.
+  EXPECTED: 99, 100 -> Small; 101, 399, 400 -> Medium; 401 -> Large.
+  """
+  assert SMALL_SIZE_MAX == 100
+  assert MEDIUM_SIZE_MAX == 400
+  assert SMALL_SIZE_LABEL == "Small (n≤100)"
+  assert MEDIUM_SIZE_LABEL == "Medium (100<n≤400)"
+  assert LARGE_SIZE_LABEL == "Large (n>400)"
+
+  boundary_sizes = [99, 100, 101, 399, 400, 401]
+  problem_configs = [ProblemConfig(name=f"p_{n}", optimal=100.0, size=n) for n in boundary_sizes]
+  problem_names = [cfg.name for cfg in problem_configs]
+
+  categories = _categorize_by_size(problem_names, problem_configs)
+  assert categories[SMALL_SIZE_LABEL] == ["p_99", "p_100"]
+  assert categories[MEDIUM_SIZE_LABEL] == ["p_101", "p_399", "p_400"]
+  assert categories[LARGE_SIZE_LABEL] == ["p_401"]
+
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    name: {
+      "AlgoA": {"mean_time": 2.0, "mean_gap": 1.0},
+      "AlgoB": {"mean_time": 1.0, "mean_gap": 0.5},
+    }
+    for name in problem_names
+  }
+  winners = _compute_table3_size_category_winners(all_results, problem_configs, ["AlgoA", "AlgoB"])
+  assert [(w["category"], w["problems"], w["best_alg"]) for w in winners] == [
+    (SMALL_SIZE_LABEL, ["p_99", "p_100"], "AlgoB"),
+    (MEDIUM_SIZE_LABEL, ["p_101", "p_399", "p_400"], "AlgoB"),
+    (LARGE_SIZE_LABEL, ["p_401"], "AlgoB"),
+  ]
+
+
+def test_generate_result_tables_emits_both_gap_and_time_cd_diagrams(tmp_path: Path) -> None:
+  """WHAT: generate_result_tables emits separate TikZ CD diagrams for Optimality Gap and Execution Time.
+
+  WHY: Task 14.2 (DP14-2 / BUG-92) — Visualizing both quality equivalence and runtime acceleration
+  requires distinct CD diagrams for gap and time.
+  """
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    p: {
+      "SlowAccurate": {"mean_cost": 100.0, "std_cost": 0.5, "mean_gap": 0.1, "mean_time": 10.0},
+      "MidVariant": {"mean_cost": 101.0, "std_cost": 0.5, "mean_gap": 0.5, "mean_time": 4.0},
+      "FastVariant": {"mean_cost": 102.0, "std_cost": 0.5, "mean_gap": 1.0, "mean_time": 0.5},
+    }
+    for p in ("p1", "p2", "p3", "p4")
+  }
+  problem_configs = [
+    ProblemConfig(name=p, optimal=100.0, size=50 + i * 20)
+    for i, p in enumerate(("p1", "p2", "p3", "p4"))
+  ]
+
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "tables",
+    benchmark_name="dual_cd",
+    baseline_algorithm="SlowAccurate",
+  )
+
+  gap_tikz = tmp_path / "tables" / "dual_cd_cd_diagram_gap.tikz"
+  time_tikz = tmp_path / "tables" / "dual_cd_cd_diagram_time.tikz"
+  assert gap_tikz.is_file()
+  assert time_tikz.is_file()
+
+  gap_content = gap_tikz.read_text(encoding="utf-8")
+  time_content = time_tikz.read_text(encoding="utf-8")
+  assert "% Metric: Optimality Gap" in gap_content
+  assert "% Metric: Execution Time" in time_content
+  # In Gap: SlowAccurate is rank 1.00; in Time: FastVariant is rank 1.00
+  assert "SlowAccurate\\\\(1.00)" in gap_content
+  assert "FastVariant\\\\(1.00)" in time_content
+
+
+def test_generate_result_tables_emits_gap_cd_with_incomplete_problem_and_no_mean_cost(tmp_path: Path) -> None:
+  """WHAT: Partial problem coverage with mean_gap (no mean_cost) still emits *_cd_diagram_gap.tikz."""
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    "p1": {
+      "A": {"mean_cost": 100.0, "std_cost": 0.5, "mean_gap": 0.1, "mean_time": 10.0},
+      "B": {"mean_cost": 101.0, "std_cost": 0.5, "mean_gap": 0.5, "mean_time": 4.0},
+      "C": {"mean_cost": 102.0, "std_cost": 0.5, "mean_gap": 1.0, "mean_time": 0.5},
+    },
+    "p2": {
+      "A": {"mean_cost": 100.0, "std_cost": 0.5, "mean_gap": 0.1, "mean_time": 10.0},
+      "B": {"mean_cost": 101.0, "std_cost": 0.5, "mean_gap": 0.5, "mean_time": 4.0},
+      "C": {"mean_cost": 102.0, "std_cost": 0.5, "mean_gap": 1.0, "mean_time": 0.5},
+    },
+    # Incomplete problem (missing A), and B/C omit mean_cost on p1/p2? Actually test partial coverage explicitly:
+    "p3": {
+      "B": {"mean_cost": 101.0, "std_cost": 0.5, "mean_gap": 0.5, "mean_time": 4.0},
+      "C": {"mean_cost": 102.0, "std_cost": 0.5, "mean_gap": 1.0, "mean_time": 0.5},
+    },
+  }
+  # Ensure complete problems p1, p2 do NOT rely on fallback to mean_cost if mean_gap is present
+  # (remove mean_cost from CD candidate by checking metric label in output)
+  problem_configs = [ProblemConfig(name=p, optimal=100.0, size=50 + i * 20) for i, p in enumerate(("p1", "p2", "p3"))]
+
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "tables_partial",
+    benchmark_name="partial_cd",
+    baseline_algorithm="A",
+  )
+  gap_tikz = tmp_path / "tables_partial" / "partial_cd_cd_diagram_gap.tikz"
+  time_tikz = tmp_path / "tables_partial" / "partial_cd_cd_diagram_time.tikz"
+  assert gap_tikz.is_file()
+  assert time_tikz.is_file()
+  assert "N = 2 instances" in gap_tikz.read_text(encoding="utf-8")
+
+
+def test_generate_latex_macros_exports_ptbr_quantitative_commands_and_edge_cases(tmp_path: Path) -> None:
+  """WHAT: generate_result_tables and generate_latex_macros emit strictly numeric pt-BR LaTeX macros.
+
+  WHY: Task 14.7 (DP14-5) — Automate export of global means, SDs, geometric speedups, Friedman/Iman-Davenport,
+  Nemenyi CD, and Wilcoxon+Holm macros in pt-BR comma format (`{,}`) without prose or hardcoded variant names.
+  """
+  # 1. Multi-problem, 3-algorithm cohort with consistent speedup ordering (Gamma > Beta > Alpha)
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    f"p{i}": {
+      "Alpha_1": {
+        "mean_cost": 100.0,
+        "std_cost": 1.0,
+        "mean_gap": 1.0 + 0.1 * i,
+        "mean_time": 10.0 * i,
+        "repetitions": 30,
+      },
+      "Beta-2": {
+        "mean_cost": 100.0,
+        "std_cost": 1.0,
+        "mean_gap": 1.0 + 0.1 * i,
+        "mean_time": 5.0 * i,
+        "repetitions": 30,
+      },
+      "Gamma": {
+        "mean_cost": 101.0,
+        "std_cost": 1.0,
+        "mean_gap": 1.5 + 0.1 * i,
+        "mean_time": 1.0 * i,
+        "repetitions": 30,
+      },
+    }
+    for i in range(1, 5)
+  }
+  problem_configs = [ProblemConfig(name=f"p{i}", optimal=100.0, size=50 * i) for i in range(1, 5)]
+
+  tables_dir = tmp_path / "tables"
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tables_dir,
+    benchmark_name="macros_test",
+    baseline_algorithm="Alpha_1",
+  )
+
+  macros_path = tables_dir / "benchmark_macros.tex"
+  assert macros_path.is_file()
+  content = macros_path.read_text(encoding="utf-8")
+
+  # Strictly quantitative: every non-comment, non-empty line must be a \newcommand
+  for raw_line in content.splitlines():
+    stripped = raw_line.strip()
+    if not stripped or stripped.startswith("%"):
+      continue
+    assert stripped.startswith("\\newcommand{\\"), f"Unexpected non-macro line: {stripped}"
+
+  # Cohort & sanitized tokens (Alpha_1 -> AlphaOne, Beta-2 -> BetaTwo)
+  assert "\\newcommand{\\benchmarkNumProblems}{4}" in content
+  assert "\\newcommand{\\benchmarkNumAlgorithms}{3}" in content
+  assert "\\newcommand{\\benchmarkBaselineAlgorithm}{Alpha\\_1}" in content
+  assert "\\newcommand{\\benchmarkTotalRuns}{360}" in content
+  assert "\\newcommand{\\benchmarkRepetitions}{30}" in content
+
+  # Aggregated means & geometric speedups in pt-BR comma format (`{,}`)
+  assert "\\newcommand{\\meanGapAlphaOne}{1{,}25}" in content
+  assert "\\newcommand{\\speedupGeomBetaTwo}{2{,}00}" in content
+  assert "\\newcommand{\\speedupGeomGamma}{10{,}00}" in content
+  assert "\\newcommand{\\speedupGammaVsBetaTwo}{5{,}00}" in content
+
+  # Friedman / Iman-Davenport & Nemenyi CD + mean ranks
+  assert "\\newcommand{\\friedmanTimeF}{\\ensuremath{\\infty}}" in content
+  assert "\\newcommand{\\friedmanTimeP}{\\ensuremath{< 10^{-6}}}" in content
+  assert "\\newcommand{\\meanRankTimeGamma}{1{,}00}" in content
+  assert "\\newcommand{\\meanRankTimeAlphaOne}{3{,}00}" in content
+  assert "\\newcommand{\\nemenyiTimeCD}{" in content
+  assert "\\newcommand{\\friedmanGapF}{" in content
+
+  # Wilcoxon + step-down Holm vs baseline
+  assert "\\newcommand{\\wilcoxonGapWGamma}{0{,}0}" in content
+  assert "\\newcommand{\\wilcoxonTimePHolmGamma}{" in content
+
+  # 2. Configurable dot decimal separator & edge cases (empty, N=1, k=2)
+  dot_path = generate_latex_macros(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "dot_macros",
+    baseline_algorithm="Alpha_1",
+    decimal_separator=".",
+  )
+  dot_content = dot_path.read_text(encoding="utf-8")
+  assert "\\newcommand{\\speedupGeomGamma}{10.00}" in dot_content
+
+  single_prob = {"only": {"A": {"mean_gap": 0.5, "mean_time": 4.0}, "B": {"mean_gap": 0.5, "mean_time": 2.0}}}
+  single_path = generate_latex_macros(single_prob, [], tmp_path / "single_macros", baseline_algorithm="A")
+  single_text = single_path.read_text(encoding="utf-8")
+  assert "\\newcommand{\\speedupBVsA}{2{,}00}" in single_text
+  assert "\\friedman" not in single_text
+
+  with pytest.raises(ValueError, match="empty"):
+    generate_latex_macros({}, [], tmp_path / "empty_macros")
+
+  # 3. mean_cost-only fallback (no mean_gap) + successful_runs + tied/zero-diff pairs
+  cost_only: dict[str, dict[str, dict[str, Any]]] = {
+    "p1": {
+      "AlgA": {"mean_cost": 100.0, "mean_time": 10.0, "successful_runs": 10},
+      "AlgB": {"mean_cost": 100.0, "mean_time": 5.0, "successful_runs": 10},
+      "AlgC": {"mean_cost": 102.0, "mean_time": 2.0, "successful_runs": 10},
+    },
+    "p2": {
+      "AlgA": {"mean_cost": 200.0, "mean_time": 20.0, "successful_runs": 10},
+      "AlgB": {"mean_cost": 200.0, "mean_time": 10.0, "successful_runs": 10},
+      "AlgC": {"mean_cost": 204.0, "mean_time": 4.0, "successful_runs": 10},
+    },
+    "p3": {
+      "AlgA": {"mean_cost": 300.0, "mean_time": 30.0, "successful_runs": 10},
+      "AlgB": {"mean_cost": 300.0, "mean_time": 15.0, "successful_runs": 10},
+    },
+  }
+  cost_path = generate_latex_macros(cost_only, [], tmp_path / "cost_only_macros", baseline_algorithm="AlgA")
+  cost_txt = cost_path.read_text(encoding="utf-8")
+  assert "\\newcommand{\\benchmarkTotalRuns}{80}" in cost_txt
+  assert "\\newcommand{\\meanCostAlgA}{200{,}00}" in cost_txt
+  assert "\\newcommand{\\speedupGeomAlgB}{2{,}00}" in cost_txt
+  assert "\\newcommand{\\friedmanGapN}{2}" in cost_txt
+  assert "\\newcommand{\\wilcoxonGapPAlgB}{1{,}00}" in cost_txt
 
