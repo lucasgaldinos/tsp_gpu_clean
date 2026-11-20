@@ -1,0 +1,51 @@
+\chapter{Conclusões e Trabalhos Futuros}\label{cap6-conclusoes}
+
+Este capítulo sintetiza as conclusões frente aos objetivos formulados na \secref{sec-13-objetivo-geral}, destaca as principais contribuições do trabalho e propõe direções para trabalhos futuros.
+
+\section{Conclusões}\label{sec-61-conclusoes}
+
+Como arquiteturas de CPU e GPU possuem modelos de execução distintos, um algoritmo não pode ser implementado de maneira estritamente idêntica nas duas plataformas: cada variante exige otimizações próprias (como vetorização na CPU e distribuição de \emph{threads}, uso de memória compartilhada e operações com máscaras de bits na GPU).
+Para tornar a comparação justa dentro desse limite real, o estudo manteve comuns o núcleo do algoritmo memético AG+\(2\)-opt, os parâmetros globais e os critérios de parada, avaliando as quatro variantes em \totalinstancias\ instâncias da TSPLIB (de \(\menorinstancia\) a \(\maiorinstancia\) cidades) com \totalrepeticoes\ repetições pareadas (\capref{cap3-materiais-metodos}).
+
+Os resultados do \capref{cap4-resultados} mostram que a estratégia de paralelização determina fortemente o desempenho sem comprometer a qualidade das soluções.
+Na métrica de qualidade (\emph{gap}), o protocolo estatístico de \textcite{demsar2006statistical} confirmou equivalência entre todas as variantes (\(p = 0{,}4543\), com \emph{gaps} médios entre \(0{,}90\%\) e \(0{,}91\%\)).
+Já no tempo de execução, a variante \textbf{Totalmente em GPU} obteve o menor tempo em todas as \totalinstancias\ instâncias (ganho médio geométrico de \(71{,}03\times\) sobre a CPU e tempo médio global de \(2{,}46\)\,s), seguida pela \textbf{Híbrida Otimizada} (\(23{,}86\times\); \(5{,}16\)\,s) e pela \textbf{Híbrida Ingênua} (\(4{,}57\times\); \(23{,}09\)\,s), com superioridade estatisticamente significativa das versões em GPU frente à CPU (\(p_{\text{Holm}} < 0{,}001\)).
+
+A análise por etapa (\secref{sec-44-decomposicao-fases}) confirma ainda que reduzir o tráfego CPU--GPU é condição necessária, mas não suficiente, para extrair desempenho do acelerador: o ganho prático resulta da combinação entre baixa comunicação, \emph{kernels} bem estruturados e equilíbrio do ciclo evolutivo frente à Lei de Amdahl (como visto na inversão de gargalo para o cruzamento em CPU na Híbrida Otimizada).
+Por fim, embora o limite de VRAM não tenha sido atingido no conjunto avaliado, a literatura aponta que o crescimento quadrático da matriz densa tende a se tornar restritivo em problemas de porte muito maior \autocite{schulz2013gpu,oneil2015rethinking}, exigindo alternativas como cálculo sob demanda, fatiamento em memória compartilhada ou estratégias híbridas, ainda que em geral com menor eficiência temporal.
+
+\section{Contribuições}\label{sec-62-contribuicoes}
+
+As principais contribuições deste trabalho podem ser reunidas em quatro frentes:
+
+\begin{itemize}
+      \item
+            \textbf{Contribuição empírica:} uma comparação controlada de quatro estratégias de paralelização sobre o mesmo algoritmo memético (AG+\(2\)-opt), mantendo os mesmos parâmetros e critérios de parada para avaliar o impacto prático da organização dos dados e dos \emph{kernels} em GPU;
+      \item
+            \textbf{Contribuição metodológica:} um protocolo experimental reproduzível, com múltiplas repetições, sementes fixas e testes estatísticos não paramétricos adequados a comparações múltiplas;
+      \item
+            \textbf{Contribuição prática (ferramenta experimental):} um \emph{framework} modular em três camadas (algoritmos, orquestração e análise) que permite alternar implementações de CPU e GPU sob a mesma interface, com medição por etapa, contagem de transferências e registro estruturado dos experimentos; e
+      \item
+            \textbf{Contribuição analítica:} a caracterização do compromisso entre tempo, qualidade e comunicação em uma GPU de entrada, mostrando como os gargalos se deslocam entre busca local, transferências PCIe e cruzamento em CPU conforme a Lei de Amdahl.
+\end{itemize}
+
+\section{Trabalhos Futuros}\label{sec-64-trabalhos-futuros}
+
+Como desdobramento deste estudo, destacam-se cinco frentes de investigação:
+
+\begin{itemize}
+      \item
+            \textbf{Outros operadores genéticos e de busca local em GPU:} Este trabalho fixou operadores clássicos (OX, mutação por troca e busca local \(2\)-opt) para manter a comparação controlada. Um passo natural é investigar como operadores mais sofisticados de busca local e recombinação --- como \(3\)-opt, movimentos inspirados em Lin--Kernighan ou cruzamentos baseados em arestas, como o EAX \autocite{nagata2013powerful} --- se comportam quando adaptados para GPU, equilibrando ganho de qualidade e custo de paralelização.
+      \item
+            \textbf{Escalonamento para instâncias de grande porte e limites de memória:} Nas instâncias avaliadas (até \(\maiorinstancia\) cidades), o consumo de VRAM permaneceu muito abaixo da capacidade da placa. Resta avaliar empiricamente o desempenho quando o porte do problema ultrapassa os limites de memória compartilhada ou da VRAM, comparando estratégias como cálculo sob demanda, particionamento de dados e abordagens híbridas em instâncias com dezenas de milhares de cidades \autocite{schulz2013gpu,oneil2015rethinking}.
+      \item
+            \textbf{Extensão para variantes mais realistas de roteamento:} Estender a investigação para problemas mais próximos de aplicações industriais e logísticas --- como o TSP assimétrico (ATSP), o Problema de Roteamento de Veículos com Capacidade (CVRP) ou problemas com janelas de tempo --- permitirá verificar como restrições adicionais e desvios condicionais afetam o aproveitamento da GPU.
+      \item
+            \textbf{Generalização entre arquiteturas de \emph{hardware} e custo energético:} Repetir o protocolo em diferentes combinações de CPU (incluindo versões paralelizadas em múltiplos núcleos) e GPUs de gerações distintas, incorporando também a medição de consumo de energia, ajudará a delimitar quando o uso de GPU oferece melhor relação entre desempenho e custo computacional.
+      \item
+            \textbf{Comparação estatística sob abordagem bayesiana:} A análise conduzida neste trabalho é frequentista: ela verifica se há evidência para rejeitar a hipótese de equivalência, mas não estima a probabilidade de uma variante ser melhor que outra. Anos após o protocolo de 2006, o próprio Demšar e colaboradores passaram a defender uma abordagem bayesiana para a comparação de algoritmos, capaz de estimar diretamente a probabilidade de superioridade ou de equivalência prática entre métodos \autocite{benavoli2017time}.
+
+            Essa perspectiva substitui um veredito binário por uma distribuição de probabilidades, permite incorporar o custo de diferentes tipos de erro e dispensa um limiar fixo de significância; em contrapartida, exige definir previamente uma margem de equivalência prática e uma distribuição inicial sobre as diferenças.
+
+            Aplicar esse enfoque aos dados pareados deste trabalho permitiria relatar, para cada par de variantes, a probabilidade direta de uma ser mais rápida ou de ambas serem praticamente equivalentes em qualidade.
+\end{itemize}

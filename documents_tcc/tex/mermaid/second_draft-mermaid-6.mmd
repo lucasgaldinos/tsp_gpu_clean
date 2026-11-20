@@ -1,27 +1,25 @@
     flowchart TD
-    Start(["Início: Escolher Teste Estatístico"]) --> DataType{Tipo de Dado?}
+    Start(["Entrada: m_alg = 4 variantes em n_inst = 15 instâncias (n_reps = 30)"])
 
-    DataType -->|Contínuo| SampleSize{Tamanho da Amostra?}
-    DataType -->|Ordinal/Rankeado| NonParam[Testes Não-Paramétricos]:::nonparametric
-    DataType -->|Categórico| ChiSquare[Testes Qui-Quadrado]:::other
+    subgraph Local ["Nível 1: Comparações pareadas por instância"]
+      WInst["6 pares (2 a 2) sobre 30 sementes pareadas<br/>Teste de Wilcoxon + ajuste de Holm-Bonferroni"]
+    end
 
-    SampleSize -->|n < 20<br/>Amostra Pequena| SmallN[Obrigatório<br/>Teste de Normalidade]:::warning
-    SampleSize -->|20 <= n < 30<br/>Zona Cinzenta| MediumN[Recomendado<br/>Teste de Normalidade]:::decision
-    SampleSize -->|n >= 30<br/>Amostra Grande| LargeN[TCL Aplica-se<br/>Teste Recomendado]:::decision
+    subgraph Global ["Nível 2: Comparação global multi-instância (alpha = 0,05)"]
+      Friedman["Teste omnibus de Friedman (estatística F_F de Iman-Davenport)<br/>para qualidade (Gap %) e desempenho (Tempo / Speedup)"]
+      SigCheck{"p_F < 0,05?"}
+      Equiv["Sem evidência de diferença global entre variantes"]
+      Nemenyi["Pós-teste de Nemenyi (6 pares) e Diagrama de Diferença Crítica (CD)"]
+      CtrlHolm["Contraste vs. referência em CPU (3 pares):<br/>Wilcoxon pareado + ajuste de Holm-Bonferroni"]
+      Friedman --> SigCheck
+      SigCheck -->|"Não"| Equiv
+      SigCheck -->|"Sim"| Nemenyi
+      Friedman -.-> CtrlHolm
+    end
 
-    SmallN --> Normality{Shapiro-Wilk<br/>p >= 0.05?}:::decision
-    MediumN --> Normality
-    LargeN --> Normality
+    Start --> Local
+    Start --> Global
 
-    Normality -->|Normal| Parametric[Testes Paramétricos]:::parametric
-    Normality -->|Não-Normal| NonParam
-
-    Parametric --> Groups{Número de Grupos?}:::decision
-    Groups -->|1 grupo| OneSample[Teste t de uma amostra]:::parametric
-    Groups -->|2 grupos| TwoSample[Pareado ou Independente?]:::decision
-    Groups -->|>=3 grupos| ANOVA[ANOVA / Kruskal-Wallis]:::parametric
-
-    NonParam --> GroupsNP{Número de Grupos?}:::decision
-    GroupsNP -->|2 pareados| Wilcoxon[Wilcoxon Signed-Rank]:::nonparametric
-    GroupsNP -->|2 independentes| MannWhitney[Mann-Whitney U]:::nonparametric
-    GroupsNP -->|>=3 grupos| Friedman[Friedman / Kruskal-Wallis]:::nonparametric
+    Tradeoff(["Síntese estatística do compromisso Tempo vs. Qualidade"])
+    Local --> Tradeoff
+    Global --> Tradeoff

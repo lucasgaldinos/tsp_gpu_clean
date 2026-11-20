@@ -1,0 +1,298 @@
+\chapter{Resultados}\label{cap4-resultados}
+
+Este capítulo apresenta os resultados experimentais obtidos a partir da execução das quatro variantes do algoritmo memético AG+\(2\)-opt (CPU, híbrida ingênua, híbrida otimizada e totalmente em GPU) sobre o conjunto completo de \totalinstancias\ instâncias da TSPLIB.
+A análise é dividida em quatro partes principais:
+
+\begin{enumerate}
+  \item
+        uma avaliação detalhada por instância, destacando a progressão entre \(\menorinstancia\) e \(\maiorinstancia\) cidades (com a tabela integral das \totalinstancias\ instâncias no \apref{apendice-resultados});
+  \item
+        uma análise agregada sobre todo o conjunto avaliado, focada nas métricas de performance e qualidade das soluções;
+  \item
+        a aplicação dos testes estatísticos não paramétricos descritos no \capref{cap3-materiais-metodos}, acompanhada dos diagramas de diferença crítica (tempo e \emph{gap}) e da análise de escalonamento; e
+  \item
+        a divisão do tempo de execução entre as oito etapas do ciclo evolutivo e a análise de gargalos com base na Lei de Amdahl.
+\end{enumerate}
+
+\section{Resultados Experimentais}\label{sec-41-resultados-experimentais}
+
+Os experimentos foram conduzidos conforme o protocolo definido na \secref{sec-33-selecao-instancias}, com \totalrepeticoes\ repetições independentes pareadas (sementes \(\sementeinicial\) a \(\sementefinal\)) para cada par algoritmo--instância, totalizando \(\totalcombinacoes\) combinações e \(\totalexecucoes\) execuções registradas.
+Graças à busca local vetorizada associada à lista de candidatos \(k_{\text{viz}} = \kviz\), todas as quatro variantes foram executadas integralmente sobre todas as \totalinstancias\ instâncias selecionadas.
+
+As métricas primárias coletadas foram:
+
+\begin{itemize}
+  \item
+        \textbf{Tempo Médio de Execução (s):} Tempo total para completar a execução por repetição.
+  \item
+        \textbf{Gap Médio (\%):} Desvio percentual do custo da melhor solução encontrada em relação ao ótimo conhecido da instância.
+  \item
+        \textbf{Performance:} Razão entre o tempo de execução da variante de referência (CPU) e a variante avaliada.
+\end{itemize}
+
+\section{Análise por Instância}\label{sec-42-analise-por-instancia}
+
+A \tabref{tbl:results-detailed} reúne os resultados detalhados de sete instâncias selecionadas entre \(52\) e \(\maiorinstancia\) cidades (\texttt{berlin52}, \texttt{kroA100}, \texttt{d198}, \texttt{pr264}, \texttt{att532}, \texttt{si535} e \texttt{pr1002}); os valores completos de todas as \totalinstancias\ instâncias (de \(\menorinstancia\) a \(\maiorinstancia\) cidades) constam na \tabref{tbl:results-all-instances} do \apref{apendice-resultados}.
+
+  {\small
+    \setlength{\tabcolsep}{3pt}
+    \begin{longtable}[]{@{}
+        >{\raggedright\arraybackslash}p{0.11\linewidth}
+        >{\centering\arraybackslash}p{0.06\linewidth}
+        >{\raggedright\arraybackslash}p{0.23\linewidth}
+        >{\centering\arraybackslash}p{0.20\linewidth}
+        >{\centering\arraybackslash}p{0.09\linewidth}
+        >{\centering\arraybackslash}p{0.10\linewidth}
+        >{\centering\arraybackslash}p{0.10\linewidth}@{}}
+      \caption{Resultados detalhados por instância (seleção representativa)}\label{tbl:results-detailed} \\
+      \toprule
+      Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
+      \midrule
+      \endfirsthead
+      \toprule
+      Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
+      \midrule
+      \endhead
+      \bottomrule
+      \endlastfoot
+      \textbf{berlin52} & 52             & CPU               & \(7553{,}03 \pm 17{,}39\)     & \(0{,}15\)            & \(1{,}59\)      & \(1{,}00\times\)  \\*
+                        & 52             & Híbrida Ingênua   & \(7545{,}23 \pm 12{,}25\)     & \(0{,}04\)            & \(0{,}51\)      & \(3{,}12\times\)  \\*
+                        & 52             & Híbrida Otimizada & \(7545{,}23 \pm 12{,}25\)     & \(0{,}04\)            & \(0{,}08\)      & \(20{,}23\times\) \\*
+                        & 52             & Totalmente em GPU & \(7550{,}97 \pm 19{,}97\)     & \(0{,}12\)            & \(0{,}02\)      & \(75{,}03\times\) \\
+      \midrule
+      \textbf{kroA100}  & 100            & CPU               & \(21389{,}43 \pm 54{,}23\)    & \(0{,}50\)            & \(4{,}81\)      & \(1{,}00\times\)  \\*
+                        & 100            & Híbrida Ingênua   & \(21391{,}40 \pm 63{,}09\)    & \(0{,}51\)            & \(1{,}18\)      & \(4{,}06\times\)  \\*
+                        & 100            & Híbrida Otimizada & \(21391{,}40 \pm 63{,}09\)    & \(0{,}51\)            & \(0{,}19\)      & \(25{,}73\times\) \\*
+                        & 100            & Totalmente em GPU & \(21372{,}60 \pm 56{,}96\)    & \(0{,}43\)            & \(0{,}05\)      & \(94{,}86\times\) \\
+      \midrule
+      \textbf{d198}     & 198            & CPU               & \(15918{,}27 \pm 16{,}32\)    & \(0{,}88\)            & \(14{,}66\)     & \(1{,}00\times\)  \\*
+                        & 198            & Híbrida Ingênua   & \(15916{,}07 \pm 14{,}70\)    & \(0{,}86\)            & \(3{,}08\)      & \(4{,}76\times\)  \\*
+                        & 198            & Híbrida Otimizada & \(15916{,}07 \pm 14{,}70\)    & \(0{,}86\)            & \(0{,}55\)      & \(26{,}84\times\) \\*
+                        & 198            & Totalmente em GPU & \(15912{,}93 \pm 18{,}04\)    & \(0{,}84\)            & \(0{,}17\)      & \(88{,}62\times\) \\
+      \midrule
+      \textbf{pr264}    & 264            & CPU               & \(49552{,}43 \pm 71{,}20\)    & \(0{,}85\)            & \(23{,}62\)     & \(1{,}00\times\)  \\*
+                        & 264            & Híbrida Ingênua   & \(49551{,}47 \pm 98{,}13\)    & \(0{,}85\)            & \(4{,}81\)      & \(4{,}91\times\)  \\*
+                        & 264            & Híbrida Otimizada & \(49551{,}47 \pm 98{,}13\)    & \(0{,}85\)            & \(1{,}02\)      & \(23{,}15\times\) \\*
+                        & 264            & Totalmente em GPU & \(49527{,}90 \pm 80{,}20\)    & \(0{,}80\)            & \(0{,}34\)      & \(69{,}92\times\) \\
+      \midrule
+      \textbf{att532}   & 532            & CPU               & \(28000{,}10 \pm 83{,}69\)    & \(1{,}13\)            & \(158{,}24\)    & \(1{,}00\times\)  \\*
+                        & 532            & Híbrida Ingênua   & \(27981{,}53 \pm 57{,}22\)    & \(1{,}07\)            & \(29{,}33\)     & \(5{,}39\times\)  \\*
+                        & 532            & Híbrida Otimizada & \(27981{,}53 \pm 57{,}22\)    & \(1{,}07\)            & \(6{,}67\)      & \(23{,}73\times\) \\*
+                        & 532            & Totalmente em GPU & \(27999{,}93 \pm 78{,}55\)    & \(1{,}13\)            & \(3{,}39\)      & \(46{,}63\times\) \\
+      \midrule
+      \textbf{si535}    & 535            & CPU               & \(48903{,}20 \pm 21{,}15\)    & \(0{,}94\)            & \(84{,}19\)     & \(1{,}00\times\)  \\*
+                        & 535            & Híbrida Ingênua   & \(48900{,}00 \pm 23{,}95\)    & \(0{,}93\)            & \(10{,}97\)     & \(7{,}68\times\)  \\*
+                        & 535            & Híbrida Otimizada & \(48900{,}00 \pm 23{,}95\)    & \(0{,}93\)            & \(2{,}48\)      & \(33{,}99\times\) \\*
+                        & 535            & Totalmente em GPU & \(48909{,}00 \pm 18{,}43\)    & \(0{,}95\)            & \(1{,}23\)      & \(68{,}23\times\) \\
+      \midrule
+      \textbf{pr1002}   & 1002           & CPU               & \(263558{,}83 \pm 771{,}47\)  & \(1{,}74\)            & \(682{,}58\)    & \(1{,}00\times\)  \\*
+                        & 1002           & Híbrida Ingênua   & \(263288{,}90 \pm 954{,}07\)  & \(1{,}64\)            & \(115{,}35\)    & \(5{,}92\times\)  \\*
+                        & 1002           & Híbrida Otimizada & \(263288{,}90 \pm 954{,}07\)  & \(1{,}64\)            & \(25{,}55\)     & \(26{,}72\times\) \\*
+                        & 1002           & Totalmente em GPU & \(263409{,}57 \pm 1121{,}29\) & \(1{,}68\)            & \(14{,}03\)     & \(48{,}66\times\) \\
+    \end{longtable}
+  }
+
+Em \texttt{berlin52} (\(52\) cidades) e \texttt{kroA100} (\(100\) cidades), a variante \textbf{Totalmente em GPU} alcança os maiores ganhos sobre a CPU: \(75{,}03\times\) em \texttt{berlin52} (\(0{,}02\)\,s contra \(1{,}59\)\,s) e \(94{,}86\times\) em \texttt{kroA100} (\(0{,}05\)\,s contra \(4{,}81\)\,s).
+A \textbf{Híbrida Otimizada} fica em segundo lugar (\(20{,}23\times\) e \(25{,}73\times\)), bem à frente da \textbf{Híbrida Ingênua} (\(3{,}12\times\) e \(4{,}06\times\)).
+
+À medida que o número de cidades cresce em \texttt{d198} (\(198\)) e \texttt{pr264} (\(264\)), a mesma ordem de desempenho se mantém: a \textbf{Totalmente em GPU} termina em \(0{,}17\)\,s e \(0{,}34\)\,s (\(88{,}62\times\) e \(69{,}92\times\) mais rápida que a CPU), enquanto a \textbf{Híbrida Otimizada} leva \(0{,}55\)\,s e \(1{,}02\)\,s (\(26{,}84\times\) e \(23{,}15\times\)), superando a \textbf{Híbrida Ingênua} (\(3{,}08\)\,s e \(4{,}81\)\,s; \(4{,}76\times\) e \(4{,}91\times\)) por mais de quatro vezes e meia.
+Avançando para \texttt{att532} (\(532\)), \texttt{si535} (\(535\)) e \texttt{pr1002} (\(\maiorinstancia\)), o ganho em tempo absoluto fica ainda mais evidente: em \texttt{pr1002}, a \textbf{Totalmente em GPU} reduz o tempo médio de \(682{,}58\)\,s na CPU para \(14{,}03\)\,s (\(48{,}66\times\) mais rápida que a CPU, \(8{,}22\times\) que a Híbrida Ingênua com \(115{,}35\)\,s e \(1{,}82\times\) que a Híbrida Otimizada com \(25{,}55\)\,s).
+Em relação à qualidade das soluções, os \emph{gaps} permanecem praticamente iguais entre as variantes ao longo de toda a tabela --- em \texttt{pr1002}, por exemplo, eles ficam em \(1{,}74\%\) na CPU, \(1{,}64\%\) nas duas variantes híbridas (idênticas bit a bit nas \totalrepeticoes\ sementes) e \(1{,}68\%\) na Totalmente em GPU.
+
+\section{Análise Agregada, Testes Estatísticos e Escalonamento}\label{sec-43-analise-agregada}
+
+Ao agregar os resultados de todas as \totalinstancias\ instâncias, emergem padrões claros de desempenho que caracterizam o comportamento temporal e a qualidade das soluções.
+
+  {\setlength{\tabcolsep}{4pt}
+    \begin{longtable}[]{@{}
+        >{\raggedright\arraybackslash}p{0.24\linewidth}
+        >{\centering\arraybackslash}p{0.22\linewidth}
+        >{\centering\arraybackslash}p{0.21\linewidth}
+        >{\centering\arraybackslash}p{0.24\linewidth}@{}}
+      \caption{Médias agregadas sobre todas as \totalinstancias\ instâncias}\label{tbl:results-aggregated} \\
+      \toprule
+      Algoritmo         & Tempo médio (s)                & \emph{Gap} médio (\%) & Ganho rel. CPU (geom.)     \\
+      \midrule
+      \endfirsthead
+      \toprule
+      Algoritmo         & Tempo médio (s)                & \emph{Gap} médio (\%) & Ganho rel. CPU (geom.)     \\
+      \midrule
+      \endhead
+      \bottomrule
+      \endlastfoot
+      CPU               & \(129{,}13 \pm 206{,}27\)      & \(0{,}90 \pm 0{,}41\) & \(1{,}00\times\)           \\
+      Híbrida Ingênua   & \(23{,}09 \pm 35{,}83\)        & \(0{,}90 \pm 0{,}44\) & \(4{,}57\times\)           \\
+      Híbrida Otimizada & \(5{,}16 \pm 8{,}00\)          & \(0{,}90 \pm 0{,}44\) & \(23{,}86\times\)          \\
+      Totalmente em GPU & \(\mathbf{2{,}46 \pm 4{,}13}\) & \(0{,}91 \pm 0{,}46\) & \(\mathbf{71{,}03\times}\) \\
+    \end{longtable}
+  }
+
+A \tabref{tbl:results-aggregated} resume duas conclusões centrais sobre o comportamento empírico do algoritmo memético:
+
+\begin{enumerate}
+  \item
+        \textbf{A variante Totalmente em GPU obtém o menor tempo de execução:} Com ganho médio geométrico de \(71{,}03\times\) sobre a CPU, \(15{,}53\times\) sobre a Híbrida Ingênua e \(2{,}98\times\) sobre a Híbrida Otimizada (tempo médio global de \(2{,}46\)\,s contra \(129{,}13\)\,s da CPU), a versão residente em GPU confirma que manter a população, os operadores evolutivos e a busca local na VRAM traz três benefícios combinados: elimina o tráfego de rotas pelo barramento PCIe a cada geração, evita lançamentos individuais de \emph{kernels} e remove o gargalo dos operadores executados em CPU (sobretudo o cruzamento, detalhado na \secref{sec-44-decomposicao-fases}).
+        A Híbrida Otimizada fica em segundo lugar, com ganho geométrico de \(23{,}86\times\) sobre a CPU e \(5{,}22\times\) sobre a Híbrida Ingênua (\(5{,}16\)\,s contra \(23{,}09\)\,s; \(4{,}57\times\) sobre a CPU).
+  \item
+        \textbf{Equivalência na qualidade das soluções:} Com os mesmos parâmetros de busca local (\(\kappa = \maxpassadas\) varreduras e \(k_{\text{viz}} = \kviz\) candidatos), as quatro variantes atingem soluções com qualidade praticamente idêntica: os \emph{gaps} médios agregados ficam em \(0{,}90\% \pm 0{,}41\%\) na CPU, \(0{,}90\% \pm 0{,}44\%\) nas duas variantes híbridas e \(0{,}91\% \pm 0{,}46\%\) na Totalmente em GPU.
+\end{enumerate}
+
+Para verificar se as diferenças observadas são estatisticamente significativas, aplicou-se o protocolo não paramétrico da \secref{sec-34-protocolo-estatistico} \autocite{demsar2006statistical} sobre as médias por instância das \totalinstancias\ instâncias avaliadas.
+Na \textbf{qualidade da solução (\emph{gap} percentual)}, o teste de Friedman não identificou diferença estatística entre as quatro variantes (\(p = 0{,}4543 > 0{,}05\)).
+Os postos médios ficaram muito próximos --- \(2{,}30\) para ambas as híbridas, \(2{,}47\) para a Totalmente em GPU e \(2{,}93\) para a CPU ---, todos ligados pela mesma barra de equivalência na \figref{fig:cd-diagram-gap} (diferença crítica \(CD = 1{,}211\)).
+As comparações pareadas de cada variante em GPU contra a CPU (Wilcoxon com ajuste de Holm) confirmaram o mesmo resultado (\(p_{\text{Holm}} = 1{,}00\) em todos os casos).
+Conclui-se que a aceleração em GPU mantém intacta a qualidade das soluções.
+
+Já no \textbf{tempo de execução}, o teste de Friedman rejeitou a hipótese de igualdade (\(p < 0{,}001\)), refletindo uma ordem idêntica em todas as \totalinstancias\ instâncias: Totalmente em GPU sempre em primeiro lugar (posto médio \(1{,}00\)), Híbrida Otimizada em segundo (\(2{,}00\)), Híbrida Ingênua em terceiro (\(3{,}00\)) e CPU em quarto (\(4{,}00\)).
+No pós-teste de Nemenyi (\figref{fig:cd-diagram-time}, \(CD = 1{,}211\)), a diferença é estatisticamente significativa para todos os pares separados por pelo menos duas posições (Totalmente em GPU vs. CPU, Totalmente em GPU vs. Híbrida Ingênua e Híbrida Otimizada vs. CPU); pares vizinhos ficam a distância \(1{,}00\), abaixo do limiar conservador de \(1{,}211\) exigido quando se comparam todos os pares ao mesmo tempo.
+Por fim, nas comparações diretas contra a CPU via Wilcoxon com ajuste de Holm, todas as três variantes em GPU são estatisticamente mais rápidas (\(p_{\text{Holm}} < 0{,}001\)), tendo superado a CPU em \(\totalinstancias\) de \(\totalinstancias\) instâncias.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{max width=\linewidth}
+    \input{../../../results_v4/tables/chapter4_validation_cd_diagram_time.tikz}
+  \end{adjustbox}
+  \caption{Diagrama de diferença crítica de Demšar (pós-teste de Nemenyi, \(CD = 1{,}211\), \(\alpha = 0{,}05\)) para o \textbf{tempo de execução} nas \totalinstancias\ instâncias: ordenação idêntica em todas elas (\(p < 0{,}001\)).}\label{fig:cd-diagram-time}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{adjustbox}{max width=\linewidth}
+    \input{../../../results_v4/tables/chapter4_validation_cd_diagram_gap.tikz}
+  \end{adjustbox}
+  \caption{Diagrama de diferença crítica de Demšar (pós-teste de Nemenyi, \(CD = 1{,}211\), \(\alpha = 0{,}05\)) para a \textbf{qualidade da solução (\emph{gap} percentual)}: todas as variantes compõem uma única barra de equivalência estatística (\(F_F(3, 42) = 0{,}8897\), \(p = 0{,}4543\)).}\label{fig:cd-diagram-gap}
+\end{figure}
+
+A \figref{fig:scaling-time-gap} mostra como o tempo total de execução até o critério de parada (em escala logarítmica, painel superior) e o \emph{gap} percentual (painel inferior) evoluem conforme o número de cidades \(n\) cresce até \(\maiorinstancia\).
+Para cada instância, as curvas representam a mediana das \totalrepeticoes\ repetições e as faixas sombreadas indicam o intervalo onde ficam os \(50\%\) centrais das execuções (\(Q_{25}\text{--}Q_{75}\)), escolha que evita distorções causadas por execuções isoladas fora do padrão.
+O gráfico confirma visualmente os dois resultados principais: uma separação consistente em ordens de grandeza no tempo entre as variantes e curvas de \emph{gap} praticamente sobrepostas.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{../../../results_v4/figures/scaling_time_gap.pdf}
+  \caption{Evolução do tempo total de execução até a parada (escala logarítmica, painel superior) e do \emph{gap} percentual em relação ao ótimo da TSPLIB (painel inferior) conforme o número de cidades \(n\), exibindo a mediana e o intervalo dos \(50\%\) centrais (\(Q_{25}\text{--}Q_{75}\)) nas \totalrepeticoes\ repetições.}\label{fig:scaling-time-gap}
+\end{figure}
+
+Dois comportamentos pontuais chamam atenção na \figref{fig:scaling-time-gap} e na \tabref{tbl:results-detailed}:
+
+\begin{itemize}
+  \item
+        \textbf{Instâncias com menos de \(100\) cidades (queda de \emph{gap} em \texttt{berlin52} e custo fixo da GPU):} Ao passar de \texttt{eil51} (\emph{gap} médio de \(0{,}56\%\) a \(0{,}63\%\)) para \texttt{berlin52} (\(0{,}04\%\) a \(0{,}15\%\)), o erro cai abruptamente porque \texttt{berlin52} encontra o ótimo exato em \(95\) de \(\totalexecinstancia\) execuções (em média em menos de \(5\) gerações), enquanto \texttt{att48} e \texttt{eil51} costumam encerrar assim que atingem a tolerância de \(1\%\) (\(106\) e \(116\) de \(\totalexecinstancia\) execuções, respectivamente). No mesmo intervalo, a variante Totalmente em GPU leva menos de \(100\)\,ms em todas essas instâncias (de \(14{,}0\)\,ms em \texttt{att48} a \(42{,}7\)\,ms em \texttt{gr96}), patamar dominado pelo custo fixo de lançamento de \emph{kernels} e sincronização entre CPU e GPU (cerca de \(0{,}5\) a \(1{,}0\)\,ms por geração, conforme a \tabref{tbl:phase-timings} e a \tabref{tbl:phase-timings-all}).
+  \item
+        \textbf{Queda de tempo entre \texttt{att532} (\(n = 532\)) e \texttt{si535} (\(n = 535\)):} Apesar de \texttt{si535} ter três cidades a mais, seu tempo total é bem menor em todas as variantes (redução de \(46{,}8\%\) na CPU e de cerca de \(63\%\) nas versões em GPU, conforme a \tabref{tbl:results-detailed}), com ganho relativo maior para a GPU (\(68{,}23\times\) contra \(46{,}63\times\) em \texttt{att532}). Como o gráfico mede o tempo total até a parada --- e não o tempo de uma única geração ---, isso ocorre por dois motivos: (i) por ter matriz de distâncias explícita e favorável à busca, \texttt{si535} atinge a tolerância de \(1\%\) em todas as \(\totalrepeticoes\) repetições em cerca de \(63\) gerações, contra \(173\) a \(194\) gerações em \texttt{att532}; e (ii) como para ainda na fase inicial de melhorias, a CPU realiza mais varreduras efetivas por geração, enquanto a GPU mantém custo quase constante ao avaliar em paralelo os \(k_{\text{viz}} = \kviz\) vizinhos candidatos.
+\end{itemize}
+
+\section{Divisão do Tempo por Etapa e Análise de Gargalos}\label{sec-44-decomposicao-fases}
+
+Para explicar as diferenças de desempenho entre as arquiteturas sem depender apenas do tempo total, a \tabref{tbl:phase-timings} mostra a participação percentual de cada uma das oito etapas do ciclo evolutivo (\secref{apendice-telemetria}). Os valores de todas as \totalinstancias\ instâncias constam na \tabref{tbl:phase-timings-all} do \apref{apendice-resultados}.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Divisão percentual do tempo médio de execução entre as oito etapas do ciclo evolutivo (instâncias selecionadas)}\label{tbl:phase-timings}
+  {\footnotesize
+    \setlength{\tabcolsep}{3.0pt}
+    \begin{tabular}{@{}llrccccccccc@{}}
+      \toprule
+      Instância         & Algoritmo         & Tempo (ms) & Inic. & Sel. & Cruz. & Mut. & Aval. & BL   & Sobr. & Sinc. & Total \\
+      \midrule
+      \textbf{berlin52} & CPU               & 1594,1    & 0,1  & 0,0 & 3,2  & 0,0 & 0,0  & 96,5 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 510,7     & 0,2  & 0,1 & 10,5 & 0,1 & 0,2  & 88,7 & 0,1  & 0,0  & 99,9  \\
+                        & Híbrida Otimizada & 78,8      & 2,2  & 0,6 & 79,0 & 0,9 & 2,3  & 13,8 & 0,6  & 0,2  & 99,6  \\
+                        & Totalmente em GPU & 21,2      & 8,8  & 8,0 & 8,7  & 9,9 & 5,4  & 8,7  & 13,0 & 36,0 & 98,4  \\
+      \midrule
+      \textbf{kroA100}  & CPU               & 4805,8    & 0,0  & 0,0 & 2,5  & 0,0 & 0,0  & 97,3 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 1183,2    & 0,1  & 0,1 & 10,7 & 0,1 & 0,2  & 88,6 & 0,1  & 0,0  & 100,0 \\
+                        & Híbrida Otimizada & 186,8     & 1,1  & 0,6 & 73,1 & 0,8 & 1,8  & 21,6 & 0,6  & 0,2  & 99,7  \\
+                        & Totalmente em GPU & 50,7      & 3,6  & 5,6 & 6,1  & 7,3 & 3,6  & 6,0  & 7,7  & 59,0 & 99,0  \\
+      \midrule
+      \textbf{d198}     & CPU               & 14658,7   & 0,0  & 0,0 & 2,0  & 0,0 & 0,0  & 97,9 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 3079,6    & 0,1  & 0,1 & 12,0 & 0,1 & 0,3  & 87,2 & 0,1  & 0,0  & 100,0 \\
+                        & Híbrida Otimizada & 546,1     & 0,5  & 0,5 & 63,7 & 0,7 & 1,4  & 32,0 & 0,7  & 0,1  & 99,7  \\
+                        & Totalmente em GPU & 165,4     & 1,1  & 2,7 & 3,1  & 3,8 & 1,2  & 3,3  & 4,1  & 80,1 & 99,5  \\
+      \midrule
+      \textbf{pr264}    & CPU               & 23616,8   & 0,0  & 0,0 & 1,8  & 0,0 & 0,1  & 98,1 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 4813,3    & 0,1  & 0,1 & 14,4 & 0,2 & 0,4  & 84,6 & 0,1  & 0,0  & 100,0 \\
+                        & Híbrida Otimizada & 1020,2    & 0,4  & 0,5 & 60,9 & 0,7 & 1,3  & 35,3 & 0,7  & 0,1  & 99,8  \\
+                        & Totalmente em GPU & 337,7     & 0,7  & 2,1 & 2,5  & 3,0 & 0,9  & 2,6  & 3,2  & 84,7 & 99,7  \\
+      \midrule
+      \textbf{att532}   & CPU               & 158238,2  & 0,0  & 0,0 & 1,7  & 0,0 & 0,1  & 98,2 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 29333,2   & 0,0  & 0,1 & 10,9 & 0,1 & 0,5  & 88,1 & 0,1  & 0,0  & 100,0 \\
+                        & Híbrida Otimizada & 6667,0    & 0,1  & 0,5 & 52,5 & 0,6 & 1,0  & 44,4 & 0,7  & 0,1  & 99,8  \\
+                        & Totalmente em GPU & 3393,2    & 0,1  & 1,5 & 1,5  & 1,8 & 0,5  & 1,4  & 2,0  & 91,1 & 99,8  \\
+      \midrule
+      \textbf{si535}    & CPU               & 84187,4   & 0,0  & 0,0 & 1,2  & 0,0 & 0,1  & 98,7 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 10965,6   & 0,0  & 0,1 & 10,8 & 0,1 & 0,6  & 88,2 & 0,1  & 0,0  & 100,0 \\
+                        & Híbrida Otimizada & 2477,2    & 0,3  & 0,5 & 51,1 & 0,5 & 1,0  & 45,7 & 0,6  & 0,1  & 99,8  \\
+                        & Totalmente em GPU & 1234,0    & 0,4  & 1,7 & 1,6  & 1,9 & 0,6  & 1,7  & 2,1  & 89,7 & 99,7  \\
+      \midrule
+      \textbf{pr1002}   & CPU               & 682575,6  & 0,0  & 0,0 & 1,4  & 0,0 & 0,1  & 98,4 & 0,0  & 0,0  & 100,0 \\
+                        & Híbrida Ingênua   & 115353,9  & 0,0  & 0,1 & 9,2  & 0,1 & 0,7  & 89,7 & 0,2  & 0,0  & 100,0 \\
+                        & Híbrida Otimizada & 25548,3   & 0,0  & 0,5 & 40,7 & 0,4 & 0,8  & 56,6 & 0,8  & 0,1  & 99,9  \\
+                        & Totalmente em GPU & 14027,6   & 0,1  & 0,8 & 0,9  & 1,1 & 0,3  & 0,7  & 1,2  & 94,8 & 99,8  \\
+      \bottomrule
+    \end{tabular}
+  }
+  \par\smallskip
+  {\footnotesize \textit{Nota:} Valores das etapas e da coluna \textit{Total} expressos em \% do tempo médio de execução (\textit{Tempo}); \textit{Inic.}: inicialização, \textit{Sel.}: seleção, \textit{Cruz.}: cruzamento, \textit{Mut.}: mutação, \textit{Aval.}: avaliação, \textit{BL}: busca local \(2\)-opt, \textit{Sobr.}: sobrevivência, \textit{Sinc.}: sincronização CPU--GPU. Pequenas diferenças abaixo de \(100\%\) na coluna \textit{Total} correspondem ao tempo residual fora das etapas cronometradas (detalhado na \secref{apendice-telemetria}). Execuções abaixo de \(100\)\,ms sofrem influência do custo fixo de lançamento de \emph{kernels} (\(\approx 0{,}5\text{--}1{,}0\)\,ms).}
+\end{table}
+
+A leitura da \tabref{tbl:phase-timings}, em conjunto com o volume de transferências e lançamentos medido na \tabref{tbl:transfers-launches} (e os dados completos do \apref{apendice-resultados}), evidencia a mudança de gargalo prevista pela \textbf{Lei de Amdahl} \autocite{amdahl1967validity}:
+
+\begin{itemize}
+  \item
+        \textbf{CPU e Híbrida Ingênua (domínio da busca local):} Na CPU, a busca local \(2\)-opt (\textit{BL}) consome quase todo o tempo de execução --- de \(96{,}3\%\) a \(98{,}7\%\) (média de \(97{,}7\%\)) ---, enquanto o cruzamento (\textit{Cruz.}) ocupa apenas de \(1{,}2\%\) a \(3{,}5\%\). Na Híbrida Ingênua, mesmo com o \(2\)-opt rodando em GPU, lançar um \emph{kernel} e transferir cada rota separadamente pelo barramento PCIe mantém a busca local entre \(84{,}6\%\) e \(89{,}7\%\) do tempo total (média de \(87{,}8\%\)), com o cruzamento entre \(9{,}2\%\) e \(14{,}4\%\).
+  \item
+        \textbf{Híbrida Otimizada (inversão de gargalo entre cruzamento e busca local):} Ao agrupar toda a população em um único lançamento de \emph{kernel} por geração (\tabref{tbl:transfers-launches}), o tempo da busca local cai drasticamente (de \(103\,408{,}6\)\,ms para \(14\,406{,}3\)\,ms em \texttt{pr1002}). Com isso, pela Lei de Amdahl, a parte que permaneceu na CPU passa a dominar: o cruzamento por ordem (\textit{Cruz.}) sobe para \(40{,}7\%\) (\texttt{pr1002}) a \(79{,}5\%\) (\texttt{eil51}) do tempo total, com média de \(62{,}2\%\) no conjunto. Mesmo vetorizado em CPU, o cruzamento continua sendo a etapa mais cara até \(n = 666\) (\(52{,}4\%\)); somente nas duas maiores instâncias (\texttt{rat783}, com \(51{,}3\%\) de \textit{BL} contra \(45{,}8\%\) de \textit{Cruz.}, e \texttt{pr1002}, com \(56{,}6\%\) contra \(40{,}7\%\)) a busca local volta a liderar.
+  \item
+        \textbf{Totalmente em GPU (execução assíncrona e sincronização CPU--GPU):} Ao levar seleção, cruzamento, mutação e sobrevivência para a GPU, o gargalo de cruzamento em CPU desaparece (caindo para \(0{,}9\%\) a \(8{,}7\%\) do tempo medido na CPU). Isso explica o ganho adicional de \(5{,}20\times\) sobre a Híbrida Otimizada em \texttt{eil51} --- onde o cruzamento consumia \(79{,}5\%\) do tempo ---, ganho que se reduz para \(1{,}82\times\) em \texttt{pr1002}, onde a busca local já representava \(56{,}6\%\), exatamente como prevê a Lei de Amdahl. Como todos os \emph{kernels} de cada geração são enfileirados de forma assíncrona em microssegundos, entre \(36{,}0\%\) e \(94{,}8\%\) do tempo medido no relógio da CPU aparece na coluna \textit{Sinc.} --- o ponto ao final da geração em que a CPU aguarda a GPU concluir o trabalho para checar o critério de parada (com a coluna \textit{Total} entre \(98{,}3\%\) e \(100{,}0\%\), conforme a \secref{apendice-telemetria}).
+\end{itemize}
+
+Para quantificar diretamente o tráfego CPU--GPU e a frequência de chamadas de \emph{kernel} por trás desses perfis temporais, a \tabref{tbl:transfers-launches} apresenta as médias por repetição nas sete instâncias selecionadas (os valores das \totalinstancias\ instâncias constam na \tabref{tbl:transfers-launches-all} do \apref{apendice-resultados}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Volume médio de transferências pelo barramento PCIe e número médio de lançamentos de \emph{kernel} por repetição (instâncias selecionadas)}\label{tbl:transfers-launches}
+  {\footnotesize
+    \setlength{\tabcolsep}{4.5pt}
+    \begin{tabular}{@{}llrrrr@{}}
+      \toprule
+      Instância         & Algoritmo         & CPU\(\to\)GPU (MB) & GPU\(\to\)CPU (MB) & Total PCIe (MB) & Lançamentos \\
+      \midrule
+      \textbf{berlin52} & Híbrida Ingênua   & \(0{,}31\)         & \(0{,}26\)         & \(0{,}57\)      & \(12\,373\)     \\
+                        & Híbrida Otimizada & \(0{,}60\)         & \(0{,}27\)         & \(0{,}87\)      & \(54\)          \\
+                        & Totalmente em GPU & \(0{,}14\)         & \(0{,}00\)         & \(0{,}14\)      & \(67\)          \\
+      \midrule
+      \textbf{kroA100}  & Híbrida Ingênua   & \(1{,}49\)         & \(1{,}06\)         & \(2{,}55\)      & \(26\,624\)     \\
+                        & Híbrida Otimizada & \(2{,}36\)         & \(1{,}09\)         & \(3{,}45\)      & \(115\)         \\
+                        & Totalmente em GPU & \(0{,}35\)         & \(0{,}00\)         & \(0{,}35\)      & \(150\)         \\
+      \midrule
+      \textbf{d198}     & Híbrida Ingênua   & \(9{,}34\)         & \(5{,}26\)         & \(14{,}60\)     & \(66\,389\)     \\
+                        & Híbrida Otimizada & \(11{,}21\)        & \(5{,}31\)         & \(16{,}52\)     & \(286\)         \\
+                        & Totalmente em GPU & \(0{,}98\)         & \(0{,}00\)         & \(0{,}98\)      & \(362\)         \\
+      \midrule
+      \textbf{pr264}    & Híbrida Ingênua   & \(22{,}54\)        & \(11{,}08\)        & \(33{,}62\)     & \(104\,960\)    \\
+                        & Híbrida Otimizada & \(23{,}30\)        & \(11{,}17\)        & \(34{,}47\)     & \(452\)         \\
+                        & Totalmente em GPU & \(1{,}55\)         & \(0{,}00\)         & \(1{,}55\)      & \(532\)         \\
+      \midrule
+      \textbf{att532}   & Híbrida Ingênua   & \(297{,}18\)       & \(96{,}53\)        & \(393{,}72\)    & \(453\,632\)    \\
+                        & Híbrida Otimizada & \(197{,}05\)       & \(96{,}90\)        & \(293{,}95\)    & \(1\,950\)      \\
+                        & Totalmente em GPU & \(6{,}17\)         & \(0{,}00\)         & \(6{,}17\)      & \(2\,723\)      \\
+      \midrule
+      \textbf{si535}    & Híbrida Ingênua   & \(106{,}06\)       & \(34{,}31\)        & \(140{,}38\)    & \(160\,341\)    \\
+                        & Híbrida Otimizada & \(72{,}65\)        & \(34{,}44\)        & \(107{,}09\)    & \(690\)         \\
+                        & Totalmente em GPU & \(4{,}73\)         & \(0{,}00\)         & \(4{,}73\)      & \(883\)         \\
+      \midrule
+      \textbf{pr1002}   & Híbrida Ingênua   & \(2\,669{,}68\)    & \(543{,}26\)       & \(3\,212{,}94\) & \(1\,355\,435\) \\
+                        & Híbrida Otimizada & \(1\,099{,}67\)    & \(544{,}34\)       & \(1\,644{,}02\) & \(5\,825\)      \\
+                        & Totalmente em GPU & \(18{,}69\)        & \(0{,}00\)         & \(18{,}69\)     & \(6\,880\)      \\
+      \bottomrule
+    \end{tabular}
+  }
+  \par\smallskip
+  {\footnotesize \textit{Nota:} Médias sobre as \totalrepeticoes\ repetições. A variante CPU não aparece na tabela por não realizar transferências PCIe nem lançamentos de \emph{kernel} (\(0{,}00\)\,MB e \(0\) lançamentos). Eventuais diferenças de \(0{,}01\)\,MB no total decorrem do arredondamento a duas casas decimais.}
+\end{table}
+
+Os números da \tabref{tbl:transfers-launches} evidenciam dois contrastes diretos entre as variantes em GPU.
+Primeiro, a Híbrida Otimizada reduz o número de lançamentos em cerca de \(230\times\) frente à Híbrida Ingênua em todas as instâncias (por exemplo, de \(1\,355\,435\) para \(5\,825\) em \texttt{pr1002}), cortando o volume transferido em aproximadamente metade nas instâncias maiores --- e mesmo em \texttt{berlin52} a \texttt{pr264}, onde o volume total em MB é ligeiramente superior ao da Ingênua, a queda drástica nos lançamentos já assegura tempos mais de \(4{,}5\times\) menores (\tabref{tbl:results-detailed}).
+Segundo, a variante Totalmente em GPU elimina o retorno de rotas para a CPU (\(0{,}00\)\,MB em GPU\(\to\)CPU) e restringe o envio inicial a \(0{,}14\)\,MB (\texttt{berlin52}) até \(18{,}69\)\,MB (\texttt{pr1002}) --- uma redução de \(172\times\) frente à Híbrida Ingênua e de \(88\times\) frente à Híbrida Otimizada em \texttt{pr1002} ---, com um número ligeiramente maior de lançamentos que a Híbrida Otimizada apenas porque os operadores evolutivos também executam na placa.
+As implicações arquiteturais desses perfis de comunicação e memória são discutidas no \capref{sec:discussao}.

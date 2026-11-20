@@ -546,15 +546,15 @@ Esses estudos motivam o uso de GPUs como plataforma para acelerar algoritmos mem
 
 As figuras \ref{fig:cpu-gpu-contrast}, \ref{fig:cpu-gpu-detail} e \ref{fig:gpu-internal} ajudam a visualizar, de forma simples, como CPUs e GPUs foram pensadas para resolver problemas diferentes. De maneira geral, CPUs têm poucos núcleos mais complexos e flexíveis. Uma parte grande da área do chip é usada para controle de fluxo, previsão de desvios e vários níveis de cache, o que favorece programas sequenciais, com muitas decisões e acesso irregular à memória. Nas GPUs acontece o contrário: a maior parte da área é ocupada por muitas unidades aritméticas simples (ALUs), organizadas em centenas ou milhares de núcleos em paralelo. Elas abrem mão de um controle sofisticado para ganhar vazão (*throughput*) quando muitas threads executam a mesma sequência de instruções sobre dados diferentes. Essa diferença é o motivo pelo qual GPUs funcionam bem para tarefas com muito paralelismo em dados, como avaliar muitas rotas de uma vez ou aplicar $2$-opt em vários indivíduos em paralelo.
 
-![Comparação simplificada entre arquitetura de CPU e GPU. Fonte: @layerstack2023cpugpu.](../../assets/image-1.png){#fig:cpu-gpu-contrast width=80%}
+![Comparação simplificada entre arquitetura de CPU e GPU. Fonte: @layerstack2023cpugpu.](../../../assets/image-1.png){#fig:cpu-gpu-contrast width=80%}
 
 A Figura~\ref{fig:cpu-gpu-detail} mostra esse contraste na divisão da área do chip. Em uma CPU típica, poucos núcleos complexos dividem espaço com grandes caches e lógica de controle. Em uma GPU, o desenho é o inverso: a maior parte da área é dedicada a conjuntos de núcleos de processamento paralelos (por exemplo, *CUDA cores* em GPUs NVIDIA ou *stream processors* em GPUs AMD) e à memória de alta largura de banda. O controle é mais simples, mas o número de operações por segundo é muito maior quando o problema é bem mapeado para esse tipo de arquitetura [@paz2011gpucpuimage].
 
-![Alocação de silício em CPU e GPU. Adaptado de @paz2011gpucpuimage.](../../assets/image-2.png){#fig:cpu-gpu-detail width=80%}
+![Alocação de silício em CPU e GPU. Adaptado de @paz2011gpucpuimage.](../../../assets/image-2.png){#fig:cpu-gpu-detail width=80%}
 
 A Figura~\ref{fig:gpu-internal} resume como esses recursos aparecem na organização interna de uma GPU moderna. A memória global (DRAM) oferece grande largura de banda, mas latência alta; cada *streaming multiprocessor* (SM) possui memórias compartilhadas menores e registradores, usados pelas threads de um mesmo bloco. As threads são agrupadas em *warps* (tipicamente 32 threads nas GPUs NVIDIA) que executam a mesma instrução ao mesmo tempo, seguindo o modelo SIMT [@shah2023gpuarchitectureimage]. Quando as threads de um warp seguem caminhos de controle diferentes ou acessam a memória de forma muito irregular, parte dessa paralelização é perdida; quando o acesso é organizado e o fluxo de controle é parecido, o ganho de desempenho é grande.
 
-![Organização interna de GPU moderna e modelo de programação CUDA. Adaptado de @shah2023gpuarchitectureimage.](../../assets/image-3.png){#fig:gpu-internal width=80%}
+![Organização interna de GPU moderna e modelo de programação CUDA. Adaptado de @shah2023gpuarchitectureimage.](../../../assets/image-3.png){#fig:gpu-internal width=80%}
 
 Essas três figuras servem como pano de fundo para as decisões de projeto dos kernels CUDA apresentados no Capítulo 3: explorar paralelismo em dados (tipo 1) mapeando threads para indivíduos ou movimentos $2$-opt, evitar ao máximo divergência dentro de um mesmo warp e organizar as leituras e gravações de memória global para aproveitar melhor a largura de banda disponível.
 
@@ -618,7 +618,7 @@ O desempenho computacional é estritamente limitado pelas fronteiras físicas do
 
 ### 3.1.2 Ambiente de software {#sec-312-ambiente-software}
 
-O framework foi desenvolvido em **python 3.10**, utilizando um conjunto de bibliotecas selecionadas para garantir a equivalência funcional entre as implementações em CPU e GPU:
+O framework foi desenvolvido em **python 3.12**, utilizando um conjunto de bibliotecas selecionadas para garantir a equivalência funcional entre as implementações em CPU e GPU:
 
 - **NumPy**: Utilizado para a implementação de referência em CPU (GA-CPU).
 - **CuPy**: Utilizado para as implementações aceleradas (Híbridas e FullGPU). A compatibilidade de API entre CuPy e NumPy foi fundamental para assegurar que a lógica dos algoritmos permanecesse idêntica ("isoalgorítmica"), alterando apenas o *backend* de execução.
@@ -648,7 +648,7 @@ classDiagram
 
     class Orchestration {
         +run_benchmark()
-        +manage_checkpoints()
+        +save_checkpoint()
     }
 
     class GeneticAlgorithmBase {

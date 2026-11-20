@@ -1,4 +1,5 @@
 \RequirePackage{listings, listingsutf8}
+\RequirePackage{indentfirst}
 
 % avoid error with foreign title
 \ifthenelse{\equal{\ABNTEXisarticle}{true}}{
@@ -9,9 +10,9 @@
 % \makeindex
 % commented off because no need when article
 
-% set margins size
-\setlrmarginsandblock{3cm}{3cm}{*}
-\setulmarginsandblock{3cm}{3cm}{*}
+% set margins size (ABNT NBR 14724 / BU-UFSC: 3 cm superior/esquerda, 2 cm inferior/direita)
+\setlrmarginsandblock{3cm}{2cm}{*}
+\setulmarginsandblock{3cm}{2cm}{*}
 \checkandfixthelayout
 
 % set paragraph and line size
@@ -21,8 +22,8 @@
 % Paragraph skip size:
 \setlength{\parskip}{0.2cm}  % tente também \onelineskip
 
-% simple spacing settings
-\SingleSpacing
+% line spacing settings (ABNT NBR 14724 / BU-UFSC: espaçamento 1,5 no corpo do texto)
+\OnehalfSpacing
 
 % Change enumerate configurations
 \setlist[enumerate]{
@@ -111,16 +112,18 @@
 			\begin{minipage}{.5\textwidth}
 				\SingleSpacing
 				\imprimirpreambulo
+				\abntex@ifnotempty{\imprimirorientador}{%
+					\vspace{\onelineskip}\par
+					\imprimirorientadorRotulo~\imprimirorientador
+				}%
+				\abntex@ifnotempty{\imprimircoorientador}{%
+					\par
+					\imprimircoorientadorRotulo~\imprimircoorientador
+				}%
 			\end{minipage}%
 			\vspace*{\fill}
 		}%
 
-		% {\abntex@ifnotempty{\imprimirinstituicao}{\imprimirinstituicao\vspace*{\fill}}}
-
-		% {\large\imprimirorientadorRotulo~\imprimirorientador\par}
-		% \abntex@ifnotempty{\imprimircoorientador}{%
-		%   {\large\imprimircoorientadorRotulo~\imprimircoorientador}%
-		% }%
 		\vspace*{\fill}
 
 		{\large\imprimirlocal}

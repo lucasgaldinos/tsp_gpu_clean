@@ -1,33 +1,32 @@
     flowchart TD
-    %% Nodes
-    Start([Início: Análise de Resultados])
+    Start(["Início: Conjunto Completo<br/>(m_alg = 4 variantes em n_inst = 15 instâncias)"])
 
-    subgraph S1 ["Estrato 1: Pequenos (n_coords < 100)"]
-    S1_Test[Friedman Test]
-    S1_Result{p = 0.086}
-    S1_Conc[Inconclusivo<br/>Poder Estatístico Baixo]
+    subgraph Qual ["Avaliação de Qualidade (Gap %)"]
+    Friedman["Teste Omnibus de Friedman<br/>(estatística F_F de Iman–Davenport)"]
+    FriedmanSig{"p_F < 0,05?"}
+    Nemenyi["Pós-teste de Nemenyi (todos os pares):<br/>diagrama CD e valores-p ajustados"]
+    NoQualDiff["Qualidade global estatisticamente equivalente"]
+    WilcoxonQual["Wilcoxon pareado + Holm–Bonferroni<br/>(comparações contra o controle em CPU)"]
+    Friedman --> FriedmanSig
+    FriedmanSig -->|"Sim"| Nemenyi
+    FriedmanSig -->|"Não"| NoQualDiff
+    Start --> Friedman
+    Start --> WilcoxonQual
     end
 
-    subgraph S2 ["Estrato 2: Todos GPU-Only"]
-    S2_Test[Friedman Test]
-    S2_Result{p < 0.001}
-    S2_Nemenyi[Nemenyi Post-Hoc]
-    S2_Conc["Totalmente em GPU > híbridas<br/>(Diferença Significativa)"]
+    subgraph Perf ["Avaliação de Desempenho e Telemetria"]
+    Speedup["Ganho de velocidade:<br/>média geométrica dos speedups pareados vs. CPU"]
+    WilcoxonPerf["Wilcoxon pareado + Holm–Bonferroni (vs. CPU)<br/>(IC de Hodges–Lehmann e efeito bisserial por postos)"]
+    Phases["Decomposição temporal em 8 fases<br/>e contadores H2D / D2H / lançamentos"]
+    Start --> Speedup
+    Start --> WilcoxonPerf
+    Start --> Phases
     end
 
-    subgraph Perf [Performance & Speedup]
-    Speedup_HO[Híbrida Otimizada: ~5.69×]
-    Speedup_FG[Totalmente em GPU: ~1.2x]
-    Tradeoff[Trade-off: Híbrida Otimizada = Velocidade<br/>Totalmente em GPU = Qualidade]
-    end
-
-    %% Flow
-    Start --> S1
-    S1_Test --> S1_Result -->|Não Sig.| S1_Conc
-
-    Start --> S2
-    S2_Test --> S2_Result -->|Sig.| S2_Nemenyi --> S2_Conc
-
-    S2_Conc -.-> Tradeoff
-    Speedup_HO --> Tradeoff
-    Speedup_FG --> Tradeoff
+    Tradeoff(["Síntese do Trade-off Tempo × Qualidade"])
+    Nemenyi --> Tradeoff
+    NoQualDiff --> Tradeoff
+    WilcoxonQual --> Tradeoff
+    Speedup --> Tradeoff
+    WilcoxonPerf --> Tradeoff
+    Phases --> Tradeoff

@@ -2,50 +2,76 @@
     direction TB
 
     class Orchestration {
-        +run_benchmark()
-        +manage_checkpoints()
+        <<module>>
+        +run_comprehensive_benchmark()
       }
 
-    class GeneticAlgorithmBase {
-        <<Abstract>>
-        #population_size: int
-        #mutation_rate: float
-        #tournament_size: int
-        #two_opt_iterations: int
+    class CheckpointManager {
+        +checkpoint_dir: Path
+        +ensure_directories()
+        +get_checkpoint_path()
+        +list_checkpoints()
+      }
+
+    class CheckpointIO {
+        <<module>>
+        +is_valid_checkpoint()
+        +can_resume_checkpoint()
+        +get_remaining_repetitions()
+      }
+
+    class GeneticAlgorithm {
+        +population_size: int
+        +mutation_rate: float
         +evolve()
-        #_initialize_population()
-        #_select_parents()
-        #_create_offspring()
-        #_survival_selection()
-        #_improve_population()*
-        #_evaluate_population()*
+        +timer: PhaseTimer
+        -initialization
+        -selection
+        -crossover
+        -mutation
+        -local_search
+        -evaluation
       }
 
-    class GeneticAlgorithmCPU {
-        #_improve_population()
-        #_evaluate_population()
+    class InitializationStrategy {
+        <<Protocol>>
+        +initialize()
       }
 
-    class GeneticAlgorithmHybridNaive {
-        #_improve_population()
-        #_evaluate_population()
+    class SelectionStrategy {
+        <<Protocol>>
+        +select()
       }
 
-    class GeneticAlgorithmHybridOptimized {
-        #_improve_population()
-        #_evaluate_population()
+    class CrossoverStrategy {
+        <<Protocol>>
+        +crossover()
       }
 
-    class GeneticAlgorithmFullGPU {
-        #_improve_population()
-        #_evaluate_population()
+    class MutationStrategy {
+        <<Protocol>>
+        +mutate()
       }
 
-    Orchestration --> GeneticAlgorithmBase : Instantiates & Runs
+    class LocalSearchStrategy {
+        <<Protocol>>
+        +improve()
+        +improve_batch()
+      }
 
-    GeneticAlgorithmBase <|-- GeneticAlgorithmCPU
-    GeneticAlgorithmBase <|-- GeneticAlgorithmHybridNaive
-    GeneticAlgorithmBase <|-- GeneticAlgorithmHybridOptimized
-    GeneticAlgorithmBase <|-- GeneticAlgorithmFullGPU
+    class EvaluationStrategy {
+        <<Protocol>>
+        +evaluate()
+      }
 
-    note for GeneticAlgorithmBase "Padrão Template Method:<br>Define fluxo fixo (evolve),<br>subclasses implementam backends<br>de execução específicos (*)"
+    Orchestration --> CheckpointManager : Uses
+    Orchestration --> CheckpointIO : Calls
+    Orchestration --> GeneticAlgorithm : Instantiates & Runs
+    GeneticAlgorithm o--> InitializationStrategy
+    GeneticAlgorithm o--> SelectionStrategy
+    GeneticAlgorithm o--> CrossoverStrategy
+    GeneticAlgorithm o--> MutationStrategy
+    GeneticAlgorithm o--> LocalSearchStrategy
+    GeneticAlgorithm o--> EvaluationStrategy
+
+    note for GeneticAlgorithm "Composição de estratégias:<br>a variante escolhe quais implementações<br>ocupam as seis etapas; não há subclasses.<br>As etapas de CPU e de GPU compartilham o mesmo contrato."

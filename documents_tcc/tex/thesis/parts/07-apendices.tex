@@ -1,0 +1,419 @@
+\chapter{Arquitetura do \emph{framework} e reprodutibilidade}\label{apendice-framework}
+
+Este apêndice descreve como o código está organizado, o que cada execução registra e como um experimento pode ser reproduzido.
+É material de apoio: o argumento e o método estão nos \hyperref[cap2-revisao-bibliografica]{Capítulos~\ref*{cap2-revisao-bibliografica}} a~\hyperref[cap6-conclusoes]{\ref*{cap6-conclusoes}}.
+
+\section{Organização do código}\label{apendice-organizacao}
+
+O código está dividido em pacotes com responsabilidades separadas:
+
+\begin{itemize}
+  \item
+        \textbf{carregamento:} lê instâncias da TSPLIB e do banco de dados, valida o tipo de peso de aresta e verifica a consistência dimensional das coordenadas (2D ou 3D);
+  \item
+        \textbf{distâncias:} constrói e armazena as matrizes de distância, com arredondamento e conversão para inteiros de 32 bits segundo a convenção da TSPLIB;
+  \item
+        \textbf{algoritmos:} o algoritmo genético e as implementações de cada etapa --- inicialização, seleção, cruzamento, mutação, busca local e avaliação ---, com versões de CPU e de GPU atrás do mesmo contrato de chamada;
+  \item
+        \textbf{execução:} orquestra as repetições, grava os resultados parciais e retoma execuções interrompidas;
+  \item
+        \textbf{análise:} estatística descritiva, testes de hipótese, tabelas e diagramas de diferença crítica;
+  \item
+        \textbf{utilitários:} vetorização, medição de tempo, geração de números aleatórios e registro de mensagens.
+\end{itemize}
+
+A separação permite trocar a implementação de uma única etapa sem tocar nas demais, que é o que torna possível comparar as quatro variantes usando o mesmo algoritmo.
+
+\section{Registros de execução}\label{apendice-registros}
+
+Cada par algoritmo--instância produz um arquivo de resultados em formato textual, gravado ao final de \emph{cada} repetição, e não ao final do par.
+A gravação é atômica: o conteúdo é escrito em um arquivo temporário, sincronizado em disco e só então renomeado sobre o destino.
+Uma interrupção no meio de uma repetição deixa, portanto, o último estado consistente no lugar, e a execução pode ser retomada sem repetir trabalho já concluído e sem duplicar sementes.
+
+O arquivo registra o resumo estatístico (número de execuções bem-sucedidas, média, desvio padrão, mínimo e máximo de tempo e de custo), as séries brutas por repetição (custo, tempo, \emph{gap}, semente e número de gerações executadas), a telemetria por fase descrita na \secref{apendice-telemetria} e os metadados da configuração: identificação da instância, soma de verificação do arquivo de origem, parâmetros do algoritmo e implementação usada em cada etapa.
+
+\section{Base de dados de resultados}\label{apendice-banco}
+
+Os registros são consolidados em um banco DuckDB, em uma única tabela de execuções (\texttt{benchmark\_runs}) na qual as séries por repetição são armazenadas em colunas vetoriais e a telemetria e as configurações em campos JSON.
+A consolidação é idempotente pela chave natural formada por instância e algoritmo: reimportar o mesmo resultado substitui o registro anterior dentro de uma única transação, em vez de acumular duplicatas.
+Isso permite reimportar toda a pasta de resultados depois de uma recoleta sem limpar o banco manualmente, e garante que uma falha durante a escrita não deixe o banco em estado parcial.
+
+\section{Telemetria por fase}\label{apendice-telemetria}
+
+Cada repetição registra o tempo de oito etapas do ciclo evolutivo --- inicialização, seleção, cruzamento, mutação, avaliação, busca local, sobrevivência e sincronização com a CPU ---, além do volume transferido em cada direção entre CPU e GPU e do número de lançamentos de \emph{kernel}.
+Os tempos são medidos no relógio da CPU, o que inclui o custo de lançamento das operações assíncronas e é a métrica relevante para comparar variantes do ponto de vista de quem executa o algoritmo; a medição por eventos no dispositivo existe como opção, mas impõe uma barreira de sincronização a cada chamada e por isso não é usada na coleta.
+O total das etapas é comparado ao tempo total de execução de cada configuração, e a diferença residual mede o custo que não é atribuído a nenhuma etapa isolada.
+
+\section{Roteiro de reprodução}\label{apendice-reproducao}
+
+A reprodução de um experimento segue cinco passos:
+
+\begin{enumerate}
+  \item
+        obter as instâncias da TSPLIB e carregá-las no banco de instâncias, que valida formato e tipo de peso de aresta na entrada;
+  \item
+        escolher o conjunto de instâncias, as variantes e o número de repetições;
+  \item
+        executar o orquestrador, que grava um arquivo por par algoritmo--instância e retoma do último ponto em caso de interrupção;
+  \item
+        consolidar os resultados no banco de resultados;
+  \item
+        gerar as tabelas e os diagramas a partir do banco consolidado.
+\end{enumerate}
+
+As sementes são determinísticas: cada repetição usa a semente base somada ao índice da repetição, de modo que a repetição \(r\) de um par pode ser reproduzida isoladamente.
+No diretório \path{benchmark_scripts/} do repositório, essas etapas são acionadas por três pontos de entrada principais: \path{run_chapter4_benchmark.py} (orquestração da coleta e geração das tabelas e gráficos), \path{import_checkpoints.py} (consolidação no DuckDB) e \path{validate_consistency.py} (verificação de consistência entre os arquivos de saída e o banco).
+Como os tempos absolutos dependem do ambiente de execução, as versões de sistema operacional, biblioteca de GPU, compilador e placa utilizadas na coleta estão documentadas na \secref{sec-31-ambiente-framework}.
+
+\section{Tabela integral de resultados nas \totalinstancias\ instâncias}\label{apendice-resultados}
+
+Para reprodutibilidade e inspeção completa do conjunto experimental (\totalinstancias\ instâncias \(\times\) \(\totalvariantes\) variantes, \(\totalrepeticoes\) repetições pareadas com sementes \(\sementeinicial\) a \(\sementefinal\)), a \tabref{tbl:results-all-instances}, a \tabref{tbl:phase-timings-all} e a \tabref{tbl:transfers-launches-all} reúnem os resultados agregados, a divisão temporal em oito etapas e os volumes de transferência PCIe e lançamentos de \emph{kernel} de todas as instâncias avaliadas, ordenadas por dimensão \(n_{coords}\).
+
+{\small
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}[]{@{}
+    >{\raggedright\arraybackslash}p{0.11\linewidth}
+    >{\centering\arraybackslash}p{0.06\linewidth}
+    >{\raggedright\arraybackslash}p{0.23\linewidth}
+    >{\centering\arraybackslash}p{0.20\linewidth}
+    >{\centering\arraybackslash}p{0.09\linewidth}
+    >{\centering\arraybackslash}p{0.10\linewidth}
+    >{\centering\arraybackslash}p{0.10\linewidth}@{}}
+  \caption{Resultados completos por instância para todas as \totalinstancias\ instâncias da TSPLIB (\(\totalrepeticoes\) repetições por célula)}\label{tbl:results-all-instances} \\
+  \toprule
+  Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
+  \midrule
+  \endfirsthead
+  \toprule
+  Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  \textbf{att48}    & 48             & CPU               & \(10678{,}57 \pm 37{,}08\)     & \(0{,}48\)            & \(1{,}43\)      & \(1{,}00\times\)   \\*
+                    & 48             & Híbrida Ingênua   & \(10668{,}40 \pm 31{,}65\)     & \(0{,}38\)            & \(0{,}47\)      & \(3{,}07\times\)   \\*
+                    & 48             & Híbrida Otimizada & \(10668{,}40 \pm 31{,}65\)     & \(0{,}38\)            & \(0{,}07\)      & \(20{,}45\times\)  \\*
+                    & 48             & Totalmente em GPU & \(10667{,}13 \pm 30{,}50\)     & \(0{,}37\)            & \(0{,}01\)      & \(102{,}18\times\) \\
+  \midrule
+  \textbf{eil51}    & 51             & CPU               & \(428{,}53 \pm 1{,}20\)        & \(0{,}59\)            & \(1{,}65\)      & \(1{,}00\times\)   \\*
+                    & 51             & Híbrida Ingênua   & \(428{,}37 \pm 1{,}07\)        & \(0{,}56\)            & \(0{,}55\)      & \(3{,}01\times\)   \\*
+                    & 51             & Híbrida Otimizada & \(428{,}37 \pm 1{,}07\)        & \(0{,}56\)            & \(0{,}09\)      & \(19{,}43\times\)  \\*
+                    & 51             & Totalmente em GPU & \(428{,}70 \pm 1{,}06\)        & \(0{,}63\)            & \(0{,}02\)      & \(101{,}02\times\) \\
+  \midrule
+  \textbf{berlin52} & 52             & CPU               & \(7553{,}03 \pm 17{,}39\)      & \(0{,}15\)            & \(1{,}59\)      & \(1{,}00\times\)   \\*
+                    & 52             & Híbrida Ingênua   & \(7545{,}23 \pm 12{,}25\)      & \(0{,}04\)            & \(0{,}51\)      & \(3{,}12\times\)   \\*
+                    & 52             & Híbrida Otimizada & \(7545{,}23 \pm 12{,}25\)      & \(0{,}04\)            & \(0{,}08\)      & \(20{,}23\times\)  \\*
+                    & 52             & Totalmente em GPU & \(7550{,}97 \pm 19{,}97\)      & \(0{,}12\)            & \(0{,}02\)      & \(75{,}03\times\)  \\
+  \midrule
+  \textbf{gr96}     & 96             & CPU               & \(55569{,}57 \pm 117{,}99\)    & \(0{,}65\)            & \(4{,}81\)      & \(1{,}00\times\)   \\*
+                    & 96             & Híbrida Ingênua   & \(55539{,}67 \pm 123{,}89\)    & \(0{,}60\)            & \(1{,}16\)      & \(4{,}13\times\)   \\*
+                    & 96             & Híbrida Otimizada & \(55539{,}67 \pm 123{,}89\)    & \(0{,}60\)            & \(0{,}18\)      & \(27{,}32\times\)  \\*
+                    & 96             & Totalmente em GPU & \(55532{,}07 \pm 139{,}59\)    & \(0{,}59\)            & \(0{,}04\)      & \(112{,}48\times\) \\
+  \midrule
+  \textbf{kroA100}  & 100            & CPU               & \(21389{,}43 \pm 54{,}23\)     & \(0{,}50\)            & \(4{,}81\)      & \(1{,}00\times\)   \\*
+                    & 100            & Híbrida Ingênua   & \(21391{,}40 \pm 63{,}09\)     & \(0{,}51\)            & \(1{,}18\)      & \(4{,}06\times\)   \\*
+                    & 100            & Híbrida Otimizada & \(21391{,}40 \pm 63{,}09\)     & \(0{,}51\)            & \(0{,}19\)      & \(25{,}73\times\)  \\*
+                    & 100            & Totalmente em GPU & \(21372{,}60 \pm 56{,}96\)     & \(0{,}43\)            & \(0{,}05\)      & \(94{,}86\times\)  \\
+  \midrule
+  \textbf{ch150}    & 150            & CPU               & \(6577{,}67 \pm 10{,}35\)      & \(0{,}76\)            & \(9{,}52\)      & \(1{,}00\times\)   \\*
+                    & 150            & Híbrida Ingênua   & \(6582{,}00 \pm 11{,}10\)      & \(0{,}83\)            & \(2{,}18\)      & \(4{,}36\times\)   \\*
+                    & 150            & Híbrida Otimizada & \(6582{,}00 \pm 11{,}10\)      & \(0{,}83\)            & \(0{,}39\)      & \(24{,}62\times\)  \\*
+                    & 150            & Totalmente em GPU & \(6577{,}83 \pm 11{,}65\)      & \(0{,}76\)            & \(0{,}12\)      & \(80{,}99\times\)  \\
+  \midrule
+  \textbf{d198}     & 198            & CPU               & \(15918{,}27 \pm 16{,}32\)     & \(0{,}88\)            & \(14{,}66\)     & \(1{,}00\times\)   \\*
+                    & 198            & Híbrida Ingênua   & \(15916{,}07 \pm 14{,}70\)     & \(0{,}86\)            & \(3{,}08\)      & \(4{,}76\times\)   \\*
+                    & 198            & Híbrida Otimizada & \(15916{,}07 \pm 14{,}70\)     & \(0{,}86\)            & \(0{,}55\)      & \(26{,}84\times\)  \\*
+                    & 198            & Totalmente em GPU & \(15912{,}93 \pm 18{,}04\)     & \(0{,}84\)            & \(0{,}17\)      & \(88{,}62\times\)  \\
+  \midrule
+  \textbf{pr264}    & 264            & CPU               & \(49552{,}43 \pm 71{,}20\)     & \(0{,}85\)            & \(23{,}62\)     & \(1{,}00\times\)   \\*
+                    & 264            & Híbrida Ingênua   & \(49551{,}47 \pm 98{,}13\)     & \(0{,}85\)            & \(4{,}81\)      & \(4{,}91\times\)   \\*
+                    & 264            & Híbrida Otimizada & \(49551{,}47 \pm 98{,}13\)     & \(0{,}85\)            & \(1{,}02\)      & \(23{,}15\times\)  \\*
+                    & 264            & Totalmente em GPU & \(49527{,}90 \pm 80{,}20\)     & \(0{,}80\)            & \(0{,}34\)      & \(69{,}92\times\)  \\
+  \midrule
+  \textbf{lin318}   & 318            & CPU               & \(42458{,}47 \pm 77{,}49\)     & \(1{,}02\)            & \(47{,}82\)     & \(1{,}00\times\)   \\*
+                    & 318            & Híbrida Ingênua   & \(42492{,}57 \pm 116{,}76\)    & \(1{,}10\)            & \(10{,}47\)     & \(4{,}57\times\)   \\*
+                    & 318            & Híbrida Otimizada & \(42492{,}57 \pm 116{,}76\)    & \(1{,}10\)            & \(2{,}24\)      & \(21{,}37\times\)  \\*
+                    & 318            & Totalmente em GPU & \(42464{,}30 \pm 96{,}15\)     & \(1{,}04\)            & \(0{,}81\)      & \(59{,}09\times\)  \\
+  \midrule
+  \textbf{pcb442}   & 442            & CPU               & \(51373{,}67 \pm 152{,}60\)    & \(1{,}17\)            & \(103{,}23\)    & \(1{,}00\times\)   \\*
+                    & 442            & Híbrida Ingênua   & \(51370{,}50 \pm 140{,}19\)    & \(1{,}17\)            & \(22{,}19\)     & \(4{,}65\times\)   \\*
+                    & 442            & Híbrida Otimizada & \(51370{,}50 \pm 140{,}19\)    & \(1{,}17\)            & \(5{,}37\)      & \(19{,}23\times\)  \\*
+                    & 442            & Totalmente em GPU & \(51371{,}03 \pm 113{,}69\)    & \(1{,}17\)            & \(2{,}04\)      & \(50{,}58\times\)  \\
+  \midrule
+  \textbf{att532}   & 532            & CPU               & \(28000{,}10 \pm 83{,}69\)     & \(1{,}13\)            & \(158{,}24\)    & \(1{,}00\times\)   \\*
+                    & 532            & Híbrida Ingênua   & \(27981{,}53 \pm 57{,}22\)     & \(1{,}07\)            & \(29{,}33\)     & \(5{,}39\times\)   \\*
+                    & 532            & Híbrida Otimizada & \(27981{,}53 \pm 57{,}22\)     & \(1{,}07\)            & \(6{,}67\)      & \(23{,}73\times\)  \\*
+                    & 532            & Totalmente em GPU & \(27999{,}93 \pm 78{,}55\)     & \(1{,}13\)            & \(3{,}39\)      & \(46{,}63\times\)  \\
+  \midrule
+  \textbf{si535}    & 535            & CPU               & \(48903{,}20 \pm 21{,}15\)     & \(0{,}94\)            & \(84{,}19\)     & \(1{,}00\times\)   \\*
+                    & 535            & Híbrida Ingênua   & \(48900{,}00 \pm 23{,}95\)     & \(0{,}93\)            & \(10{,}97\)     & \(7{,}68\times\)   \\*
+                    & 535            & Híbrida Otimizada & \(48900{,}00 \pm 23{,}95\)     & \(0{,}93\)            & \(2{,}48\)      & \(33{,}99\times\)  \\*
+                    & 535            & Totalmente em GPU & \(48909{,}00 \pm 18{,}43\)     & \(0{,}95\)            & \(1{,}23\)      & \(68{,}23\times\)  \\
+  \midrule
+  \textbf{gr666}    & 666            & CPU               & \(298220{,}20 \pm 1049{,}88\)  & \(1{,}31\)            & \(313{,}36\)    & \(1{,}00\times\)   \\*
+                    & 666            & Híbrida Ingênua   & \(298532{,}67 \pm 1399{,}43\)  & \(1{,}42\)            & \(53{,}80\)     & \(5{,}82\times\)   \\*
+                    & 666            & Híbrida Otimizada & \(298532{,}67 \pm 1399{,}43\)  & \(1{,}42\)            & \(12{,}63\)     & \(24{,}82\times\)  \\*
+                    & 666            & Totalmente em GPU & \(298937{,}40 \pm 1466{,}14\)  & \(1{,}56\)            & \(5{,}29\)      & \(59{,}28\times\)  \\
+  \midrule
+  \textbf{rat783}   & 783            & CPU               & \(8927{,}77 \pm 23{,}18\)      & \(1{,}38\)            & \(485{,}49\)    & \(1{,}00\times\)   \\*
+                    & 783            & Híbrida Ingênua   & \(8937{,}73 \pm 31{,}66\)      & \(1{,}50\)            & \(90{,}25\)     & \(5{,}38\times\)   \\*
+                    & 783            & Híbrida Otimizada & \(8937{,}73 \pm 31{,}66\)      & \(1{,}50\)            & \(19{,}95\)     & \(24{,}33\times\)  \\*
+                    & 783            & Totalmente em GPU & \(8940{,}67 \pm 32{,}65\)      & \(1{,}53\)            & \(9{,}34\)      & \(51{,}96\times\)  \\
+  \midrule
+  \textbf{pr1002}   & 1002           & CPU               & \(263558{,}83 \pm 771{,}47\)   & \(1{,}74\)            & \(682{,}58\)    & \(1{,}00\times\)   \\*
+                    & 1002           & Híbrida Ingênua   & \(263288{,}90 \pm 954{,}07\)   & \(1{,}64\)            & \(115{,}35\)    & \(5{,}92\times\)   \\*
+                    & 1002           & Híbrida Otimizada & \(263288{,}90 \pm 954{,}07\)   & \(1{,}64\)            & \(25{,}55\)     & \(26{,}72\times\)  \\*
+                    & 1002           & Totalmente em GPU & \(263409{,}57 \pm 1121{,}29\)  & \(1{,}68\)            & \(14{,}03\)     & \(48{,}66\times\)  \\
+\end{longtable}
+}
+
+{\footnotesize
+\setlength{\tabcolsep}{3.0pt}
+\begin{longtable}[]{@{}llrccccccccc@{}}
+  \caption{Divisão percentual integral do tempo médio de execução entre as oito etapas para todas as \totalinstancias\ instâncias (\(\%\) do tempo total)}\label{tbl:phase-timings-all} \\
+  \toprule
+  Instância & Algoritmo & Tempo (ms) & Inic. & Sel. & Cruz. & Mut. & Aval. & BL & Sobr. & Sinc. & Total \\
+  \midrule
+  \endfirsthead
+  \toprule
+  Instância & Algoritmo & Tempo (ms) & Inic. & Sel. & Cruz. & Mut. & Aval. & BL & Sobr. & Sinc. & Total \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  \textbf{att48}     & CPU               & 1432,9   & 0,1 & 0,0 & 3,2  & 0,0  & 0,0 & 96,5 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 467,4    & 0,2 & 0,1 & 11,0 & 0,1  & 0,2 & 88,2 & 0,1  & 0,0  & 99,9  \\*
+                     & Híbrida Otimizada & 70,1     & 2,8 & 0,6 & 78,6 & 0,9  & 2,4 & 13,5 & 0,5  & 0,2  & 99,6  \\*
+                     & Totalmente em GPU & 14,0     & 9,0 & 7,6 & 8,2  & 9,9  & 5,1 & 8,6  & 9,8  & 40,1 & 98,4  \\
+  \midrule
+  \textbf{eil51}     & CPU               & 1653,6   & 0,1 & 0,0 & 3,5  & 0,0  & 0,0 & 96,3 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 548,6    & 0,2 & 0,1 & 10,9 & 0,1  & 0,2 & 88,3 & 0,1  & 0,0  & 99,9  \\*
+                     & Híbrida Otimizada & 85,1     & 2,0 & 0,6 & 79,5 & 0,9  & 2,3 & 13,5 & 0,6  & 0,2  & 99,6  \\*
+                     & Totalmente em GPU & 16,4     & 7,8 & 7,8 & 8,4  & 10,0 & 5,0 & 8,5  & 9,8  & 41,1 & 98,3  \\
+  \midrule
+  \textbf{berlin52}  & CPU               & 1594,1   & 0,1 & 0,0 & 3,2  & 0,0  & 0,0 & 96,5 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 510,7    & 0,2 & 0,1 & 10,5 & 0,1  & 0,2 & 88,7 & 0,1  & 0,0  & 99,9  \\*
+                     & Híbrida Otimizada & 78,8     & 2,2 & 0,6 & 79,0 & 0,9  & 2,3 & 13,8 & 0,6  & 0,2  & 99,6  \\*
+                     & Totalmente em GPU & 21,2     & 8,8 & 8,0 & 8,7  & 9,9  & 5,4 & 8,7  & 13,0 & 36,0 & 98,4  \\
+  \midrule
+  \textbf{gr96}      & CPU               & 4807,0   & 0,0 & 0,0 & 2,6  & 0,0  & 0,0 & 97,3 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 1163,4   & 0,1 & 0,1 & 10,5 & 0,1  & 0,2 & 88,9 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 175,9    & 1,1 & 0,6 & 73,1 & 0,8  & 1,8 & 21,4 & 0,6  & 0,2  & 99,7  \\*
+                     & Totalmente em GPU & 42,7     & 3,8 & 5,4 & 5,9  & 7,2  & 3,1 & 6,1  & 7,4  & 60,1 & 99,0  \\
+  \midrule
+  \textbf{kroA100}   & CPU               & 4805,8   & 0,0 & 0,0 & 2,5  & 0,0  & 0,0 & 97,3 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 1183,2   & 0,1 & 0,1 & 10,7 & 0,1  & 0,2 & 88,6 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 186,8    & 1,1 & 0,6 & 73,1 & 0,8  & 1,8 & 21,6 & 0,6  & 0,2  & 99,7  \\*
+                     & Totalmente em GPU & 50,7     & 3,6 & 5,6 & 6,1  & 7,3  & 3,6 & 6,0  & 7,7  & 59,0 & 99,0  \\
+  \midrule
+  \textbf{ch150}     & CPU               & 9523,2   & 0,0 & 0,0 & 2,2  & 0,0  & 0,0 & 97,6 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 2184,8   & 0,1 & 0,1 & 11,7 & 0,1  & 0,3 & 87,6 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 386,8    & 0,7 & 0,5 & 64,4 & 0,7  & 1,5 & 31,1 & 0,6  & 0,1  & 99,7  \\*
+                     & Totalmente em GPU & 117,6    & 1,3 & 3,0 & 3,5  & 4,3  & 1,5 & 3,7  & 4,5  & 77,8 & 99,5  \\
+  \midrule
+  \textbf{d198}      & CPU               & 14658,7  & 0,0 & 0,0 & 2,0  & 0,0  & 0,0 & 97,9 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 3079,6   & 0,1 & 0,1 & 12,0 & 0,1  & 0,3 & 87,2 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 546,1    & 0,5 & 0,5 & 63,7 & 0,7  & 1,4 & 32,0 & 0,7  & 0,1  & 99,7  \\*
+                     & Totalmente em GPU & 165,4    & 1,1 & 2,7 & 3,1  & 3,8  & 1,2 & 3,3  & 4,1  & 80,1 & 99,5  \\
+  \midrule
+  \textbf{pr264}     & CPU               & 23616,8  & 0,0 & 0,0 & 1,8  & 0,0  & 0,1 & 98,1 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 4813,3   & 0,1 & 0,1 & 14,4 & 0,2  & 0,4 & 84,6 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 1020,2   & 0,4 & 0,5 & 60,9 & 0,7  & 1,3 & 35,3 & 0,7  & 0,1  & 99,8  \\*
+                     & Totalmente em GPU & 337,7    & 0,7 & 2,1 & 2,5  & 3,0  & 0,9 & 2,6  & 3,2  & 84,7 & 99,7  \\
+  \midrule
+  \textbf{lin318}    & CPU               & 47815,5  & 0,0 & 0,0 & 2,0  & 0,0  & 0,1 & 97,8 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 10467,5  & 0,0 & 0,1 & 12,8 & 0,1  & 0,5 & 86,3 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 2238,0   & 0,2 & 0,5 & 60,8 & 0,7  & 1,2 & 35,6 & 0,7  & 0,1  & 99,8  \\*
+                     & Totalmente em GPU & 809,2    & 0,5 & 2,6 & 2,6  & 3,0  & 0,9 & 2,4  & 3,4  & 84,2 & 99,6  \\
+  \midrule
+  \textbf{pcb442}    & CPU               & 103227,1 & 0,0 & 0,0 & 1,9  & 0,0  & 0,1 & 98,0 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 22191,2  & 0,0 & 0,1 & 13,1 & 0,1  & 0,6 & 85,8 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 5367,0   & 0,1 & 0,5 & 57,7 & 0,6  & 1,1 & 38,9 & 0,7  & 0,1  & 99,8  \\*
+                     & Totalmente em GPU & 2040,8   & 0,2 & 1,7 & 1,9  & 2,3  & 0,6 & 1,7  & 2,5  & 88,8 & 99,8  \\
+  \midrule
+  \textbf{att532}    & CPU               & 158238,2 & 0,0 & 0,0 & 1,7  & 0,0  & 0,1 & 98,2 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 29333,2  & 0,0 & 0,1 & 10,9 & 0,1  & 0,5 & 88,1 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 6667,0   & 0,1 & 0,5 & 52,5 & 0,6  & 1,0 & 44,4 & 0,7  & 0,1  & 99,8  \\*
+                     & Totalmente em GPU & 3393,2   & 0,1 & 1,5 & 1,5  & 1,8  & 0,5 & 1,4  & 2,0  & 91,1 & 99,8  \\
+  \midrule
+  \textbf{si535}     & CPU               & 84187,4  & 0,0 & 0,0 & 1,2  & 0,0  & 0,1 & 98,7 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 10965,6  & 0,0 & 0,1 & 10,8 & 0,1  & 0,6 & 88,2 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 2477,2   & 0,3 & 0,5 & 51,1 & 0,5  & 1,0 & 45,7 & 0,6  & 0,1  & 99,8  \\*
+                     & Totalmente em GPU & 1234,0   & 0,4 & 1,7 & 1,6  & 1,9  & 0,6 & 1,7  & 2,1  & 89,7 & 99,7  \\
+  \midrule
+  \textbf{gr666}     & CPU               & 313362,6 & 0,0 & 0,0 & 1,6  & 0,0  & 0,1 & 98,3 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 53797,2  & 0,0 & 0,1 & 11,3 & 0,1  & 0,6 & 87,6 & 0,2  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 12627,0  & 0,1 & 0,5 & 52,4 & 0,6  & 1,0 & 44,4 & 0,7  & 0,1  & 99,9  \\*
+                     & Totalmente em GPU & 5285,7   & 0,1 & 1,2 & 1,3  & 1,6  & 0,4 & 1,2  & 1,8  & 92,2 & 99,8  \\
+  \midrule
+  \textbf{rat783}    & CPU               & 485492,0 & 0,0 & 0,0 & 1,6  & 0,0  & 0,1 & 98,3 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 90251,3  & 0,0 & 0,1 & 9,4  & 0,1  & 0,6 & 89,6 & 0,1  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 19953,9  & 0,0 & 0,5 & 45,8 & 0,5  & 0,9 & 51,3 & 0,7  & 0,1  & 99,9  \\*
+                     & Totalmente em GPU & 9343,7   & 0,1 & 0,9 & 1,0  & 1,2  & 0,3 & 0,9  & 1,3  & 94,3 & 99,9  \\
+  \midrule
+  \textbf{pr1002}    & CPU               & 682575,6 & 0,0 & 0,0 & 1,4  & 0,0  & 0,1 & 98,4 & 0,0  & 0,0  & 100,0 \\*
+                     & Híbrida Ingênua   & 115353,9 & 0,0 & 0,1 & 9,2  & 0,1  & 0,7 & 89,7 & 0,2  & 0,0  & 100,0 \\*
+                     & Híbrida Otimizada & 25548,3  & 0,0 & 0,5 & 40,7 & 0,4  & 0,8 & 56,6 & 0,8  & 0,1  & 99,9  \\*
+                     & Totalmente em GPU & 14027,6  & 0,1 & 0,8 & 0,9  & 1,1  & 0,3 & 0,7  & 1,2  & 94,8 & 99,8  \\
+\end{longtable}
+\noindent\textit{Nota:} Participações percentuais por etapa e coluna \textit{Total} expressas em \% do tempo médio de execução (\textit{Tempo}); \textit{Inic.}: inicialização, \textit{Sel.}: seleção, \textit{Cruz.}: cruzamento, \textit{Mut.}: mutação, \textit{Aval.}: avaliação, \textit{BL}: busca local \(2\)-opt, \textit{Sobr.}: sobrevivência, \textit{Sinc.}: sincronização CPU--GPU. Pequenas diferenças abaixo de \(100\%\) correspondem ao tempo residual fora das etapas cronometradas (\secref{apendice-telemetria}); execuções abaixo de \(100\)\,ms sofrem influência do custo fixo de lançamento de \emph{kernels} (\(\approx 0{,}5\text{--}1{,}0\)\,ms).
+}
+
+{\footnotesize
+\setlength{\tabcolsep}{4.5pt}
+\begin{longtable}[]{@{}llrrrr@{}}
+  \caption{Volume médio integral de transferências pelo barramento PCIe e lançamentos de \emph{kernel} por repetição nas \totalinstancias\ instâncias}\label{tbl:transfers-launches-all} \\
+  \toprule
+  Instância & Algoritmo & CPU\(\to\)GPU (MB) & GPU\(\to\)CPU (MB) & Total PCIe (MB) & Lançamentos \\
+  \midrule
+  \endfirsthead
+  \toprule
+  Instância & Algoritmo & CPU\(\to\)GPU (MB) & GPU\(\to\)CPU (MB) & Total PCIe (MB) & Lançamentos \\
+  \midrule
+  \endhead
+  \bottomrule
+  \endlastfoot
+  \textbf{att48}    & Híbrida Ingênua   & \(0{,}26\)      & \(0{,}21\)   & \(0{,}47\)      & \(11\,179\)     \\*
+                    & Híbrida Otimizada & \(0{,}51\)      & \(0{,}23\)   & \(0{,}74\)      & \(49\)          \\*
+                    & Totalmente em GPU & \(0{,}13\)      & \(0{,}00\)   & \(0{,}13\)      & \(62\)          \\
+  \midrule
+  \textbf{eil51}    & Híbrida Ingênua   & \(0{,}33\)      & \(0{,}27\)   & \(0{,}59\)      & \(13\,141\)     \\*
+                    & Híbrida Otimizada & \(0{,}62\)      & \(0{,}28\)   & \(0{,}90\)      & \(58\)          \\*
+                    & Totalmente em GPU & \(0{,}14\)      & \(0{,}00\)   & \(0{,}14\)      & \(71\)          \\
+  \midrule
+  \textbf{berlin52} & Híbrida Ingênua   & \(0{,}31\)      & \(0{,}26\)   & \(0{,}57\)      & \(12\,373\)     \\*
+                    & Híbrida Otimizada & \(0{,}60\)      & \(0{,}27\)   & \(0{,}87\)      & \(54\)          \\*
+                    & Totalmente em GPU & \(0{,}14\)      & \(0{,}00\)   & \(0{,}14\)      & \(67\)          \\
+  \midrule
+  \textbf{gr96}     & Híbrida Ingênua   & \(1{,}41\)      & \(1{,}02\)   & \(2{,}43\)      & \(26\,539\)     \\*
+                    & Híbrida Otimizada & \(2{,}25\)      & \(1{,}04\)   & \(3{,}30\)      & \(115\)         \\*
+                    & Totalmente em GPU & \(0{,}33\)      & \(0{,}00\)   & \(0{,}33\)      & \(143\)         \\
+  \midrule
+  \textbf{kroA100}  & Híbrida Ingênua   & \(1{,}49\)      & \(1{,}06\)   & \(2{,}55\)      & \(26\,624\)     \\*
+                    & Híbrida Otimizada & \(2{,}36\)      & \(1{,}09\)   & \(3{,}45\)      & \(115\)         \\*
+                    & Totalmente em GPU & \(0{,}35\)      & \(0{,}00\)   & \(0{,}35\)      & \(150\)         \\
+  \midrule
+  \textbf{ch150}    & Híbrida Ingênua   & \(4{,}61\)      & \(2{,}90\)   & \(7{,}51\)      & \(48\,299\)     \\*
+                    & Híbrida Otimizada & \(6{,}23\)      & \(2{,}94\)   & \(9{,}17\)      & \(209\)         \\*
+                    & Totalmente em GPU & \(0{,}65\)      & \(0{,}00\)   & \(0{,}65\)      & \(269\)         \\
+  \midrule
+  \textbf{d198}     & Híbrida Ingênua   & \(9{,}34\)      & \(5{,}26\)   & \(14{,}60\)     & \(66\,389\)     \\*
+                    & Híbrida Otimizada & \(11{,}21\)     & \(5{,}31\)   & \(16{,}52\)     & \(286\)         \\*
+                    & Totalmente em GPU & \(0{,}98\)      & \(0{,}00\)   & \(0{,}98\)      & \(362\)         \\
+  \midrule
+  \textbf{pr264}    & Híbrida Ingênua   & \(22{,}54\)     & \(11{,}08\)  & \(33{,}62\)     & \(104\,960\)    \\*
+                    & Híbrida Otimizada & \(23{,}30\)     & \(11{,}17\)  & \(34{,}47\)     & \(452\)         \\*
+                    & Totalmente em GPU & \(1{,}55\)      & \(0{,}00\)   & \(1{,}55\)      & \(532\)         \\
+  \midrule
+  \textbf{lin318}   & Híbrida Ingênua   & \(61{,}87\)     & \(27{,}58\)  & \(89{,}45\)     & \(216\,832\)    \\*
+                    & Híbrida Otimizada & \(56{,}73\)     & \(27{,}76\)  & \(84{,}48\)     & \(933\)         \\*
+                    & Totalmente em GPU & \(2{,}43\)      & \(0{,}00\)   & \(2{,}43\)      & \(1\,073\)      \\
+  \midrule
+  \textbf{pcb442}   & Híbrida Ingênua   & \(208{,}30\)    & \(76{,}39\)  & \(284{,}69\)    & \(432\,043\)    \\*
+                    & Híbrida Otimizada & \(155{,}60\)    & \(76{,}73\)  & \(232{,}34\)    & \(1\,857\)      \\*
+                    & Totalmente em GPU & \(4{,}58\)      & \(0{,}00\)   & \(4{,}58\)      & \(2\,179\)      \\
+  \midrule
+  \textbf{att532}   & Híbrida Ingênua   & \(297{,}18\)    & \(96{,}53\)  & \(393{,}72\)    & \(453\,632\)    \\*
+                    & Híbrida Otimizada & \(197{,}05\)    & \(96{,}90\)  & \(293{,}95\)    & \(1\,950\)      \\*
+                    & Totalmente em GPU & \(6{,}17\)      & \(0{,}00\)   & \(6{,}17\)      & \(2\,723\)      \\
+  \midrule
+  \textbf{si535}    & Híbrida Ingênua   & \(106{,}06\)    & \(34{,}31\)  & \(140{,}38\)    & \(160\,341\)    \\*
+                    & Híbrida Otimizada & \(72{,}65\)     & \(34{,}44\)  & \(107{,}09\)    & \(690\)         \\*
+                    & Totalmente em GPU & \(4{,}73\)      & \(0{,}00\)   & \(4{,}73\)      & \(883\)         \\
+  \midrule
+  \textbf{gr666}    & Híbrida Ingênua   & \(778{,}26\)    & \(216{,}08\) & \(994{,}34\)    & \(811\,093\)    \\*
+                    & Híbrida Otimizada & \(438{,}21\)    & \(216{,}73\) & \(654{,}93\)    & \(3\,486\)      \\*
+                    & Totalmente em GPU & \(9{,}27\)      & \(0{,}00\)   & \(9{,}27\)      & \(3\,994\)      \\
+  \midrule
+  \textbf{rat783}   & Híbrida Ingênua   & \(1\,338{,}06\) & \(329{,}67\) & \(1\,667{,}73\) & \(1\,052\,587\) \\*
+                    & Híbrida Otimizada & \(667{,}56\)    & \(330{,}51\) & \(998{,}08\)    & \(4\,524\)      \\*
+                    & Totalmente em GPU & \(12{,}32\)     & \(0{,}00\)   & \(12{,}32\)     & \(5\,092\)      \\
+  \midrule
+  \textbf{pr1002}   & Híbrida Ingênua   & \(2\,669{,}68\) & \(543{,}26\) & \(3\,212{,}94\) & \(1\,355\,435\) \\*
+                    & Híbrida Otimizada & \(1\,099{,}67\) & \(544{,}34\) & \(1\,644{,}02\) & \(5\,825\)      \\*
+                    & Totalmente em GPU & \(18{,}69\)     & \(0{,}00\)   & \(18{,}69\)     & \(6\,880\)      \\
+\end{longtable}
+\noindent\textit{Nota:} Médias sobre as \totalrepeticoes\ repetições (a variante CPU realiza \(0{,}00\)\,MB de transferência PCIe e \(0\) lançamentos de \emph{kernel}). Eventuais diferenças de \(0{,}01\)\,MB no total decorrem do arredondamento a duas casas decimais.
+}
+
+\section{Pseudocódigos de referência dos algoritmos clássicos}\label{apendice-pseudocodigos}
+
+Esta seção reúne os pseudocódigos de referência discutidos no \capref{cap2-revisao-bibliografica}: a busca local \(2\)-opt limitada sob critério \emph{best-improvement} (\algref{alg:2opt-limited}), a estrutura geral de um Algoritmo Genético (\algref{alg:ga-high-level}) e a especificação completa do ciclo evolutivo adotado neste trabalho com elitismo, seleção por torneio, cruzamento por ordem (OX) e mutação por troca (\algref{alg:ga-complete}).
+
+Esses pseudocódigos preservam a forma didática clássica da literatura e diferem da implementação efetivamente executada nos experimentos nos pontos de engenharia descritos no \capref{cap3-materiais-metodos}: na busca local \(2\)-opt, o laço exaustivo sobre todos os pares \((i, j)\) do \algref{alg:2opt-limited} é restringido à lista pré-computada de \(k_{\text{viz}} = \kviz\) vizinhos mais próximos (\secref{sec-321-ga-base}); as matrizes de distância e as rotas são representadas em inteiros de \(32\) bits (\texttt{int32}); a linha de base em CPU emprega vetorização em NumPy; e as variantes em GPU paralelizam os operadores em \emph{kernels} CUDA utilizando uma janela de memória compartilhada de até \(2048\) cidades por bloco (\secref{sec-311-hardware-software} e \secref{sec-322-variantes}).
+
+\begin{algorithm}[H]
+  \caption{Busca local \(2\)-opt limitada}\label{alg:2opt-limited}
+  \KwEntrada{circuito inicial \(C\) de dimensão \(n_{coords}\), limite de varreduras \(\kappa\)}
+  \KwSaida{circuito melhorado \(C\)}
+  \texttt{varredura} \(\gets 0\)\;
+  \While{\texttt{varredura} \(< \kappa\)}{
+    \texttt{melhor\_delta} \(\gets 0\)\;
+    \texttt{melhor\_i} \(\gets -1\)\;
+    \texttt{melhor\_j} \(\gets -1\)\;
+    \For{\(i \gets 0\) \KwAte \(n_{coords} - 2\)}{
+      \For{\(j \gets i + 2\) \KwAte \(n_{coords} - 1\) \textbf{com} \((i, j) \neq (0, n_{coords} - 1)\)}{
+        \(\Delta C \gets \bigl(c_{i,j} + c_{i+1,j+1}\bigr) - \bigl(c_{i,i+1} + c_{j,j+1}\bigr)\)\;
+        \If{\(\Delta C < \texttt{melhor\_delta}\)}{
+          \texttt{melhor\_delta} \(\gets \Delta C\)\;
+          \texttt{melhor\_i} \(\gets i\)\;
+          \texttt{melhor\_j} \(\gets j\)\;
+        }
+      }
+    }
+    \eIf{\(\texttt{melhor\_delta} < 0\)}{
+      Reverter segmento \(C[\texttt{melhor\_i}+1\ldots\texttt{melhor\_j}]\)\;
+      \texttt{varredura} \(\gets \texttt{varredura} + 1\)\;
+    }{
+      \KwInterromper\;
+    }
+  }
+  \KwRetornar{\(C\)}\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \caption{Fluxo geral do Algoritmo Genético}\label{alg:ga-high-level}
+  Gerar população inicial \(P(0)\) aleatoriamente\;
+  \While{critério de parada não satisfeito}{
+    Selecionar pais da população\;
+    Produzir descendentes a partir dos pais selecionados\;
+    Mutar os indivíduos\;
+    Expandir a população adicionando os descendentes\;
+    Reduzir a população expandida\;
+  }
+  \KwRetornar{o melhor indivíduo encontrado}\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+  \caption{Algoritmo genético com elitismo, seleção por torneio, cruzamento OX e mutação por troca}\label{alg:ga-complete}
+  \KwEntrada{tamanho da população \(n_{pop}\), tamanho do torneio \(\tau_{\text{trnmt}}\), taxa de cruzamento \(p_c\), taxa de mutação \(p_{\text{mut}}\)}
+  \KwSaida{melhor solução encontrada}
+  Inicializar população \(P(0)\) aleatoriamente com \(n_{pop}\) indivíduos\;
+  Avaliar a aptidão \(f(x)\) de todos os indivíduos em \(P(0)\)\;
+  \(t \gets 0\)\;
+  \While{\textbf{não} \texttt{condição\_de\_parada}}{
+    \(P_{\mathrm{nova}} \gets \emptyset\)\;
+    \tcp{Elitismo: preservar o(s) melhor(es) indivíduo(s)}
+    Adicionar o melhor indivíduo de \(P(t)\) a \(P_{\mathrm{nova}}\)\;
+    \While{\(\lvert P_{\mathrm{nova}}\rvert < n_{pop}\)}{
+      \tcp{Seleção por torneio de tamanho \(\tau_{\text{trnmt}}\)}
+      \texttt{pai1} \(\gets\) \texttt{SeleçãoPorTorneio}(\(P(t), \tau_{\text{trnmt}}\))\;
+      \texttt{pai2} \(\gets\) \texttt{SeleçãoPorTorneio}(\(P(t), \tau_{\text{trnmt}}\))\;
+      \tcp{Cruzamento}
+      \eIf{\(\operatorname{aleatório}() < p_c\)}{
+        \texttt{filho} \(\gets\) \texttt{CruzamentoOX}(\texttt{pai1}, \texttt{pai2})\;
+      }{
+        \texttt{filho} \(\gets\) \texttt{pai1}\;
+      }
+      \tcp{Mutação}
+      \If{\(\operatorname{aleatório}() < p_{\text{mut}}\)}{
+        \texttt{MutaçãoPorTroca}(\texttt{filho})\;
+      }
+      Adicionar \texttt{filho} a \(P_{\mathrm{nova}}\)\;
+    }
+    \(P(t+1) \gets P_{\mathrm{nova}}\)\;
+    Avaliar a aptidão \(f(x)\) de \(P(t+1)\)\;
+    \(t \gets t + 1\)\;
+  }
+  \KwRetornar{melhor indivíduo de \(P(t)\)}\;
+\end{algorithm}

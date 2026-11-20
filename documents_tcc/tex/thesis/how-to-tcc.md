@@ -10,14 +10,14 @@ You already have most of this; main change is updating the **Resumo/Abstract** t
 
 - Capa, folha de rosto, ficha catalográfica, folha de aprovação, dedicatória, agradecimentos (as required by UFSC).
 - **Resumo** (PT-BR, máx. 250–300 palavras)
-  - Foco: TSP, GA+2-opt, comparação CPU vs 3 variantes GPU (HybridNaive, HybridOptimized, FullGPU), 38 instâncias TSPLIB, metodologia estatística (30 repetições, Friedman + Nemenyi, etc.).
-  - Remove VRP and SA do escopo principal (podem aparecer só em 1 frase de contexto ou trabalhos futuros).
+  + Foco: TSP, GA+2-opt, comparação CPU vs 3 variantes GPU (HybridNaive, HybridOptimized, FullGPU), 38 instâncias TSPLIB, metodologia estatística (30 repetições, Friedman + Nemenyi, etc.).
+  + Remove VRP and SA do escopo principal (podem aparecer só em 1 frase de contexto ou trabalhos futuros).
 - **Abstract** (EN, espelho do resumo).
-- **Lista de Figuras, Tabelas, Abreviaturas, Símbolos**  
-  - Reaproveitar listas do first_draft.md, mas:
+- **Lista de Figuras, Tabelas, Abreviaturas, Símbolos**
+  + Reaproveitar listas do first_draft.md, mas:
     - Podar símbolos/abreviaturas só de VRP e algoritmos não implementados (Tabu, ACO, etc.) ou movê-los para *Apêndice* se forem citados apenas em trabalhos futuros.
-- **Sumário**  
-  - Atualizar ao final, quando a estrutura abaixo estiver fixa.
+- **Sumário**
+  + Atualizar ao final, quando a estrutura abaixo estiver fixa.
 
 ---
 
@@ -31,8 +31,8 @@ You already have most of this; main change is updating the **Resumo/Abstract** t
 - Crescimento do tamanho das instâncias e custo de metaheurísticas.
 - GPUs como plataforma massivamente paralela para acelerar heurísticas de roteamento.
 - Reaproveitar a abertura do Cap. 1 do first_draft.md, mas:
-  - Cortar ênfase em VRP como escopo principal.
-  - Manter VRP apenas como motivação e *trabalhos futuros*.
+  + Cortar ênfase em VRP como escopo principal.
+  + Manter VRP apenas como motivação e *trabalhos futuros*.
 
 >[!caution]
 > Ainda preciso justificar a escolha de algoritmos genéticos em detrimento de outros algoritmos:
@@ -44,7 +44,7 @@ You already have most of this; main change is updating the **Resumo/Abstract** t
 ### 1.2 Problema de pesquisa
 
 - Formulação clara, em português simples, algo como:
-  - “Como comparar, de forma isoalgorítmica e estatisticamente rigorosa, o impacto de diferentes estratégias de paralelização em GPU para um Algoritmo Genético híbrido com 2-opt aplicado ao TSP?”
+  + “Como comparar, de forma isoalgorítmica e estatisticamente rigorosa, o impacto de diferentes estratégias de paralelização em GPU para um Algoritmo Genético híbrido com 2-opt aplicado ao TSP?”
 - Aqui você já “vende” que o código força algoritmos isoalgorítmicos: mesma lógica, só mudam os pontos de execução (CPU vs GPU).
 
 ### 1.3 Objetivo geral
@@ -64,15 +64,15 @@ Sugeridos (ajuste a gosto):
 ### 1.5 Justificativa
 
 - Conectar com:
-  - Lacuna de estudos **reprodutíveis** comparando variantes isoalgorítmicas em GPU.
-  - Falta de benchmarks que isolam ganho de paralelização vs ganho de “engenharia de algoritmo”.
-  - Relevância prática (rotações em logística, mas mantendo escopo de implementação em TSP).
+  + Lacuna de estudos **reprodutíveis** comparando variantes isoalgorítmicas em GPU.
+  + Falta de benchmarks que isolam ganho de paralelização vs ganho de “engenharia de algoritmo”.
+  + Relevância prática (rotações em logística, mas mantendo escopo de implementação em TSP).
 
 ### 1.6 Organização do trabalho
 
 - Breve parágrafo descrevendo o conteúdo dos Capítulos 2–6.
 
-> **De onde vem o texto?**  
+> **De onde vem o texto?**
 >
 > - Cap. 1 do first_draft.md é a base, mas você simplifica o escopo para TSP+GA+2-opt e remove promessas de VRP/SA como resultados finais.
 
@@ -93,47 +93,47 @@ Sugeridos (ajuste a gosto):
 
 - **Heurísticas de construção**: vizinho mais próximo, inserção, etc. (curto, pois não são o foco).
 - **Heurísticas de melhoria**:
-  - k-opt, com destaque para 2-opt (Croes), 3-opt, Lin–Kernighan.
-  - Papel de 2-opt em metaheurísticas modernas e em memetic algorithms (GLS+FLS, etc.).
+  + k-opt, com destaque para 2-opt (Croes), 3-opt, Lin–Kernighan.
+  + Papel de 2-opt em metaheurísticas modernas e em memetic algorithms (GLS+FLS, etc.).
 
 ### 2.3 Algoritmos genéticos e heurísticas híbridas
 
 - Visão geral de GA:
-  - Representação, população, fitness, seleção, cruzamento, mutação.
+  + Representação, população, fitness, seleção, cruzamento, mutação.
 - GA para TSP (Larrañaga, Goldberg, etc.).
 - **Algoritmos meméticos / GA+LS**:
-  - GA+2-opt, GA+3-opt, GA+Lin–Kernighan.
-  - Citar Fujimoto & Tsutsui (GPU GA para TSP) e outros trabalhos relevantes.
+  + GA+2-opt, GA+3-opt, GA+Lin–Kernighan.
+  + Citar Fujimoto & Tsutsui (GPU GA para TSP) e outros trabalhos relevantes.
 
 ### 2.4 Computação em GPU e paralelização de metaheurísticas
 
 - Conceitos básicos de CUDA / GPU:
-  - Hierarquia grid–block–thread, SIMT, memória global/compartilhada.
+  + Hierarquia grid–block–thread, SIMT, memória global/compartilhada.
 - Taxonomias:
-  - Flynn (SISD/SIMD/MIMD).
-  - Crainic & Toulouse (P-Data, S-Task, P-Task) para metaheurísticas paralelas.
+  + Flynn (SISD/SIMD/MIMD).
+  + Crainic & Toulouse (P-Data, S-Task, P-Task) para metaheurísticas paralelas.
 - Exemplos de TSP em GPU:
-  - GA, SA, ACO, 2-opt paralela, GLS, etc.
+  + GA, SA, ACO, 2-opt paralela, GLS, etc.
 
-> [!important]Importante:  
+> [!important]Importante:
 >
-> - Aqui você fala **dos trabalhos dos outros**, não do seu código.  
+> - Aqui você fala **dos trabalhos dos outros**, não do seu código.
 > - Parte do que hoje está em 2.4 do first_draft.md pode ficar aqui (definição de CUDA, taxonomias), mas:
->   - Os detalhes do *seu* kernel 2-opt e do *seu* framework vão para o Cap. 3.
+>   + Os detalhes do *seu* kernel 2-opt e do *seu* framework vão para o Cap. 3.
 
 ### 2.5 Comparação estatística de algoritmos de otimização
 
 - Por que precisamos de:
-  - Múltiplas instâncias.
-  - Múltiplas repetições.
+  + Múltiplas instâncias.
+  + Múltiplas repetições.
 - Visão geral (sem fórmulas pesadas):
-  - Demšar (2006): Friedman + Nemenyi para múltiplos algoritmos.
-  - Testes pareados (t, Wilcoxon) para comparações por instância.
-  - Conceito de tamanho de efeito (Cohen’s *d*).
+  + Demšar (2006): Friedman + Nemenyi para múltiplos algoritmos.
+  + Testes pareados (t, Wilcoxon) para comparações por instância.
+  + Conceito de tamanho de efeito (Cohen’s *d*).
 
-> **De onde vem o texto?**  
+> **De onde vem o texto?**
 >
-> - Adaptar e condensar trechos da `statistical_tests_comprehensive_guide.md` (parte conceitual).  
+> - Adaptar e condensar trechos da `statistical_tests_comprehensive_guide.md` (parte conceitual).
 > - Detalhes matemáticos (PDFs, funções gama) podem ir para apêndice.
 
 ---
@@ -154,26 +154,28 @@ Este é o coração metodológico, e deve usar:
 ### 3.1 Ambiente computacional
 
 - **Hardware**:
-  - CPU: Intel Core i7-7700HQ
+  + CPU: Intel Core i7-7700HQ
     >[!caution]
     >add proper specs.
-  - RAM: 16 GB DDR4.
-  - GPU: NVIDIA GeForce GTX 1050 Mobile (4 GB GDDR5 VRAM).
+  + RAM: 16 GB DDR4.
+  + GPU: NVIDIA GeForce GTX 1050 Mobile (4 GB GDDR5 VRAM).
 - **Software**:
-  - Sistema Operacional: Linux (debian 13).
-  - Linguagem: Python 3.10.16.
-  - Bibliotecas Principais:
+  + Sistema Operacional: Linux (debian 13).
+  + Linguagem: python 3.10.16.
+  + Bibliotecas Principais:
     - NumPy 2.26 (CPU)
     - cupy-cuda12x 13.6.0 (GPU),
     - CUDA Toolkit
+
       ```out
       nvcc: NVIDIA (R) Cuda compiler driver
       Built on Fri_Jun_14_16:34:21_PDT_2024
       Cuda compilation tools, release 12.6, V12.6.20
       Build cuda_12.6.r12.6/compiler.34431801_0
       ```
+
 - **Restrições de Hardware**:
-  - Limite de VRAM: nas execuções deste trabalho, adotou-se um limite prático de 65% da capacidade total da GTX 1050 (≈2,7 GB de 4 GB), reservado explicitamente para a matriz de distâncias e os buffers $O(n^2)$ do kernel 2-opt. Esse valor segue a análise de `max_memory_calculation.md` e do utilitário `VRAMCalculator`, que consideram overhead do driver, fragmentação e margem de segurança.
+  + Limite de VRAM: nas execuções deste trabalho, adotou-se um limite prático de 65% da capacidade total da GTX 1050 (≈2,7 GB de 4 GB), reservado explicitamente para a matriz de distâncias e os buffers $O(n^2)$ do kernel 2-opt. Esse valor segue a análise de `max_memory_calculation.md` e do utilitário `VRAMCalculator`, que consideram overhead do driver, fragmentação e margem de segurança.
     >[!caution]
     >No texto final, confirmar o valor medido com `nvidia-smi` e referenciar explicitamente AS REFERÊNCIAS CONTIDAS EM `max_memory_calculation.md`, explicando por que 65% foi escolhido em vez de 80% ou 100%.
 
@@ -182,11 +184,11 @@ Este é o coração metodológico, e deve usar:
 #### 3.2.1 Organização do código
 
 - Descreve a arquitetura modular final (biblioteca `src/benchmarking/` e scripts `benchmark_scripts/`):
-  - `src/algorithms/{strategies, metaheuristics}`: Implementações das estratégias de busca local/metaheurísticas e da metaheurística `GeneticAlgorithm`.
-  - `src/protocols`: Definição das interfaces e do padrão `xp` para abstração de backend (NumPy/CuPy), permitindo a execução agnóstica de hardware.
-  - `configs`: Arquivos JSON (`algorithms.json`, `benchmark.json`, `problems.json`) que definem a matriz experimental, desacoplando a configuração da lógica.
-  - `src/benchmarking`: Lógica desacoplada para orquestração (`runner/orchestration.py`), execução (`runner/algorithm_runner.py`) e coleta de dados (`runner/checkpoint_io.py`).
-  - `benchmark_scripts`: Pontos de entrada experimentais (`run_selected_problems.py`, `run_chapter4_benchmark.py`).
+  + `src/algorithms/{strategies, metaheuristics}`: Implementações das estratégias de busca local/metaheurísticas e da metaheurística `GeneticAlgorithm`.
+  + `src/protocols`: Definição das interfaces e do padrão `xp` para abstração de backend (NumPy/CuPy), permitindo a execução agnóstica de hardware.
+  + `configs`: Arquivos JSON (`algorithms.json`, `benchmark.json`, `problems.json`) que definem a matriz experimental, desacoplando a configuração da lógica.
+  + `src/benchmarking`: Lógica desacoplada para orquestração (`runner/orchestration.py`), execução (`runner/algorithm_runner.py`) e coleta de dados (`runner/checkpoint_io.py`).
+  + `benchmark_scripts`: Pontos de entrada experimentais (`run_selected_problems.py`, `run_chapter4_benchmark.py`).
 
 >[!caution]
 > deve ser descritivo. Adicionar códigos, a não ser que pseudocódigos em casos pontuai, é expressamente proibido. ccaso seja necessário adicionar códigos, devem estar no apêndice.
@@ -197,20 +199,20 @@ Este é o coração metodológico, e deve usar:
 - **Estrutura**: A matriz de distâncias é pré-calculada em `float64` (precisão dupla) para garantir precisão numérica.
 - **Limite de VRAM**: A capacidade máxima teórica de cidades ($n$), considerando apenas a matriz de distâncias, é dada aproximadamente por $n \approx \sqrt{VRAM_{disponivel\_bytes}/8}$. Contudo, ao incluir os buffers $O(n^2)$ da heurística 2-opt (melhorias e índices), `max_memory_calculation.md` mostra que, para cerca de 2,7 GB reservados (65% de 4 GB), o limite prático cai para aproximadamente $n \approx 13\,000$ nós. No texto, deixar claro que as 38 instâncias da TSPLIB usadas (até $n = 1002$) estão bem abaixo desse limite.
   >[!caution]
-  >importante ressaltar, em alguma parte do [capítulo 3.1](#31-ambiente-computacional), sobre as limitaçõesda GPU, como os 5 SMs (definisr o que SM - Streaming Multiprocessors significam, um overall geral sobre arquitetura de gpus). [gpu_1](../documentation/technical_decisions/GPU_REDUCTION_PATTERNS_AND_LESSONS.md) [gpu_2](../documentation/technical_decisions/GPU_PERFORMANCE_BOTTLENECK_ANALYSIS.md)  
+  >importante ressaltar, em alguma parte do [capítulo 3.1](#31-ambiente-computacional), sobre as limitaçõesda GPU, como os 5 SMs (definisr o que SM - Streaming Multiprocessors significam, um overall geral sobre arquitetura de gpus). [gpu_1](../../../documentation/technical_decisions/GPU_REDUCTION_PATTERNS_AND_LESSONS.md) [gpu_2](../../../documentation/technical_decisions/GPU_PERFORMANCE_BOTTLENECK_ANALYSIS.md)
 - **Padrão `ProblemContext`**: Objeto que encapsula a matriz de distâncias e a transfere para a GPU (`cp.asarray`) uma única vez por problema, evitando transferências repetidas da matriz de distância.
   >[!caution]
   >versões nào otimizadas do algoritmos devem transferir a matriz a cada geração (HybridNaive). O total de transferências de memória também será mostrado.
   >
-  > é extremamente necessário que você explore os resultados em [results.duckdb](./../results/benchmark_results/results.duckdb/results.duckdb).
+  > é extremamente necessário que você explore os resultados em [results.duckdb](../../../results/benchmark_results/results.duckdb/results.duckdb).
 
 #### 3.2.3 Heurística de melhoria 2-opt
 
 - **Versão CPU (NumPy)**: Avaliação vetorizada de todos os movimentos de uma vizinhança para acelerar a busca sequencial, explorando as instruções SIMD da CPU.
 - **Versão GPU (CuPy + RawKernel)**:
-  - Avaliação de todos os $O(n^2)$ movimentos 2-opt em paralelo.
-  - **Redução**: Devido a limitações de integração do CuPy com a biblioteca CUB (CUDA Unbound), foi implementada uma redução manual eficiente em nível de warps e blocos utilizando memória compartilhada (`__shared__`) para encontrar o melhor movimento (Best Improvement), seguindo os padrões recomendados pela documentação da NVIDIA e discutidos em `GPU_REDUCTION_PATTERNS_AND_LESSONS.md` e `GPU_2OPT_INTEGRATION_ANALYSIS.md`.
-  - *Diagrama*: Incluir diagrama de sequência ilustrando o paralelismo massivo na avaliação dos movimentos e a etapa de redução.
+  + Avaliação de todos os $O(n^2)$ movimentos 2-opt em paralelo.
+  + **Redução**: Devido a limitações de integração do CuPy com a biblioteca CUB (CUDA Unbound), foi implementada uma redução manual eficiente em nível de warps e blocos utilizando memória compartilhada (`__shared__`) para encontrar o melhor movimento (Best Improvement), seguindo os padrões recomendados pela documentação da NVIDIA e discutidos em `GPU_REDUCTION_PATTERNS_AND_LESSONS.md` e `GPU_2OPT_INTEGRATION_ANALYSIS.md`.
+  + *Diagrama*: Incluir diagrama de sequência ilustrando o paralelismo massivo na avaliação dos movimentos e a etapa de redução.
 
 >[!caution]
 >tá ruim demais. Isso foi propriamente documentado, já. Tem que colocar também a referência de onde veio a implementaçào disso (documentação NVIDIA/CUDA, padrão de redução tipo CUB), explicitar quais kernels usam esse padrão (2-opt e redução de custo) e apontar para `GPU_REDUCTION_PATTERNS_AND_LESSONS.md` / `GPU_2OPT_INTEGRATION_ANALYSIS.md`.
@@ -220,9 +222,9 @@ Este é o coração metodológico, e deve usar:
 - **Estrutura**: Representação de permutação de cidades.
   Por que eu escolhi este algoritmo OX? porque fujimoto já havia implementado e mostrado. o objetivo era a implementação e comparação entre CPU, GPU e variações dos mesmo algoritmos, focando em variações nas taxonomias propostas por Crainic & Toulouse. Outras variações podem ser implementadas. Isso pode ser citado no capítulo 6.
 - **Operadores**:
-  - Seleção: Torneio (Tournament Selection). Explicar certinho como funciona.
-  - Cruzamento: Order Crossover (OX), preservando a ordem relativa das cidades. Explicar certinho como funciona.
-  - Mutação: Swap Mutation (troca de duas cidades). Explicar certinho como funciona.
+  + Seleção: Torneio (Tournament Selection). Explicar certinho como funciona.
+  + Cruzamento: Order Crossover (OX), preservando a ordem relativa das cidades. Explicar certinho como funciona.
+  + Mutação: Swap Mutation (troca de duas cidades). Explicar certinho como funciona.
 
 #### 3.2.5 Algoritmo Memético
 
@@ -231,20 +233,20 @@ Este é o coração metodológico, e deve usar:
 - *Diagrama*: Incluir diagrama mostrando o ciclo do Algoritmo Memético, destacando onde o 2-opt se insere no fluxo do AG.
 - **Ciclo e Elitismo**: Ciclo geracional padrão com elitismo, preservando os 2 melhores indivíduos para garantir monotonicidade na convergência.
 - **Critérios de Parada**:
-  - **Ótimo Atingido**: A execução para se a solução atinge um valor dentro de 1% do ótimo conhecido (`cost <= best_known * 1.01`). Este relaxamento (vs. $10^{-6}$) foi adotado para acelerar a bateria de testes em problemas difíceis sem comprometer a análise de convergência.
+  + **Ótimo Atingido**: A execução para se a solução atinge um valor dentro de 1% do ótimo conhecido (`cost <= best_known * 1.01`). Este relaxamento (vs. $10^{-6}$) foi adotado para acelerar a bateria de testes em problemas difíceis sem comprometer a análise de convergência.
     - No texto, vincular essa decisão às discussões em `ISO_ALGORITHMIC_GA_VALIDATION_GUIDE.md` e `gpu_cpu_comparison_methodology.md`, destacando que a análise de qualidade foca em gaps percentuais e não em ótimos exatos.
-  - **Estagnação (`patience`)**: Parâmetro adaptativo definido como $patience(n) = 2\sqrt{n}$ gerações consecutivas sem melhora.
+  + **Estagnação (`patience`)**: Parâmetro adaptativo definido como $patience(n) = 2\sqrt{n}$ gerações consecutivas sem melhora.
     - *Justificativa*: Análises empíricas com o framework V1 (`results_and_stats_v3.ipynb`, `insights.md`) mostraram que um valor fixo (e.g., 50 gerações) inflava artificialmente os tempos em problemas pequenos ("cauda" de 50 gerações sem ganho após atingir o ótimo, reusltando em estatísticas bimodais) e ainda podia ser insuficiente em instâncias grandes. A regra $2\sqrt{n}$ reduz a bimodalidade dos tempos de execução e foi incorporada diretamente em `benchmarking.runner.algorithm_runner.adaptive_patience`.
-  - **Geração Máxima**: Limite superior adaptativo: $max\_gens(n) = 2\,n\sqrt{n}$, calculado pela função `adaptive_generations(n)` em `algorithm_runner.py`.
+  + **Geração Máxima**: Limite superior adaptativo: $max\_gens(n) = 2\,n\sqrt{n}$, calculado pela função `adaptive_generations(n)` em `algorithm_runner.py`.
   >[!caution]
-  >- Referências devem ser acadêmicas, não os meus rascunhos em markdown. Porém, neles há as referências corretas a serem utilizadas.
-  >- A seguinte afirmação ainda precisa ser validada.
+  >+ Referências devem ser acadêmicas, não os meus rascunhos em markdown. Porém, neles há as referências corretas a serem utilizadas.
+  >+ A seguinte afirmação ainda precisa ser validada.
   >   > Essa fórmula substitui a aproximação linear $14.3,n - 46$ usada em análises exploratórias de V1 e garante um orçamento de gerações crescente com o tamanho do problema, sem depender de correções a posteriori.
 - *Diagrama*: Incluir fluxograma detalhado do AG Base, com notas explicativas para cada etapa (Seleção, Crossover, Mutação, Avaliação).
 
 >[!caution]Muito simples. Este arquivo deve ser um guia.
 >
-> - Deve-se justificar os porquês dessas escolhas. Deve-se referenciar corretamente baseando-se nas [referências](./refs.bib). Pode-se dizer que estarão sendo melhores explicados a frente, no [subcapítulo 3.4](#34-parâmetros-experimentais)
+> - Deve-se justificar os porquês dessas escolhas. Deve-se referenciar corretamente baseando-se nas [referências](../../refs.bib). Pode-se dizer que estarão sendo melhores explicados a frente, no [subcapítulo 3.4](#34-parâmetros-experimentais)
 > - Problemas encontrados e tudo o mais. Linkando com o subcapítulo onde os problemas encontrados são explicados.
 > - O funcionamento de um algoritmo genético deve ser explicitada através de diagramas. O algoritmos base pode ter um flowchart com notas explicativas adicionais de cada um dos processos.
 > - Umas subsessão para cada etapa do algoritmo deve ser feita.
@@ -264,7 +266,7 @@ Este é o coração metodológico, e deve usar:
   3. **HybridOptimized**: AG em CPU, 2-opt em GPU. Utiliza processamento em lote (Batch Processing), lançando um único kernel para processar toda a população simultaneamente, maximizando a ocupação da GPU.
   4. **FullGPU**: AG e 2-opt totalmente residentes na GPU. Minimiza drasticamente as transferências de dados entre Host e Device, mantendo a população na VRAM durante todo o processo.
 - *Diagramas*: Incluir fluxogramas simples no texto principal para cada variante. Diagramas técnicos detalhados devem constar no Apêndice A.
-- As variantes devem ser propriamente descritas. [Diagramas](../documentation/diagrams) simples como flowcharts devem estar no arquivo principal. Diagramas mais complexos devem estar no Apêndice A e propriamente linkados utilizando o formato pandoc.
+- As variantes devem ser propriamente descritas. [Diagramas](../../../documentation/diagrams) simples como flowcharts devem estar no arquivo principal. Diagramas mais complexos devem estar no Apêndice A e propriamente linkados utilizando o formato pandoc.
 
 ### 3.3 Conjunto de instâncias de teste
 
@@ -278,25 +280,25 @@ Este é o coração metodológico, e deve usar:
 A escolha dos parâmetros foi guiada por recomendações clássicas (e.g., @goldberg1989genetic) e ajustada via análises empíricas (`GA_HYPERPARAMETER_TUNING...`) para o contexto específico de GPU.
 
 - **Parâmetros Estáticos do GA**:
-  - `population_size = 256`: Escolhido para garantir diversidade genética suficiente e alinhar com a arquitetura da GPU (múltiplo de 32/warp).
-  - `mutation_rate = 0.02`: Taxa conservadora para manter a diversidade sem destruir esquemas promissores.
-  - `tournament_size = 5`: Pressão seletiva moderada.
+  + `population_size = 256`: Escolhido para garantir diversidade genética suficiente e alinhar com a arquitetura da GPU (múltiplo de 32/warp).
+  + `mutation_rate = 0.02`: Taxa conservadora para manter a diversidade sem destruir esquemas promissores.
+  + `tournament_size = 5`: Pressão seletiva moderada.
   >[!caution]
   >As escolhas devem estar propriamente referenciadas, acredito ser através de Goldberg nas referências.
 - **Parâmetros da Busca Local**:
-  - `two_opt_iterations = 10`: Número de iterações de 2-opt por indivíduo configurado em `algorithms.json`.
+  + `two_opt_iterations = 10`: Número de iterações de 2-opt por indivíduo configurado em `algorithms.json`.
     - *Justificativa*: Estudos em `GA_HYPERPARAMETER_TUNING_AND_PERFORMANCE_BENCHMARKS.md` sugerem que valores mais altos (50–100) tendem a produzir soluções um pouco melhores, porém com custo computacional significativamente maior por geração. Dado que cada geração já incorpora uma busca local relativamente cara, o trabalho adotou um compromisso conservador (10 iterações) para manter o tempo de execução viável em 38 instâncias × 4 variantes, registrando essa escolha como ameaça à validade em §3.7.
     > [!caution]
     > Esse arquivo não é uma referência acadêmica e não pode ser utilizada como referência. As referências acadêmicas contidas nele, no entanto, devem ser utilizadas quando necessárias.
   > [!caution]
   > Explicar o que isso significa para o algoritmo e para os resultados. Justificar na literatura (e.g., @fujimoto2011highly; @lima2018hybrid; @vidal2013hybrid) por que não são utilizadas mais iterações e relacionar explicitamente com as limitações de tempo/VRAM do experimento, baseando-se nas observaǫes de `GA_HYPERPARAMETER_TUNING...`.
 - **Parâmetros de Execução**:
-  - `seed_base = 42`: Valor registrado em `algorithms.json` apenas como convenção; na implementação atual de `benchmarking.runner.algorithm_runner.run_single_algorithm`, cada repetição recebe uma semente pseudoaleatória gerada por `np.random.randint`, e a lista de sementes efetivamente usadas é armazenada no campo `raw_seeds` de cada checkpoint.
+  + `seed_base = 42`: Valor registrado em `algorithms.json` apenas como convenção; na implementação atual de `benchmarking.runner.algorithm_runner.run_single_algorithm`, cada repetição recebe uma semente pseudoaleatória gerada por `np.random.randint`, e a lista de sementes efetivamente usadas é armazenada no campo `raw_seeds` de cada checkpoint.
     - No texto do TCC, explicar que a reprodutibilidade é obtida reusando esses `raw_seeds` (e não via um único `seed` global fixo) e discutir essa diferença como parte da evolução metodológica em §3.7.
     >[!caution]
     >- Confirmar no código se o campo `ga_params.seed` é de fato utilizado; atualmente `run_single_algorithm` ignora esse valor. Deixar isso claro em §3.7 como limitação de reprodutibilidade "one-click".
     >- Se as raw_seeds são transferidas também para a GPU
-  - `repetitions = to_adjust`: Número de execuções independentes por par (algoritmo, instância) configurado em `benchmark.json` para o framework V2.
+  + `repetitions = to_adjust`: Número de execuções independentes por par (algoritmo, instância) configurado em `benchmark.json` para o framework V2.
     - *Justificativa*: 30 repetições seriam ideais do ponto de vista estatístico (conforme @demvsar2006statistical), mas, devido às limitações de tempo e hardware, optou-se por 15 repetições por problema/algoritmo na fase principal. O framework suporta modo incremental (`incremental_runs=true`), permitindo estender um conjunto de checkpoints até 30 repetições caso seja necessário refinamento adicional.
     >[!caution]
     >Use uma variável de fácil localização como $n_{reps}$. Eu continuarei rodando novas atualizações, já que a análise estatística é rápida de rodas.
@@ -311,15 +313,15 @@ A escolha dos parâmetros foi guiada por recomendações clássicas (e.g., @gold
   3. **Tamanho de Efeito**: Cálculo do Cohen's *d* para quantificar a magnitude da diferença, não apenas sua significância.
   4. **Correção**: Aplicação de Holm-Bonferroni para controlar a taxa de erro familiar (FWER) em múltiplas comparações.
 - **Pipeline Global**:
-  - Teste de Friedman para detectar diferenças entre algoritmos através de múltiplos datasets.
-  - Teste Nemenyi post-hoc para identificar quais pares de algoritmos diferem significativamente no ranking global.
+  + Teste de Friedman para detectar diferenças entre algoritmos através de múltiplos datasets.
+  + Teste Nemenyi post-hoc para identificar quais pares de algoritmos diferem significativamente no ranking global.
 - **Significância**: $\alpha = 0.05$ adotado como padrão.
 - *Ameaças*: Discussão sobre violações de premissas estatísticas e como foram tratadas (e.g., uso de testes robustos/não-paramétricos).
 
 >[!caution]
 >
 >- linkar com [subcapitulo 3.7](#37-ameaças-à-validade-e-evolução-metodológica) onde ameaças à validade são discutidas.
->- adicionar diagrama de decisão para testes a partir de [statistical_tests_comprehensive_guide.md](../documentation/technical_decisions/statistical_tests_comprehensive_guide.md#L6420)
+>- adicionar diagrama de decisão para testes a partir de [statistical_tests_comprehensive_guide.md](../../../documentation/technical_decisions/statistical_tests_comprehensive_guide.md#L6420)
 
 ### 3.6 Procedimento experimental
 
@@ -331,11 +333,11 @@ Descreve o fluxo de trabalho do framework `src/benchmarking/`, orquestrado pelo 
 >[!warning]
 > Will run validation to see if cpu can be extrapolated. For now, You may write other parts that do not specifically requires those validations, i.e. fixed parameter.
 
-3. **Coleta de Dados**: O `CheckpointIO` salva os resultados de cada execução em arquivos JSON. Os dados incluem tempo de execução, custo final, gap para o ótimo, **número de gerações completadas e o motivo da parada** (e.g., `hit_optimal`, `no_improvements`).
-4. **Análise e Geração de Relatórios**: Scripts auxiliares (`aggregate_statistics.py`, `report_generator.py`) processam os checkpoints para realizar a análise estatística e gerar as tabelas e gráficos para o Capítulo 4.
+1. **Coleta de Dados**: O `CheckpointIO` salva os resultados de cada execução em arquivos JSON. Os dados incluem tempo de execução, custo final, gap para o ótimo, **número de gerações completadas e o motivo da parada** (e.g., `hit_optimal`, `no_improvements`).
+2. **Análise e Geração de Relatórios**: Scripts auxiliares (`aggregate_statistics.py`, `report_generator.py`) processam os checkpoints para realizar a análise estatística e gerar as tabelas e gráficos para o Capítulo 4.
 
 > [!caution]
-> Existem dois tipos de benchmarks. O mais completo e metodologicamente consistente está em [`src/benchmarking`](../src/benchmarking) (executado por [`benchmark_scripts`](../benchmark_scripts)) e é a base de **todos os resultados de tempo e speedup** do Capítulo 4. Os primeiros resultados foram analisados na [`v1`](../code/legacy/benchmarks) e são usados apenas como material histórico/de auditoria, com uma exceção controlada: nos problemas pequenos em que o GA de V1 atingiu exatamente o ótimo conhecido, essas execuções são reaproveitadas **apenas** para estatísticas de qualidade de solução (probabilidade de atingir o ótimo, distribuição de gaps) e nunca para métricas de tempo ou de gerações. Em todas as tabelas em que esse reaproveitamento aparece, ele é indicado explicitamente e os dados de V2 permanecem como referência principal.
+> Existem dois tipos de benchmarks. O mais completo e metodologicamente consistente está em [`src/benchmarking`](../../../src/benchmarking) (executado por [`benchmark_scripts`](../../../benchmark_scripts)) e é a base de **todos os resultados de tempo e speedup** do Capítulo 4. Os primeiros resultados foram analisados na [`v1`](../../../code/legacy/benchmarks) e são usados apenas como material histórico/de auditoria, com uma exceção controlada: nos problemas pequenos em que o GA de V1 atingiu exatamente o ótimo conhecido, essas execuções são reaproveitadas **apenas** para estatísticas de qualidade de solução (probabilidade de atingir o ótimo, distribuição de gaps) e nunca para métricas de tempo ou de gerações. Em todas as tabelas em que esse reaproveitamento aparece, ele é indicado explicitamente e os dados de V2 permanecem como referência principal.
 
 ### 3.7 Ameaças à validade e evolução metodológica
 
@@ -361,56 +363,56 @@ Este capítulo “consome” diretamente o que `chapter4_validation.py` produz, 
 ### 4.1 Validação do protocolo
 
 - Relatar um “test run” com poucas repetições (2) apenas para mostrar que:
-  - Pipeline estatístico funciona.
-  - Tabelas são geradas corretamente.
+  + Pipeline estatístico funciona.
+  + Tabelas são geradas corretamente.
 - Depois, focar nos resultados com 30 repetições.
 
 ### 4.2 Estatísticas por instância
 
 - Basear-se na **Tabela 1** (summary por problema):
-  - Gap médio, desvio padrão, tempo médio, speedup.
+  + Gap médio, desvio padrão, tempo médio, speedup.
 - Apresentar:
-  - Alguns casos ilustrativos (por ex. uma instância pequena, uma média, uma grande).
-  - Mostrar gráficos simples: boxplots de custo, tempos, speedup por instância ou por faixa de tamanho.
+  + Alguns casos ilustrativos (por ex. uma instância pequena, uma média, uma grande).
+  + Mostrar gráficos simples: boxplots de custo, tempos, speedup por instância ou por faixa de tamanho.
 
 ### 4.3 Comparação agregada entre algoritmos
 
 - Basear-se na **Tabela 2** (estatísticas agregadas) e **Tabela 3** (melhor algoritmo por faixa).
 - Discutir:
-  - Qual algoritmo domina em gap e em tempo.
-  - Situações em que HybridOptimized vs FullGPU se destacam.
-  - Comparação com CPU onde é aplicável.
+  + Qual algoritmo domina em gap e em tempo.
+  + Situações em que HybridOptimized vs FullGPU se destacam.
+  + Comparação com CPU onde é aplicável.
 
 ### 4.4 Escalabilidade e speedup
 
 - Gráficos:
-  - Speedup vs número de cidades.
-  - Tempo absoluto vs tamanho, separando por algoritmo.
+  + Speedup vs número de cidades.
+  + Tempo absoluto vs tamanho, separando por algoritmo.
 - Relacionar:
-  - Overhead de kernel → porque HybridNaive sofre.
-  - Benefícios de batch 2-opt e FullGPU à medida que n cresce.
+  + Overhead de kernel → porque HybridNaive sofre.
+  + Benefícios de batch 2-opt e FullGPU à medida que n cresce.
 
 ### 4.5 Qualidade das soluções e significância estatística
 
 - Mostrar exemplos de:
-  - Comparações pareadas com significância (p-valor baixo, *d* grande).
-  - Casos em que diferenças são pequenas / não significativas.
+  + Comparações pareadas com significância (p-valor baixo, *d* grande).
+  + Casos em que diferenças são pequenas / não significativas.
 - Discutir:
-  - Quando GPU traz apenas ganho de tempo, sem perda de qualidade.
-  - Se há trade-offs entre gap e tempo.
+  + Quando GPU traz apenas ganho de tempo, sem perda de qualidade.
+  + Se há trade-offs entre gap e tempo.
 
 ---
 
 ## 6. Capítulo 5 – Discussão
 
 - Conectar os resultados com:
-  - Questão de pesquisa (Cap. 1).
-  - Literatura (Cap. 2).
+  + Questão de pesquisa (Cap. 1).
+  + Literatura (Cap. 2).
 - Tópicos sugeridos:
-  - Isoalgorítmico como ferramenta para isolar impacto da plataforma.
-  - Interpretação dos ganhos de speedup vs custo de implementação.
-  - Comparação qualitativa com trabalhos de Fujimoto & Tsutsui e outros (sem prometer melhor/igual, mas contextualizando).
-  - Limitações:
+  + Isoalgorítmico como ferramenta para isolar impacto da plataforma.
+  + Interpretação dos ganhos de speedup vs custo de implementação.
+  + Comparação qualitativa com trabalhos de Fujimoto & Tsutsui e outros (sem prometer melhor/igual, mas contextualizando).
+  + Limitações:
     - Só TSP, nada de VRP.
     - Uma GPU específica (GTX 1050).
     - Um conjunto limitado de parâmetros de GA.
@@ -422,23 +424,23 @@ Este capítulo “consome” diretamente o que `chapter4_validation.py` produz, 
 ### 6.1 Síntese das contribuições
 
 - Reforçar:
-  - Implementação das quatro variantes isoalgorítmicas.
-  - Protocolo estatístico completo e reprodutível.
-  - Resultados de speedup e qualidade.
+  + Implementação das quatro variantes isoalgorítmicas.
+  + Protocolo estatístico completo e reprodutível.
+  + Resultados de speedup e qualidade.
 
 ### 6.2 Respostas às questões de pesquisa e objetivos
 
 - Ponto a ponto:
-  - Como cada objetivo específico foi cumprido.
-  - Quais hipóteses foram apoiadas/contrariadas.
+  + Como cada objetivo específico foi cumprido.
+  + Quais hipóteses foram apoiadas/contrariadas.
 
 ### 6.3 Trabalhos futuros
 
 - Extensões óbvias:
-  - VRP (usando mesma arquitetura).
-  - Outras metaheurísticas (SA, Tabu, GLS, ILS).
-  - GPUs mais modernas e multi-GPU.
-  - Persistent kernels, mais otimizações de kernel.
+  + VRP (usando mesma arquitetura).
+  + Outras metaheurísticas (SA, Tabu, GLS, ILS).
+  + GPUs mais modernas e multi-GPU.
+  + Persistent kernels, mais otimizações de kernel.
 
 ---
 
@@ -447,11 +449,11 @@ Este capítulo “consome” diretamente o que `chapter4_validation.py` produz, 
 - **Referências** (a partir de refs.bib).
 - **Glossário** (termos como “isoalgorítmico”, “2-opt”, “warp”, etc.).
 - **Apêndices**:
-  - Pseudocódigos dos algoritmos (GA+2-opt, variantes).
-  - Detalhes matemáticos dos testes estatísticos (PDFs, derivação de t e $\chi^2$ se você quiser).
-  - Trechos de configuração de benchmark (`chapter4_validation.py`).
+  + Pseudocódigos dos algoritmos (GA+2-opt, variantes).
+  + Detalhes matemáticos dos testes estatísticos (PDFs, derivação de t e $\chi^2$ se você quiser).
+  + Trechos de configuração de benchmark (`chapter4_validation.py`).
 - **Anexos**:
-  - Tabelas completas de resultados (se forem muito grandes para o corpo principal).
+  + Tabelas completas de resultados (se forem muito grandes para o corpo principal).
 
 ---
 
@@ -459,12 +461,12 @@ Este capítulo “consome” diretamente o que `chapter4_validation.py` produz, 
 
 ## Links that may help
 
-- [pandoc-markdown-manual](../documentation/pdfs/pandoc-markdown-manual.pdf)
-- [pandoc-citation](../documentation/pdfs/pandoc-citation.pdf)
-- [pandoc-full](../documentation/pdfs/pandoc-manual.pdf)
+- [pandoc-markdown-manual](../../../documentation/pdfs/pandoc-markdown-manual.pdf)
+- [pandoc-citation](../../../documentation/pdfs/pandoc-citation.pdf)
+- [pandoc-full](../../../documentation/pdfs/pandoc-manual.pdf)
 - [pandoc-images](https://pandoc.org/MANUAL.html#images)
 - [website-manual-markdown](https://pandoc.org/MANUAL.html#pandocs-markdown) -> fonte da verdade para como escrever o arquivo em pandoc.
-- [checklist do que o documento deve conter](../documentation/critical_analysis/guide-academic-critical-appraisal.md#2-eight-dimension-critical-appraisal-checklist)
+- [checklist do que o documento deve conter](../../../documentation/critical_analysis/guide-academic-critical-appraisal.md#2-eight-dimension-critical-appraisal-checklist)
 - [mermaid in pandoc](https://github.com/raghur/mermaid-filter) -> add this package to uv.
 
 ---
@@ -474,9 +476,9 @@ Este capítulo “consome” diretamente o que `chapter4_validation.py` produz, 
 Sugestão consistente para o texto:
 
 - Use “**variações isoalgorítmicas** de Algoritmos Genéticos” ou “**algoritmos isoalgorítmicos**” e defina explicitamente uma vez:
-  - “Chamamos de algoritmos **isoalgorítmicos** aqueles que mantêm a mesma estrutura algorítmica (mesmos operadores, parâmetros e fluxo de controle), diferindo apenas na forma de implementação e na plataforma de execução (CPU vs GPU).”
+  + “Chamamos de algoritmos **isoalgorítmicos** aqueles que mantêm a mesma estrutura algorítmica (mesmos operadores, parâmetros e fluxo de controle), diferindo apenas na forma de implementação e na plataforma de execução (CPU vs GPU).”
 - Depois, referir-se às quatro variantes como:
-  - “GA-CPU”, “GA-HybridNaive”, “GA-HybridOptimized”, “GA-FullGPU”.
+  + “GA-CPU”, “GA-HybridNaive”, “GA-HybridOptimized”, “GA-FullGPU”.
 
 ---
 
@@ -484,12 +486,12 @@ Sugestão consistente para o texto:
 
 Com base no que já foi feito e neste esqueleto:
 
-1. Review core thesis and analysis docs – **concluído**  
-2. Inspect core algorithm and benchmark code – não iniciado  
-3. Survey benchmark results and data structure – não iniciado  
-4. Analyze bibliography and select key references – **concluído (base inicial)**  
-5. Design full TCC chapter skeleton – **concluído (neste texto)**  
-6. Plan diagrams and methodological details – ainda por fazer  
-7. Produce consolidated analysis and task list document – ainda por fazer  
+1. Review core thesis and analysis docs – **concluído**
+2. Inspect core algorithm and benchmark code – não iniciado
+3. Survey benchmark results and data structure – não iniciado
+4. Analyze bibliography and select key references – **concluído (base inicial)**
+5. Design full TCC chapter skeleton – **concluído (neste texto)**
+6. Plan diagrams and methodological details – ainda por fazer
+7. Produce consolidated analysis and task list document – ainda por fazer
 
 Se você quiser, o próximo passo é escolher um capítulo (normalmente Cap. 1 ou 3) e começar a reescrita guiada com base neste esqueleto.

@@ -1,0 +1,230 @@
+\documentclass[12pt,oneside,a4paper,brazil]{./abntex2/abntex2}
+
+% Engine guard: this draft now targets LuaLaTeX only.
+\usepackage{iftex}
+\ifLuaTeX\else
+      \PackageError{second_draft}{This document must be compiled with LuaLaTeX}{Use latexmk -lualatex -shell-escape second_draft.tex}
+\fi
+
+% Typography and math.
+% xcolor is loaded transitively by TikZ/algorithm2e; no direct color commands exist.
+\usepackage{fontspec}
+\setmainfont{Libertinus Serif}
+\setsansfont{Libertinus Sans}
+\setmonofont{Libertinus Mono}
+\usepackage{amsmath}
+\usepackage{unicode-math}
+\setmathfont{Libertinus Math}
+
+% Core packages used by the hand-maintained thesis source.
+\usepackage{longtable,booktabs,array}
+% calc is already loaded by abntex2.cls (\RequirePackage{calc}).
+\usepackage{etoolbox}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit,backgrounds}
+% Estilos compartilhados para os diagramas em TikZ Nativo
+\tikzset{
+  fc_base/.style={
+    font=\small\selectfont,
+    text=black!92,
+    draw=black!85,
+    line width=0.75pt,
+    align=center,
+    inner sep=5pt
+  },
+  fc_term/.style={
+    fc_base,
+    rectangle,
+    rounded corners=8pt,
+    fill=gray!10,
+    minimum height=7mm
+  },
+  fc_proc/.style={
+    fc_base,
+    rectangle,
+    rounded corners=2pt,
+    fill=white,
+    minimum height=7mm
+  },
+  fc_memetic/.style={
+    fc_base,
+    rectangle,
+    rounded corners=2pt,
+    dashed,
+    line width=1.1pt,
+    fill=gray!14,
+    minimum height=7mm
+  },
+  fc_dec/.style={
+    fc_base,
+    diamond,
+    aspect=2.2,
+    fill=white,
+    inner sep=2.5pt
+  },
+  fc_group/.style={
+    draw=black!50,
+    rectangle,
+    rounded corners=3pt,
+    fill=gray!4,
+    line width=0.6pt,
+    inner sep=8pt
+  },
+  fc_subgroup/.style={
+    draw=black!40,
+    rectangle,
+    rounded corners=2pt,
+    fill=white!80!gray!3,
+    line width=0.5pt,
+    inner sep=7pt
+  },
+  fc_grouptitle/.style={
+    font=\footnotesize\bfseries,
+    text=black!82,
+    fill=gray!4,
+    inner xsep=4pt,
+    inner ysep=1.5pt
+  },
+  fc_subgrouptitle/.style={
+    font=\footnotesize\bfseries,
+    text=black!78,
+    fill=white,
+    inner xsep=3pt,
+    inner ysep=1pt
+  },
+  fc_arr/.style={
+    ->,
+    >=Stealth,
+    line width=0.75pt,
+    draw=black!88
+  },
+  fc_lbl/.style={
+    font=\footnotesize,
+    text=black!90,
+    fill=white,
+    inner sep=1.5pt
+  }
+}
+\usepackage[portuguese,onelanguage,ruled,vlined,linesnumbered]{algorithm2e}
+\SetKwInput{KwEntrada}{Entrada}
+\SetKwInput{KwSaida}{Saída}
+\SetKw{KwAte}{até}
+\SetKw{KwInterromper}{interromper}
+\SetKw{KwRetornar}{retornar}
+\DontPrintSemicolon
+\graphicspath{{assets/}}
+
+% Pandoc-compatibility shim still required by the Pandoc-derived longtables:
+% longtable \par patch, footnotehyper, \tightlist, tocdepth=4 and xurl.
+\input{pandoc_support.tex}
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em}
+
+% Bibliography and local ABNT customizations.
+\usepackage{csquotes}
+\usepackage[backend=biber,style=abnt]{biblatex}
+\addbibresource{refs.bib}
+\providecommand{\backrefpagesname}{}
+\providecommand{\backref}{}
+\providecommand*{\backrefalt}[4]{}
+\usepackage{./abntex2/my_changes}
+
+% Padronização global de listas após my_changes (sobrescreve before=\small/recuo de enumerate)
+\setlist[itemize]{
+  leftmargin=1.5em,
+  itemsep=3pt,
+  parsep=0pt,
+  topsep=4pt,
+  partopsep=0pt
+}
+\setlist[itemize,1]{label=\textbullet}
+\setlist[itemize,2]{label=--}
+\setlist[enumerate]{
+  align=left,
+  leftmargin=1.8em,
+  labelindent=0pt,
+  labelwidth=*,
+  itemsep=3pt,
+  parsep=0pt,
+  topsep=4pt,
+  partopsep=0pt,
+  label=\arabic*.,
+  before=\normalsize
+}
+
+% Espaçamento simples em tabelas e referências (ABNT NBR 14724)
+\AtBeginEnvironment{table}{\SingleSpacing}
+\AtBeginEnvironment{longtable}{\SingleSpacing}
+\AtBeginBibliography{\SingleSpacing}
+
+% PDF metadata.
+\hypersetup{
+      pdftitle={Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante},
+      pdfauthor={Lucas Eduardo Galdino Silva},
+      pdflang={pt-BR},
+      hidelinks,
+      pdfcreator={LuaLaTeX via latexmk}}
+
+% Metadados institucionais UFSC (ABNT NBR 14724 / BU-UFSC).
+\titulo{Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante}
+\autor{Lucas Eduardo Galdino Silva}
+\local{Florianópolis}
+\data{2026}
+\instituicao{%
+      Universidade Federal de Santa Catarina
+      \par
+      Centro Tecnológico
+      \par
+      Curso de Graduação em Engenharia Mecânica
+}
+\tipotrabalho{Trabalho de Conclusão de Curso}
+\orientador{Prof.~Dr.~Sérgio Fernando Mayerle}
+\preambulo{Trabalho de Conclusão de Curso submetido ao Curso de Graduação em Engenharia Mecânica do Centro Tecnológico da Universidade Federal de Santa Catarina como requisito parcial para a obtenção do título de Bacharel em Engenharia Mecânica.}
+
+% Parâmetros canônicos do protocolo experimental (evita valores fixos espalhados no texto).
+\newcommand{\totalinstancias}{15}
+\newcommand{\totalrepeticoes}{30}
+\newcommand{\totalvariantes}{4}
+\newcommand{\totalcombinacoes}{60}
+\newcommand{\totalexecucoes}{1800}
+\newcommand{\totalexecinstancia}{120}
+\newcommand{\menorinstancia}{48}
+\newcommand{\maiorinstancia}{1002}
+\newcommand{\sementeinicial}{42}
+\newcommand{\sementefinal}{71}
+\newcommand{\maxpassadas}{10}
+\newcommand{\kviz}{20}
+
+% Macros de referência cruzada com numeração automática e link completo.
+\newcommand{\capref}[1]{\hyperref[#1]{Capítulo~\ref*{#1}}}
+\newcommand{\secref}[1]{\hyperref[#1]{Seção~\ref*{#1}}}
+\newcommand{\apref}[1]{\hyperref[#1]{Apêndice~\ref*{#1}}}
+\newcommand{\figref}[1]{\hyperref[#1]{Figura~\ref*{#1}}}
+\newcommand{\tabref}[1]{\hyperref[#1]{Tabela~\ref*{#1}}}
+\newcommand{\algref}[1]{\hyperref[#1]{Algoritmo~\ref*{#1}}}
+
+% Body split into parts/ for maintainability (pre-split snapshot archived in archive/).
+\input{parts/00-frontmatter.tex}
+
+% ABNT NBR 14724 (§5.3): elementos pré-textuais são contados sem exibir número;
+% a numeração arábica passa a ser exibida a partir da primeira folha textual (Introdução).
+\cleardoublepage
+\textual
+\input{parts/01-introducao.tex}
+\input{parts/02-fundamentacao.tex}
+\input{parts/03-materiais-metodos.tex}
+\input{parts/04-resultados.tex}
+\input{parts/05-discussao.tex}
+\input{parts/06-conclusoes.tex}
+
+\postextual
+\printbibliography
+
+\appendix
+\input{parts/07-apendices.tex}
+
+\end{document}
