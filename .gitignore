@@ -65,3 +65,4 @@ datasets/
 .env
 .env.*
 !.env.example
+.github/copilot-memories.jsonl
