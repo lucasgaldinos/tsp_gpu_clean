@@ -32,7 +32,7 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -63,6 +63,7 @@ from benchmarking.runner.checkpoint_io import (
   numpy_to_json_converter,
   quarantine_checkpoint,
   save_checkpoint_atomic,
+  validate_existing_checkpoints,
 )
 from benchmarking.runner.config_loader import (
   AlgorithmConfig,
@@ -72,10 +73,11 @@ from benchmarking.runner.config_loader import (
   build_problem_configs_from_duckdb,
   build_problem_configs_from_tsp_files,
   load_all_configs,
+  validate_configs,
 )
 from loaders.database_loader import DatabaseLoader
 from loaders.tsplib_loader import TsplibLoader
-from protocols.backend import cupy_backend
+from protocols.backend import cupy_backend, gpu_available
 
 
 def _release_gpu_memory() -> None:
@@ -131,10 +133,12 @@ def _log_benchmark_configuration(
   problem_configs: list[ProblemConfig],
   ga_params: GAParams,
   benchmark_config: BenchmarkConfig,
+  benchmark_name: str = "benchmark",
 ) -> None:
   """Log benchmark configuration at startup."""
+  banner_title = benchmark_name.replace("_", " ").upper()
   logging.info("=" * 80)
-  logging.info("CHAPTER 4 VALIDATION: GPU-ACCELERATED GENETIC ALGORITHM BENCHMARK")
+  logging.info(f"{banner_title}: GPU-ACCELERATED GENETIC ALGORITHM BENCHMARK")
   logging.info("=" * 80)
   logging.info("")
 
@@ -142,13 +146,20 @@ def _log_benchmark_configuration(
   logging.info(f"  Algorithms: {', '.join(selected_algorithms)}")
   logging.info(f"  Problems: {len(problem_configs)} TSP instances")
   logging.info(f"  Repetitions: {repetitions}")
-  logging.info(f"  CPU threshold: n ≤ {benchmark_config.cpu_size_threshold}")
+  if benchmark_config.cpu_size_threshold is None:
+    logging.info("  CPU threshold: all instances (no cutoff)")
+  else:
+    logging.info(f"  CPU threshold: n ≤ {benchmark_config.cpu_size_threshold}")
   logging.info("")
 
   logging.info("GA Parameters:")
   logging.info(f"  Population size: {ga_params.population_size}")
   logging.info(f"  Mutation rate: {ga_params.mutation_rate}")
-  logging.info("  Early stop patience: Adaptive (2x√n generations)")
+  logging.info(f"  Seed: {ga_params.seed}")
+  if benchmark_config.patience is None:
+    logging.info("  Early stop patience: Adaptive (2x√n generations)")
+  else:
+    logging.info(f"  Early stop patience: {benchmark_config.patience} generations")
   logging.info("")
 
 
@@ -156,13 +167,83 @@ def _determine_problem_algorithms(
   problem_size: int,
   selected_algorithms: list[str],
   algorithm_configs: dict[str, AlgorithmConfig],
-  cpu_threshold: int,
+  cpu_threshold: int | None,
 ) -> list[str]:
   """Determine which algorithms to run for a problem based on size."""
-  if problem_size <= cpu_threshold:
+  if cpu_threshold is None or problem_size <= cpu_threshold:
     return selected_algorithms
   else:
     return [alg for alg in selected_algorithms if algorithm_configs[alg].use_gpu]
+
+
+def validate_gpu_backend_for_algorithms(
+  selected_algorithms: Sequence[str],
+  algorithm_configs: Mapping[str, AlgorithmConfig],
+) -> list[str]:
+  """Confirm a functional CUDA/CuPy backend when any selected algorithm requires GPU."""
+  requires_gpu = any(
+    algorithm_configs[alg].use_gpu
+    for alg in selected_algorithms
+    if alg in algorithm_configs
+  )
+  if not requires_gpu:
+    return []
+
+  errors: list[str] = []
+  if not gpu_available():
+    errors.append("no usable CUDA device (`protocols.backend.gpu_available()` is False)")
+  if cupy_backend() is None:
+    errors.append("`protocols.backend.cupy_backend()` returned None; GPU variants have no backend")
+  return errors
+
+
+def _run_preflight(
+  *,
+  effective_ga_params: GAParams,
+  algorithm_configs: dict[str, AlgorithmConfig],
+  effective_benchmark_config: BenchmarkConfig,
+  problem_configs: Sequence[ProblemConfig],
+  selected_algorithms: Sequence[str],
+  checkpoint_dir: Path,
+  ga_params: GAParams,
+  param_overrides: Mapping[str, Any] | None,
+  effective_seed: int,
+  preflight_validator: Callable[
+    [Mapping[str, AlgorithmConfig], GAParams, Sequence[ProblemConfig]],
+    Sequence[str],
+  ]
+  | None = None,
+) -> None:
+  """Validate effective configs, GPU backend availability, and existing checkpoints."""
+  errors: list[str] = validate_configs(
+    {
+      "ga_params": effective_ga_params,
+      "algorithms": algorithm_configs,
+      "benchmark": effective_benchmark_config,
+      "problems": list(problem_configs),
+    }
+  )
+  if not selected_algorithms:
+    errors.append("No algorithms selected for benchmark execution")
+  if preflight_validator is not None:
+    errors.extend(preflight_validator(algorithm_configs, ga_params, problem_configs))
+  errors.extend(validate_gpu_backend_for_algorithms(selected_algorithms, algorithm_configs))
+  errors.extend(
+    validate_existing_checkpoints(
+      checkpoint_dir,
+      problem_configs,
+      selected_algorithms,
+      algorithm_configs,
+      ga_params,
+      param_overrides=param_overrides,
+      seed_override=effective_seed,
+      cpu_size_threshold=effective_benchmark_config.cpu_size_threshold,
+    )
+  )
+  if errors:
+    for err in errors:
+      logging.error(f"Preflight error: {err}")
+    raise ValueError("Benchmark preflight validation failed:\n" + "\n".join(f"  - {err}" for err in errors))
 
 
 def _save_problem_statistics_file(
@@ -262,9 +343,15 @@ def run_comprehensive_benchmark(
   mutation_rate: float | None = None,
   strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
   baseline_algorithm: str | None = None,
+  dry_run: bool = False,
+  preflight_validator: Callable[
+    [Mapping[str, AlgorithmConfig], GAParams, Sequence[ProblemConfig]],
+    Sequence[str],
+  ]
+  | None = None,
 ) -> dict[str, dict[str, dict[str, Any]]]:
   """Run comprehensive benchmark on all configured problems and algorithms."""
-  setup_benchmark_logging(output_dir, benchmark_name)
+  setup_benchmark_logging(output_dir, benchmark_name, log_level=None)
   logging.info("Loading configurations...")
 
   resolved_config_dir: Path = Path(config_dir)
@@ -322,12 +409,13 @@ def run_comprehensive_benchmark(
 
   problem_configs = resolved_problems
 
-  if effective_test_mode and not tsp_files:
+  if effective_test_mode and not tsp_files and problem_configs:
     problem_configs = problem_configs[:2]
     logging.info("=" * 80)
     logging.info("⚠️  TEST MODE ENABLED")
     logging.info("=" * 80)
-    logging.info(f"Running on first 2 problems only ({problem_configs[0].name}, {problem_configs[1].name})")
+    problem_list_str = ", ".join(p.name for p in problem_configs)
+    logging.info(f"Running on first {len(problem_configs)} problems only ({problem_list_str})")
     logging.info("Use without --test-mode for full benchmark")
     logging.info("=" * 80)
     logging.info("")
@@ -342,10 +430,47 @@ def run_comprehensive_benchmark(
       continue
     selected_algorithms.append(alg_name)
 
-  _log_benchmark_configuration(effective_repetitions, selected_algorithms, problem_configs, ga_params, benchmark_config)
+  effective_ga_params = GAParams(
+    population_size=population_size if population_size is not None else ga_params.population_size,
+    mutation_rate=mutation_rate if mutation_rate is not None else ga_params.mutation_rate,
+    seed=effective_seed,
+  )
+  effective_benchmark_config = BenchmarkConfig(
+    repetitions=effective_repetitions,
+    patience=benchmark_config.patience,
+    cpu_size_threshold=benchmark_config.cpu_size_threshold,
+    incremental_runs=benchmark_config.incremental_runs,
+    line_width=benchmark_config.line_width,
+  )
 
   resolved_output_dir: Path = Path(output_dir)
   resolved_benchmark_name = str(benchmark_name)
+
+  _run_preflight(
+    effective_ga_params=effective_ga_params,
+    algorithm_configs=algorithm_configs,
+    effective_benchmark_config=effective_benchmark_config,
+    problem_configs=problem_configs,
+    selected_algorithms=selected_algorithms,
+    checkpoint_dir=resolved_output_dir / "checkpoints",
+    ga_params=ga_params,
+    param_overrides=param_overrides or None,
+    effective_seed=effective_seed,
+    preflight_validator=preflight_validator,
+  )
+
+  _log_benchmark_configuration(
+    effective_repetitions,
+    selected_algorithms,
+    problem_configs,
+    effective_ga_params,
+    effective_benchmark_config,
+    benchmark_name=resolved_benchmark_name,
+  )
+
+  if dry_run:
+    logging.info("Dry-run requested: preflight validation passed. Exiting without benchmark execution.")
+    return {}
 
   checkpoint_manager = CheckpointManager(
     checkpoint_dir=resolved_output_dir / "checkpoints",
@@ -357,6 +482,7 @@ def run_comprehensive_benchmark(
     selected_algorithms,
     effective_repetitions,
     benchmark_config.cpu_size_threshold,
+    algorithm_configs=algorithm_configs,
   )
   if completed > 0:
     logging.info(f"\n✓ Found {completed}/{total} completed checkpoints")
@@ -390,8 +516,13 @@ def run_comprehensive_benchmark(
       benchmark_config.cpu_size_threshold,
     )
 
-    if problem_size <= benchmark_config.cpu_size_threshold:
-      logging.info(f"Running {len(problem_algorithms)} algorithm(s) (n≤{benchmark_config.cpu_size_threshold})\n")
+    if benchmark_config.cpu_size_threshold is None or problem_size <= benchmark_config.cpu_size_threshold:
+      thresh_label = (
+        "all instances"
+        if benchmark_config.cpu_size_threshold is None
+        else f"n≤{benchmark_config.cpu_size_threshold}"
+      )
+      logging.info(f"Running {len(problem_algorithms)} algorithm(s) ({thresh_label})\n")
     else:
       logging.info(f"Running {len(problem_algorithms)} GPU algorithms only (n>{benchmark_config.cpu_size_threshold})\n")
 
@@ -408,6 +539,12 @@ def run_comprehensive_benchmark(
     except Exception as e:
       logging.error(f"Failed to load {problem_name}: {e}")
       continue
+
+    if problem_config.size != problem.dimension:
+      raise ValueError(
+        f"Problem '{problem_name}' configured size ({problem_config.size}) "
+        f"does not match loaded dimension ({problem.dimension})"
+      )
 
     problem_results[problem_name] = {}
     max_generations: int = adaptive_generations(problem_size)
@@ -646,6 +783,7 @@ def run_comprehensive_benchmark(
       problem_configs=problem_configs,
       analyzer=analyzer,
       cpu_threshold=benchmark_config.cpu_size_threshold,
+      baseline_algorithm=baseline_algorithm,
     )
 
   if problem_results:

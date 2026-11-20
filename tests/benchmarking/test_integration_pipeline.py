@@ -238,23 +238,28 @@ def test_run_comprehensive_benchmark_forwards_baseline_algorithm(
   fixture_tsp_dir: Path,
   tmp_path: Path,
 ) -> None:
-  """Verify run_comprehensive_benchmark forwards baseline_algorithm to perform_statistical_analysis.
+  """Verify run_comprehensive_benchmark forwards baseline_algorithm to statistical and cross-problem analysis.
 
-  WHY: Task 12.39 (BUG-55) — Prevent silent baseline divergence between report tables and problem stats.
+  WHY: Task 12.39 (BUG-55) & Task 14.2 (BUG-92) — Prevent silent baseline divergence across layers.
   """
   from unittest.mock import patch
 
   gr17_path: Path = fixture_tsp_dir / "gr17.tsp"
-  with patch("benchmarking.runner.orchestration.perform_statistical_analysis") as mock_stat:
+  bayg29_path: Path = fixture_tsp_dir / "bayg29.tsp"
+  with (
+    patch("benchmarking.runner.orchestration.perform_statistical_analysis") as mock_stat,
+    patch("benchmarking.runner.orchestration.perform_cross_problem_analysis_stratified") as mock_cross,
+  ):
     mock_stat.return_value = {
       "problem_name": "gr17",
       "optimal_cost": 2085.0,
       "baseline_algorithm": "CustomBaseline",
     }
+    mock_cross.return_value = {}
     run_comprehensive_benchmark(
       config_dir=fixture_config_dir,
       output_dir=tmp_path,
-      tsp_files=[gr17_path],
+      tsp_files=[gr17_path, bayg29_path],
       algorithms=["CPU"],
       repetitions=1,
       skip_cpu=False,
@@ -262,8 +267,11 @@ def test_run_comprehensive_benchmark_forwards_baseline_algorithm(
       baseline_algorithm="CustomBaseline",
     )
     assert mock_stat.called
-    _, kwargs = mock_stat.call_args
-    assert kwargs.get("baseline_algorithm") == "CustomBaseline"
+    _, stat_kwargs = mock_stat.call_args
+    assert stat_kwargs.get("baseline_algorithm") == "CustomBaseline"
+    assert mock_cross.called
+    _, cross_kwargs = mock_cross.call_args
+    assert cross_kwargs.get("baseline_algorithm") == "CustomBaseline"
 
 
 
@@ -365,10 +373,27 @@ def test_compare_algorithms_and_grouping() -> None:
   assert stratum2 is not None
   assert stratum2["n_problems"] == 4
   assert stratum2["n_algorithms"] == 3
-  assert stratum2["algorithms"] == ["FullGPUMonolithic", "HybridNaive", "HybridOptimized"]
+  assert stratum2["algorithms"] == ["HybridNaive", "HybridOptimized", "FullGPUMonolithic"]
   assert stratum2["speedups"]["HybridNaive"] == pytest.approx(1.0)
   assert stratum2["speedups"]["FullGPUMonolithic"] == pytest.approx(22.8999, rel=1e-4)
   assert stratum2["speedups"]["HybridOptimized"] == pytest.approx(9.4149, rel=1e-4)
+
+  # Unified cross-problem analysis with cpu_threshold=None (no stratification split, both gap and time)
+  strat_res_none: dict[str, Any] = perform_cross_problem_analysis_stratified(
+    all_results=all_results,
+    problem_configs=p_configs,
+    analyzer=analyzer,
+    cpu_threshold=None,
+    baseline_algorithm="CPU",
+  )
+  assert strat_res_none["stratified"] is False
+  assert strat_res_none["cpu_threshold"] is None
+  assert strat_res_none["baseline_algorithm"] == "CPU"
+  assert strat_res_none["gap_comparison"] is not None
+  assert strat_res_none["gap_comparison"]["n_problems"] == 3
+  assert strat_res_none["time_comparison"] is not None
+  assert strat_res_none["time_comparison"]["n_problems"] == 3
+  assert strat_res_none["time_comparison"]["speedups"]["CPU"] == pytest.approx(1.0)
 
   # CPU covers only the three small problems; FullGPU covers all four.
   assert strat_res["summary_statistics"]["CPU"]["n_problems"] == 3
@@ -498,3 +523,123 @@ def test_generate_result_tables_emits_phase_timings_table(tmp_path: Path) -> Non
   assert "8.0\\% (3\\%)" in tex_content, "the LaTeX row must carry the survival share and CV"
   assert "Warning:" in tex_content
   assert "\\end{document}" in tex_content
+
+
+def test_run_comprehensive_benchmark_rejects_incompatible_checkpoint(
+  fixture_config_dir: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+) -> None:
+  """Verify run_comprehensive_benchmark fails fast in preflight on old-schema or mismatched checkpoints."""
+  import json
+
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir(parents=True)
+  ckpt_path = ckpt_dir / "gr17_CPU.json"
+
+  # Case 1: old-schema checkpoint missing modular keys ('strategies', 'algorithm_config', etc.)
+  old_payload = {
+    "algorithm": "CPU",
+    "repetitions": 1,
+    "successful_runs": 1,
+    "mean_time": 0.1,
+    "mean_cost": 2085.0,
+    "raw_times": [0.1],
+    "raw_costs": [2085.0],
+    "raw_gaps": [0.0],
+    "raw_seeds": [42],
+  }
+  ckpt_path.write_text(json.dumps(old_payload), encoding="utf-8")
+
+  with pytest.raises(ValueError, match="missing required keys"):
+    run_comprehensive_benchmark(
+      config_dir=fixture_config_dir,
+      output_dir=tmp_path,
+      tsp_files=[fixture_tsp_dir / "gr17.tsp"],
+      algorithms=["CPU"],
+      repetitions=1,
+    )
+
+  # Stale checkpoint must not be overwritten
+  assert json.loads(ckpt_path.read_text(encoding="utf-8")) == old_payload
+
+  # Case 2: mismatched strategy class in modular checkpoint
+  mismatched_strategy_payload = {
+    **old_payload,
+    "problem_name": "gr17",
+    "strategies": {
+      "initialization": "InitializationRandom",
+      "selection": "SelectionTournament",
+      "crossover": "CrossoverOrder",
+      "mutation": "MutationSwap",
+      "local_search": "LocalSearchGPUTwoOpt",
+      "evaluation": "EvaluationCPUCost",
+    },
+    "algorithm_config": {
+      "population_size": 32,
+      "mutation_rate": 0.05,
+      "seed": 42,
+    },
+  }
+  ckpt_path.write_text(json.dumps(mismatched_strategy_payload), encoding="utf-8")
+
+  with pytest.raises(ValueError, match=r"strategies\.local_search"):
+    run_comprehensive_benchmark(
+      config_dir=fixture_config_dir,
+      output_dir=tmp_path,
+      tsp_files=[fixture_tsp_dir / "gr17.tsp"],
+      algorithms=["CPU"],
+      repetitions=1,
+    )
+
+
+def test_run_comprehensive_benchmark_rejects_dimension_mismatch(
+  fixture_config_dir: Path,
+  fixture_duckdb_path: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+) -> None:
+  """Verify run_comprehensive_benchmark raises ValueError when ProblemConfig.size != Problem.dimension."""
+  with pytest.raises(ValueError, match=r"configured size \(999\) does not match loaded dimension \(17\)"):
+    run_comprehensive_benchmark(
+      config_dir=fixture_config_dir,
+      output_dir=tmp_path,
+      db_path=fixture_duckdb_path,
+      fallback_tsp_dir=fixture_tsp_dir,
+      problem_configs=[ProblemConfig(name="gr17", optimal=2085.0, size=999)],
+      algorithms=["CPU"],
+      repetitions=1,
+    )
+
+
+def test_run_comprehensive_benchmark_preflight_rejects_invalid_config_and_missing_gpu(
+  fixture_config_dir: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """Verify preflight rejects invalid overrides and missing GPU backend when GPU algorithm is selected."""
+  from benchmarking.runner import orchestration
+
+  gr17_path = fixture_tsp_dir / "gr17.tsp"
+
+  with pytest.raises(ValueError, match="Invalid repetitions: 0"):
+    run_comprehensive_benchmark(
+      config_dir=fixture_config_dir,
+      output_dir=tmp_path,
+      tsp_files=[gr17_path],
+      algorithms=["CPU"],
+      repetitions=0,
+    )
+
+  monkeypatch.setattr(orchestration, "gpu_available", lambda: False)
+  monkeypatch.setattr(orchestration, "cupy_backend", lambda: None)
+
+  with pytest.raises(ValueError, match="no usable CUDA device"):
+    run_comprehensive_benchmark(
+      config_dir=fixture_config_dir,
+      output_dir=tmp_path,
+      tsp_files=[gr17_path],
+      algorithms=["HybridNaive"],
+      repetitions=1,
+    )

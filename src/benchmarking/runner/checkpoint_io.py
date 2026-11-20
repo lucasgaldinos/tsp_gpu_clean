@@ -14,14 +14,21 @@ This module provides fault-tolerant checkpoint management, enabling:
 Author: GPU Accelerated Routing Optimization Team
 Date: 2025-01-28
 """
+from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+  from collections.abc import Mapping, Sequence
+
+  from benchmarking.runner.config_loader import AlgorithmConfig, GAParams, ProblemConfig
 
 # =============================================================================
 # Checkpoint Manager Class
@@ -135,7 +142,8 @@ class CheckpointManager:
     problems: list[dict[str, Any]],
     algorithms: list[str],
     expected_reps: int = 30,
-    cpu_size_threshold: int = 100,
+    cpu_size_threshold: int | None = None,
+    algorithm_configs: Mapping[str, AlgorithmConfig] | None = None,
   ) -> tuple[int, int]:
     """
     Count how many checkpoints already exist.
@@ -144,7 +152,8 @@ class CheckpointManager:
         problems: List of problem configurations (dicts with 'name' and 'size')
         algorithms: List of algorithm names
         expected_reps: Expected repetitions for validation
-        cpu_size_threshold: Skip CPU for problems larger than this
+        cpu_size_threshold: Skip non-GPU algorithms for problems larger than this (None = all instances)
+        algorithm_configs: Optional mapping of algorithm names to AlgorithmConfig (uses ``use_gpu`` flag)
 
     Returns:
         Tuple of (completed_count, total_count)
@@ -156,10 +165,12 @@ class CheckpointManager:
       problem_name = problem["name"]
       problem_size = problem["size"]
 
-      if problem_size <= cpu_size_threshold:
+      if cpu_size_threshold is None or problem_size <= cpu_size_threshold:
         problem_algorithms = algorithms
+      elif algorithm_configs is not None:
+        problem_algorithms = [a for a in algorithms if a in algorithm_configs and algorithm_configs[a].use_gpu]
       else:
-        problem_algorithms = [a for a in algorithms if a != "CPU"]
+        problem_algorithms = [a for a in algorithms if not a.upper().startswith("CPU")]
 
       for algo in problem_algorithms:
         total += 1
@@ -441,3 +452,142 @@ def get_remaining_repetitions(filepath: Path, expected_reps: int = 30) -> int:
     return max(0, expected_reps - int(completed))
   except Exception:
     return expected_reps
+
+
+REQUIRED_MODULAR_CHECKPOINT_KEYS: tuple[str, ...] = (
+  "problem_name",
+  "algorithm",
+  "successful_runs",
+  "raw_costs",
+  "raw_times",
+  "strategies",
+  "algorithm_config",
+)
+
+
+def _validate_single_checkpoint_compatibility(
+  path: Path,
+  expected_problem: str,
+  expected_algorithm: str,
+  alg_cfg: AlgorithmConfig,
+  ga_params: GAParams,
+  param_overrides: Mapping[str, Any] | None,
+  seed_override: int | None,
+) -> list[str]:
+  """Verify one checkpoint file matches the modular schema and active algorithm configuration."""
+  try:
+    data: Any = load_checkpoint(path)
+  except (json.JSONDecodeError, OSError) as e:
+    return [f"{path.name}: failed to read checkpoint ({e})"]
+
+  if not isinstance(data, dict):
+    return [f"{path.name}: checkpoint payload must be a JSON object"]
+
+  missing: list[str] = [key for key in REQUIRED_MODULAR_CHECKPOINT_KEYS if key not in data]
+  if missing:
+    return [f"{path.name}: missing required keys {missing} (incompatible or pre-modular checkpoint schema)"]
+
+  errors: list[str] = []
+  if data.get("problem_name") != expected_problem:
+    errors.append(f"{path.name}: problem_name is {data.get('problem_name')!r}, expected {expected_problem!r}")
+  if data.get("algorithm") != expected_algorithm:
+    errors.append(f"{path.name}: algorithm is {data.get('algorithm')!r}, expected {expected_algorithm!r}")
+
+  recorded_strategies = data.get("strategies")
+  if not isinstance(recorded_strategies, dict):
+    errors.append(f"{path.name}: 'strategies' must be a mapping")
+  else:
+    for slot, spec in alg_cfg.strategies.items():
+      expected_class = spec.get("class") if isinstance(spec, dict) else None
+      if expected_class is not None and recorded_strategies.get(slot) != expected_class:
+        errors.append(
+          f"{path.name}: strategies.{slot} is {recorded_strategies.get(slot)!r}, expected {expected_class!r}"
+        )
+
+  recorded_cfg = data.get("algorithm_config")
+  if not isinstance(recorded_cfg, dict):
+    errors.append(f"{path.name}: 'algorithm_config' must be a mapping")
+  else:
+    expected_pop = (
+      int(param_overrides["population_size"])
+      if (param_overrides and "population_size" in param_overrides)
+      else int(alg_cfg.params.get("population_size", ga_params.population_size))
+    )
+    expected_mut = (
+      float(param_overrides["mutation_rate"])
+      if (param_overrides and "mutation_rate" in param_overrides)
+      else float(alg_cfg.params.get("mutation_rate", ga_params.mutation_rate))
+    )
+    expected_seed = (
+      int(seed_override)
+      if seed_override is not None
+      else int(alg_cfg.params.get("seed", ga_params.seed))
+    )
+
+    rec_pop = recorded_cfg.get("population_size")
+    if isinstance(rec_pop, bool) or not isinstance(rec_pop, int) or rec_pop != expected_pop:
+      errors.append(f"{path.name}: algorithm_config.population_size is {rec_pop!r}, expected {expected_pop!r}")
+
+    rec_mut = recorded_cfg.get("mutation_rate")
+    if (
+      isinstance(rec_mut, bool)
+      or not isinstance(rec_mut, (int, float))
+      or not math.isclose(float(rec_mut), expected_mut, rel_tol=1e-9, abs_tol=1e-12)
+    ):
+      errors.append(f"{path.name}: algorithm_config.mutation_rate is {rec_mut!r}, expected {expected_mut!r}")
+
+    rec_seed = recorded_cfg.get("seed")
+    if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed != expected_seed:
+      errors.append(f"{path.name}: algorithm_config.seed is {rec_seed!r}, expected {expected_seed!r}")
+
+  return errors
+
+
+def validate_existing_checkpoints(
+  checkpoint_dir: Path,
+  problem_configs: Sequence[ProblemConfig],
+  selected_algorithms: Sequence[str],
+  algorithm_configs: Mapping[str, AlgorithmConfig],
+  ga_params: GAParams,
+  *,
+  param_overrides: Mapping[str, Any] | None = None,
+  seed_override: int | None = None,
+  cpu_size_threshold: int | None = None,
+) -> list[str]:
+  """Validate existing checkpoints in ``checkpoint_dir`` before running or resuming.
+
+  Rejects pre-modular checkpoints, strategy mismatches, or GA parameter drift
+  for any selected ``(problem, algorithm)`` pair so stale cohorts cannot be
+  silently reused.
+  """
+  if not checkpoint_dir.exists():
+    return []
+
+  errors: list[str] = []
+  for problem_config in problem_configs:
+    if cpu_size_threshold is None or problem_config.size <= cpu_size_threshold:
+      algs_for_problem = list(selected_algorithms)
+    else:
+      algs_for_problem = [
+        alg for alg in selected_algorithms if alg in algorithm_configs and algorithm_configs[alg].use_gpu
+      ]
+
+    for alg_name in algs_for_problem:
+      if alg_name not in algorithm_configs:
+        continue
+      checkpoint_path = checkpoint_dir / f"{problem_config.name}_{alg_name}.json"
+      if not checkpoint_path.exists():
+        continue
+      errors.extend(
+        _validate_single_checkpoint_compatibility(
+          checkpoint_path,
+          problem_config.name,
+          alg_name,
+          algorithm_configs[alg_name],
+          ga_params,
+          param_overrides,
+          seed_override,
+        )
+      )
+
+  return errors

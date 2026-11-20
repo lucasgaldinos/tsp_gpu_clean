@@ -366,7 +366,7 @@ def run_single_algorithm(
   # pipeline step, so coverage does not depend on any generation cadence.
   jit_cache_before: int | None = None
   # One candidate-list cache for the whole run: contexts are rebuilt per repetition, so a
-  # per-context cache would rebuild `N_k` inside every measured window (`BUG-59`).
+  # per-context cache would rebuild `N_k` inside every measured window.
   candidate_cache: dict[int, np.ndarray] = {}
 
   if use_gpu and repetitions > 0:

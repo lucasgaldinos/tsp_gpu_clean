@@ -29,7 +29,9 @@ from benchmarking.runner.checkpoint_io import (
   load_checkpoint,
   quarantine_checkpoint,
   save_checkpoint_atomic,
+  validate_existing_checkpoints,
 )
+from benchmarking.runner.config_loader import AlgorithmConfig, GAParams, ProblemConfig
 
 if TYPE_CHECKING:
   from pathlib import Path
@@ -242,6 +244,88 @@ def test_checkpoint_manager_builds_paths_and_delegates(tmp_path: Path) -> None:
   assert manager.is_valid_checkpoint("berlin52", "CPU", EXPECTED_REPS) is True
   assert manager.can_resume_checkpoint("berlin52", "CPU", EXPECTED_REPS) is False
   assert manager.get_remaining_repetitions("berlin52", "CPU", EXPECTED_REPS) == 0
+
+
+def test_checkpoint_manager_count_completed_checkpoints_threshold_behavior(tmp_path: Path) -> None:
+  """WHAT: count_completed_checkpoints includes CPU on all instances when cpu_size_threshold is None,
+  and skips CPU for problem_size > cpu_size_threshold when integer is provided.
+
+  WHY: Task 13.26 (BUG-81 / DP13-1) — DoD requirement for None vs integer threshold behavior.
+  """
+  manager = CheckpointManager(tmp_path / "checkpoints", tmp_path / "problem_stats")
+  problems = [
+    {"name": "small_prob", "size": 50},
+    {"name": "large_prob", "size": 500},
+  ]
+  algorithms = ["CPU", "GPU_Hybrid"]
+
+  # Case 1: cpu_size_threshold=None (run on all instances) -> 2 problems * 2 algorithms = 4 total
+  completed, total = manager.count_completed_checkpoints(
+    problems=problems,
+    algorithms=algorithms,
+    expected_reps=EXPECTED_REPS,
+    cpu_size_threshold=None,
+  )
+  assert total == 4
+  assert completed == 0
+
+  # Case 2: cpu_size_threshold=100 (large_prob skips CPU) -> 2 (small) + 1 (large, GPU only) = 3 total
+  completed_gated, total_gated = manager.count_completed_checkpoints(
+    problems=problems,
+    algorithms=algorithms,
+    expected_reps=EXPECTED_REPS,
+    cpu_size_threshold=100,
+  )
+  assert total_gated == 3
+  assert completed_gated == 0
+
+  # When small_prob CPU checkpoint exists:
+  _write_json(manager.get_checkpoint_path("small_prob", "CPU"), _payload(EXPECTED_REPS))
+  comp_none, _ = manager.count_completed_checkpoints(
+    problems=problems,
+    algorithms=algorithms,
+    expected_reps=EXPECTED_REPS,
+    cpu_size_threshold=None,
+  )
+  assert comp_none == 1
+
+  comp_gated, _ = manager.count_completed_checkpoints(
+    problems=problems,
+    algorithms=algorithms,
+    expected_reps=EXPECTED_REPS,
+    cpu_size_threshold=100,
+  )
+  assert comp_gated == 1
+
+  # Case 3: When algorithm_configs is supplied, non-GPU variants are identified by use_gpu (not hardcoded 'CPU')
+  from benchmarking.runner.config_loader import AlgorithmConfig
+
+  custom_configs = {
+    "BaselineNumPy": AlgorithmConfig(
+      name="BaselineNumPy",
+      metaheuristic="GeneticAlgorithm",
+      use_gpu=False,
+      description="Non-GPU baseline",
+      params={},
+      strategies={},
+    ),
+    "AcceleratedGPU": AlgorithmConfig(
+      name="AcceleratedGPU",
+      metaheuristic="GeneticAlgorithm",
+      use_gpu=True,
+      description="GPU variant",
+      params={},
+      strategies={},
+    ),
+  }
+  _, custom_total = manager.count_completed_checkpoints(
+    problems=problems,
+    algorithms=["BaselineNumPy", "AcceleratedGPU"],
+    expected_reps=EXPECTED_REPS,
+    cpu_size_threshold=100,
+    algorithm_configs=custom_configs,
+  )
+  assert custom_total == 3
 
 
 def test_validity_rejects_arrays_inconsistent_with_successful_runs(tmp_path: Path) -> None:
@@ -597,3 +681,144 @@ def test_atomic_checkpoint_persistence_on_interrupted_run(
   final_loaded = load_checkpoint(checkpoint_file)
   assert final_loaded["successful_runs"] == 5
   assert is_valid_checkpoint(checkpoint_file, expected_reps=5) is True
+
+
+# ============================================================================
+# validate_existing_checkpoints (Task 13.25 / BUG-79)
+# ============================================================================
+
+
+def _modular_checkpoint_payload(
+  *,
+  problem_name: str = "gr17",
+  algorithm: str = "CPU",
+  population_size: int = 32,
+  mutation_rate: float = 0.05,
+  seed: int = 42,
+  local_search_class: str = "LocalSearchCPUTwoOpt",
+) -> dict[str, Any]:
+  return {
+    "problem_name": problem_name,
+    "algorithm": algorithm,
+    "successful_runs": 2,
+    "raw_costs": [2085.0, 2090.0],
+    "raw_times": [0.1, 0.12],
+    "strategies": {
+      "initialization": "InitializationRandom",
+      "selection": "SelectionTournament",
+      "crossover": "CrossoverOrder",
+      "mutation": "MutationSwap",
+      "local_search": local_search_class,
+      "evaluation": "EvaluationCPUCost",
+    },
+    "algorithm_config": {
+      "population_size": population_size,
+      "mutation_rate": mutation_rate,
+      "seed": seed,
+    },
+  }
+
+
+def _sample_algo_configs() -> dict[str, AlgorithmConfig]:
+  return {
+    "CPU": AlgorithmConfig(
+      name="CPU",
+      use_gpu=False,
+      description="CPU",
+      strategies={
+        "initialization": {"class": "InitializationRandom"},
+        "selection": {"class": "SelectionTournament"},
+        "crossover": {"class": "CrossoverOrder"},
+        "mutation": {"class": "MutationSwap"},
+        "local_search": {"class": "LocalSearchCPUTwoOpt"},
+        "evaluation": {"class": "EvaluationCPUCost"},
+      },
+    ),
+    "HybridOptimized": AlgorithmConfig(
+      name="HybridOptimized",
+      use_gpu=True,
+      description="GPU",
+      strategies={
+        "initialization": {"class": "InitializationRandom"},
+        "selection": {"class": "SelectionTournament"},
+        "crossover": {"class": "CrossoverOrder"},
+        "mutation": {"class": "MutationSwap"},
+        "local_search": {"class": "LocalSearchGPUTwoOpt"},
+        "evaluation": {"class": "EvaluationCPUCost"},
+      },
+    ),
+  }
+
+
+def test_validate_existing_checkpoints_accepts_matching_modular_payload(tmp_path: Path) -> None:
+  """WHAT: validate_existing_checkpoints accepts a matching modular checkpoint.
+
+  WHY: Task 13.25 (BUG-79) — Valid checkpoints must resume cleanly without false positives.
+  """
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir()
+  _write_json(ckpt_dir / "gr17_CPU.json", _modular_checkpoint_payload())
+
+  errors = validate_existing_checkpoints(
+    ckpt_dir,
+    [ProblemConfig(name="gr17", optimal=2085.0, size=17)],
+    ["CPU"],
+    _sample_algo_configs(),
+    GAParams(population_size=32, mutation_rate=0.05, seed=42),
+  )
+  assert errors == []
+
+
+def test_validate_existing_checkpoints_rejects_old_schema_strategy_and_param_drift(tmp_path: Path) -> None:
+  """WHAT: validate_existing_checkpoints rejects pre-modular schema, strategy drift, and GA param drift.
+
+  WHY: Task 13.25 (BUG-79) — Stale checkpoints from an older architecture or parameter set
+  must fail preflight before being resumed or reused.
+  """
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir()
+  problems = [ProblemConfig(name="gr17", optimal=2085.0, size=17)]
+  algo_configs = _sample_algo_configs()
+  ga_params = GAParams(population_size=32, mutation_rate=0.05, seed=42)
+
+  # 1. Pre-modular schema missing 'strategies', 'algorithm_config', 'problem_name'
+  _write_json(ckpt_dir / "gr17_CPU.json", _payload(2))
+  old_errors = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], algo_configs, ga_params)
+  assert len(old_errors) == 1
+  assert "missing required keys" in old_errors[0]
+
+  # 2. Mismatched strategy class
+  _write_json(
+    ckpt_dir / "gr17_CPU.json",
+    _modular_checkpoint_payload(local_search_class="LocalSearchGPUTwoOpt"),
+  )
+  strat_errors = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], algo_configs, ga_params)
+  assert any("strategies.local_search" in e for e in strat_errors)
+
+  # 3. Mismatched algorithm_config params (population_size, mutation_rate, seed)
+  _write_json(
+    ckpt_dir / "gr17_CPU.json",
+    _modular_checkpoint_payload(population_size=256, mutation_rate=0.02, seed=99),
+  )
+  param_errors = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], algo_configs, ga_params)
+  assert any("population_size" in e for e in param_errors)
+  assert any("mutation_rate" in e for e in param_errors)
+  assert any("seed" in e for e in param_errors)
+
+
+def test_validate_existing_checkpoints_respects_cpu_size_threshold(tmp_path: Path) -> None:
+  """WHAT: CPU checkpoints for instances above cpu_size_threshold are not inspected when skipped."""
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir()
+  # Write an incompatible CPU checkpoint for a large problem
+  _write_json(ckpt_dir / "rat783_CPU.json", _payload(2))
+
+  errors = validate_existing_checkpoints(
+    ckpt_dir,
+    [ProblemConfig(name="rat783", optimal=8806.0, size=783)],
+    ["CPU", "HybridOptimized"],
+    _sample_algo_configs(),
+    GAParams(population_size=32, mutation_rate=0.05, seed=42),
+    cpu_size_threshold=400,
+  )
+  assert errors == []

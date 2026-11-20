@@ -67,3 +67,31 @@ def test_setup_benchmark_logging_no_duplicate_handlers(tmp_path: Path) -> None:
 
   stdout_content = stdout_capture.getvalue()
   assert stdout_content.count("Unique single message 98765") == 1
+
+
+def test_setup_benchmark_logging_switches_directory_and_preserves_level(tmp_path: Path) -> None:
+  """WHAT: Switching output_dir closes the old managed FileHandler and preserves log_level when None is passed.
+
+  WHY: Task 13.22 (BUG-74) — Re-running in a new output directory or nesting CLI -> orchestration
+  must never split logs across directories, duplicate lines, or clobber --log-level DEBUG.
+  """
+  dir_a = tmp_path / "run_a"
+  dir_b = tmp_path / "run_b"
+
+  log_a = setup_benchmark_logging(dir_a, benchmark_name="bench", log_level=logging.DEBUG)
+  logging.debug("debug message A")
+
+  # Nested call with log_level=None must preserve DEBUG level and not duplicate handlers
+  log_a_again = setup_benchmark_logging(dir_a, benchmark_name="bench", log_level=None)
+  assert log_a_again == log_a
+  logging.debug("debug message A2")
+
+  # Switching to dir_b must detach dir_a handler so dir_a receives nothing for dir_b
+  log_b = setup_benchmark_logging(dir_b, benchmark_name="bench", log_level=logging.INFO)
+  logging.info("info message B")
+
+  text_a = log_a.read_text(encoding="utf-8")
+  text_b = log_b.read_text(encoding="utf-8")
+  assert text_a.count("debug message A2") == 1
+  assert "info message B" not in text_a
+  assert text_b.count("info message B") == 1
