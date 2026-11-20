@@ -1130,6 +1130,85 @@ def canary_check(report: dict[str, Any], canary_ids: set[str]) -> dict[str, Any]
     }
 
 
+def build_digest(report: dict[str, Any], limit: int = 40) -> str:
+    """Compact markdown for the calling agent: findings and escalations only.
+
+    The full report keeps a probability for every answer and a provenance row for every key,
+    which is what calibration needs and what a reader does not: measured on a 146-question
+    run, 75% of the report was those two maps and the findings were 2%. A caller that reads
+    the raw JSON pays for all of it, so this strips the bookkeeping and keeps the decisions.
+    """
+    index = report.get("question_index", {})
+    usage = report.get("usage", {})
+    flagged = report.get("flagged_or_true", {})
+    escalated = report.get("escalate_to_reasoning_llm", {})
+    lines = ["# Decision audit digest", ""]
+    lines.append(
+        f"- questions {usage.get('questions', 0)} · requests {usage.get('requests', 0)} · "
+        f"input tokens {usage.get('total_input_tokens', 0)}"
+    )
+    lines.append(
+        f"- flagged {len(flagged)} · escalated {len(escalated)} · "
+        f"clean {report.get('false_or_clean_count', 0)} · "
+        f"informational {len(report.get('informational', {}))}"
+    )
+
+    def signal(entry: dict[str, Any]) -> str:
+        if "p_yes" in entry:
+            return f"p={entry['p_yes']:.2f}"
+        return f"{entry.get('winner')} conf={entry.get('confidence', 0):.2f}"
+
+    lines.append("\n## Flagged: act on these")
+    if not flagged:
+        lines.append("- none")
+    for key, entry in list(flagged.items())[:limit]:
+        origin = index.get(key, {})
+        symbol = origin.get("symbol") or "(whole input)"
+        lines.append(f"- {signal(entry)} · {origin.get('question', key)} · `{symbol}`")
+    if len(flagged) > limit:
+        lines.append(f"- … {len(flagged) - limit} more in the report file")
+
+    lines.append("\n## Escalated: the model could not decide, read these")
+    if not escalated:
+        lines.append("- none")
+    grouped: dict[str, list[tuple[float, str]]] = {}
+    for key, entry in escalated.items():
+        origin = index.get(key, {})
+        symbol = origin.get("symbol") or "(whole input)"
+        raw = entry.get("p_yes", entry.get("probability") or entry.get("confidence") or 0.0)
+        grouped.setdefault(origin.get("question", key), []).append((float(raw), symbol))
+    for question, items in grouped.items():
+        lines.append(f"\n### {question} ({len(items)})")
+        for value, symbol in sorted(items, key=lambda item: -item[0])[:limit]:
+            lines.append(f"- {value:.2f} · `{symbol}`")
+        if len(items) > limit:
+            lines.append(f"- … {len(items) - limit} more in the report file")
+
+    summary = report.get("question_summary", {})
+    if summary:
+        lines.append("\n## Question signal")
+        for question, stats in summary.items():
+            if stats.get("type") == "choice":
+                lines.append(
+                    f"- {question}: {stats.get('verdict')} "
+                    f"(mean conf {stats.get('mean_confidence')})"
+                )
+            else:
+                lines.append(
+                    f"- {question}: {stats.get('verdict')} "
+                    f"(p {stats.get('min')} to {stats.get('max')}, mean {stats.get('mean')})"
+                )
+
+    canary = report.get("canary", {})
+    if canary:
+        lines.append("\n## Canary")
+        for question, info in canary.items():
+            mark = "fired" if info.get("fired") else "did NOT fire"
+            lines.append(f"- {question}: {mark} (signal {info.get('max_signal')})")
+
+    return "\n".join(lines)
+
+
 def fail_on_missing_files(file_paths: list[Path]) -> None:
     """Abort on missing inputs, suggesting near-matches instead of echoing a bare path."""
     missing = [path for path in file_paths if not path.is_file()]
@@ -1244,6 +1323,22 @@ def main() -> None:
         help="Include the keys that passed cleanly (hidden by default to save context).",
     )
     parser.add_argument(
+        "--stdout",
+        choices=("digest", "json"),
+        default=None,
+        help=(
+            "What to print to stdout. Default: digest when --output is set, json otherwise. "
+            "'digest' needs --output so the full report is never lost."
+        ),
+    )
+    parser.add_argument(
+        "--digest-limit",
+        type=int,
+        default=40,
+        metavar="N",
+        help="Maximum rows per group in the digest (default: 40).",
+    )
+    parser.add_argument(
         "--fail-on-flagged",
         action="store_true",
         help="Exit 1 when at least one question was flagged (useful as a CI gate).",
@@ -1257,6 +1352,13 @@ def main() -> None:
         if canary not in payload_paths:
             payload_paths.append(canary)
     canary_stems = {path.stem for path in canaries}
+
+    if args.stdout == "digest" and args.output is None:
+        raise SystemExit(
+            "Error: --stdout digest needs --output, otherwise the full report is lost. "
+            "Pass --output PATH."
+        )
+    stdout_format = args.stdout or ("digest" if args.output else "json")
 
     if args.list_symbols:
         for symbol in collect_symbols(payload_paths):
@@ -1385,6 +1487,8 @@ def main() -> None:
             f"input_tokens={report['usage']['total_input_tokens']}",
             file=sys.stderr,
         )
+    if stdout_format == "digest":
+        print(build_digest(report, args.digest_limit))
     else:
         print(serialized)
 
