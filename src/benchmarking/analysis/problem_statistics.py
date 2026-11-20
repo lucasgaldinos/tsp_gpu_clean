@@ -19,9 +19,9 @@ Usage:
 
     analyzer = StatisticalAnalyzer()
     results = {
-        "CPU": {...},  # Results dict from algorithm_runner
-        "HybridOptimized": {...},
-        "FullGPUMonolithic": {...}
+        "AlgA": {...},  # Results dict from algorithm_runner
+        "AlgB": {...},
+        "AlgC": {...}
     }
 
     stats = perform_statistical_analysis(
@@ -42,6 +42,7 @@ from typing import TYPE_CHECKING, Any, LiteralString
 
 import numpy as np
 
+from benchmarking.analysis.statistics import compute_mean_ranks
 from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
 
 if TYPE_CHECKING:
@@ -180,6 +181,228 @@ def holm_bonferroni_correction(p_values: list[float], alpha: float = 0.05) -> tu
 # =============================================================================
 
 
+def _run_omnibus_friedman_nemenyi(
+  *,
+  problem_name: str,
+  metric_label: str,
+  series_data: list[NDArray[Any]],
+  algorithm_names: list[str],
+  analyzer: StatisticalAnalyzer,
+) -> tuple[dict[str, Any] | None, NemenyiResult | None, dict[str, float]]:
+  """Run Friedman (Iman-Davenport) and Nemenyi post-hoc tests on paired series."""
+  if len(algorithm_names) < 3:
+    return None, None, {}
+
+  min_len = min((len(d) for d in series_data), default=0)
+  if min_len < 2:
+    logging.info(
+      "Skipping Friedman test (%s) for '%s': common sample size %d < 2 (insufficient for paired test).",
+      metric_label,
+      problem_name,
+      min_len,
+    )
+    k_algos = len(algorithm_names)
+    neutral = {
+      "statistic": 0.0,
+      "p_value": 1.0,
+      "statistic_f": 0.0,
+      "df1": max(0, k_algos - 1),
+      "df2": max(0, (k_algos - 1) * (min_len - 1)),
+      "p_value_f": 1.0,
+      "significant": False,
+      "post_hoc_required": False,
+    }
+    return neutral, None, {}
+
+  friedman_result = analyzer.friedman_test(series_data)
+  logging.info(f"Friedman Test [{metric_label}] (k={len(algorithm_names)} algorithms):")
+  logging.info(f"  Chi-square: {friedman_result['statistic']:.4f} (p={friedman_result['p_value']:.6f})")
+  logging.info(
+    f"  F_F({friedman_result['df1']}, {friedman_result['df2']}): "
+    f"{friedman_result['statistic_f']:.4f} (p={friedman_result['p_value_f']:.6f})"
+  )
+  logging.info(f"  Significant: {friedman_result['significant']}")
+
+  mean_ranks = compute_mean_ranks(series_data, algorithm_names)
+  nemenyi_result: NemenyiResult | None = None
+
+  if friedman_result.get("post_hoc_required"):
+    logging.info(f"\nNemenyi Post-Hoc Test [{metric_label}]:")
+    nemenyi_res: NemenyiResult = analyzer.nemenyi_posthoc(series_data, algorithm_names)
+    nemenyi_result = nemenyi_res
+
+    logging.info(f"  Critical distance: {nemenyi_res['critical_distance']:.4f}")
+    logging.info("  Mean ranks:")
+    for name, rank in mean_ranks.items():
+      logging.info(f"    {name}: {rank:.2f}")
+
+    logging.info("\n  Significant pairwise differences:")
+    if nemenyi_res["significant_pairs"]:
+      for i, j, p_val in nemenyi_res["significant_pairs"]:
+        name_i: str = nemenyi_res["algorithm_names"][i]
+        name_j: str = nemenyi_res["algorithm_names"][j]
+        rank_diff: float = abs(mean_ranks[name_i] - mean_ranks[name_j])
+        logging.info(f"    {name_i} vs {name_j}: rank_diff={rank_diff:.2f}, p={p_val:.4f}")
+    else:
+      logging.info("    None (no significant differences detected)")
+
+  return friedman_result, nemenyi_result, mean_ranks
+
+
+def _serialize_friedman_section(
+  friedman_result: dict[str, Any],
+  nemenyi_result: NemenyiResult | None,
+  mean_ranks: dict[str, float],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+  """Convert Friedman and optional Nemenyi outputs into JSON-ready dictionaries."""
+  friedman_dict: dict[str, Any] = {
+    "statistic": float(friedman_result["statistic"]),
+    "p_value": float(friedman_result["p_value"]),
+    "statistic_f": float(friedman_result["statistic_f"]),
+    "df1": int(friedman_result["df1"]),
+    "df2": int(friedman_result["df2"]),
+    "p_value_f": float(friedman_result["p_value_f"]),
+    "significant": bool(friedman_result["significant"]),
+    "post_hoc_required": bool(friedman_result["post_hoc_required"]),
+  }
+  nemenyi_dict: dict[str, Any] | None = None
+  if nemenyi_result:
+    nemenyi_dict = {
+      "critical_distance": float(nemenyi_result["critical_distance"]),
+      "mean_ranks": mean_ranks,
+      "algorithm_names": nemenyi_result["algorithm_names"],
+      "significant_pairs": [
+        {
+          "algorithm_i": nemenyi_result["algorithm_names"][i],
+          "algorithm_j": nemenyi_result["algorithm_names"][j],
+          "p_value": float(p_val),
+          "rank_difference": abs(
+            mean_ranks[nemenyi_result["algorithm_names"][i]] - mean_ranks[nemenyi_result["algorithm_names"][j]]
+          ),
+        }
+        for i, j, p_val in nemenyi_result["significant_pairs"]
+      ],
+    }
+  return friedman_dict, nemenyi_dict
+
+
+def _interpret_effect_size(effect_size: float) -> str:
+  """Classify rank-biserial effect magnitude into qualitative brackets."""
+  abs_d: float = abs(effect_size)
+  if abs_d < 0.2:
+    return "negligible"
+  if abs_d < 0.5:
+    return "small"
+  if abs_d < 0.8:
+    return "medium"
+  return "large"
+
+
+def _run_pairwise_metric_comparisons(
+  *,
+  algorithm_names: list[str],
+  series_data: list[NDArray[Any]],
+  metric_name: str,
+  analyzer: StatisticalAnalyzer,
+  decimals: int = 2,
+) -> list[dict[str, Any]]:
+  """Run paired Wilcoxon + Holm-Bonferroni + Hodges-Lehmann + rank-biserial analysis."""
+  logging.info(f"\nPairwise Comparisons ({metric_name}):")
+  logging.info("Following statistical methodology (Demšar 2006):")
+  logging.info("  - Normality diagnostics (Shapiro-Wilk, descriptive only)")
+  logging.info("  - Paired test (Wilcoxon signed-rank, unconditional default)")
+  logging.info("  - Effect size (matched-pairs rank-biserial correlation)")
+  logging.info("  - 95% Confidence Intervals (Hodges-Lehmann distribution-free)")
+  logging.info("  - Holm-Bonferroni multiple comparison correction\n")
+
+  comparisons: list[StatisticalSummary] = []
+  fmt = f".{decimals}f"
+  for i, name1 in enumerate(algorithm_names):
+    for j, name2 in enumerate(algorithm_names[i + 1 :], start=i + 1):
+      summary: StatisticalSummary = analyzer.paired_comparison(
+        series_data[i],
+        series_data[j],
+        f"{name1} vs {name2}",
+        metric_name=metric_name,
+      )
+      comparisons.append(summary)
+
+      if summary.test_used == "no_test_needed":
+        logging.info(f"  {name1} vs {name2}:")
+        if summary.test_justification == "constant_difference_no_test_needed":
+          logging.info("    Constant paired difference (zero variance across differences)")
+          logging.info(f"    Mean difference: {summary.mean_difference:{fmt}}")
+        else:
+          logging.info("    All measurements identical (no variance)")
+        logging.info(f"    Mean {name1}: {summary.mean_a:{fmt}}")
+        logging.info(f"    Mean {name2}: {summary.mean_b:{fmt}}")
+        logging.info("    No statistical test needed")
+        continue
+
+      logging.info(f"  {name1} vs {name2}:")
+      logging.info("    Normality (Shapiro-Wilk):")
+      logging.info(
+        f"      {name1}: p={summary.normality_p_value_a:.4f} "
+        f"{'(normal)' if summary.normality_p_value_a >= 0.05 else '(non-normal)'}"
+      )
+      logging.info(
+        f"      {name2}: p={summary.normality_p_value_b:.4f} "
+        f"{'(normal)' if summary.normality_p_value_b >= 0.05 else '(non-normal)'}"
+      )
+      logging.info(f"    Test selected: {summary.test_used}")
+      logging.info(f"    Mean difference: {summary.mean_difference:{fmt}}")
+      logging.info(
+        f"    95% CI difference: [{summary.ci_95_difference[0]:{fmt}}, {summary.ci_95_difference[1]:{fmt}}]"
+      )
+      logging.info(f"    p-value (uncorrected): {summary.p_value:.6f}")
+      logging.info(f"    Effect size (rank-biserial): {summary.effect_size:.4f}")
+      logging.info(f"    Effect size interpretation: {_interpret_effect_size(summary.effect_size)}")
+
+  reject: list[bool] = []
+  pvals_corrected: list[float] = []
+  if len(comparisons) > 1:
+    p_values = [c.p_value for c in comparisons]
+    reject, pvals_corrected = holm_bonferroni_correction(p_values, alpha=0.05)
+
+    logging.info("\n  Multiple Comparison Correction (Holm-Bonferroni, alpha=0.05):")
+    for comp, p_orig, p_adj, sig in zip(comparisons, p_values, pvals_corrected, reject, strict=True):
+      logging.info(f"    {comp.comparison_label}:")
+      logging.info(f"      Original p-value: {p_orig:.6f}")
+      logging.info(f"      Adjusted p-value: {p_adj:.6f}")
+      logging.info(f"      Significant (after correction): {sig}")
+
+  pairwise_comps: list[dict[str, Any]] = []
+  for i, comp in enumerate(comparisons):
+    comparison_dict: dict[str, Any] = {
+      "comparison": comp.comparison_label,
+      "metric_name": comp.metric_name,
+      "test_used": comp.test_used,
+      "test_statistic": float(comp.test_statistic),
+      "df1": comp.df1,
+      "df2": comp.df2,
+      "p_value": float(comp.p_value),
+      "mean_difference": float(comp.mean_difference),
+      "ci_95_lower": float(comp.ci_95_difference[0]),
+      "ci_95_upper": float(comp.ci_95_difference[1]),
+      "effect_size": float(comp.effect_size),
+      "test_justification": comp.test_justification,
+      "zero_differences_count": comp.zero_differences_count,
+      "effective_sample_size": comp.effective_sample_size,
+      "insufficient_power_warning": comp.insufficient_power_warning,
+      "normality_p_value_a": float(comp.normality_p_value_a),
+      "normality_p_value_b": float(comp.normality_p_value_b),
+      "effect_interpretation": _interpret_effect_size(comp.effect_size),
+    }
+
+    if len(comparisons) > 1 and i < len(pvals_corrected):
+      comparison_dict["p_value_corrected"] = float(pvals_corrected[i])
+      comparison_dict["significant_after_correction"] = bool(reject[i])
+
+    pairwise_comps.append(comparison_dict)
+
+  return pairwise_comps
+
+
 def perform_statistical_analysis(
   problem_name: str,
   optimal_cost: float,
@@ -187,16 +410,18 @@ def perform_statistical_analysis(
   analyzer: StatisticalAnalyzer,
   short_sep: str = "-" * 80,
   baseline_algorithm: str | None = None,
+  strict_lengths: bool = False,
 ) -> dict[str, Any]:
   """
   Perform statistical analysis on results for a single problem.
 
   Executes comprehensive statistical tests comparing multiple algorithms
-  on the same problem instance:
+  on the same problem instance across both solution cost and execution time:
 
   1. Friedman test (if k ≥ 3 algorithms)
   2. Nemenyi post-hoc test (if Friedman significant)
-  3. Pairwise comparisons with Holm-Bonferroni correction
+  3. Paired Wilcoxon signed-rank comparisons with Holm-Bonferroni correction,
+     Hodges-Lehmann distribution-free 95% CI, and rank-biserial effect size
   4. Summary statistics and speedup calculations
 
   Args:
@@ -210,9 +435,11 @@ def perform_statistical_analysis(
           algorithm in `results` insertion order; a requested name that is absent
           logs a warning and falls back to that same first algorithm; an empty
           `results` mapping resolves to `"Unknown"`.
+      strict_lengths: If True, raise ValueError whenever algorithm sample counts
+          differ or when raw time arrays are missing/incompatible across variants.
 
   Returns:
-      Dictionary containing statistical test results
+      Dictionary containing statistical test results for cost and time
   """
   logging.info(f"\nStatistical Analysis: {problem_name}")
   logging.info(short_sep)
@@ -235,10 +462,19 @@ def perform_statistical_analysis(
   time_data: list[NDArray[Any]] = [np.array(_get_data_field(results[name], "times")) for name in algorithm_names]
   gap_data: list[NDArray[Any]] = [np.array(_get_data_field(results[name], "gaps")) for name in algorithm_names]
 
-  # Check for ragged sample lengths across algorithms (Task 12.7, BUG-33)
+  # Validate paired sample lengths across algorithms without corrupting full per-algorithm means (Task 12.7 / Task 14.2)
   cost_lengths: list[int] = [len(d) for d in cost_data]
-  min_cost_len: int = min(cost_lengths) if cost_lengths else 0
+  paired_cost_data: list[NDArray[Any]] = cost_data
+  if strict_lengths and any(length == 0 for length in cost_lengths):
+    raise ValueError(
+      f"Missing raw cost arrays across algorithms for problem '{problem_name}': lengths={cost_lengths}."
+    )
   if len(set(cost_lengths)) > 1:
+    min_cost_len: int = min(cost_lengths) if cost_lengths else 0
+    if strict_lengths:
+      raise ValueError(
+        f"Mismatched cost sample counts across algorithms for problem '{problem_name}': lengths={cost_lengths}."
+      )
     logging.warning(
       "Mismatched sample counts across algorithms for problem '%s': lengths=%s. "
       "Truncating to common minimum length %d for paired Friedman test.",
@@ -246,146 +482,96 @@ def perform_statistical_analysis(
       cost_lengths,
       min_cost_len,
     )
-    cost_data = [d[:min_cost_len] for d in cost_data]
+    paired_cost_data = [d[:min_cost_len] for d in cost_data]
 
-  time_lengths: list[int] = [len(d) for d in time_data if len(d) > 0]
-  if time_lengths and len(set(time_lengths)) > 1:
-    min_time_len: int = min(time_lengths)
-    time_data = [d[:min_time_len] for d in time_data]
-
-  # =========================================================================
-  # Friedman Test (k ≥ 3 algorithms)
-  # =========================================================================
-
-  friedman_result: dict[str, Any] | None = None
-  nemenyi_result: NemenyiResult | None = None
-  mean_ranks: dict[str, float] = {}
-
-  if len(algorithm_names) >= 3:
-    if min_cost_len < 2:
-      logging.info(
-        "Skipping Friedman test for '%s': common sample size %d < 2 (insufficient for paired test).",
+  time_lengths: list[int] = [len(d) for d in time_data]
+  all_have_times: bool = all(length > 0 for length in time_lengths)
+  paired_time_data: list[NDArray[Any]] = time_data
+  run_time_inference: bool = False
+  if not all_have_times:
+    if strict_lengths:
+      raise ValueError(
+        f"Incomplete raw time arrays across algorithms for problem '{problem_name}': lengths={time_lengths}."
+      )
+    if any(length > 0 for length in time_lengths):
+      logging.warning(
+        "Incomplete raw time sample counts across algorithms for problem '%s': lengths=%s. "
+        "Skipping paired time inference.",
         problem_name,
-        min_cost_len,
+        time_lengths,
       )
-      friedman_result = {
-        "statistic": 0.0,
-        "p_value": 1.0,
-        "significant": False,
-        "post_hoc_required": False,
-      }
-    else:
-      friedman_result = analyzer.friedman_test(cost_data)
-
-      logging.info(f"Friedman Test (k={len(algorithm_names)} algorithms):")
-      logging.info(f"  Statistic: {friedman_result['statistic']:.4f}")
-      logging.info(f"  p-value: {friedman_result['p_value']:.6f}")
-      logging.info(f"  Significant: {friedman_result['significant']}")
-
-      # Calculate mean ranks
-      from scipy.stats import rankdata
-
-      n_obs: int = len(cost_data[0])
-      for i, name in enumerate(algorithm_names):
-        ranks = []
-        for obs_idx in range(n_obs):
-          obs_costs = [cost_data[j][obs_idx] for j in range(len(algorithm_names))]
-          obs_ranks: NDArray[np.float64] = rankdata(obs_costs, method="average")
-          ranks.append(obs_ranks[i])
-        mean_ranks[name] = float(np.mean(ranks))
-
-      # Nemenyi post-hoc if significant
-      if friedman_result.get("post_hoc_required"):
-        logging.info("\nNemenyi Post-Hoc Test:")
-        nemenyi_res: NemenyiResult = analyzer.nemenyi_posthoc(cost_data, algorithm_names)
-        nemenyi_result = nemenyi_res
-
-        logging.info(f"  Critical distance: {nemenyi_res['critical_distance']:.4f}")
-        logging.info("  Mean ranks:")
-        for name, rank in mean_ranks.items():
-          logging.info(f"    {name}: {rank:.2f}")
-
-        logging.info("\n  Significant pairwise differences:")
-        if nemenyi_res["significant_pairs"]:
-          for i, j, p_val in nemenyi_res["significant_pairs"]:
-            name_i: str = nemenyi_res["algorithm_names"][i]
-            name_j: str = nemenyi_res["algorithm_names"][j]
-            rank_diff: float = abs(mean_ranks[name_i] - mean_ranks[name_j])
-            logging.info(f"    {name_i} vs {name_j}: rank_diff={rank_diff:.2f}, p={p_val:.4f}")
-        else:
-          logging.info("    None (no significant differences detected)")
+  else:
+    if len(set(time_lengths)) > 1:
+      min_time_len: int = min(time_lengths)
+      if strict_lengths:
+        raise ValueError(
+          f"Mismatched time sample counts across algorithms for problem '{problem_name}': lengths={time_lengths}."
+        )
+      logging.warning(
+        "Mismatched time sample counts across algorithms for problem '%s': lengths=%s. "
+        "Truncating to common minimum length %d for paired time analysis.",
+        problem_name,
+        time_lengths,
+        min_time_len,
+      )
+      paired_time_data = [d[:min_time_len] for d in time_data]
+    if cost_lengths != time_lengths:
+      if strict_lengths:
+        raise ValueError(
+          f"Incompatible cost vs time sample counts for problem '{problem_name}': "
+          f"cost_lengths={cost_lengths}, time_lengths={time_lengths}."
+        )
+      logging.warning(
+        "Cost vs time sample counts differ for problem '%s': cost_lengths=%s, time_lengths=%s.",
+        problem_name,
+        cost_lengths,
+        time_lengths,
+      )
+    run_time_inference = True
 
   # =========================================================================
-  # Pairwise Comparisons
+  # Friedman & Pairwise Inference: Cost
   # =========================================================================
 
-  logging.info("\nPairwise Comparisons:")
-  logging.info("Following statistical methodology:")
-  logging.info("  - Normality testing (Shapiro-Wilk)")
-  logging.info("  - Test selection (paired t-test vs Wilcoxon)")
-  logging.info("  - Effect size (Cohen's d)")
-  logging.info("  - 95% Confidence Intervals")
-  logging.info("  - Holm-Bonferroni multiple comparison correction\n")
+  friedman_result, nemenyi_result, mean_ranks = _run_omnibus_friedman_nemenyi(
+    problem_name=problem_name,
+    metric_label="cost",
+    series_data=paired_cost_data,
+    algorithm_names=algorithm_names,
+    analyzer=analyzer,
+  )
+  pairwise_comps = _run_pairwise_metric_comparisons(
+    algorithm_names=algorithm_names,
+    series_data=paired_cost_data,
+    metric_name="cost",
+    analyzer=analyzer,
+    decimals=2,
+  )
 
-  comparisons = []
-  for i, name1 in enumerate(algorithm_names):
-    for j, name2 in enumerate(algorithm_names[i + 1 :], start=i + 1):
-      summary: StatisticalSummary = analyzer.paired_comparison(
-        cost_data[i],
-        cost_data[j],
-        f"{name1} vs {name2}",
-        metric_name="cost",
-      )
-      comparisons.append(summary)
+  # =========================================================================
+  # Friedman & Pairwise Inference: Execution Time
+  # =========================================================================
 
-      if summary.test_used == "no_test_needed":
-        logging.info(f"  {name1} vs {name2}:")
-        logging.info("    All measurements identical (no variance)")
-        logging.info(f"    Mean {name1}: {summary.mean_a:.2f}")
-        logging.info(f"    Mean {name2}: {summary.mean_b:.2f}")
-        logging.info("    No statistical test needed")
-        continue
+  friedman_time_result: dict[str, Any] | None = None
+  nemenyi_time_result: NemenyiResult | None = None
+  mean_ranks_time: dict[str, float] = {}
+  pairwise_time_comps: list[dict[str, Any]] = []
 
-      logging.info(f"  {name1} vs {name2}:")
-      logging.info("    Normality (Shapiro-Wilk):")
-      logging.info(
-        f"      {name1}: p={summary.normality_p_value_a:.4f} "
-        f"{'(normal)' if summary.normality_p_value_a >= 0.05 else '(non-normal)'}"
-      )
-      logging.info(
-        f"      {name2}: p={summary.normality_p_value_b:.4f} "
-        f"{'(normal)' if summary.normality_p_value_b >= 0.05 else '(non-normal)'}"
-      )
-      logging.info(f"    Test selected: {summary.test_used}")
-      logging.info(f"    Mean difference: {summary.mean_difference:.2f}")
-      logging.info(f"    95% CI difference: [{summary.ci_95_difference[0]:.2f}, {summary.ci_95_difference[1]:.2f}]")
-      logging.info(f"    p-value (uncorrected): {summary.p_value:.6f}")
-      logging.info(f"    Cohen's d: {summary.effect_size:.4f}")
-
-      abs_d: float = abs(summary.effect_size)
-      if abs_d < 0.2:
-        effect_interp = "negligible"
-      elif abs_d < 0.5:
-        effect_interp = "small"
-      elif abs_d < 0.8:
-        effect_interp = "medium"
-      else:
-        effect_interp = "large"
-      logging.info(f"    Effect size interpretation: {effect_interp}")
-
-  # Apply Holm-Bonferroni correction
-  reject: list[bool] = []
-  pvals_corrected: list[float] = []
-  if len(comparisons) > 1:
-    p_values = [c.p_value for c in comparisons]
-    reject, pvals_corrected = holm_bonferroni_correction(p_values, alpha=0.05)
-
-    logging.info("\n  Multiple Comparison Correction (Holm-Bonferroni, alpha=0.05):")
-    for comp, p_orig, p_adj, sig in zip(comparisons, p_values, pvals_corrected, reject, strict=True):
-      logging.info(f"    {comp.comparison_label}:")
-      logging.info(f"      Original p-value: {p_orig:.6f}")
-      logging.info(f"      Adjusted p-value: {p_adj:.6f}")
-      logging.info(f"      Significant (after correction): {sig}")
+  if run_time_inference:
+    friedman_time_result, nemenyi_time_result, mean_ranks_time = _run_omnibus_friedman_nemenyi(
+      problem_name=problem_name,
+      metric_label="time",
+      series_data=paired_time_data,
+      algorithm_names=algorithm_names,
+      analyzer=analyzer,
+    )
+    pairwise_time_comps = _run_pairwise_metric_comparisons(
+      algorithm_names=algorithm_names,
+      series_data=paired_time_data,
+      metric_name="time",
+      analyzer=analyzer,
+      decimals=4,
+    )
 
   # =========================================================================
   # Summary Table
@@ -442,60 +628,18 @@ def perform_statistical_analysis(
   }
 
   if friedman_result:
-    statistical_results["friedman_test"] = {
-      "statistic": float(friedman_result["statistic"]),
-      "p_value": float(friedman_result["p_value"]),
-      "significant": bool(friedman_result["significant"]),
-      "post_hoc_required": bool(friedman_result["post_hoc_required"]),
-    }
-
-    if nemenyi_result:
-      statistical_results["nemenyi_posthoc"] = {
-        "critical_distance": float(nemenyi_result["critical_distance"]),
-        "mean_ranks": mean_ranks,
-        "algorithm_names": nemenyi_result["algorithm_names"],
-        "significant_pairs": [
-          {
-            "algorithm_i": nemenyi_result["algorithm_names"][i],
-            "algorithm_j": nemenyi_result["algorithm_names"][j],
-            "p_value": float(p_val),
-            "rank_difference": abs(
-              mean_ranks[nemenyi_result["algorithm_names"][i]] - mean_ranks[nemenyi_result["algorithm_names"][j]]
-            ),
-          }
-          for i, j, p_val in nemenyi_result["significant_pairs"]
-        ],
-      }
-
-  pairwise_comps: list[dict[str, Any]] = []
-  for i, comp in enumerate(comparisons):
-    comparison_dict: dict[str, Any] = {
-      "comparison": comp.comparison_label,
-      "test_used": comp.test_used,
-      "p_value": float(comp.p_value),
-      "mean_difference": float(comp.mean_difference),
-      "ci_95_lower": float(comp.ci_95_difference[0]),
-      "ci_95_upper": float(comp.ci_95_difference[1]),
-      "cohens_d": float(comp.effect_size),
-      "normality_p_value_a": float(comp.normality_p_value_a),
-      "normality_p_value_b": float(comp.normality_p_value_b),
-    }
-
-    if len(comparisons) > 1 and i < len(pvals_corrected):
-      comparison_dict["p_value_corrected"] = float(pvals_corrected[i])
-      comparison_dict["significant_after_correction"] = bool(reject[i])
-
-    abs_d = abs(comp.effect_size)
-    if abs_d < 0.2:
-      comparison_dict["effect_interpretation"] = "negligible"
-    elif abs_d < 0.5:
-      comparison_dict["effect_interpretation"] = "small"
-    elif abs_d < 0.8:
-      comparison_dict["effect_interpretation"] = "medium"
-    else:
-      comparison_dict["effect_interpretation"] = "large"
-
-    pairwise_comps.append(comparison_dict)
+    f_dict, n_dict = _serialize_friedman_section(friedman_result, nemenyi_result, mean_ranks)
+    statistical_results["friedman_test"] = f_dict
+    if n_dict is not None:
+      statistical_results["nemenyi_posthoc"] = n_dict
 
   statistical_results["pairwise_comparisons"] = pairwise_comps
+
+  if friedman_time_result:
+    ft_dict, nt_dict = _serialize_friedman_section(friedman_time_result, nemenyi_time_result, mean_ranks_time)
+    statistical_results["friedman_test_time"] = ft_dict
+    if nt_dict is not None:
+      statistical_results["nemenyi_posthoc_time"] = nt_dict
+
+  statistical_results["pairwise_comparisons_time"] = pairwise_time_comps
   return statistical_results

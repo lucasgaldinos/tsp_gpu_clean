@@ -20,6 +20,8 @@ from benchmarking.analysis.problem_statistics import holm_bonferroni_correction,
 from benchmarking.analysis.statistics import StatisticalAnalyzer
 
 if TYPE_CHECKING:
+  from pathlib import Path
+
   import pytest
 
 
@@ -77,6 +79,10 @@ def test_perform_statistical_analysis_ragged_arrays_truncates_and_warns(
   assert stats["friedman_test"] is not None
   assert "statistic" in stats["friedman_test"]
   assert "p_value" in stats["friedman_test"]
+  assert "statistic_f" in stats["friedman_test"]
+  assert "df1" in stats["friedman_test"]
+  assert "df2" in stats["friedman_test"]
+  assert "p_value_f" in stats["friedman_test"]
   assert stats["problem_name"] == "berlin52"
 
 
@@ -108,6 +114,10 @@ def test_perform_statistical_analysis_min_len_less_than_two_skips_friedman(
   assert "friedman_test" in stats
   assert stats["friedman_test"]["statistic"] == 0.0
   assert stats["friedman_test"]["p_value"] == 1.0
+  assert stats["friedman_test"]["statistic_f"] == 0.0
+  assert stats["friedman_test"]["df1"] == 2
+  assert stats["friedman_test"]["df2"] == 0
+  assert stats["friedman_test"]["p_value_f"] == 1.0
   assert stats["friedman_test"]["significant"] is False
 
 
@@ -247,5 +257,230 @@ def test_perform_statistical_analysis_default_baseline_picks_first_even_when_cpu
   assert stats["baseline_algorithm"] == "Hybrid"
 
 
+def test_baseline_resolution_matches_between_statistics_and_report_generator(tmp_path: Path) -> None:
+  """WHAT: When baseline_algorithm=None, statistics and report tables agree on baseline.
+
+  WHY: Task 12.40 (BUG-56 / DP12-29) — Prevent divergence where statistics picked insertion
+  order while report_generator picked sorted order.
+  """
+  from benchmarking.analysis.report_generator import generate_result_tables
+  from benchmarking.runner.config_loader import ProblemConfig
+
+  analyzer = StatisticalAnalyzer()
+  results = {
+    "HybridNaive": {
+      "raw_costs": [90.0, 92.0],
+      "raw_times": [5.0, 6.0],
+      "mean_time": 5.5,
+      "mean_cost": 91.0,
+      "std_cost": 1.0,
+      "mean_gap": 1.0,
+    },
+    "CPU": {
+      "raw_costs": [100.0, 102.0],
+      "raw_times": [10.0, 12.0],
+      "mean_time": 11.0,
+      "mean_cost": 101.0,
+      "std_cost": 1.0,
+      "mean_gap": 2.0,
+    },
+    "FullGPUModular": {
+      "raw_costs": [85.0, 87.0],
+      "raw_times": [2.0, 3.0],
+      "mean_time": 2.5,
+      "mean_cost": 86.0,
+      "std_cost": 1.0,
+      "mean_gap": 0.5,
+    },
+  }
+
+  stats = perform_statistical_analysis(
+    problem_name="eil51",
+    optimal_cost=426.0,
+    results=results,
+    analyzer=analyzer,
+    baseline_algorithm=None,
+  )
+  # Stats resolves to first in execution/insertion order: HybridNaive
+  assert stats["baseline_algorithm"] == "HybridNaive"
+
+  all_results = {"eil51": results}
+  problem_configs = [ProblemConfig(name="eil51", optimal=426.0, size=51)]
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path,
+    benchmark_name="canonical_baseline_test",
+    baseline_algorithm=None,
+  )
+  md_content = (tmp_path / "canonical_baseline_test.md").read_text(encoding="utf-8")
+  # HybridNaive must be the 1.00x baseline in Table 2, not FullGPUModular (sorted first)
+  assert "| HybridNaive |" in md_content
+  assert "| 1.00x |" in md_content
+  # FullGPUModular speedup is 5.5 / 2.5 = 2.20x vs HybridNaive
+  assert "2.20x" in md_content
 
 
+def test_perform_statistical_analysis_pairwise_includes_effect_size_and_tie_diagnostics() -> None:
+  """WHAT: pairwise_comparisons in problem statistics contains effect_size and tie diagnostics.
+
+  WHY: Task 13.11 (BUG-60 / DP13-4) — Diagnostics from StatisticalSummary must be exposed
+  in the problem statistics dict for downstream consumers and JSON serialization.
+  """
+  analyzer = StatisticalAnalyzer()
+  results = {
+    "A": {"raw_costs": [10.0, 10.0, 10.0, 12.0], "raw_times": [1.0, 1.0, 1.0, 1.0], "mean_time": 1.0},
+    "B": {"raw_costs": [10.0, 10.0, 10.0, 10.0], "raw_times": [2.0, 2.0, 2.0, 2.0], "mean_time": 2.0},
+  }
+
+  stats = perform_statistical_analysis(
+    problem_name="test_prob",
+    optimal_cost=10.0,
+    results=results,
+    analyzer=analyzer,
+    baseline_algorithm="A",
+  )
+
+  pairwise = stats["pairwise_comparisons"]
+  assert len(pairwise) == 1
+  comp = pairwise[0]
+  assert "effect_size" in comp
+  assert "test_statistic" in comp
+  assert "df1" in comp
+  assert "df2" in comp
+  assert "cohens_d" not in comp
+  assert "test_justification" in comp
+  assert "zero_differences_count" in comp
+  assert "effective_sample_size" in comp
+  assert "insufficient_power_warning" in comp
+  # In costs: diffs are [0, 0, 0, 2]; 3 zero diffs out of 4 -> majority zeros
+  assert comp["zero_differences_count"] == 3
+  assert comp["effective_sample_size"] == 1
+  assert comp["insufficient_power_warning"] is True
+
+
+def test_perform_statistical_analysis_includes_time_inference_and_clean_log_headers(
+  caplog: pytest.LogCaptureFixture,
+) -> None:
+  """WHAT: perform_statistical_analysis runs paired Wilcoxon/Holm/Friedman on time_data
+  alongside cost_data and omits stale 'paired t-test' / 'Cohen's d' log headers.
+
+  WHY: Task 14.2 (DP14-2 / BUG-92) — Validate both quality equivalence and runtime speedup significance.
+  """
+  import pytest
+
+  analyzer = StatisticalAnalyzer()
+  results = {
+    "BaseAlg": {
+      "raw_costs": [100.0, 102.0, 101.0, 100.0, 101.0, 102.0],
+      "raw_times": [10.0, 10.5, 10.2, 10.1, 10.4, 10.3],
+    },
+    "MidAlg": {
+      "raw_costs": [100.0, 102.0, 101.0, 100.0, 101.0, 102.0],
+      "raw_times": [5.0, 5.2, 5.1, 5.05, 5.15, 5.25],
+    },
+    "FastAlg": {
+      "raw_costs": [100.0, 102.0, 101.0, 100.0, 101.0, 102.0],
+      "raw_times": [1.0, 1.05, 1.02, 1.01, 1.04, 1.03],
+    },
+  }
+
+  with caplog.at_level(logging.INFO):
+    stats = perform_statistical_analysis(
+      problem_name="berlin52",
+      optimal_cost=100.0,
+      results=results,
+      analyzer=analyzer,
+      baseline_algorithm="BaseAlg",
+    )
+
+  log_text = "\n".join(r.getMessage() for r in caplog.records)
+  assert "paired t-test" not in log_text
+  assert "Cohen's d" not in log_text
+  assert "Wilcoxon signed-rank" in log_text
+  assert "rank-biserial" in log_text
+  assert "Hodges-Lehmann" in log_text
+
+  assert "friedman_test_time" in stats
+  assert stats["friedman_test_time"]["significant"] is True
+  assert "nemenyi_posthoc_time" in stats
+  assert len(stats["pairwise_comparisons_time"]) == 3
+  for comp in stats["pairwise_comparisons_time"]:
+    assert comp["metric_name"] == "time"
+    assert comp["test_used"] == "wilcoxon_signed_rank"
+    assert "p_value_corrected" in comp
+    assert "significant_after_correction" in comp
+    assert comp["ci_95_lower"] <= comp["ci_95_upper"]
+    assert comp["effect_size"] == pytest.approx(1.0)
+
+
+def test_perform_statistical_analysis_time_length_validation_and_strict_mode(
+  caplog: pytest.LogCaptureFixture,
+) -> None:
+  """WHAT: Validate time length mismatch warnings, incomplete raw_times fallback, and strict_lengths=True."""
+  import pytest
+
+  analyzer = StatisticalAnalyzer()
+
+  # Case 1: Mixed empty and non-empty raw_times warns and skips time inference cleanly
+  mixed_results = {
+    "A": {"raw_costs": [10.0, 11.0, 12.0], "raw_times": [], "mean_time": 2.0},
+    "B": {"raw_costs": [10.0, 11.0, 12.0], "raw_times": [1.0, 1.1, 1.2], "mean_time": 1.1},
+  }
+  with caplog.at_level(logging.WARNING):
+    mixed_stats = perform_statistical_analysis("p_mixed", 10.0, mixed_results, analyzer)
+  assert mixed_stats["pairwise_comparisons_time"] == []
+  assert any("Incomplete raw time sample counts" in r.getMessage() for r in caplog.records)
+
+  # Case 2: Mismatched time_lengths warns loudly (never silently truncates)
+  caplog.clear()
+  ragged_times = {
+    "A": {"raw_costs": [10.0, 11.0, 12.0], "raw_times": [2.0, 2.1, 2.2]},
+    "B": {"raw_costs": [10.0, 11.0, 12.0], "raw_times": [1.0, 1.1, 1.2, 1.3]},
+  }
+  with caplog.at_level(logging.WARNING):
+    ragged_stats = perform_statistical_analysis("p_ragged_t", 10.0, ragged_times, analyzer)
+  assert len(ragged_stats["pairwise_comparisons_time"]) == 1
+  assert any("Mismatched time sample counts" in r.getMessage() for r in caplog.records)
+
+  # Case 3: strict_lengths=True raises ValueError on mismatched lengths
+  with pytest.raises(ValueError, match="Mismatched time sample counts"):
+    perform_statistical_analysis("p_ragged_t", 10.0, ragged_times, analyzer, strict_lengths=True)
+
+  ragged_costs = {
+    "A": {"raw_costs": [10.0, 11.0], "raw_times": [2.0, 2.1]},
+    "B": {"raw_costs": [10.0, 11.0, 12.0], "raw_times": [1.0, 1.1, 1.2]},
+  }
+  with pytest.raises(ValueError, match="Mismatched cost sample counts"):
+    perform_statistical_analysis("p_ragged_c", 10.0, ragged_costs, analyzer, strict_lengths=True)
+
+  # Case 4: strict_lengths=True raises ValueError even when ALL variants omit raw_times
+  missing_all_times = {
+    "A": {"raw_costs": [10.0, 11.0, 12.0], "mean_time": 2.0},
+    "B": {"raw_costs": [10.0, 11.0, 12.0], "mean_time": 1.0},
+  }
+  with pytest.raises(ValueError, match="Incomplete raw time arrays"):
+    perform_statistical_analysis("p_no_times", 10.0, missing_all_times, analyzer, strict_lengths=True)
+
+  # Case 5: strict_lengths=False with ragged arrays and no precomputed means preserves true full means in summary
+  caplog.clear()
+  ragged_no_mean = {
+    "A": {"raw_costs": [10.0, 10.0], "raw_times": [1.0, 1.0]},
+    "B": {"raw_costs": [10.0, 10.0, 100.0, 100.0], "raw_times": [1.0, 1.0, 10.0, 10.0]},
+  }
+  with caplog.at_level(logging.INFO):
+    perform_statistical_analysis("p_ragged_nomean", 10.0, ragged_no_mean, analyzer, strict_lengths=False)
+  log_text = "\n".join(r.getMessage() for r in caplog.records)
+  assert "55.00" in log_text
+  assert "5.50" in log_text
+
+  # Case 6: constant non-zero offset logs constant paired difference (not identical)
+  caplog.clear()
+  const_offset = {
+    "A": {"raw_costs": [11.0, 12.0, 13.0], "raw_times": [2.0, 2.0, 2.0]},
+    "B": {"raw_costs": [10.0, 11.0, 12.0], "raw_times": [1.0, 1.0, 1.0]},
+  }
+  with caplog.at_level(logging.INFO):
+    perform_statistical_analysis("p_const_offset", 10.0, const_offset, analyzer, strict_lengths=True)
+  offset_log = "\n".join(r.getMessage() for r in caplog.records)
+  assert "Constant paired difference" in offset_log
