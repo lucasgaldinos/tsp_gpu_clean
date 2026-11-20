@@ -78,10 +78,11 @@ CUDA_CALLABLE = re.compile(
 CUDA_TYPE = re.compile(r"\b(?:struct|class)\s+(?P<name>[A-Za-z_]\w*)\s*(?::|\{)")
 
 MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(?P<title>.+?)\s*#*\s*$", re.MULTILINE)
-# GitHub strips this punctuation class from a heading before slugging it; Unicode
-# letters, marks, digits, `_`, and `-` survive, which is why pt-BR headings keep
-# their accents in the anchor.
-GFM_PUNCTUATION = re.compile(r"[\u2000-\u206F\u2E00-\u2E7F\\'!\"#$%&()*+,./:;<=>?@\[\]^`{|}~]")
+# GitHub keeps only Unicode letters, marks, digits, `_`, spaces and `-` in an
+# anchor: symbols (the multiplication sign, `$`, `\`, `{}`, `^`) and emoji are
+# dropped, and each space becomes one hyphen. pt-BR headings therefore keep
+# their accents.
+GFM_PUNCTUATION = re.compile(r"[^\w\s-]")
 HEADING_FRAGMENT = re.compile(r"\]\((?P<target>[^)\s]*\.md)#(?P<fragment>[^)\s]+)\)")
 SAME_FILE_FRAGMENT = re.compile(r"\]\(#(?P<fragment>[^)\s]+)\)")
 LINE_FRAGMENT = re.compile(r"L\d+(?:-L\d+)?")
