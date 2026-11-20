@@ -23,7 +23,7 @@ applyTo: "**"
 
 - **Separate plans by repository & enforce the symbol gate:** Keep `gpu_accelerated_clean` tasks exclusively in [plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md) and register every `DP-*`, `DP<phase>-*`, and `BUG-*` identifier in [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md). Keep `routing_data` tasks exclusively in `routing_data/TODO.md` (and `routing_data/src/converter/TODO.md`). After editing any plan or walkthrough in `gpu_accelerated_clean`, run `rtk .venv/bin/python -m benchmark_scripts.check_docs` and require exit code `0`.
 
-- ALWAYS correlate target files (using bounded reads per [AGENTS.md](../../AGENTS.md)) with [src](../../src/), [documents_tcc/plan](../../documents_tcc/plan/), [documentation/knowledge-base](../../documentation/knowledge-base/), and [second_draft.tex](../../documents_tcc/tex/second_draft.tex) before proposing plans or changes. Always perform a thorough technical analysis first.
+- ALWAYS correlate target files (using bounded reads per [AGENTS.md](../../AGENTS.md)) with [src](../../src/), [documents_tcc/plan](../../documents_tcc/plan/), [documentation/knowledge-base](../../documentation/knowledge-base/), and [second_draft.tex](../../documents_tcc/tex/thesis/second_draft.tex) before proposing plans or changes. Always perform a thorough technical analysis first.
 
 - ALWAYS use the `ask-clarification-questions` skill whenever you are confused, an instruction is ambiguous, or a required format/standard is missing. Do not guess; stop and ask the user to clarify before taking irreversible actions.
 

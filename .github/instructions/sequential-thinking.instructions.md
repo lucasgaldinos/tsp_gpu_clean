@@ -1,0 +1,1 @@
+../../.agents/rules/sequential-thinking.instructions.md

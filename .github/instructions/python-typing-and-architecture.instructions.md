@@ -1,0 +1,1 @@
+../../.agents/rules/python-typing-and-architecture.instructions.md

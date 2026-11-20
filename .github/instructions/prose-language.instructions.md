@@ -1,0 +1,1 @@
+../../.agents/rules/prose-language.instructions.md
