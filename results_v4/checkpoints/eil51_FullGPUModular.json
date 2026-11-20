@@ -3224,7 +3224,6 @@
   "optimal_cost": 426.0,
   "max_generations_configured": 728,
   "backend": "GPU",
-  "timestamp": "2026-11-11T22:47:40.421727",
   "problem_metadata": {
     "problem_id": 13,
     "name": "eil51",
@@ -3293,5 +3292,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-14T23:48:50.840106"
 }

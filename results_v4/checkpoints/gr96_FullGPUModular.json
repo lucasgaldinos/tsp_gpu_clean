@@ -4619,7 +4619,6 @@
   "optimal_cost": 55209.0,
   "max_generations_configured": 1881,
   "backend": "GPU",
-  "timestamp": "2026-11-11T22:59:59.946044",
   "problem_metadata": {
     "problem_id": 54,
     "name": "gr96",
@@ -4688,5 +4687,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T00:12:58.732237"
 }

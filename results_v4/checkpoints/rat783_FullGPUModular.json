@@ -25916,7 +25916,6 @@
   "optimal_cost": 8806.0,
   "max_generations_configured": 43820,
   "backend": "GPU",
-  "timestamp": "2026-11-13T06:41:04.671836",
   "problem_metadata": {
     "problem_id": 65,
     "name": "rat783",
@@ -25985,5 +25984,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T14:57:37.628170"
 }

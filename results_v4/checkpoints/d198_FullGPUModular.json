@@ -7781,7 +7781,6 @@
   "optimal_cost": 15780.0,
   "max_generations_configured": 5572,
   "backend": "GPU",
-  "timestamp": "2026-11-12T01:47:40.520204",
   "problem_metadata": {
     "problem_id": 22,
     "name": "d198",
@@ -7850,5 +7849,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T03:00:03.531667"
 }

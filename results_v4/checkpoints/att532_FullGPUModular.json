@@ -18135,7 +18135,6 @@
   "optimal_cost": 27686.0,
   "max_generations_configured": 24541,
   "backend": "GPU",
-  "timestamp": "2026-11-12T15:44:21.351158",
   "problem_metadata": {
     "problem_id": 3,
     "name": "att532",
@@ -18204,5 +18203,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T13:19:37.600603"
 }

@@ -21,80 +21,195 @@
     "file_checksum": "b9535dc5e44549f613bf6e34ee8667eed6f7a13e6b74c0b0451de95a480cabde"
   },
   "algorithms": {
-    "HybridNaive": {
-      "mean_time": 1033.0641350919032,
-      "std_time": 246.28105033472085,
+    "CPU": {
+      "mean_time": 485.492000762932,
+      "std_time": 90.17950122995266,
       "mean_initial_cost": 170880.36666666667,
       "std_initial_cost": 1155.427237994176,
-      "mean_cost": 8966.6,
-      "std_cost": 26.084213748866418,
-      "mean_gap": 1.8237565296388822,
-      "std_gap": 0.2962095588106565,
-      "mean_generations": 450.3333333333333,
-      "std_generations": 108.38988797896211,
+      "mean_cost": 8927.766666666666,
+      "std_cost": 23.179484587607345,
+      "mean_gap": 1.3827693239457945,
+      "std_gap": 0.26322376320244545,
+      "mean_generations": 391.76666666666665,
+      "std_generations": 67.80941005460836,
+      "success_rate": 1.0,
+      "backend": "CPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 7632.244876556797,
+          "calls": 391.76666666666665,
+          "mean_ms": 19.481608635812467
+        },
+        "evaluation": {
+          "total_ms": 448.7237855277878,
+          "calls": 392.76666666666665,
+          "mean_ms": 1.1424691136241734
+        },
+        "host_sync": {
+          "total_ms": 8.798239508178085,
+          "calls": 583.9333333333333,
+          "mean_ms": 0.015067198609735277
+        },
+        "initialization": {
+          "total_ms": 6.78149026837976,
+          "calls": 1.0,
+          "mean_ms": 6.78149026837976
+        },
+        "local_search": {
+          "total_ms": 477110.27316587174,
+          "calls": 391.76666666666665,
+          "mean_ms": 1217.84295030853
+        },
+        "mutation": {
+          "total_ms": 85.98254193008567,
+          "calls": 391.76666666666665,
+          "mean_ms": 0.21947385841083725
+        },
+        "selection": {
+          "total_ms": 76.77110715109545,
+          "calls": 391.76666666666665,
+          "mean_ms": 0.19596130473350323
+        },
+        "survival": {
+          "total_ms": 103.52360981244904,
+          "calls": 391.76666666666665,
+          "mean_ms": 0.2642481319129985
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 1.5622423274117918,
+        "evaluation": 0.09195555341882695,
+        "host_sync": 0.0018104844767643715,
+        "initialization": 0.0014196626615960968,
+        "local_search": 98.2842223512594,
+        "mutation": 0.017606076016845957,
+        "selection": 0.01569499160023139,
+        "survival": 0.021176108103165985
+      },
+      "phase_share_cv_pct": {
+        "crossover": 5.264782634975333,
+        "evaluation": 4.9235876961510785,
+        "host_sync": 3.819275022645422,
+        "initialization": 32.28887068634518,
+        "local_search": 0.09106997566300039,
+        "mutation": 6.482440859945051,
+        "selection": 6.075403455415425,
+        "survival": 5.713407904468966
+      },
+      "algorithm_config": {
+        "population_size": 256,
+        "mutation_rate": 0.02,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": false
+          },
+          "selection": {
+            "class": "SelectionTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverOrder"
+          },
+          "mutation": {
+            "class": "MutationSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchCPUTwoOpt",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "mode": "best"
+          },
+          "evaluation": {
+            "class": "EvaluationCPUCost"
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionTournament",
+        "crossover": "CrossoverOrder",
+        "mutation": "MutationSwap",
+        "local_search": "LocalSearchCPUTwoOpt",
+        "evaluation": "EvaluationCPUCost"
+      }
+    },
+    "HybridNaive": {
+      "mean_time": 90.25127418955866,
+      "std_time": 13.855909160789665,
+      "mean_initial_cost": 170880.36666666667,
+      "std_initial_cost": 1155.427237994176,
+      "mean_cost": 8937.733333333334,
+      "std_cost": 31.663024593945252,
+      "mean_gap": 1.4959497312438492,
+      "std_gap": 0.35956194178906714,
+      "mean_generations": 411.1666666666667,
+      "std_generations": 62.17554865519654,
       "success_rate": 1.0,
       "backend": "GPU",
       "mean_phase_timings": {
         "crossover": {
-          "total_ms": 38076.97229312811,
-          "calls": 450.3333333333333,
-          "mean_ms": 84.55286223492548
+          "total_ms": 8477.491761476267,
+          "calls": 411.1666666666667,
+          "mean_ms": 20.61813967120292
         },
         "evaluation": {
-          "total_ms": 863.9123350110216,
-          "calls": 451.3333333333333,
-          "mean_ms": 1.9141336817083197
+          "total_ms": 537.5606324795323,
+          "calls": 412.1666666666667,
+          "mean_ms": 1.304231215073673
         },
         "host_sync": {
-          "total_ms": 9.043787287858626,
-          "calls": 632.0666666666667,
-          "mean_ms": 0.014308280700124394
+          "total_ms": 11.142958351410925,
+          "calls": 603.6,
+          "mean_ms": 0.01846083225879875
         },
         "initialization": {
-          "total_ms": 5.95479576732032,
+          "total_ms": 7.407088663118581,
           "calls": 1.0,
-          "mean_ms": 5.95479576732032
+          "mean_ms": 7.407088663118581
         },
         "local_search": {
-          "total_ms": 993770.1883035674,
-          "calls": 450.3333333333333,
-          "mean_ms": 2206.743571362474
+          "total_ms": 80884.20055809354,
+          "calls": 411.1666666666667,
+          "mean_ms": 196.71876909143137
         },
         "mutation": {
-          "total_ms": 121.05003377461496,
-          "calls": 450.3333333333333,
-          "mean_ms": 0.26880096323008507
+          "total_ms": 94.25396850565448,
+          "calls": 411.1666666666667,
+          "mean_ms": 0.22923543211752204
         },
         "selection": {
-          "total_ms": 86.65862992056645,
-          "calls": 450.3333333333333,
-          "mean_ms": 0.1924321907932638
+          "total_ms": 91.30612294344853,
+          "calls": 411.1666666666667,
+          "mean_ms": 0.22206596581300816
         },
         "survival": {
-          "total_ms": 113.78691192755166,
-          "calls": 450.3333333333333,
-          "mean_ms": 0.2526726393653997
+          "total_ms": 125.37589280012374,
+          "calls": 411.1666666666667,
+          "mean_ms": 0.30492718151631226
         }
       },
       "phase_share_pct": {
-        "crossover": 3.6877274922853744,
-        "evaluation": 0.08384218648545597,
-        "host_sync": 0.00088869269222647,
-        "initialization": 0.0006112904847106671,
-        "local_search": 96.19418551591774,
-        "mutation": 0.011723571561530883,
-        "selection": 0.008382137563240308,
-        "survival": 0.011032803218679867
+        "crossover": 9.375421119847514,
+        "evaluation": 0.5955061178319399,
+        "host_sync": 0.01238717869703173,
+        "initialization": 0.008494061920676215,
+        "local_search": 89.63942280430021,
+        "mutation": 0.10426978018561067,
+        "selection": 0.10086907820969192,
+        "survival": 0.1387028565284306
       },
       "phase_share_cv_pct": {
-        "crossover": 3.0216069248980544,
-        "evaluation": 3.3623544695672094,
-        "host_sync": 7.953527889623965,
-        "initialization": 29.19637035056914,
-        "local_search": 0.12008134962921763,
-        "mutation": 3.961459315883744,
-        "selection": 4.947780452713537,
-        "survival": 4.477789345887821
+        "crossover": 4.37517718877571,
+        "evaluation": 3.017461911666266,
+        "host_sync": 6.7822853715333835,
+        "initialization": 47.93592317534549,
+        "local_search": 0.4974042238216713,
+        "mutation": 5.857999748816721,
+        "selection": 6.136022680023485,
+        "survival": 5.047631509972309
       },
       "algorithm_config": {
         "population_size": 256,
@@ -139,8 +254,8 @@
       }
     },
     "HybridOptimized": {
-      "mean_time": 46.45992955385785,
-      "std_time": 7.0042070796442895,
+      "mean_time": 19.953926732901405,
+      "std_time": 2.9354783219534912,
       "mean_initial_cost": 170880.36666666667,
       "std_initial_cost": 1155.427237994176,
       "mean_cost": 8937.733333333334,
@@ -153,65 +268,65 @@
       "backend": "GPU",
       "mean_phase_timings": {
         "crossover": {
-          "total_ms": 34770.59430576822,
+          "total_ms": 9158.121406155988,
           "calls": 411.1666666666667,
-          "mean_ms": 84.56569348788379
+          "mean_ms": 22.27350159583945
         },
         "evaluation": {
-          "total_ms": 139.87539463754123,
+          "total_ms": 183.1325389832879,
           "calls": 412.1666666666667,
-          "mean_ms": 0.33936610102112713
+          "mean_ms": 0.4443167140718671
         },
         "host_sync": {
-          "total_ms": 9.702809461547682,
+          "total_ms": 12.654893966585709,
           "calls": 603.6,
-          "mean_ms": 0.01607489970435335
+          "mean_ms": 0.020965695769691366
         },
         "initialization": {
-          "total_ms": 5.8030360960401595,
+          "total_ms": 8.607146267119484,
           "calls": 1.0,
-          "mean_ms": 5.8030360960401595
+          "mean_ms": 8.607146267119484
         },
         "local_search": {
-          "total_ms": 11212.120342122702,
+          "total_ms": 10218.568998811921,
           "calls": 411.1666666666667,
-          "mean_ms": 27.269040151088856
+          "mean_ms": 24.852620183571755
         },
         "mutation": {
-          "total_ms": 109.73390700722423,
+          "total_ms": 103.3504007626713,
           "calls": 411.1666666666667,
-          "mean_ms": 0.26688424890285584
+          "mean_ms": 0.25135889930118677
         },
         "selection": {
-          "total_ms": 80.49104142701253,
+          "total_ms": 99.3629877824181,
           "calls": 411.1666666666667,
-          "mean_ms": 0.19576256528661337
+          "mean_ms": 0.24166109716031967
         },
         "survival": {
-          "total_ms": 117.24094322999008,
+          "total_ms": 144.7396456632608,
           "calls": 411.1666666666667,
-          "mean_ms": 0.28514213999997584
+          "mean_ms": 0.35202183785146524
         }
       },
       "phase_share_pct": {
-        "crossover": 74.84653053282227,
-        "evaluation": 0.30108218862823993,
-        "host_sync": 0.02099361095941287,
-        "initialization": 0.012756366898515115,
-        "local_search": 24.12591215053053,
-        "mutation": 0.2361974145625402,
-        "selection": 0.17321988187518514,
-        "survival": 0.2523632646107236
+        "crossover": 45.80333040696806,
+        "evaluation": 0.9163333778950754,
+        "host_sync": 0.06361780833710994,
+        "initialization": 0.04476790041799904,
+        "local_search": 51.30770325639664,
+        "mutation": 0.516896956642205,
+        "selection": 0.49624476683183266,
+        "survival": 0.723802646700502
       },
       "phase_share_cv_pct": {
-        "crossover": 0.9819700811584035,
-        "evaluation": 0.4259133284025932,
-        "host_sync": 3.898082849327139,
-        "initialization": 15.183496963246288,
-        "local_search": 3.0697463457507244,
-        "mutation": 0.89275608604603,
-        "selection": 4.936309069536106,
-        "survival": 0.9944152168538876
+        "crossover": 2.6697191747873097,
+        "evaluation": 2.155313401510975,
+        "host_sync": 4.12848923273967,
+        "initialization": 52.013232989063084,
+        "local_search": 2.5296828831334937,
+        "mutation": 2.465925499629801,
+        "selection": 5.06225017907223,
+        "survival": 3.3009613694657465
       },
       "algorithm_config": {
         "population_size": 256,
@@ -380,76 +495,346 @@
   "statistical_tests": {
     "problem_name": "rat783",
     "optimal_cost": 8806.0,
-    "baseline_algorithm": "HybridNaive",
+    "baseline_algorithm": "CPU",
     "friedman_test": {
-      "statistic": 9.12605042016808,
-      "p_value": 0.010430456842809651,
+      "statistic": 6.909090909090891,
+      "p_value": 0.07485249881261312,
+      "statistic_f": 2.4113785557986804,
+      "df1": 3,
+      "df2": 87,
+      "p_value_f": 0.07226356972081291,
+      "significant": false,
+      "post_hoc_required": false
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "CPU vs HybridNaive",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 148.5,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.08396101227758655,
+        "mean_difference": -9.966666666666667,
+        "ci_95_lower": -17.5,
+        "ci_95_upper": 1.5,
+        "effect_size": -0.36551724137931035,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 1,
+        "effective_sample_size": 29,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.35734634765268414,
+        "normality_p_value_b": 0.07897944256051936,
+        "effect_interpretation": "small",
+        "p_value_corrected": 0.4198050613879328,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "CPU vs HybridOptimized",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 148.5,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.08396101227758655,
+        "mean_difference": -9.966666666666667,
+        "ci_95_lower": -17.5,
+        "ci_95_upper": 1.5,
+        "effect_size": -0.36551724137931035,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 1,
+        "effective_sample_size": 29,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.35734634765268414,
+        "normality_p_value_b": 0.07897944256051936,
+        "effect_interpretation": "small",
+        "p_value_corrected": 0.4198050613879328,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "CPU vs FullGPUModular",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 141.5,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.06122495494473456,
+        "mean_difference": -12.9,
+        "ci_95_lower": -29.0,
+        "ci_95_upper": 1.0,
+        "effect_size": -0.3913978494623656,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.35734634765268414,
+        "normality_p_value_b": 0.4077218315134987,
+        "effect_interpretation": "small",
+        "p_value_corrected": 0.36734972966840734,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "HybridNaive vs HybridOptimized",
+        "metric_name": "cost",
+        "test_used": "no_test_needed",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.0,
+        "mean_difference": 0.0,
+        "ci_95_lower": 0.0,
+        "ci_95_upper": 0.0,
+        "effect_size": 0.0,
+        "test_justification": "identical_samples_no_test_needed",
+        "zero_differences_count": 30,
+        "effective_sample_size": 0,
+        "insufficient_power_warning": true,
+        "normality_p_value_a": 1.0,
+        "normality_p_value_b": 1.0,
+        "effect_interpretation": "negligible",
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "HybridNaive vs FullGPUModular",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 197.5,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.4714391364484989,
+        "mean_difference": -2.933333333333333,
+        "ci_95_lower": -20.5,
+        "ci_95_upper": 12.5,
+        "effect_size": -0.14942528735632185,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 1,
+        "effective_sample_size": 29,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07897944256051936,
+        "normality_p_value_b": 0.4077218315134987,
+        "effect_interpretation": "negligible",
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "HybridOptimized vs FullGPUModular",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 197.5,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.4714391364484989,
+        "mean_difference": -2.933333333333333,
+        "ci_95_lower": -20.5,
+        "ci_95_upper": 12.5,
+        "effect_size": -0.14942528735632185,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 1,
+        "effective_sample_size": 29,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07897944256051936,
+        "normality_p_value_b": 0.4077218315134987,
+        "effect_interpretation": "negligible",
+        "p_value_corrected": 1.0,
+        "significant_after_correction": false
+      }
+    ],
+    "friedman_test_time": {
+      "statistic": 90.0,
+      "p_value": 2.190570119285308e-19,
+      "statistic_f": Infinity,
+      "df1": 3,
+      "df2": 87,
+      "p_value_f": 0.0,
       "significant": true,
       "post_hoc_required": true
     },
-    "nemenyi_posthoc": {
-      "critical_distance": 0.6051408893026756,
+    "nemenyi_posthoc_time": {
+      "critical_distance": 0.8563439241821607,
       "mean_ranks": {
-        "HybridNaive": 2.433333333333333,
-        "HybridOptimized": 1.6833333333333333,
-        "FullGPUModular": 1.8833333333333333
+        "CPU": 4.0,
+        "HybridNaive": 3.0,
+        "HybridOptimized": 2.0,
+        "FullGPUModular": 1.0
       },
       "algorithm_names": [
+        "CPU",
         "HybridNaive",
         "HybridOptimized",
         "FullGPUModular"
       ],
       "significant_pairs": [
         {
+          "algorithm_i": "CPU",
+          "algorithm_j": "HybridNaive",
+          "p_value": 0.01435777100133151,
+          "rank_difference": 1.0
+        },
+        {
+          "algorithm_i": "CPU",
+          "algorithm_j": "HybridOptimized",
+          "p_value": 1.1829745627522925e-08,
+          "rank_difference": 2.0
+        },
+        {
+          "algorithm_i": "CPU",
+          "algorithm_j": "FullGPUModular",
+          "p_value": 0.0,
+          "rank_difference": 3.0
+        },
+        {
           "algorithm_i": "HybridNaive",
           "algorithm_j": "HybridOptimized",
-          "p_value": 0.010276247515935477,
-          "rank_difference": 0.7499999999999998
+          "p_value": 0.01435777100133151,
+          "rank_difference": 1.0
+        },
+        {
+          "algorithm_i": "HybridNaive",
+          "algorithm_j": "FullGPUModular",
+          "p_value": 1.1829745627522925e-08,
+          "rank_difference": 2.0
+        },
+        {
+          "algorithm_i": "HybridOptimized",
+          "algorithm_j": "FullGPUModular",
+          "p_value": 0.01435777100133151,
+          "rank_difference": 1.0
         }
       ]
     },
-    "pairwise_comparisons": [
+    "pairwise_comparisons_time": [
+      {
+        "comparison": "CPU vs HybridNaive",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": 395.24072657337337,
+        "ci_95_lower": 356.0982410519646,
+        "ci_95_upper": 424.40541263301566,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.03865606287552293,
+        "normality_p_value_b": 0.672887257550557,
+        "effect_interpretation": "large",
+        "p_value_corrected": 1.1175870895385742e-08,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "CPU vs HybridOptimized",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": 465.5380740300306,
+        "ci_95_lower": 425.5809940774925,
+        "ci_95_upper": 494.68781529099215,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.03865606287552293,
+        "normality_p_value_b": 0.6225515304057909,
+        "effect_interpretation": "large",
+        "p_value_corrected": 1.1175870895385742e-08,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "CPU vs FullGPUModular",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": 476.14826793099445,
+        "ci_95_lower": 435.88662861251214,
+        "ci_95_upper": 505.6011603014922,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.03865606287552293,
+        "normality_p_value_b": 0.01905280655754501,
+        "effect_interpretation": "large",
+        "p_value_corrected": 1.1175870895385742e-08,
+        "significant_after_correction": true
+      },
       {
         "comparison": "HybridNaive vs HybridOptimized",
-        "test_used": "paired_t_test",
-        "p_value": 0.00045981758224166434,
-        "mean_difference": 28.866666666666667,
-        "ci_95_lower": 13.915063643788036,
-        "ci_95_upper": 43.818269689545296,
-        "cohens_d": 0.9951262418696967,
-        "normality_p_value_a": 0.45741650708409576,
-        "normality_p_value_b": 0.07897944256051936,
-        "p_value_corrected": 0.001379452746724993,
-        "significant_after_correction": true,
-        "effect_interpretation": "large"
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": 70.29734745665725,
+        "ci_95_lower": 65.79760516448005,
+        "ci_95_upper": 74.48545560149068,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.672887257550557,
+        "normality_p_value_b": 0.6225515304057909,
+        "effect_interpretation": "large",
+        "p_value_corrected": 1.1175870895385742e-08,
+        "significant_after_correction": true
       },
       {
         "comparison": "HybridNaive vs FullGPUModular",
-        "test_used": "paired_t_test",
-        "p_value": 0.0033347079866209595,
-        "mean_difference": 25.933333333333334,
-        "ci_95_lower": 9.348529898701628,
-        "ci_95_upper": 42.51813676796504,
-        "cohens_d": 0.8775728643222553,
-        "normality_p_value_a": 0.45741650708409576,
-        "normality_p_value_b": 0.4077218315134987,
-        "p_value_corrected": 0.006669415973241919,
-        "significant_after_correction": true,
-        "effect_interpretation": "large"
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": 80.90754135762108,
+        "ci_95_lower": 75.14048915548483,
+        "ci_95_upper": 86.07785138190957,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.672887257550557,
+        "normality_p_value_b": 0.01905280655754501,
+        "effect_interpretation": "large",
+        "p_value_corrected": 1.1175870895385742e-08,
+        "significant_after_correction": true
       },
       {
         "comparison": "HybridOptimized vs FullGPUModular",
-        "test_used": "paired_t_test",
-        "p_value": 0.7367270035285812,
-        "mean_difference": -2.933333333333333,
-        "ci_95_lower": -20.607751435254517,
-        "ci_95_upper": 14.74108476858785,
-        "cohens_d": -0.09120671489122663,
-        "normality_p_value_a": 0.07897944256051936,
-        "normality_p_value_b": 0.4077218315134987,
-        "p_value_corrected": 0.7367270035285812,
-        "significant_after_correction": false,
-        "effect_interpretation": "negligible"
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": 10.610193900963834,
+        "ci_95_lower": 9.166153140060487,
+        "ci_95_upper": 11.870872635001433,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.6225515304057909,
+        "normality_p_value_b": 0.01905280655754501,
+        "effect_interpretation": "large",
+        "p_value_corrected": 1.1175870895385742e-08,
+        "significant_after_correction": true
       }
     ]
   }

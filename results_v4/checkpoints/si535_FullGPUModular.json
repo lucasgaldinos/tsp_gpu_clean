@@ -18228,7 +18228,6 @@
   "optimal_cost": 48450.0,
   "max_generations_configured": 24749,
   "backend": "GPU",
-  "timestamp": "2026-11-12T16:25:14.339406",
   "problem_metadata": {
     "problem_id": 111,
     "name": "si535",
@@ -18297,5 +18296,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T13:26:41.085972"
 }

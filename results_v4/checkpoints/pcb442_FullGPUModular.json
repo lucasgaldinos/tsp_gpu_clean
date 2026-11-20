@@ -15345,7 +15345,6 @@
   "optimal_cost": 50778.0,
   "max_generations_configured": 18585,
   "backend": "GPU",
-  "timestamp": "2026-11-12T13:14:43.772674",
   "problem_metadata": {
     "problem_id": 10,
     "name": "pcb442",
@@ -15414,5 +15413,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T12:58:55.202803"
 }

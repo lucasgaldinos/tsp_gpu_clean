@@ -3131,7 +3131,6 @@
   "optimal_cost": 10628.0,
   "max_generations_configured": 665,
   "backend": "GPU",
-  "timestamp": "2026-11-11T22:49:53.022197",
   "problem_metadata": {
     "problem_id": 19,
     "name": "att48",
@@ -3200,5 +3199,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-14T23:53:06.408057"
 }

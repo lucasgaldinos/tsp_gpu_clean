@@ -6293,7 +6293,6 @@
   "optimal_cost": 6528.0,
   "max_generations_configured": 3674,
   "backend": "GPU",
-  "timestamp": "2026-11-12T00:06:28.512048",
   "problem_metadata": {
     "problem_id": 94,
     "name": "ch150",
@@ -6362,5 +6361,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T01:27:20.681749"
 }

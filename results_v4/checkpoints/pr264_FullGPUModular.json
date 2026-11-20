@@ -9827,7 +9827,6 @@
   "optimal_cost": 49135.0,
   "max_generations_configured": 8578,
   "backend": "GPU",
-  "timestamp": "2026-11-12T04:54:00.236787",
   "problem_metadata": {
     "problem_id": 14,
     "name": "pr264",
@@ -9896,5 +9895,6 @@
     "local_search": "LocalSearchGPUTwoOpt",
     "evaluation": "EvaluationGPUCost"
   },
-  "construction_heuristic": "InitializationRandom"
+  "construction_heuristic": "InitializationRandom",
+  "timestamp": "2026-11-15T06:04:57.170713"
 }
