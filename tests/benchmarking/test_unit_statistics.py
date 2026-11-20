@@ -40,8 +40,37 @@ def _summary(*, mean_a: float = 4.0, mean_b: float = 2.0, p_value: float = 0.04)
     test_used="paired_t_test",
     normality_p_value_a=0.5,
     normality_p_value_b=0.5,
-    is_normal=True,
+    test_statistic=0.0,
+    df1=None,
+    df2=None,
   )
+
+
+def test_statistical_summary_requires_test_statistic_and_dfs() -> None:
+  """WHAT: StatisticalSummary requires test_statistic, df1, and df2 explicitly.
+
+  WHY: Task 13.10 (BUG-62 / DP13-3) — Omitting test_statistic or degrees of freedom
+  must fail at construction time so no summary silently lacks reporting metadata.
+  """
+  with pytest.raises(TypeError):
+    StatisticalSummary(  # type: ignore[call-arg]
+      comparison_label="A vs B",
+      metric_name="cost",
+      sample_size=10,
+      mean_a=1.0,
+      mean_b=2.0,
+      std_a=0.1,
+      std_b=0.1,
+      ci_95_a=(0.9, 1.1),
+      ci_95_b=(1.9, 2.1),
+      mean_difference=-1.0,
+      ci_95_difference=(-1.1, -0.9),
+      p_value=0.05,
+      effect_size=0.0,
+      test_used="wilcoxon_signed_rank",
+      normality_p_value_a=0.5,
+      normality_p_value_b=0.5,
+    )
 
 
 # ============================================================================

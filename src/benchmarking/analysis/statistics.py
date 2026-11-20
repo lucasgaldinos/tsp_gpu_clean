@@ -1,11 +1,11 @@
 """
 Statistical analysis for benchmark results.
 
-Implements the statistical methodology from Section 3.5.3, including:
-- Normality testing (Shapiro-Wilk)
-- Hypothesis testing (paired t-test, Wilcoxon)
-- Effect size calculation (Cohen's d)
-- Bootstrap confidence intervals
+Implements the statistical methodology from Section 3.4 (Protocolo de Análise Estatística), including:
+- Normality diagnostics (Shapiro-Wilk, descriptive only)
+- Hypothesis testing (Wilcoxon signed-rank default)
+- Effect size calculation (matched-pairs rank-biserial correlation)
+- Distribution-free Hodges-Lehmann and bootstrap confidence intervals
 - Multiple comparison correction (Holm-Bonferroni)
 - Friedman test for multiple algorithm comparison
 - Nemenyi post-hoc test for pairwise rankings
@@ -45,11 +45,17 @@ class StatisticalSummary:
       mean_difference: Mean of (A - B)
       ci_95_difference: 95% CI for difference as (low, high)
       p_value: Statistical significance
-      effect_size: Cohen's d (for normally distributed data)
+      effect_size: Effect size measure (e.g., rank-biserial correlation for Wilcoxon)
       test_used: Which test was applied (e.g., "paired_t_test", "wilcoxon")
       normality_p_value_a: Shapiro-Wilk p-value for A
       normality_p_value_b: Shapiro-Wilk p-value for B
-      is_normal: Whether both distributions passed normality test
+      test_statistic: Primary test statistic (e.g., Wilcoxon W)
+      df1: Numerator degrees of freedom when applicable, else None
+      df2: Denominator degrees of freedom when applicable, else None
+      test_justification: Rationale for test selection (e.g., "demsar2006_wilcoxon_default")
+      zero_differences_count: Number of paired observations where diff == 0
+      effective_sample_size: Non-zero difference count available to Wilcoxon
+      insufficient_power_warning: True when zero_differences_count exceeds n / 2
   """
 
   comparison_label: str
@@ -68,7 +74,13 @@ class StatisticalSummary:
   test_used: str
   normality_p_value_a: float
   normality_p_value_b: float
-  is_normal: bool
+  test_statistic: float
+  df1: float | int | None
+  df2: float | int | None
+  test_justification: str = "wilcoxon_default"
+  zero_differences_count: int = 0
+  effective_sample_size: int = 0
+  insufficient_power_warning: bool = False
 
   def get_speedup(self) -> float:
     """
@@ -107,11 +119,57 @@ class StatisticalSummary:
     return self.p_value < alpha
 
 
+def compute_iman_davenport_f(
+  chi2: float,
+  n_observations: int,
+  k_algorithms: int,
+) -> tuple[float, int, int, float]:
+  """Compute the Iman-Davenport (1980) F_F correction from Friedman's chi-square.
+
+  Converts Friedman's chi2 into F_F = ((N - 1) * chi2) / (N * (k - 1) - chi2)
+  with df1 = k - 1 and df2 = (k - 1) * (N - 1), returning (F_F, df1, df2, p_value_f).
+  Handles N < 2, non-finite chi2, and perfect rank concordance (denominator <= 1e-12).
+  """
+  df1 = max(0, k_algorithms - 1)
+  df2 = max(0, (k_algorithms - 1) * (n_observations - 1))
+
+  if n_observations < 2 or k_algorithms < 2 or not np.isfinite(chi2):
+    return 0.0, df1, df2, 1.0
+
+  denominator = n_observations * (k_algorithms - 1) - chi2
+  if denominator <= 1e-12:
+    if chi2 > 0.0:
+      return float("inf"), df1, df2, 0.0
+    return 0.0, df1, df2, 1.0
+
+  statistic_f = float(((n_observations - 1) * chi2) / denominator)
+  p_value_f = float(stats.f.sf(statistic_f, df1, df2))
+  return statistic_f, df1, df2, p_value_f
+
+
+def compute_mean_ranks(
+  data_sets: list[np.ndarray] | np.ndarray,
+  algorithm_names: list[str],
+  *,
+  higher_is_better: bool = False,
+) -> dict[str, float]:
+  """Compute average per-instance ranks (1 = best) for each algorithm."""
+  mat = np.asarray(data_sets, dtype=float) if isinstance(data_sets, np.ndarray) else np.column_stack(data_sets)
+  if mat.ndim != 2 or mat.shape[1] != len(algorithm_names):
+    raise ValueError(
+      f"Expected 2D matrix with {len(algorithm_names)} columns matching algorithm_names; got shape {mat.shape}."
+    )
+  multiplier = -1.0 if higher_is_better else 1.0
+  ranked = np.apply_along_axis(stats.rankdata, 1, multiplier * mat, method="average")
+  avg_ranks = np.mean(ranked, axis=0)
+  return {name: float(avg_ranks[i]) for i, name in enumerate(algorithm_names)}
+
+
 class StatisticalAnalyzer:
   """
   Performs statistical analysis on benchmark results.
 
-  Implements methodology from Section 3.5.3:
+  Implements methodology from Section 3.4 (Protocolo de Análise Estatística):
   1. Normality testing (Shapiro-Wilk)
   2. Test selection based on normality
   3. Effect size calculation
@@ -132,8 +190,9 @@ class StatisticalAnalyzer:
     """
     Test data for normality using Shapiro-Wilk test.
 
-    Following Section 3.5.3 Step 1, tests null hypothesis that data
-    comes from normal distribution.
+    Provides descriptive normality diagnostics per Section 3.4 (Protocolo de Análise
+    Estatística). Note that paired comparisons use Wilcoxon signed-rank tests regardless
+    of normality outcomes (DP13-4 / BUG-60).
 
     Args:
         data: 1D array of observations (n >= 3)
@@ -151,6 +210,68 @@ class StatisticalAnalyzer:
     is_normal = p_value >= self.alpha
     return (float(p_value), is_normal)
 
+  def compute_hodges_lehmann(
+    self,
+    differences: np.ndarray,
+    confidence: float = 0.95,
+  ) -> tuple[float, tuple[float, float]]:
+    """Compute Hodges-Lehmann location estimator and distribution-free confidence interval.
+
+    Calculates Walsh averages `(d_i + d_j) / 2` for `1 <= i <= j <= n`.
+    The point estimate is the median of the Walsh averages.
+    The confidence interval `(low, high)` is derived from the critical rank of
+    the Wilcoxon signed-rank distribution with normal approximation.
+    """
+    n = len(differences)
+    if n == 0:
+      return 0.0, (0.0, 0.0)
+    if n == 1:
+      val = float(differences[0])
+      return val, (val, val)
+
+    i_idx, j_idx = np.triu_indices(n)
+    walsh = (differences[i_idx] + differences[j_idx]) / 2.0
+    walsh_sorted = np.sort(walsh)
+    m = len(walsh_sorted)
+
+    point_estimate = float(np.median(walsh_sorted))
+
+    alpha = 1.0 - confidence
+    z = float(stats.norm.ppf(1.0 - alpha / 2.0))
+    e_w = n * (n + 1) / 4.0
+    var_w = n * (n + 1) * (2 * n + 1) / 24.0
+    k = int(np.floor(e_w - z * np.sqrt(var_w)))
+    k = max(1, min(k, m))
+
+    low = float(walsh_sorted[k - 1])
+    high = float(walsh_sorted[m - k])
+    return point_estimate, (low, high)
+
+  def rank_biserial_correlation(
+    self,
+    data_a: np.ndarray,
+    data_b: np.ndarray,
+  ) -> float:
+    """Compute matched-pairs rank-biserial correlation effect size (Kerby 2014).
+
+    For differences `D = A - B`, ranks absolute non-zero differences `|D|`.
+    `r = (W_+ - W_-) / (W_+ + W_-)` where `W_+` is sum of ranks with `D > 0` and
+    `W_-` is sum of ranks with `D < 0`. Range is `[-1.0, 1.0]`.
+    Returns 0.0 if all differences are zero.
+    """
+    diffs = data_a - data_b
+    nonzero = diffs[diffs != 0.0]
+    if len(nonzero) == 0:
+      return 0.0
+    abs_diffs = np.abs(nonzero)
+    ranks = stats.rankdata(abs_diffs)
+    pos_ranks = float(np.sum(ranks[nonzero > 0]))
+    neg_ranks = float(np.sum(ranks[nonzero < 0]))
+    total = pos_ranks + neg_ranks
+    if total == 0.0:
+      return 0.0
+    return float((pos_ranks - neg_ranks) / total)
+
   def paired_comparison(
     self,
     data_a: np.ndarray,
@@ -161,10 +282,10 @@ class StatisticalAnalyzer:
     """
     Perform paired statistical comparison (e.g., CPU vs GPU).
 
-    Implements Section 3.5.3 Steps 1-3:
-    1. Test normality (Shapiro-Wilk)
-    2. Choose appropriate test (t-test vs Wilcoxon)
-    3. Calculate effect size and confidence intervals
+    Implements Section 3.4 (Protocolo de Análise Estatística):
+    1. Descriptive normality assessment (Shapiro-Wilk)
+    2. Non-parametric paired hypothesis test (Wilcoxon signed-rank test in all cases, DP13-4)
+    3. Effect size (rank-biserial correlation) and distribution-free Hodges-Lehmann CI
 
     Args:
         data_a: Measurements from configuration A (e.g., CPU runtimes)
@@ -187,6 +308,7 @@ class StatisticalAnalyzer:
       mean_a = float(np.mean(data_a)) if n == 1 else 0.0
       mean_b = float(np.mean(data_b)) if n == 1 else 0.0
       mean_diff = mean_a - mean_b
+      zero_diffs = int(data_a[0] == data_b[0]) if n == 1 else 0
       return StatisticalSummary(
         comparison_label=label,
         metric_name=metric_name,
@@ -204,17 +326,28 @@ class StatisticalAnalyzer:
         test_used="no_test_needed",
         normality_p_value_a=1.0,
         normality_p_value_b=1.0,
-        is_normal=True,
+        test_statistic=0.0,
+        df1=None,
+        df2=None,
+        test_justification="insufficient_sample_size",
+        zero_differences_count=zero_diffs,
+        effective_sample_size=n - zero_diffs,
+        insufficient_power_warning=True,
       )
 
     # Check for zero variance across differences
     differences = data_a - data_b
     variance_threshold = 1e-10
     mean_diff = float(np.mean(differences))
+    zero_diffs = int(np.sum(differences == 0.0))
+    effective_n = n - zero_diffs
+    insufficient_power = zero_diffs > (n // 2)
 
     if np.std(differences) < variance_threshold:
       mean_a = float(np.mean(data_a))
       mean_b = float(np.mean(data_b))
+      eff_size = 0.0 if mean_diff == 0.0 else (1.0 if mean_diff > 0.0 else -1.0)
+      justification = "identical_samples_no_test_needed" if mean_diff == 0.0 else "constant_difference_no_test_needed"
       # Zero variance makes the paired t-test/Cohen's d undefined (division by zero).
       # A constant offset is different from no offset, so only a zero mean difference
       # collapses to the identity summary; any nonzero constant is fully separated.
@@ -231,16 +364,32 @@ class StatisticalAnalyzer:
         mean_difference=mean_diff,
         ci_95_difference=(mean_diff, mean_diff),
         p_value=1.0 if mean_diff == 0.0 else 0.0,
-        effect_size=0.0,
+        effect_size=eff_size,
         test_used="no_test_needed",
         normality_p_value_a=1.0,
         normality_p_value_b=1.0,
-        is_normal=True,
+        test_statistic=0.0,
+        df1=None,
+        df2=None,
+        test_justification=justification,
+        zero_differences_count=zero_diffs,
+        effective_sample_size=effective_n,
+        insufficient_power_warning=insufficient_power,
       )
 
-    p_norm_a, is_normal_a = self.test_normality(data_a)
-    p_norm_b, is_normal_b = self.test_normality(data_b)
-    both_normal = is_normal_a and is_normal_b
+    if insufficient_power:
+      import logging
+
+      logging.warning(
+        "More than half of paired differences are zero (%d/%d); "
+        "effective n=%d yields insufficient power for Wilcoxon test.",
+        zero_diffs,
+        n,
+        effective_n,
+      )
+
+    p_norm_a, _ = self.test_normality(data_a)
+    p_norm_b, _ = self.test_normality(data_b)
 
     mean_a = float(np.mean(data_a))
     mean_b = float(np.mean(data_b))
@@ -254,21 +403,17 @@ class StatisticalAnalyzer:
     ci_95_a = (mean_a - t_critical * se_a, mean_a + t_critical * se_a)
     ci_95_b = (mean_b - t_critical * se_b, mean_b + t_critical * se_b)
 
-    std_diff = float(np.std(differences, ddof=1))
-    se_diff = std_diff / np.sqrt(n)
-    ci_95_diff = (
-      mean_diff - t_critical * se_diff,
-      mean_diff + t_critical * se_diff,
-    )
+    # Always use Wilcoxon signed-ranks for paired comparison per Demšar (2006) protocol (DP13-4 / BUG-60)
+    test_name = "wilcoxon_signed_rank"
+    test_justification = "demsar2006_wilcoxon_default"
+    res = stats.wilcoxon(data_a, data_b, zero_method="zsplit")
+    p_value = float(res.pvalue)
 
-    if both_normal:
-      _, p_value = stats.ttest_rel(data_a, data_b)
-      test_name = "paired_t_test"
-    else:
-      _, p_value = stats.wilcoxon(data_a, data_b, zero_method="zsplit")
-      test_name = "wilcoxon_signed_rank"
+    # Effect size: matched-pairs rank-biserial correlation (Kerby 2014)
+    effect_size = self.rank_biserial_correlation(data_a, data_b)
 
-    effect_size = self.cohens_d(data_a, data_b)
+    # Distribution-free Hodges-Lehmann confidence interval
+    _, ci_95_diff = self.compute_hodges_lehmann(differences, confidence=1.0 - self.alpha)
 
     return StatisticalSummary(
       comparison_label=label,
@@ -282,12 +427,18 @@ class StatisticalAnalyzer:
       ci_95_b=ci_95_b,
       mean_difference=mean_diff,
       ci_95_difference=ci_95_diff,
-      p_value=float(p_value),
+      p_value=p_value,
       effect_size=effect_size,
       test_used=test_name,
       normality_p_value_a=p_norm_a,
       normality_p_value_b=p_norm_b,
-      is_normal=both_normal,
+      test_statistic=float(res.statistic),
+      df1=None,
+      df2=None,
+      test_justification=test_justification,
+      zero_differences_count=zero_diffs,
+      effective_sample_size=effective_n,
+      insufficient_power_warning=insufficient_power,
     )
 
   def cohens_d(self, data_a: np.ndarray, data_b: np.ndarray) -> float:
@@ -319,7 +470,7 @@ class StatisticalAnalyzer:
     """
     Calculate bootstrap confidence interval for any statistic.
 
-    Following Section 3.5.3, uses percentile method from
+    Following Section 3.4 (Protocolo de Análise Estatística), uses percentile method from
     Efron & Tibshirani (1993).
     """
     alpha = 1.0 - confidence_level
@@ -338,7 +489,7 @@ class StatisticalAnalyzer:
     """
     Apply Holm-Bonferroni correction for multiple comparisons.
 
-    Following Section 3.5.3 Step 4, controls family-wise error rate
+    Following Section 3.4 (Protocolo de Análise Estatística) Step 4, controls family-wise error rate
     while being less conservative than Bonferroni.
     """
     m = len(p_values)
@@ -362,11 +513,12 @@ class StatisticalAnalyzer:
 
     return results
 
-  def friedman_test(self, data_sets: list[np.ndarray]) -> dict[str, float]:
+  def friedman_test(self, data_sets: list[np.ndarray]) -> dict[str, Any]:
     """
-    Perform Friedman non-parametric test to compare k related samples.
+    Perform Friedman non-parametric omnibus test with Iman-Davenport F_F correction.
 
-    Following Section 3.5.3 Step 5.
+    Following Section 3.4 / Demšar (2006): computes both chi2_F and the less
+    conservative Iman-Davenport F_F statistic, deciding significance via p_value_f < alpha.
     """
     if len(set(len(d) for d in data_sets)) > 1:
       raise ValueError(
@@ -381,25 +533,35 @@ class StatisticalAnalyzer:
     if not np.all(np.isfinite(data_matrix)):
       raise ValueError("data_sets contain non-finite (NaN or Inf) values.")
 
+    n_observations, k_algorithms = data_matrix.shape
+
     # Guard against insufficient samples (N < 2) or complete intra-block ranking ties
     # (where every row has identical values across all treatments, yielding Q = 0.0, p = 1.0).
     # Detecting exact zero range across every block avoids 0/0 scalar division in SciPy tie correction
     # without scale-dependent variance thresholds or blanket warning suppression.
-    if data_matrix.shape[0] < 2 or bool(np.all(np.ptp(data_matrix, axis=1) == 0.0)):
-      return {
-        "statistic": 0.0,
-        "p_value": 1.0,
-        "significant": False,
-        "post_hoc_required": False,
-      }
+    if n_observations < 2 or bool(np.all(np.ptp(data_matrix, axis=1) == 0.0)):
+      chi2, p_value = 0.0, 1.0
+    else:
+      raw_chi2, raw_p = stats.friedmanchisquare(*data_sets)
+      if np.isnan(raw_chi2) or np.isnan(raw_p):
+        chi2, p_value = 0.0, 1.0
+      else:
+        chi2, p_value = float(raw_chi2), float(raw_p)
 
-    statistic, p_value = stats.friedmanchisquare(*data_sets)
-
-    is_significant = bool(p_value < self.alpha)
+    statistic_f, df1, df2, p_value_f = compute_iman_davenport_f(
+      chi2,
+      n_observations,
+      k_algorithms,
+    )
+    is_significant = bool(p_value_f < self.alpha)
 
     return {
-      "statistic": float(statistic),
-      "p_value": float(p_value),
+      "statistic": chi2,
+      "p_value": p_value,
+      "statistic_f": float(statistic_f),
+      "df1": int(df1),
+      "df2": int(df2),
+      "p_value_f": float(p_value_f),
       "significant": is_significant,
       "post_hoc_required": is_significant,
     }
