@@ -34,11 +34,12 @@ import numpy as np
 from data_models.exceptions import (
   DatabaseConnectionError,
   InstanceNotFoundError,
+  InvalidEdgeTypeError,
   InvalidProblemDataError,
   MissingCoordinatesError,
   UnsupportedProblemTypeError,
 )
-from data_models.problem import Problem
+from data_models.problem import VALID_EDGE_TYPES, Problem, expected_coordinate_dimension
 from protocols.problem_context import DEFAULT_MAX_MATRIX_DIMENSION
 
 from .problem_type_handlers import (
@@ -216,25 +217,68 @@ class DatabaseLoader:
       source_file=source_file,
       file_checksum=file_checksum,
     )
-    return handler.load_metadata(self.conn, base)
+    metadata = handler.load_metadata(self.conn, base)
+    edge_type = metadata["edge_type"]
+    if not isinstance(edge_type, str) or edge_type not in VALID_EDGE_TYPES:
+      raise InvalidEdgeTypeError(edge_type if isinstance(edge_type, str) else str(edge_type or ""))
+    return metadata
 
   def _load_coordinates(
     self, metadata: ProblemMetadataRow
   ) -> tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None, np.ndarray | None]:
     """Parse node coordinates, display coordinates, demands, and depots."""
+    edge_type = metadata["edge_type"]
+    if not isinstance(edge_type, str) or edge_type not in VALID_EDGE_TYPES:
+      raise InvalidEdgeTypeError(edge_type if isinstance(edge_type, str) else str(edge_type or ""))
+
     raw_coords = metadata["raw_coords"]
     coordinates: np.ndarray | None = None
-    if metadata["edge_type"] != "EXPLICIT":
+    if edge_type != "EXPLICIT":
       if raw_coords is None:
-        raise MissingCoordinatesError(metadata["name"], metadata["edge_type"])
-      coords_arr = np.asarray(raw_coords, dtype=np.float64)
-      if coords_arr.shape != (metadata["dimension"], 2) or np.isnan(coords_arr).any():
-        raise MissingCoordinatesError(metadata["name"], metadata["edge_type"])
-      coordinates = coords_arr
+        raise MissingCoordinatesError(metadata["name"], edge_type)
+      expected_dim: int = expected_coordinate_dimension(edge_type)
+      try:
+        coords_arr = np.asarray(raw_coords, dtype=np.float64)
+      except (TypeError, ValueError) as exc:
+        raise InvalidProblemDataError(
+          metadata["name"],
+          f"Invalid coordinates for edge_type='{edge_type}': {exc}",
+        ) from exc
+      if coords_arr.size == 0 or np.isnan(coords_arr).any():
+        raise MissingCoordinatesError(metadata["name"], edge_type)
+      if not np.isfinite(coords_arr).all():
+        raise InvalidProblemDataError(
+          metadata["name"],
+          f"Non-finite coordinates for edge_type='{edge_type}'",
+        )
+      if coords_arr.shape != (metadata["dimension"], expected_dim):
+        raise InvalidProblemDataError(
+          metadata["name"],
+          f"coordinates.shape should be ({metadata['dimension']}, {expected_dim}), got {coords_arr.shape}",
+        )
+      coordinates = np.ascontiguousarray(coords_arr, dtype=np.float64)
 
     display_coords: np.ndarray | None = None
     if metadata.get("raw_display_coords") is not None:
-      display_coords = np.asarray(metadata["raw_display_coords"], dtype=np.float64)
+      try:
+        display_arr = np.asarray(metadata["raw_display_coords"], dtype=np.float64)
+      except (TypeError, ValueError) as exc:
+        raise InvalidProblemDataError(
+          metadata["name"],
+          f"Invalid display_coords: {exc}",
+        ) from exc
+      if display_arr.size > 0:
+        if display_arr.shape != (metadata["dimension"], 2):
+          raise InvalidProblemDataError(
+            metadata["name"],
+            f"display_coords.shape should be ({metadata['dimension']}, 2), got {display_arr.shape}",
+          )
+        if not np.isfinite(display_arr).all():
+          raise InvalidProblemDataError(
+            metadata["name"],
+            "Non-finite display_coords",
+          )
+        display_coords = np.ascontiguousarray(display_arr, dtype=np.float64)
 
     demands: np.ndarray | None = None
     if metadata.get("raw_demands") is not None:
@@ -295,12 +339,12 @@ class DatabaseLoader:
     depots: np.ndarray | None = None,
   ) -> Problem:
     """Assemble validated Problem instance from loaded data."""
-    if distances is None and coordinates is not None and metadata["dimension"] <= self.max_eager_matrix_dimension:
-      from distances.matrix import compute_distance_matrix
-
-      distances = compute_distance_matrix(coordinates, metadata["edge_type"])
-
     try:
+      if distances is None and coordinates is not None and metadata["dimension"] <= self.max_eager_matrix_dimension:
+        from distances.matrix import compute_distance_matrix
+
+        distances = compute_distance_matrix(coordinates, metadata["edge_type"])
+
       return Problem(
         name=metadata["name"],
         dimension=metadata["dimension"],

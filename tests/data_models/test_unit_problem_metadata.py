@@ -18,6 +18,7 @@ from data_models.problem import Problem
 
 DIMENSION = 3
 COORDINATES: np.ndarray = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+COORDINATES_3D: np.ndarray = np.array([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [4.0, 6.0, 8.0]])
 DISTANCES: np.ndarray = np.zeros((DIMENSION, DIMENSION), dtype=np.int32)
 DEMANDS: np.ndarray = np.array([0, 1, 1], dtype=np.int32)
 DISPLAY_COORDS: np.ndarray = np.array([[10.0, 20.0], [30.0, 40.0], [50.0, 60.0]])
@@ -119,6 +120,7 @@ def test_has_capacity_constraints_reflects_problem_type(problem_type: str, expec
   ("edge_type", "expected"),
   [
     pytest.param("EUC_2D", True, id="euc-2d"),
+    pytest.param("EUC_3D", True, id="euc-3d"),
     pytest.param("CEIL_2D", True, id="ceil-2d"),
     pytest.param("GEO", True, id="geo"),
     pytest.param("ATT", True, id="att"),
@@ -129,11 +131,33 @@ def test_requires_distance_computation_reflects_edge_type(edge_type: str, expect
   """
   WHAT: `requires_distance_computation` for every valid edge type.
   WHY: the loader uses it to decide between computing a matrix and fetching the stored one.
-  EXPECTED: True for all geometric types, False only for EXPLICIT.
+  EXPECTED: True for all geometric types (including `EUC_3D`), False only for EXPLICIT.
   """
-  problem = _problem_of_type("ATSP") if edge_type == "EXPLICIT" else _make_problem(edge_type=edge_type)
+  if edge_type == "EXPLICIT":
+    problem = _problem_of_type("ATSP")
+  elif edge_type == "EUC_3D":
+    problem = _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D)
+  else:
+    problem = _make_problem(edge_type=edge_type)
 
   assert problem.requires_distance_computation is expected
+
+
+def test_metadata_dict_for_euc3d_problem() -> None:
+  """
+  WHAT: metadata payload for a synthetic `EUC_3D` instance.
+  WHY: checkpoints and report writers serialize `edge_type`/`edge_weight_type` directly from `to_metadata_dict`.
+  EXPECTED: `EUC_3D` recorded consistently with `has_coordinates=True`, `has_explicit_matrix=False`, JSON-safe.
+  """
+  metadata = _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D).to_metadata_dict(optimal_cost=22.0)
+
+  assert set(metadata) == EXPECTED_METADATA_KEYS
+  assert metadata["edge_type"] == "EUC_3D"
+  assert metadata["edge_weight_type"] == "EUC_3D"
+  assert metadata["has_coordinates"] is True
+  assert metadata["has_explicit_matrix"] is False
+  assert metadata["is_symmetric"] is True
+  assert json.loads(json.dumps(metadata)) == metadata
 
 
 # ═══════════════════════════════════════════════════════════════════

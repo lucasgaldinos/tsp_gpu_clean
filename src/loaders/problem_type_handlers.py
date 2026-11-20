@@ -109,12 +109,13 @@ class TspHandler:
     if tsp_row is None:
       raise InvalidProblemDataError(base.name, f"Missing record in tsp_problems for problem_id={base.problem_id}")
     dim, comment, edge_type, edge_format, tsplib_name, coords, display_coords = tsp_row
+    normalized_edge_type: str = edge_type.upper().strip() if isinstance(edge_type, str) else edge_type
     return {
       "problem_id": base.problem_id,
       "name": base.name,
       "type": "TSP",
       "dimension": dim,
-      "edge_type": edge_type,
+      "edge_type": normalized_edge_type,
       "edge_weight_format": edge_format,
       "tsplib_name": tsplib_name,
       "comment": comment,
@@ -231,12 +232,13 @@ class CvrpHandler:
     if cvrp_row is None:
       raise InvalidProblemDataError(base.name, f"Missing record in cvrp_problems for problem_id={base.problem_id}")
     dim, capacity, comment, edge_type, edge_format, tsplib_name, coords, demands, depots = cvrp_row
+    normalized_edge_type: str = edge_type.upper().strip() if isinstance(edge_type, str) else edge_type
     return {
       "problem_id": base.problem_id,
       "name": base.name,
       "type": "CVRP",
       "dimension": dim,
-      "edge_type": edge_type,
+      "edge_type": normalized_edge_type,
       "edge_weight_format": edge_format,
       "tsplib_name": tsplib_name,
       "comment": comment,

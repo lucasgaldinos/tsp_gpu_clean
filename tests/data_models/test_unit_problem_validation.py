@@ -15,14 +15,16 @@ from typing import Any
 import numpy as np
 import pytest
 
-from data_models.problem import Problem
+from data_models.problem import Problem, expected_coordinate_dimension
 
 DIMENSION = 3
 COORDINATES: np.ndarray = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]])
+COORDINATES_3D: np.ndarray = np.array([[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [4.0, 6.0, 8.0]])
 DISTANCES: np.ndarray = np.zeros((DIMENSION, DIMENSION), dtype=np.int32)
 DEMANDS: np.ndarray = np.array([0, 1, 1], dtype=np.int32)
 
-GEOMETRIC_EDGE_TYPES: tuple[str, ...] = ("EUC_2D", "CEIL_2D", "GEO", "ATT")
+GEOMETRIC_2D_EDGE_TYPES: tuple[str, ...] = ("EUC_2D", "CEIL_2D", "GEO", "ATT")
+GEOMETRIC_EDGE_TYPES: tuple[str, ...] = (*GEOMETRIC_2D_EDGE_TYPES, "EUC_3D")
 
 #: Repr of `set(VALID_*_TYPES)` inside an error message: element order is not stable,
 #: so only the shape of the set literal can be pinned.
@@ -188,7 +190,7 @@ def test_rejects_unknown_problem_type(problem_type: str) -> None:
 )
 def test_rejects_unknown_edge_type(edge_type: str) -> None:
   """
-  WHAT: construction with an `edge_type` outside {EUC_2D, CEIL_2D, GEO, ATT, EXPLICIT}.
+  WHAT: construction with an `edge_type` outside {EUC_2D, EUC_3D, CEIL_2D, GEO, ATT, EXPLICIT}.
   WHY: the distance factory matches on this value; an unknown key would fail later and elsewhere.
   EXPECTED: ValueError listing the valid types and echoing the rejected value.
   """
@@ -438,3 +440,179 @@ def test_accepts_geometric_problem_carrying_a_square_matrix() -> None:
   assert problem.distances is DISTANCES
   assert problem.requires_distance_computation is True
   assert problem.to_metadata_dict()["has_explicit_matrix"] is False
+
+
+def test_accepts_euc3d_tsp_and_cvrp_with_3d_coordinates() -> None:
+  """
+  WHAT: TSP and CVRP instances with `edge_type='EUC_3D'` and `(dimension, 3)` coordinates.
+  WHY: 3D Euclidean instances use the existing 3D kernels and must pass shape validation
+  without falling back to 2D assumptions, including at the `dimension=1` boundary.
+  EXPECTED: construction succeeds for TSP, CVRP, and single-node EUC_3D; repr and value
+  equality preserve the `(n, 3)` shape.
+  """
+  tsp_3d = _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D)
+  cvrp_3d = _make_cvrp(edge_type="EUC_3D", coordinates=COORDINATES_3D)
+  single_3d = _make_problem(dimension=1, edge_type="EUC_3D", coordinates=np.array([[1.0, 2.0, 3.0]]))
+
+  assert tsp_3d.coordinates is COORDINATES_3D
+  assert tsp_3d.coordinates.shape == (DIMENSION, 3)
+  assert tsp_3d.requires_distance_computation is True
+  assert tsp_3d == _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D.copy())
+  assert hash(tsp_3d) == hash(_make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D.copy()))
+  assert "coordinates=(3, 3)" in repr(cvrp_3d)
+  assert single_3d.coordinates is not None
+  assert single_3d.coordinates.shape == (1, 3)
+
+
+@pytest.mark.parametrize(
+  "coordinates",
+  [
+    pytest.param(np.zeros((2, 3)), id="fewer-rows"),
+    pytest.param(np.zeros((4, 3)), id="more-rows"),
+    pytest.param(np.zeros((3, 2)), id="2d-coords-for-3d-edge-type"),
+    pytest.param(np.zeros((3, 4)), id="4d-coords"),
+    pytest.param(np.zeros((3,)), id="one-dimensional"),
+  ],
+)
+def test_rejects_euc3d_coordinates_with_wrong_shape(coordinates: np.ndarray) -> None:
+  """
+  WHAT: `EUC_3D` construction with coordinates whose shape is not `(dimension, 3)`.
+  WHY: 3D distance kernels index `coordinates[i, 0..2]`; 2D or wrongly sized arrays would
+  misread or go out of bounds.
+  EXPECTED: ValueError naming `(3, 3)` and the received shape.
+  """
+  expected = f"coordinates.shape should be ({DIMENSION}, 3), got {coordinates.shape}"
+
+  with pytest.raises(ValueError, match=re.escape(expected)):
+    _make_problem(edge_type="EUC_3D", coordinates=coordinates)
+
+
+@pytest.mark.parametrize("edge_type", [*GEOMETRIC_2D_EDGE_TYPES, "EXPLICIT"])
+def test_rejects_3d_coordinates_for_non_3d_edge_types(edge_type: str) -> None:
+  """
+  WHAT: 2D and EXPLICIT edge types paired with `(dimension, 3)` coordinates.
+  WHY: only 3D edge types accept 3-column coordinates; passing `(n, 3)` to `EUC_2D`,
+  `GEO`, `ATT`, `CEIL_2D`, or `EXPLICIT` display coords must fail instead of silently dropping `z`.
+  EXPECTED: ValueError stating `(dimension, 2)` is required.
+  """
+  expected = f"coordinates.shape should be ({DIMENSION}, 2), got ({DIMENSION}, 3)"
+  overrides: dict[str, Any] = {"edge_type": edge_type, "coordinates": COORDINATES_3D}
+  if edge_type == "EXPLICIT":
+    overrides["problem_type"] = "ATSP"
+    overrides["distances"] = DISTANCES
+
+  with pytest.raises(ValueError, match=re.escape(expected)):
+    _make_problem(**overrides)
+
+
+@pytest.mark.parametrize(
+  ("edge_type", "expected_width"),
+  [
+    pytest.param("EUC_2D", 2, id="euc-2d"),
+    pytest.param("CEIL_2D", 2, id="ceil-2d"),
+    pytest.param("GEO", 2, id="geo"),
+    pytest.param("ATT", 2, id="att"),
+    pytest.param("EXPLICIT", 2, id="explicit"),
+    pytest.param("EUC_3D", 3, id="euc-3d"),
+  ],
+)
+def test_expected_coordinate_dimension_returns_width_for_valid_types(edge_type: str, expected_width: int) -> None:
+  """
+  WHAT: `expected_coordinate_dimension` on every supported `edge_type`.
+  WHY: loaders and `Problem.__post_init__` share this lookup to size coordinate buffers.
+  EXPECTED: 3 for `EUC_3D`, 2 for 2D metrics and `EXPLICIT`.
+  """
+  assert expected_coordinate_dimension(edge_type) == expected_width
+
+
+@pytest.mark.parametrize("edge_type", ["XRAY1", "MAN_3D", "MAX_3D", "BOGUS", ""])
+def test_expected_coordinate_dimension_rejects_unsupported_edge_types(edge_type: str) -> None:
+  """
+  WHAT: `expected_coordinate_dimension` on unsupported or unknown `edge_type` values.
+  WHY: silently falling back to `2` masks `XRAY1` / `MAN_3D` as 2D shape mismatches instead of invalid edge types.
+  EXPECTED: `ValueError` naming the unsupported `edge_type`.
+  """
+  with pytest.raises(ValueError, match=f"Unsupported edge_type: '{re.escape(edge_type)}'"):
+    expected_coordinate_dimension(edge_type)
+
+
+def test_normalizes_non_contiguous_and_non_float64_coordinates_to_c_float64() -> None:
+  """
+  WHAT: `Problem` construction with Fortran-order, sliced non-contiguous, `float32`, and `int32` `EUC_3D` arrays.
+  WHY: GPU kernels read `Problem.coordinates` as row-major C-contiguous `double` pointers; F-order or `float32`
+  arrays would otherwise silently corrupt on-the-fly distances without error.
+  EXPECTED: normalized to C-contiguous `float64` with identical values, while C-contiguous `float64` keeps identity.
+  """
+  f_order = np.asfortranarray(COORDINATES_3D)
+  sliced = np.column_stack([COORDINATES_3D, np.ones(DIMENSION)])[:, :3]
+  f32 = COORDINATES_3D.astype(np.float32)
+  i32 = COORDINATES_3D.astype(np.int32)
+
+  assert not f_order.flags["C_CONTIGUOUS"]
+  assert not sliced.flags["C_CONTIGUOUS"]
+
+  for variant in (f_order, sliced, f32, i32):
+    prob = _make_problem(edge_type="EUC_3D", coordinates=variant)
+    assert prob.coordinates is not None
+    assert prob.coordinates.dtype == np.dtype(np.float64)
+    assert prob.coordinates.flags["C_CONTIGUOUS"]
+    np.testing.assert_array_equal(prob.coordinates, COORDINATES_3D)
+
+  canonical = _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D)
+  assert canonical.coordinates is COORDINATES_3D
+
+
+@pytest.mark.parametrize(
+  "bad_coords",
+  [
+    pytest.param(np.ones((DIMENSION, 3), dtype=bool), id="bool-dtype"),
+    pytest.param(np.zeros((DIMENSION, 3), dtype=np.complex128), id="complex-dtype"),
+    pytest.param(np.full((DIMENSION, 3), "1.0"), id="string-dtype"),
+  ],
+)
+def test_rejects_non_real_numeric_coordinates(bad_coords: np.ndarray) -> None:
+  """
+  WHAT: `Problem` construction with boolean, complex, or string coordinate arrays.
+  WHY: silently casting booleans or raising `ComplexWarning` masks upstream schema defects.
+  EXPECTED: `ValueError` naming real numeric dtype requirement.
+  """
+  with pytest.raises(ValueError, match="real numeric dtype"):
+    _make_problem(edge_type="EUC_3D", coordinates=bad_coords)
+
+
+@pytest.mark.parametrize(
+  "bad_coords",
+  [
+    pytest.param(np.array([[0.0, 0.0, 0.0], [1.0, np.nan, 3.0], [4.0, 6.0, 8.0]]), id="nan"),
+    pytest.param(np.array([[0.0, 0.0, 0.0], [1.0, np.inf, 3.0], [4.0, 6.0, 8.0]]), id="inf"),
+  ],
+)
+def test_rejects_non_finite_coordinates(bad_coords: np.ndarray) -> None:
+  """
+  WHAT: `Problem` construction with `NaN` or `Inf` coordinate values.
+  WHY: `NaN`/`Inf` in coordinates fail `astype(int32)` or produce undefined distances in CPU and CUDA kernels.
+  EXPECTED: `ValueError` rejecting non-finite coordinates.
+  """
+  with pytest.raises(ValueError, match="finite values"):
+    _make_problem(edge_type="EUC_3D", coordinates=bad_coords)
+
+
+def test_rejects_invalid_display_coords_shape_and_values() -> None:
+  """
+  WHAT: `Problem` construction with 3D or non-finite `display_coords`.
+  WHY: `display_coords` are strictly 2D finite coordinates (`TWOD_DISPLAY`).
+  EXPECTED: `ValueError` for `(dimension, 3)` or `NaN` `display_coords`, while valid `(dimension, 2)` succeeds.
+  """
+  valid_disp = np.array([[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]])
+  prob = _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D, display_coords=valid_disp)
+  assert prob.display_coords is valid_disp
+
+  with pytest.raises(ValueError, match=r"display_coords\.shape should be \(3, 2\), got \(3, 3\)"):
+    _make_problem(edge_type="EUC_3D", coordinates=COORDINATES_3D, display_coords=COORDINATES_3D)
+
+  with pytest.raises(ValueError, match="finite values"):
+    _make_problem(
+      edge_type="EUC_3D",
+      coordinates=COORDINATES_3D,
+      display_coords=np.array([[0.0, 0.0], [np.nan, 1.0], [2.0, 2.0]]),
+    )

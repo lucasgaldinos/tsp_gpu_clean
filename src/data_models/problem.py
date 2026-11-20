@@ -24,7 +24,19 @@ from typing import Any
 import numpy as np
 
 VALID_PROBLEM_TYPES: frozenset[str] = frozenset({"TSP", "ATSP", "CVRP"})
-VALID_EDGE_TYPES: frozenset[str] = frozenset({"EUC_2D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"})
+VALID_EDGE_TYPES: frozenset[str] = frozenset({"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"})
+THREE_DIMENSIONAL_EDGE_TYPES: frozenset[str] = frozenset({"EUC_3D"})
+
+
+def expected_coordinate_dimension(edge_type: str) -> int:
+  """Return expected coordinate width (`3` for 3D edge types, `2` for 2D/EXPLICIT).
+
+  Raises:
+      ValueError: If ``edge_type`` is not in ``VALID_EDGE_TYPES``.
+  """
+  if edge_type not in VALID_EDGE_TYPES:
+    raise ValueError(f"Unsupported edge_type: '{edge_type}'. Valid types: {sorted(VALID_EDGE_TYPES)}")
+  return 3 if edge_type in THREE_DIMENSIONAL_EDGE_TYPES else 2
 
 _ARRAY_FIELDS: frozenset[str] = frozenset({"coordinates", "distances", "demands", "display_coords", "depots"})
 
@@ -59,10 +71,12 @@ class Problem:
       problem_type: Problem variant - 'TSP', 'ATSP', or 'CVRP'
       edge_type: Distance calculation method:
           - 'EUC_2D': Euclidean distance in 2D plane
+          - 'EUC_3D': Euclidean distance in 3D space
+          - 'CEIL_2D': Ceiling of Euclidean distance in 2D plane
           - 'GEO': Geographic distance (haversine formula)
           - 'ATT': Pseudo-Euclidean distance (special TSPLIB format)
           - 'EXPLICIT': Pre-computed distance matrix
-      coordinates: Node coordinates, shape (n, 2)
+      coordinates: Node coordinates, shape (n, 2) or (n, 3) for EUC_3D
           - None for ATSP instances with EXPLICIT edge_type
           - NumPy array for TSP/CVRP with geometric coordinates
       distances: Explicit distance matrix, shape (n, n)
@@ -78,11 +92,11 @@ class Problem:
   Invariants:
       - dimension > 0
       - problem_type in {'TSP', 'ATSP', 'CVRP'}
-      - edge_type in {'EUC_2D', 'GEO', 'ATT', 'EXPLICIT'}
+      - edge_type in {'EUC_2D', 'EUC_3D', 'CEIL_2D', 'GEO', 'ATT', 'EXPLICIT'}
       - If edge_type != 'EXPLICIT': coordinates is not None
       - If edge_type == 'EXPLICIT': distances is not None
       - If problem_type == 'CVRP': capacity is not None and demands is not None
-      - If coordinates is not None: coordinates.shape == (dimension, 2)
+      - If coordinates is not None: coordinates.shape == (dimension, 3) for EUC_3D, else (dimension, 2)
       - If distances is not None: distances.shape == (dimension, dimension)
       - If demands is not None: demands.shape == (dimension,)
 
@@ -198,10 +212,39 @@ class Problem:
       if self.coordinates is None:
         raise ValueError(f"edge_type='{self.edge_type}' requires coordinates, got None")
 
-    # Validate array shapes if present
+    # Validate array shapes, dtypes, finiteness, and contiguity if present
     if self.coordinates is not None:
-      if self.coordinates.shape != (self.dimension, 2):
-        raise ValueError(f"coordinates.shape should be ({self.dimension}, 2), got {self.coordinates.shape}")
+      expected_coord_dim = expected_coordinate_dimension(self.edge_type)
+      if self.coordinates.shape != (self.dimension, expected_coord_dim):
+        raise ValueError(
+          f"coordinates.shape should be ({self.dimension}, {expected_coord_dim}), got {self.coordinates.shape}"
+        )
+      if not (
+        np.issubdtype(self.coordinates.dtype, np.integer)
+        or np.issubdtype(self.coordinates.dtype, np.floating)
+      ):
+        raise ValueError(f"coordinates must have a real numeric dtype, got {self.coordinates.dtype}")
+      coords_f64: np.ndarray = np.ascontiguousarray(self.coordinates, dtype=np.float64)
+      if not np.isfinite(coords_f64).all():
+        raise ValueError("coordinates must contain only finite values (no NaN or Inf)")
+      if coords_f64 is not self.coordinates:
+        object.__setattr__(self, "coordinates", coords_f64)
+
+    if self.display_coords is not None:
+      if self.display_coords.shape != (self.dimension, 2):
+        raise ValueError(
+          f"display_coords.shape should be ({self.dimension}, 2), got {self.display_coords.shape}"
+        )
+      if not (
+        np.issubdtype(self.display_coords.dtype, np.integer)
+        or np.issubdtype(self.display_coords.dtype, np.floating)
+      ):
+        raise ValueError(f"display_coords must have a real numeric dtype, got {self.display_coords.dtype}")
+      display_f64: np.ndarray = np.ascontiguousarray(self.display_coords, dtype=np.float64)
+      if not np.isfinite(display_f64).all():
+        raise ValueError("display_coords must contain only finite values (no NaN or Inf)")
+      if display_f64 is not self.display_coords:
+        object.__setattr__(self, "display_coords", display_f64)
 
     if self.distances is not None:
       if self.distances.shape != (self.dimension, self.dimension):
@@ -309,7 +352,7 @@ class Problem:
     Check if distances need to be computed from coordinates.
 
     Returns:
-        True if edge_type is geometric (EUC_2D, GEO, ATT),
+        True if edge_type is geometric (EUC_2D, EUC_3D, CEIL_2D, GEO, ATT),
         False if EXPLICIT (distances pre-computed)
     """
     return self.edge_type != "EXPLICIT"

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -40,7 +41,7 @@ from data_models.exceptions import (
   InvalidProblemDataError,
   MissingCoordinatesError,
 )
-from data_models.problem import VALID_EDGE_TYPES, Problem
+from data_models.problem import VALID_EDGE_TYPES, Problem, expected_coordinate_dimension
 from distances.matrix import compute_distance_matrix
 from protocols.problem_context import DEFAULT_MAX_MATRIX_DIMENSION
 
@@ -77,6 +78,7 @@ class NodeRowRecord:
   y: float | None
   demand: int
   is_depot: bool
+  z: float | None = None
 
 
 @dataclass(frozen=True)
@@ -158,23 +160,53 @@ def _bundle_from_normalized(
   depot_set: set[int] = set(depots)
 
   node_coords: list[list[float]] | None = coords if edge_type != "EXPLICIT" else display_coords
-  if edge_type != "EXPLICIT" and not node_coords:
-    raise MissingCoordinatesError(instance_name, edge_type)
+  if edge_type != "EXPLICIT":
+    if not node_coords:
+      raise MissingCoordinatesError(instance_name, edge_type)
+    if len(node_coords) > dimension:
+      raise InvalidProblemDataError(
+        instance_name,
+        f"Expected {dimension} coordinates for edge_type '{edge_type}', got {len(node_coords)}",
+      )
+    if display_coords is not None:
+      for zero_idx, pt in enumerate(display_coords):
+        if len(pt) != 2:
+          raise InvalidProblemDataError(
+            instance_name,
+            f"display_coords require 2D coordinates (found coordinate of length {len(pt)} at node {zero_idx})",
+          )
+        if not all(math.isfinite(float(c)) for c in pt):
+          raise InvalidProblemDataError(
+            instance_name,
+            f"display_coords contain non-finite value at node {zero_idx}",
+          )
 
+  expected_coord_dim: int = expected_coordinate_dimension(edge_type)
   nodes_records: list[NodeRowRecord] = []
   for zero_idx in range(dimension):
     x_val: float | None = None
     y_val: float | None = None
+    z_val: float | None = None
     if node_coords is not None and zero_idx < len(node_coords):
-      if len(node_coords[zero_idx]) > 2:
-        coord_len = len(node_coords[zero_idx])
+      coord_len = len(node_coords[zero_idx])
+      if coord_len != expected_coord_dim:
         raise InvalidProblemDataError(
           instance_name,
-          f"3D coordinates are not supported (found coordinate of length {coord_len} at node {zero_idx})",
+          f"edge_type '{edge_type}' requires {expected_coord_dim}D coordinates "
+          f"(found coordinate of length {coord_len} at node {zero_idx})",
         )
-      if len(node_coords[zero_idx]) == 2:
-        x_val = float(node_coords[zero_idx][0])
-        y_val = float(node_coords[zero_idx][1])
+      x_val = float(node_coords[zero_idx][0])
+      y_val = float(node_coords[zero_idx][1])
+      if expected_coord_dim == 3:
+        z_val = float(node_coords[zero_idx][2])
+      coords_tuple = (x_val, y_val, z_val) if z_val is not None else (x_val, y_val)
+      if any(math.isnan(c) for c in coords_tuple):
+        raise MissingCoordinatesError(instance_name, edge_type)
+      if not all(math.isfinite(c) for c in coords_tuple):
+        raise InvalidProblemDataError(
+          instance_name,
+          f"Non-finite coordinate at node {zero_idx} for edge_type '{edge_type}'",
+        )
     if edge_type != "EXPLICIT" and x_val is None:
       raise MissingCoordinatesError(instance_name, edge_type)
     demand_val: int = int(demands[zero_idx]) if zero_idx < len(demands) else 0
@@ -185,6 +217,7 @@ def _bundle_from_normalized(
         node_id=zero_idx,
         x=x_val,
         y=y_val,
+        z=z_val,
         demand=demand_val,
         is_depot=is_depot,
       )
@@ -265,6 +298,9 @@ def bundle_to_problem(
       Immutable `Problem` instance.
   """
   meta: ProblemRowRecord = bundle.problem
+  if meta.edge_weight_type not in VALID_EDGE_TYPES:
+    raise InvalidEdgeTypeError(meta.edge_weight_type)
+
   coordinates: np.ndarray | None = None
   demands: np.ndarray | None = None
   distances: np.ndarray | None = None
@@ -280,30 +316,49 @@ def bundle_to_problem(
 
     for node in bundle.nodes:
       if node.x is not None and node.y is not None:
+        if node.z is not None:
+          raise InvalidProblemDataError(
+            meta.name,
+            f"EXPLICIT display coordinates require 2D coordinates, got 3D coordinate at node {node.node_id}",
+          )
         display_list.append([node.x, node.y])
       if node.is_depot:
         depots_list.append(node.node_id)
     if len(display_list) == meta.dimension:
       display_coords = np.asarray(display_list, dtype=np.float64)
   else:
+    if not bundle.nodes:
+      raise MissingCoordinatesError(meta.name, meta.edge_weight_type)
     coords_list: list[list[float]] = []
     demands_list: list[int] = []
+    expected_coord_dim: int = expected_coordinate_dimension(meta.edge_weight_type)
     for node in bundle.nodes:
       if node.x is None or node.y is None:
         raise MissingCoordinatesError(meta.name, meta.edge_weight_type)
-      coords_list.append([node.x, node.y])
+      if expected_coord_dim == 3:
+        if node.z is None:
+          raise MissingCoordinatesError(meta.name, meta.edge_weight_type)
+        coords_list.append([node.x, node.y, node.z])
+      else:
+        if node.z is not None:
+          raise InvalidProblemDataError(
+            meta.name,
+            f"edge_type '{meta.edge_weight_type}' requires 2D coordinates, got 3D coordinate at node {node.node_id}",
+          )
+        coords_list.append([node.x, node.y])
       demands_list.append(node.demand)
       if node.is_depot:
         depots_list.append(node.node_id)
 
     coordinates = np.asarray(coords_list, dtype=np.float64)
-    if meta.dimension <= max_eager_matrix_dimension:
-      distances = compute_distance_matrix(coordinates, meta.edge_weight_type)
 
     if meta.problem_type == "CVRP" or any(demand > 0 for demand in demands_list):
       demands = np.asarray(demands_list, dtype=np.int32)
 
   try:
+    if distances is None and coordinates is not None and meta.dimension <= max_eager_matrix_dimension:
+      distances = compute_distance_matrix(coordinates, meta.edge_weight_type)
+
     return Problem(
       name=meta.name,
       dimension=meta.dimension,
@@ -412,19 +467,62 @@ def _problem_payload(
   coords: list[list[float]] | None = normalized["coords"]
   display_coords: list[list[float]] | None = normalized["display_coords"]
 
-  check_coords = coords if edge_type != "EXPLICIT" else display_coords
-  if check_coords is not None:
-    for zero_idx, pt in enumerate(check_coords):
-      if len(pt) > 2:
-        coord_len = len(pt)
-        raise InvalidProblemDataError(
-          instance_name,
-          f"3D coordinates are not supported (found coordinate of length {coord_len} at node {zero_idx})",
-        )
+  if edge_type != "EXPLICIT" and not coords:
+    raise MissingCoordinatesError(instance_name, edge_type)
 
+  expected_coord_dim: int = expected_coordinate_dimension(edge_type)
   if edge_type == "EXPLICIT":
     display_coords = coords or display_coords
     coords = None
+    if display_coords is not None:
+      for zero_idx, pt in enumerate(display_coords):
+        if len(pt) != 2:
+          raise InvalidProblemDataError(
+            instance_name,
+            f"EXPLICIT display_coords require 2D coordinates (found coordinate of length {len(pt)} at node {zero_idx})",
+          )
+        if not all(math.isfinite(float(c)) for c in pt):
+          raise InvalidProblemDataError(
+            instance_name,
+            f"EXPLICIT display_coords contain non-finite value at node {zero_idx}",
+          )
+  else:
+    if coords is not None:
+      if len(coords) < dimension:
+        raise MissingCoordinatesError(instance_name, edge_type)
+      if len(coords) > dimension:
+        raise InvalidProblemDataError(
+          instance_name,
+          f"Expected {dimension} coordinates for edge_type '{edge_type}', got {len(coords)}",
+        )
+      for zero_idx, pt in enumerate(coords):
+        if len(pt) != expected_coord_dim:
+          coord_len = len(pt)
+          raise InvalidProblemDataError(
+            instance_name,
+            f"edge_type '{edge_type}' requires {expected_coord_dim}D coordinates "
+            f"(found coordinate of length {coord_len} at node {zero_idx})",
+          )
+        floats = [float(c) for c in pt]
+        if any(math.isnan(c) for c in floats):
+          raise MissingCoordinatesError(instance_name, edge_type)
+        if not all(math.isfinite(c) for c in floats):
+          raise InvalidProblemDataError(
+            instance_name,
+            f"Non-finite coordinate at node {zero_idx} for edge_type '{edge_type}'",
+          )
+    if display_coords is not None:
+      for zero_idx, pt in enumerate(display_coords):
+        if len(pt) != 2:
+          raise InvalidProblemDataError(
+            instance_name,
+            f"display_coords require 2D coordinates (found coordinate of length {len(pt)} at node {zero_idx})",
+          )
+        if not all(math.isfinite(float(c)) for c in pt):
+          raise InvalidProblemDataError(
+            instance_name,
+            f"display_coords contain non-finite value at node {zero_idx}",
+          )
 
   edge_weight_matrix: list[list[int]] | None = normalized.get("edge_weight_matrix")
   edge_weight_data: dict[str, Any] | None = None

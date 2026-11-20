@@ -49,3 +49,33 @@ def test_tsplib_cli_to_duckdb_overwrite_protection(
   exit_code3 = tsplib_main(["--tsp-dir", str(fixture_tsp_dir), "--to-duckdb", str(db_path), "--overwrite"])
   assert exit_code3 == 0
 
+
+def test_tsplib_cli_handles_euc3d_instance(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+  """Verify tsplib CLI inspects, verifies, and ingests EUC_3D `.tsp` files."""
+  tsp_dir = tmp_path / "euc3d_cli"
+  tsp_dir.mkdir()
+  (tsp_dir / "cube3.tsp").write_text(
+    "NAME: cube3\n"
+    "TYPE: TSP\n"
+    "DIMENSION: 3\n"
+    "EDGE_WEIGHT_TYPE: EUC_3D\n"
+    "NODE_COORD_SECTION\n"
+    "1 0.0 0.0 0.0\n"
+    "2 1.0 2.0 3.0\n"
+    "3 4.0 6.0 8.0\n"
+    "EOF\n",
+    encoding="utf-8",
+  )
+
+  assert tsplib_main(["--tsp-dir", str(tsp_dir), "--instance", "cube3"]) == 0
+  captured = capsys.readouterr()
+  assert "Loaded cube3: type=TSP, dimension=3, edge_type=EUC_3D" in captured.out
+
+  assert tsplib_main(["--tsp-dir", str(tsp_dir)]) == 0
+  captured_verify = capsys.readouterr()
+  assert "Verified 1/1 .tsp files" in captured_verify.out
+
+  db_path = tmp_path / "cube3.duckdb"
+  assert tsplib_main(["--tsp-dir", str(tsp_dir), "--to-duckdb", str(db_path)]) == 0
+  assert db_path.exists()
+
