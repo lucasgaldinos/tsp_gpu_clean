@@ -33,6 +33,19 @@ tags:
 
 # Tour Construction Heuristics: Nearest Neighbor, Savings, and Insertion Methods
 
+- [Tour Construction Heuristics: Nearest Neighbor, Savings, and Insertion Methods](#tour-construction-heuristics-nearest-neighbor-savings-and-insertion-methods)
+  + [TSP Algorithms and heuristics](#tsp-algorithms-and-heuristics)
+  + [1: Greedy Algorithm](#1-greedy-algorithm)
+  + [2: Nearest Neighbor](#2-nearest-neighbor)
+  + [3: Nearest Insertion](#3-nearest-insertion)
+  + [4: Cheapest Insertion](#4-cheapest-insertion)
+  + [5: Random Insertion](#5-random-insertion)
+  + [6: Farthest Insertion](#6-farthest-insertion)
+  + [7: Christofides Algorithm](#7-christofides-algorithm)
+  + [8: 2-Opt](#8-2-opt)
+  + [9: 3-Opt](#9-3-opt)
+  + [10: Lin-Kernighan Heuristic](#10-lin-kernighan-heuristic)
+
 ## TSP Algorithms and heuristics
 
 Although we haven’t been able to quickly find optimal solutions to NP problems like the Traveling Salesman Problem, "good-enough" solutions to NP problems can be quickly found <sup>[1]</sup>.

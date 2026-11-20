@@ -46,12 +46,12 @@ tags:
   + [2. Complete Mathematical Derivation of Bessel's Correction](#2-complete-mathematical-derivation-of-bessels-correction)
     - [2.1 Population vs. Sample Variance Definitions](#21-population-vs-sample-variance-definitions)
     - [2.2 Algebraic Proof of Downward Estimator Bias](#22-algebraic-proof-of-downward-estimator-bias)
-    - [2.3 Exact Compensation by the Factor $\frac{N}{N-1}$](#23-exact-compensation-by-the-factor-fracnn-1)
+    - [2.3 Exact Compensation by the Factor $\\frac{N}{N-1}$](#23-exact-compensation-by-the-factor-fracnn-1)
   + [3. Geometric Interpretation and Degrees of Freedom](#3-geometric-interpretation-and-degrees-of-freedom)
-    - [3.1 The Constraint Hyperplane in $\mathbb{R}^N$](#31-the-constraint-hyperplane-in-mathbbrn)
+    - [3.1 The Constraint Hyperplane in $\\mathbb{R}^N$](#31-the-constraint-hyperplane-in-mathbbrn)
     - [3.2 Orthogonal Projection and the Loss of 1 Degree of Freedom](#32-orthogonal-projection-and-the-loss-of-1-degree-of-freedom)
   + [4. The `ddof` Parameter in NumPy and SciPy](#4-the-ddof-parameter-in-numpy-and-scipy)
-    - [4.1 API Semantics and the Generalized Divisor $N - \text{ddof}$](#41-api-semantics-and-the-generalized-divisor-n---textddof)
+    - [4.1 API Semantics and the Generalized Divisor $N - \\text{ddof}$](#41-api-semantics-and-the-generalized-divisor-n---textddof)
     - [4.2 Practical Differences: `ddof=0` (MLE) vs. `ddof=1` (MVUE)](#42-practical-differences-ddof0-mle-vs-ddof1-mvue)
     - [4.3 Repository Implementation Anchor (`statistics.py`)](#43-repository-implementation-anchor-statisticspy)
   + [5. Practical Impact on Metaheuristic Benchmarking](#5-practical-impact-on-metaheuristic-benchmarking)
@@ -70,7 +70,7 @@ $$\mathbb{E}\left[ \frac{1}{N} \sum_{i=1}^N (X_i - \bar{X})^2 \right] = \frac{N 
 
 This downward bias arises because deviations are measured from the **sample mean** $\bar{X}$ (which minimizes the sum of squared deviations for that specific sample) rather than the true **population mean** $\mu$. Bessel's correction compensates for this shrinkage by replacing the divisor $N$ with $N - 1$, yielding the Minimum Variance Unbiased Estimator (MVUE) $s^2$.
 
-In Python's computational ecosystem (NumPy and SciPy), this distinction is controlled by the `ddof` (Delta Degrees of Freedom) parameter. While `numpy.var` and `numpy.std` default to `ddof=0` (the biased Maximum Likelihood Estimator), rigorous inferential statistics and confidence interval construction strictly require `ddof=1`.
+In python's computational ecosystem (NumPy and SciPy), this distinction is controlled by the `ddof` (Delta Degrees of Freedom) parameter. While `numpy.var` and `numpy.std` default to `ddof=0` (the biased Maximum Likelihood Estimator), rigorous inferential statistics and confidence interval construction strictly require `ddof=1`.
 
 ---
 
@@ -97,6 +97,7 @@ The variance of the sample mean (standard error squared) is:
 $$\text{Var}(\bar{X}) = \mathbb{E}\left[ (\bar{X} - \mu)^2 \right] = \text{Var}\left( \frac{1}{N} \sum_{i=1}^N X_i \right) = \frac{1}{N^2} \sum_{i=1}^N \text{Var}(X_i) = \frac{1}{N^2} (N \sigma^2) = \frac{\sigma^2}{N}$$
 
 Now consider two candidate estimators for the population variance $\sigma^2$:
+
 1. **The Naive Sample Variance ($S_n^2$)**:
    $$S_n^2 = \frac{1}{N} \sum_{i=1}^N (X_i - \bar{X})^2$$
 2. **The Bessel-Corrected Sample Variance ($s^2$)**:
@@ -133,6 +134,7 @@ Now, we take the mathematical expectation of both sides:
 $$\mathbb{E}\left[ \sum_{i=1}^N (X_i - \bar{X})^2 \right] = \sum_{i=1}^N \mathbb{E}\left[ (X_i - \mu)^2 \right] - N \cdot \mathbb{E}\left[ (\bar{X} - \mu)^2 \right]$$
 
 Using the fundamental expectations derived in Section 2.1:
+
 1. $\mathbb{E}[(X_i - \mu)^2] = \sigma^2$ for every observation $i$.
 2. $\mathbb{E}[(\bar{X} - \mu)^2] = \text{Var}(\bar{X}) = \frac{\sigma^2}{N}$.
 
@@ -199,6 +201,7 @@ where $\mathbf{J}_N$ is the $N \times N$ matrix of all ones. The deviation vecto
 $$\mathbf{d} = (I_N - P_{\mathbf{1}}) \mathbf{X} = M \mathbf{X}$$
 
 The projection matrix $M = I_N - \frac{1}{N} \mathbf{J}_N$ has the following properties:
+
 1. **Symmetric**: $M^{\mathsf{T}} = M$.
 2. **Idempotent**: $M^2 = M$.
 3. **Trace (Dimensionality)**:
@@ -216,7 +219,7 @@ Therefore, dividing $\|\mathbf{d}\|^2$ by the true dimension of the subspace ($N
 
 ### 4.1 API Semantics and the Generalized Divisor $N - \text{ddof}$
 
-In the scientific Python stack (NumPy, SciPy, Pandas), variance and standard deviation functions generalize the calculation via the parameter `ddof` (Delta Degrees of Freedom):
+In the scientific python stack (NumPy, SciPy, Pandas), variance and standard deviation functions generalize the calculation via the parameter `ddof` (Delta Degrees of Freedom):
 
 $$\text{Divisor} = N - \text{ddof}$$
 
@@ -234,11 +237,11 @@ The parameter specifies the number of degrees of freedom subtracted from the sam
 | **Statistical Role** | Maximum Likelihood Estimator (MLE) | Minimum Variance Unbiased Estimator (MVUE) |
 | **Expected Value** | $\mathbb{E}[S_n^2] = \frac{N-1}{N} \sigma^2$ (Biased) | $\mathbb{E}[s^2] = \sigma^2$ (Unbiased) |
 | **Target Population** | Assumes the array represents the *entire population* | Assumes the array is a *sample* drawn from a larger population |
-| **Python Standard** | `numpy.var`, `numpy.std` default | `statistics.variance`, `pandas.Series.std` default |
+| **python Standard** | `numpy.var`, `numpy.std` default | `statistics.variance`, `pandas.Series.std` default |
 | **Usage in Benchmarking** | **Incorrect** for sample runs | **Mandatory** for sample runs ($N=15, 30$) |
 
 > [!IMPORTANT] **The Default Divergence Trap:**
-> Notice that `pandas.DataFrame.std()` and the Python standard library `statistics.stdev()` default to `ddof=1`, whereas `numpy.std()` defaults to `ddof=0`. Mixing NumPy and Pandas calculations without explicitly specifying `ddof=1` produces inconsistent standard deviations and corrupted t-test statistics!
+> Notice that `pandas.DataFrame.std()` and the python standard library `statistics.stdev()` default to `ddof=1`, whereas `numpy.std()` defaults to `ddof=0`. Mixing NumPy and Pandas calculations without explicitly specifying `ddof=1` produces inconsistent standard deviations and corrupted t-test statistics!
 
 ### 4.3 Repository Implementation Anchor (`statistics.py`)
 
@@ -311,6 +314,7 @@ If a researcher mistakenly computes the sample standard error using `ddof=0` ($\
 $$\widehat{SE}_{\text{biased}} = \frac{\sigma_n}{\sqrt{N}} = \sqrt{\frac{N - 1}{N}} \cdot \frac{s}{\sqrt{N}} = \sqrt{\frac{N - 1}{N}} \cdot SE_{\text{true}}$$
 
 **The Consequence of Underestimated Standard Error**:
+
 1. **Artificially Narrow Confidence Intervals**: At $N = 5$, the confidence interval width is shrunk by $10.56\%$. At our protocol size $N = 15$, it is shrunk by $3.44\%$.
 2. **Inflated Type I Error Rates (False Positives)**: In paired $t$-tests:
    $$t_{\text{calc}} = \frac{\bar{D}}{\widehat{SE}_{\text{biased}}} = \sqrt{\frac{N}{N - 1}} \cdot \frac{\bar{D}}{SE_{\text{true}}}$$

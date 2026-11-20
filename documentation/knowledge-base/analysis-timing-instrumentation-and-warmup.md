@@ -73,6 +73,7 @@ tags:
     - [2.2 Why Every GPU Strategy Call Is Already Synchronous](#22-why-every-gpu-strategy-call-is-already-synchronous)
     - [2.3 Barrier Budget per Generation](#23-barrier-budget-per-generation)
   + [3. Reconstructing the 2026-11-06 `DP11-7` Measurement](#3-reconstructing-the-2026-11-06-dp11-7-measurement)
+    - [3.1 Impact on the `DP10-18` / `DP11-14`–`DP11-18` Synchronization Removals](#31-impact-on-the-dp10-18--dp11-14dp11-18-synchronization-removals)
   + [4. The Async Bleed: `SurvivalStep` and the `host_sync` Bucket](#4-the-async-bleed-survivalstep-and-the-host_sync-bucket)
     - [4.1 Accounting Equation](#41-accounting-equation)
     - [4.2 Two Redundancies in `_extract_best`](#42-two-redundancies-in-_extract_best)

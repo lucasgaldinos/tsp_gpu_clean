@@ -42,31 +42,35 @@ tags:
 # Simulated Annealing: Theoretical Foundations, Cooling Schedules, and Algorithmic Dynamics
 
 - [Simulated Annealing: Theoretical Foundations, Cooling Schedules, and Algorithmic Dynamics](#simulated-annealing-theoretical-foundations-cooling-schedules-and-algorithmic-dynamics)
-  - [1. Historical Lineage and Talbi's Dual Taxonomy](#1-historical-lineage-and-talbis-dual-taxonomy)
+  + [1. Historical Lineage and Talbi's Dual Taxonomy](#1-historical-lineage-and-talbis-dual-taxonomy)
     - [1.1 Physical Metallurgy Analogy and the Metropolis Foundation](#11-physical-metallurgy-analogy-and-the-metropolis-foundation)
     - [1.2 Talbi's Dual Classification: S-Task and P-Data](#12-talbis-dual-classification-s-task-and-p-data)
-  - [2. The Metropolis Acceptance Criterion](#2-the-metropolis-acceptance-criterion)
+      + [S-Task: The Sequential Markov Chain](#s-task-the-sequential-markov-chain)
+      + [P-Data: Parallel Move Evaluation and Multi-Trajectory Exploration](#p-data-parallel-move-evaluation-and-multi-trajectory-exploration)
+  + [2. The Metropolis Acceptance Criterion](#2-the-metropolis-acceptance-criterion)
     - [2.1 Mathematical Formulation](#21-mathematical-formulation)
     - [2.2 Thermodynamic Interpretation and Escape Mechanics](#22-thermodynamic-interpretation-and-escape-mechanics)
-  - [3. Analytical Derivation of Initial Temperature ($T_0$)](#3-analytical-derivation-of-initial-temperature-t_0)
+  + [3. Analytical Derivation of Initial Temperature ($T\_0$)](#3-analytical-derivation-of-initial-temperature-t_0)
     - [3.1 Derivation from the Target Acceptance Ratio](#31-derivation-from-the-target-acceptance-ratio)
-    - [3.2 Analytical Trade-offs: $\\chi_0 = 0.60$ vs $\\chi_0 = 0.80$](#32-analytical-trade-offs-chi_0--060-vs-chi_0--080)
+    - [3.2 Analytical Trade-offs: $\\chi\_0 = 0.60$ vs $\\chi\_0 = 0.80$](#32-analytical-trade-offs-chi_0--060-vs-chi_0--080)
+      + [Why 60% Acceptance is Used in Practical Benchmarking](#why-60-acceptance-is-used-in-practical-benchmarking)
     - [3.3 Practical Sampling Protocol for Problem Instances](#33-practical-sampling-protocol-for-problem-instances)
-  - [4. Cooling Schedules and Annealing Regimes](#4-cooling-schedules-and-annealing-regimes)
+  + [4. Cooling Schedules and Annealing Regimes](#4-cooling-schedules-and-annealing-regimes)
     - [4.1 Geometric (Exponential) Cooling](#41-geometric-exponential-cooling)
-    - [4.2 Logarithmic Cooling (Geman & Geman Convergence Proof)](#42-logarithmic-cooling-geman--geman-convergence-proof)
+    - [4.2 Logarithmic Cooling (Geman \& Geman Convergence Proof)](#42-logarithmic-cooling-geman--geman-convergence-proof)
     - [4.3 Adaptive and Dynamic Cooling Schedules](#43-adaptive-and-dynamic-cooling-schedules)
-      - [Huang et al. (1986) Statistical Annealing](#huang-et-al-1986-statistical-annealing)
-      - [Aarts & Korst (1989) Polynomial-Time Annealing](#aarts--korst-1989-polynomial-time-annealing)
-    - [4.4 Minimum Temperature ($T_{\\min}$) and Stopping Criteria](#44-minimum-temperature-t_min-and-stopping-criteria)
-  - [5. Neighborhood Exploration Strategies for the TSP](#5-neighborhood-exploration-strategies-for-the-tsp)
+      + [Huang et al. (1986) Statistical Annealing](#huang-et-al-1986-statistical-annealing)
+      + [Aarts \& Korst (1989) Polynomial-Time Annealing](#aarts--korst-1989-polynomial-time-annealing)
+    - [4.4 Minimum Temperature ($T\_{\\min}$) and Stopping Criteria](#44-minimum-temperature-t_min-and-stopping-criteria)
+  + [5. Neighborhood Exploration Strategies for the TSP](#5-neighborhood-exploration-strategies-for-the-tsp)
     - [5.1 Random 2-Opt Move vs. Exhaustive Neighborhood Evaluation](#51-random-2-opt-move-vs-exhaustive-neighborhood-evaluation)
-    - [5.2 Markov Chain Length ($L_k$) Scaling](#52-markov-chain-length-l_k-scaling)
+      + [Analytical Complexity Comparison](#analytical-complexity-comparison)
+    - [5.2 Markov Chain Length ($L\_k$) Scaling](#52-markov-chain-length-l_k-scaling)
     - [5.3 Temperature-Dependent Adaptive Exploration](#53-temperature-dependent-adaptive-exploration)
-  - [6. Metaheuristic Composition and Hybrid Architectures](#6-metaheuristic-composition-and-hybrid-architectures)
+  + [6. Metaheuristic Composition and Hybrid Architectures](#6-metaheuristic-composition-and-hybrid-architectures)
     - [6.1 SA within Iterated Local Search (ILS) and Variable Neighborhood Search (VNS)](#61-sa-within-iterated-local-search-ils-and-variable-neighborhood-search-vns)
     - [6.2 Two-Stage Optimization: High-Temperature Exploration followed by Deterministic Quenching](#62-two-stage-optimization-high-temperature-exploration-followed-by-deterministic-quenching)
-  - [7. Academic References](#7-academic-references)
+  + [7. Academic References](#7-academic-references)
 
 ---
 
@@ -79,6 +83,7 @@ Simulated Annealing (SA) is a trajectory-based stochastic metaheuristic inspired
 In physical annealing, a solid material is heated to a high temperature where atoms diffuse freely in a disordered liquid state. The temperature is then decreased slowly through controlled thermal stages. If cooling is sufficiently slow, thermal mobility allows atoms to self-organize into a minimal-energy monocrystalline lattice. If the material is cooled too quickly (quenched), the system is frozen into an amorphous, metastable glass with high internal stress and defective structural order.
 
 In combinatorial optimization:
+
 - The microscopic physical state corresponds to a candidate solution $s \in \mathcal{S}$ (e.g., a Hamiltonian tour $\pi$ on graph $G = (V, E)$).
 - The internal energy $E(s)$ corresponds to the objective cost function $f(s) = \sum_{i=1}^n d(\pi_i, \pi_{i+1})$.
 - The thermodynamic temperature $T$ acts as a global continuous control parameter governing the probability of accepting moves that deteriorate the objective function.
@@ -87,6 +92,7 @@ In combinatorial optimization:
 ### 1.2 Talbi's Dual Classification: S-Task and P-Data
 
 In El-Ghazali Talbi's comprehensive taxonomy of metaheuristics (Talbi, 2009), optimization algorithms are characterized along two fundamental dimensions:
+
 1. **Search Trajectory**: Single-solution trajectory search (S-Metaheuristics) vs. population-based search (P-Metaheuristics).
 2. **Parallelization Axis**: Task parallelism (S-Task vs. P-Task) vs. Data parallelism (S-Data vs. P-Data).
 
@@ -111,10 +117,13 @@ Simulated Annealing occupies a distinct dual classification depending on the exe
 ```
 
 #### S-Task: The Sequential Markov Chain
+
 A standard Simulated Annealing execution generates a sequence of homogeneous or inhomogeneous Markov chains. At step $i$, generating candidate $s' \in \mathcal{N}(s_i)$ and deciding whether $s_{i+1} \leftarrow s'$ requires knowing $s_i$. You cannot compute step $i + 1$ without knowing the result of step $i$. This temporal dependency establishes SA as an **S-Task** (Single Task) trajectory algorithm: execution across the temperature schedule is inherently sequential.
 
 #### P-Data: Parallel Move Evaluation and Multi-Trajectory Exploration
+
 Simulated Annealing simultaneously exhibits strong **P-Data** (Parallel Data) characteristics in two concrete operational contexts:
+
 1. **Intra-Step Combinatorial Neighborhood Evaluation**: While deciding which move to execute requires a single outcome, evaluating candidate moves $\Delta f(s, s')$ across the complete $O(n^2)$ 2-opt neighborhood can be partitioned across thousands of GPU cores simultaneously.
 2. **Independent Replicated Trajectories (Multi-Start SA)**: Executing $M$ independent Markov chains from different initial tours $\pi^{(1)}_0, \dots, \pi^{(M)}_0$ at temperature schedule $\{T_k\}$ exhibits zero inter-chain data dependencies. Each GPU block or warp executes an independent chain, making the macro-execution purely P-Data.
 
@@ -168,6 +177,7 @@ def metropolis_accept(
 ### 2.2 Thermodynamic Interpretation and Escape Mechanics
 
 The acceptance probability function $\exp(-\Delta E / T)$ exhibits two boundary limits:
+
 1. **High-Temperature Regime ($T \to \infty$):**
    $$\lim_{T \to \infty} \exp\left(-\frac{\Delta E}{T}\right) = \exp(0) = 1$$
    Every candidate move is accepted regardless of cost increase. The algorithm behaves as an unconstrained uniform random walk over the combinatorial search space, achieving ergodicity and escaping any initial basin of attraction.
@@ -179,7 +189,7 @@ The acceptance probability function $\exp(-\Delta E / T)$ exhibits two boundary 
 Between these extremes, the temperature $T$ acts as an adaptive filter that permits controlled uphill moves to escape local minima:
 
 | Temperature ($T$) | Cost Delta ($\Delta E$) | Acceptance Probability $P_{\text{acc}}$ | Search Behavior |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | $10,000$ | $+100$ | $\exp(-100 / 10000) = 0.990$ | Free exploration; landscape smoothing |
 | $1,000$ | $+100$ | $\exp(-100 / 1000) = 0.905$ | Coarse structural exploration |
 | $200$ | $+100$ | $\exp(-100 / 200) = 0.606$ | Balanced exploration / intensification |
@@ -244,11 +254,13 @@ The choice of target ratio $\chi_0$ establishes the fundamental trade-off betwee
 ```
 
 #### Why 60% Acceptance is Used in Practical Benchmarking
+
 When Simulated Annealing is initialized from a nearest-neighbor or Christofides construction heuristic rather than a purely random tour, setting $\chi_0 = 0.80$ induces catastrophic forgetting: the initial high temperature destroys the high-quality edges discovered by the construction heuristic within the first 500 iterations. Selecting $\chi_0 = 0.60$ provides sufficient thermal energy to jump out of early local dead-ends while retaining the global topology of the heuristic tour.
 
 ### 3.3 Practical Sampling Protocol for Problem Instances
 
 To compute $\overline{\Delta E^+}$ reliably without biasing the initial tour:
+
 1. Generate an initial feasible tour $s_0$.
 2. Execute a random walk of $m$ moves (typically $m \in [500, 2000]$).
 3. Record all positive cost differentials: $\mathcal{D}^+ = \{ \Delta E_i \mid \Delta E_i > 0 \}$.
@@ -363,15 +375,18 @@ This exceeds the lifespan of physical hardware, rendering logarithmic cooling im
 Adaptive cooling schedules adjust the rate of temperature decay at runtime based on real-time statistical metrics extracted from the Markov chain.
 
 #### Huang et al. (1986) Statistical Annealing
+
 Huang, Romeo, and Sangiovanni-Vincentelli (1986) proposed adjusting temperature so that the average energy decreases smoothly relative to the standard deviation of energy $\sigma(T_k)$:
 
 $$T_{k+1} = T_k \cdot \exp\left(-\frac{\lambda \cdot T_k}{\sigma(T_k)}\right)$$
 
 where $\lambda \le 1.0$ (typically $\lambda \in [0.5, 0.7]$).
+
 - When $\sigma(T_k)$ is large (high variance across candidate tours, indicating a flat or chaotic region), the exponent $-\lambda T_k / \sigma(T_k)$ is small, causing temperature to decrease slowly.
 - When $\sigma(T_k)$ is small (the search is confined within a narrow energy valley), temperature drops more rapidly to accelerate local convergence.
 
 #### Aarts & Korst (1989) Polynomial-Time Annealing
+
 Aarts and Korst (1989) formulated a cooling schedule that maintains quasi-equilibrium throughout the annealing trajectory. By bounding the distance between stationary distributions at consecutive temperatures, they derived:
 
 $$T_{k+1} = \frac{T_k}{1 + \frac{T_k \cdot \ln(1 + \delta)}{3 \sigma(T_k)}}$$
@@ -424,7 +439,9 @@ Two primary strategies exist for generating neighbor candidate solutions $s' \in
 ```
 
 #### Analytical Complexity Comparison
+
 For problem instance `ch150` ($n = 150$):
+
 - Number of possible 2-opt moves: $\frac{150 \times 149}{2} = 11,175$.
 - In `Random2OptStrategy`, exactly 1 move is generated and evaluated per step ($O(1)$). Over $100,000$ iterations, $100,000$ moves are evaluated.
 - In `TwoOptMoveStrategy`, all $11,175$ moves are evaluated every step ($O(n^2)$). Over $1,000$ iterations, $11,175,000$ moves are evaluated.

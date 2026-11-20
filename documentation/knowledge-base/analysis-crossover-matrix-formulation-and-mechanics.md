@@ -57,24 +57,27 @@ tags:
     - [2.1 The 8-city benchmark instance](#21-the-8-city-benchmark-instance)
     - [2.2 1D route vectors vs. 2D population batch slices](#22-1d-route-vectors-vs-2d-population-batch-slices)
     - [2.3 Permutation matrices and adjacency matrices](#23-permutation-matrices-and-adjacency-matrices)
+      + [1. Permutation Matrix $\\mathbf{\\Pi} \\in {0, 1}^{n \\times n}$](#1-permutation-matrix-mathbfpi-in-0-1n-times-n)
+      + [2. Directed Adjacency Matrix $\\mathbf{A} \\in {0, 1}^{n \\times n}$](#2-directed-adjacency-matrix-mathbfa-in-0-1n-times-n)
   + [3. Stage 1: Tour cost evaluation via matrix algebra](#3-stage-1-tour-cost-evaluation-via-matrix-algebra)
-    - [3.1 The Distance Matrix $\mathbf{D}$](#31-the-distance-matrix-mathbfd)
-    - [3.2 The Frobenius inner-product formulation: $\operatorname{Tr}(\mathbf{A} \mathbf{D}^{\mathsf{T}})$](#32-the-frobenius-inner-product-formulation-operatornametrmathbfa-mathbfdmathsft)
+    - [3.1 The Distance Matrix $\\mathbf{D}$](#31-the-distance-matrix-mathbfd)
+    - [3.2 The Frobenius inner-product formulation: $\\operatorname{Tr}(\\mathbf{A} \\mathbf{D}^{\\mathsf{T}})$](#32-the-frobenius-inner-product-formulation-operatornametrmathbfa-mathbfdmathsft)
     - [3.3 Dense matrix multiply vs. GPU block-stride stream evaluation](#33-dense-matrix-multiply-vs-gpu-block-stride-stream-evaluation)
   + [4. Stage 2: Selection via binary projection matrices](#4-stage-2-selection-via-binary-projection-matrices)
-    - [4.1 Tournament selection as a 1-hot transformation matrix $\mathbf{W}$](#41-tournament-selection-as-a-1-hot-transformation-matrix-mathbfw)
-    - [4.2 Why GEMM $\mathbf{W} \mathbf{P}$ is replaced by 1D winner index gathering](#42-why-gemm-mathbfw-mathbfp-is-replaced-by-1d-winner-index-gathering)
+    - [4.1 Tournament selection as a 1-hot transformation matrix $\\mathbf{W}$](#41-tournament-selection-as-a-1-hot-transformation-matrix-mathbfw)
+      + [Concrete 2-Route Example:](#concrete-2-route-example)
+    - [4.2 Why GEMM $\\mathbf{W} \\mathbf{P}$ is replaced by 1D winner index gathering](#42-why-gemm-mathbfw-mathbfp-is-replaced-by-1d-winner-index-gathering)
   + [5. Stage 3: Order Crossover (OX) via projection, rotation, and compaction matrices](#5-stage-3-order-crossover-ox-via-projection-rotation-and-compaction-matrices)
-    - [5.1 Segment extraction operator $\mathbf{S}$](#51-segment-extraction-operator-mathbfs)
-    - [5.2 Incidence indicator vector $\mathbf{v}$](#52-incidence-indicator-vector-mathbfv)
-    - [5.3 Circulant shift operator $\mathbf{R}_{(c_2+1)}$ and Candidate Stream](#53-circulant-shift-operator-mathbfr_c_21-and-candidate-stream)
-    - [5.4 Lower-triangular compaction operator $\mathbf{L}$](#54-lower-triangular-compaction-operator-mathbfl)
+    - [5.1 Segment extraction operator $\\mathbf{S}$](#51-segment-extraction-operator-mathbfs)
+    - [5.2 Incidence indicator vector $\\mathbf{v}$](#52-incidence-indicator-vector-mathbfv)
+    - [5.3 Circulant shift operator $\\mathbf{R}\_{(c\_2+1)}$ and Candidate Stream](#53-circulant-shift-operator-mathbfr_c_21-and-candidate-stream)
+    - [5.4 Lower-triangular compaction operator $\\mathbf{L}$](#54-lower-triangular-compaction-operator-mathbfl)
     - [5.5 Offspring tour synthesis](#55-offspring-tour-synthesis)
   + [6. Stage 4: Inversion Mutation via antidiagonal exchange matrices](#6-stage-4-inversion-mutation-via-antidiagonal-exchange-matrices)
-    - [6.1 The exchange matrix $\mathbf{J}_k$ and segment reversal operator $\mathbf{M}_{\text{inv}}$](#61-the-exchange-matrix-mathbfj_k-and-segment-reversal-operator-mathbfm_textinv)
-    - [6.2 Matrix multiplication $\mathbf{p} \mathbf{M}_{\text{inv}}$ vs. cooperative warp reversal](#62-matrix-multiplication-mathbfp-mathbfm_textinv-vs-cooperative-warp-reversal)
+    - [6.1 The exchange matrix $\mathbf{J}_k$ and segment reversal operator $\mathbf{M}_{\text{inv}}$](#6-stage-4-inversion-mutation-via-antidiagonal-exchange-matrices)
+    - [6.2 Matrix multiplication $\\mathbf{p} \\mathbf{M}\_{\\text{inv}}$ vs. cooperative warp reversal](#62-matrix-multiplication-mathbfp-mathbfm_textinv-vs-cooperative-warp-reversal)
   + [7. Stage 5: 2-Opt Local Search move evaluation and application](#7-stage-5-2-opt-local-search-move-evaluation-and-application)
-    - [7.1 The 2-Opt gain matrix $\mathbf{\Delta} \in \mathbb{R}^{n \times n}$](#71-the-2-opt-gain-matrix-mathbfdelta-in-mathbbrn-times-n)
+    - [7.1 The 2-Opt gain matrix $\\mathbf{\\Delta} \\in \\mathbb{R}^{n \\times n}$](#71-the-2-opt-gain-matrix-mathbfdelta-in-mathbbrn-times-n)
     - [7.2 Tour update as an orthogonal similarity transformation](#72-tour-update-as-an-orthogonal-similarity-transformation)
   + [8. Comprehensive architectural comparison: GEMM vs. GPU streaming kernels](#8-comprehensive-architectural-comparison-gemm-vs-gpu-streaming-kernels)
     - [8.1 Complexity and VRAM footprint across all stages](#81-complexity-and-vram-footprint-across-all-stages)
@@ -120,6 +123,7 @@ $$\mathbf{P}_{\text{2-routes}} = \begin{bmatrix} \mathbf{p}_1 \\ \mathbf{p}_2 \e
 In linear algebra, a discrete route $\mathbf{p} \in \{0, \dots, n-1\}^n$ can be represented in two canonical matrix forms:
 
 #### 1. Permutation Matrix $\mathbf{\Pi} \in \{0, 1\}^{n \times n}$
+
 $\Pi_{i, j} = 1$ if city $j$ appears at tour index $i$:
 $$\mathbf{\Pi}_2 = \begin{bmatrix}
 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
@@ -134,6 +138,7 @@ $$\mathbf{\Pi}_2 = \begin{bmatrix}
 
 Since Parent 2 is identity sorted ($0, 1, 2, 3, 4, 5, 6, 7$), its permutation matrix is the identity matrix $\mathbf{I}_8$.
 For Parent 1 $\mathbf{p}_1 = [2, 3, 7, 1, 6, 0, 5, 4]$:
+
 $$\mathbf{\Pi}_1 = \begin{bmatrix}
 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\

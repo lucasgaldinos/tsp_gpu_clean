@@ -32,6 +32,20 @@ tags:
 
 # 5
 
+- [5](#5)
+  + [5.1 intro](#51-intro)
+    - [Contrasting Worst-Case and Average-Case Analysis](#contrasting-worst-case-and-average-case-analysis)
+    - [The Role of Probability and Asymptotic Analysis](#the-role-of-probability-and-asymptotic-analysis)
+    - [Subadditivity](#subadditivity)
+      + [Complete Symbol Reference](#complete-symbol-reference)
+      + [**The Proof in Clear Terms**](#the-proof-in-clear-terms)
+        - [Real-World Analogy: Shipping Manager](#real-world-analogy-shipping-manager)
+        - [The Logic of the Proof Explained](#the-logic-of-the-proof-explained)
+          + [A More Realistic Example: The Power of the Bound](#a-more-realistic-example-the-power-of-the-bound)
+      + [Step-by-Step Breakdown](#step-by-step-breakdown)
+      + [**Custom Exercise: Subadditivity in Action**](#custom-exercise-subadditivity-in-action)
+    - [2. Martingale Inequality: Bounding the "Surprise"](#2-martingale-inequality-bounding-the-surprise)
+
 ## 5.1 intro
 
 The core idea of this chapter is to shift our perspective from preparing for the absolute worst-case scenario to understanding what happens on a typical day.
@@ -62,7 +76,7 @@ Analyzing this average performance is often extremely difficult, so the analysis
 
 It’s a *property* of the optimal solution to a problem.
 
-> “Packing everything together is at least as efficient as packing in separate groups.”  
+> “Packing everything together is at least as efficient as packing in separate groups.”
 >
 > Formally, for any two groups of items of sizes $n$ and $m$:
 > $$
@@ -92,7 +106,7 @@ It’s a *property* of the optimal solution to a problem.
 **Bin Counting (What We Minimize):**
 
 - $a(x)$: **Function** giving optimal number of bins needed to pack $x$ items
-  - Example values: $a(1) = 1$, $a(4) = 2$, $a(14) = 8$
+  + Example values: $a(1) = 1$, $a(4) = 2$, $a(14) = 8$
 - $B^*_x$: Alternative notation for $a(x)$ (same meaning, different books use different symbols)
 
 **Convergence and Analysis:**
@@ -182,28 +196,28 @@ Let's use a messier, more realistic set of items to show why subadditivity is so
 
 - We choose a block size of $n_{\text{block}} = 5$.
 - This decomposes our 13 items into:
-  - **Block 1:** `{0.8, 0.7, 0.5, 0.4, 0.4}` ($m_1$)
-  - **Block 2:** `{0.3, 0.3, 0.2, 0.2, 0.2}` ($m_2$)
-  - **Leftovers:** `{0.2, 0.1, 0.1}` ($k$)
+  + **Block 1:** `{0.8, 0.7, 0.5, 0.4, 0.4}` ($m_1$)
+  + **Block 2:** `{0.3, 0.3, 0.2, 0.2, 0.2}` ($m_2$)
+  + **Leftovers:** `{0.2, 0.1, 0.1}` ($k$)
 
 **Step 1: Find the Optimal Packing for Each Part Separately**
 
 - **Packing Block 1 ($a(m_1)$):**
-  - Bin 1: `[0.8, 0.2]` (Not possible, no 0.2 available) -> `[0.8, 0.1]` (Not possible) -> `[0.8]`
-  - Bin 2: `[0.7, 0.3]` (Not possible) -> `[0.7]`
-  - Bin 3: `[0.5, 0.4, 0.1]` (Not possible) -> `[0.5, 0.4]`
-  - Bin 4: `[0.4]`
-  - Let's try a better packing: `[0.7, 0.4]`, `[0.8]`, `[0.5, 0.4]`. Still 3 bins.
-  - Optimal for Block 1 is 3 bins: `[0.8]`, `[0.7]`, `[0.5, 0.4, 0.4]`. So, $a(m_1) = 3$.
+  + Bin 1: `[0.8, 0.2]` (Not possible, no 0.2 available) -> `[0.8, 0.1]` (Not possible) -> `[0.8]`
+  + Bin 2: `[0.7, 0.3]` (Not possible) -> `[0.7]`
+  + Bin 3: `[0.5, 0.4, 0.1]` (Not possible) -> `[0.5, 0.4]`
+  + Bin 4: `[0.4]`
+  + Let's try a better packing: `[0.7, 0.4]`, `[0.8]`, `[0.5, 0.4]`. Still 3 bins.
+  + Optimal for Block 1 is 3 bins: `[0.8]`, `[0.7]`, `[0.5, 0.4, 0.4]`. So, $a(m_1) = 3$.
 
 - **Packing Block 2 ($a(m_2)$):**
-  - Items: `{0.3, 0.3, 0.2, 0.2, 0.2}`
-  - Optimal is 2 bins: `[0.3, 0.3, 0.2, 0.2]` and `[0.2]`. So, $a(m_2) = 2$.
+  + Items: `{0.3, 0.3, 0.2, 0.2, 0.2}`
+  + Optimal is 2 bins: `[0.3, 0.3, 0.2, 0.2]` and `[0.2]`. So, $a(m_2) = 2$.
 
 - **Packing Leftovers (Worst-Case Bound):**
-  - Items: `{0.2, 0.1, 0.1}`. There are 3 items.
-  - The worst-case bound is $k_{\text{leftover}} \cdot a(1) = 3 \cdot 1 = 3$ bins.
-  - (The *actual* optimal for leftovers is 1 bin: `[0.2, 0.1, 0.1]`, but the proof uses the safe upper bound).
+  + Items: `{0.2, 0.1, 0.1}`. There are 3 items.
+  + The worst-case bound is $k_{\text{leftover}} \cdot a(1) = 3 \cdot 1 = 3$ bins.
+  + (The *actual* optimal for leftovers is 1 bin: `[0.2, 0.1, 0.1]`, but the proof uses the safe upper bound).
 
 **Step 2: Apply the Subadditivity Inequality**
 
@@ -238,19 +252,19 @@ graph TB
     subgraph Input["Input: 13 Random Items"]
         A["$$\ell = 13$$"]
     end
-    
+
     subgraph Decomp["Decomposition ($$n_{block}=5$$)"]
         B["Block 1 (5 items)<br/>{0.8, 0.7, 0.5, 0.4, 0.4}"]
         C["Block 2 (5 items)<br/>{0.3, 0.3, 0.2, 0.2, 0.2}"]
         D["Leftovers (3 items)<br/>{0.2, 0.1, 0.1}"]
     end
-    
+
     subgraph Bounds["Analysis of Parts (Upper Bound)"]
         B1["$$a(m_1) = 3$$ bins"]
         C1["$$a(m_2) = 2$$ bins"]
         D1["$$k \cdot a(1) = 3$$ bins (worst-case)"]
     end
-    
+
     subgraph CombinedBound["Subadditivity Bound"]
         E["$$a(13) \le 3 + 2 + 3 = 8$$"]
     end
@@ -262,7 +276,7 @@ graph TB
     subgraph Verification
         G["Result: $$5 \le 8$$<br/>The inequality holds!"]
     end
-    
+
     A --> Decomp
     B --> B1
     C --> C1
@@ -277,14 +291,14 @@ graph TB
 1. **Choose an efficient block size**: Pick $n_{\text{block}}$ large enough so that packing $n_{\text{block}}$ items is very efficient, with bins-per-item ratio ($\frac{a(n_{\text{block}})}{n_{\text{block}}}$) close to the ultimate efficiency $\gamma$ (within error margin $\epsilon$).
 
 2. **Divide the total items into blocks**: Take your huge list of $\ell$ items and conceptually divide it into:
-   - $m_{\text{blocks}}$ complete blocks (each containing $n_{\text{block}}$ items)
-   - $k_{\text{leftover}}$ leftover items that don't form a complete block
-   - Relationship: $\ell = n_{\text{block}} \cdot m_{\text{blocks}} + k_{\text{leftover}}$ where $0 \le k_{\text{leftover}} < n_{\text{block}}$
+   + $m_{\text{blocks}}$ complete blocks (each containing $n_{\text{block}}$ items)
+   + $k_{\text{leftover}}$ leftover items that don't form a complete block
+   + Relationship: $\ell = n_{\text{block}} \cdot m_{\text{blocks}} + k_{\text{leftover}}$ where $0 \le k_{\text{leftover}} < n_{\text{block}}$
 
 3. **Apply subadditivity**: The total bins needed for all $\ell$ items ($a(\ell)$) is at most the sum of:
-   - Bins for the $m_{\text{blocks}}$ blocks: $m_{\text{blocks}} \cdot a(n_{\text{block}})$ (each block needs $a(n_{\text{block}})$ bins)
-   - Bins for the $k_{\text{leftover}}$ leftovers: $k_{\text{leftover}} \cdot a(1)$ (worst case: 1 bin per item)
-   - Therefore: $a(\ell) \le m_{\text{blocks}} \cdot a(n_{\text{block}}) + k_{\text{leftover}} \cdot a(1)$
+   + Bins for the $m_{\text{blocks}}$ blocks: $m_{\text{blocks}} \cdot a(n_{\text{block}})$ (each block needs $a(n_{\text{block}})$ bins)
+   + Bins for the $k_{\text{leftover}}$ leftovers: $k_{\text{leftover}} \cdot a(1)$ (worst case: 1 bin per item)
+   + Therefore: $a(\ell) \le m_{\text{blocks}} \cdot a(n_{\text{block}}) + k_{\text{leftover}} \cdot a(1)$
 
 4. **Compute efficiency**: Divide both sides by $\ell = n_{\text{block}} \cdot m_{\text{blocks}} + k_{\text{leftover}}$:
 

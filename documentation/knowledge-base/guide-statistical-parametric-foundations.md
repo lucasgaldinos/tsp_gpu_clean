@@ -41,35 +41,35 @@ tags:
 # Parametric Statistical Foundations: Gamma Function, Student's t, and Degrees of Freedom
 
 - [Parametric Statistical Foundations: Gamma Function, Student's t, and Degrees of Freedom](#parametric-statistical-foundations-gamma-function-students-t-and-degrees-of-freedom)
-  - [1. The Parametric Inference Framework](#1-the-parametric-inference-framework)
-  - [2. The Euler Gamma Function $\Gamma(\alpha)$](#2-the-euler-gamma-function-gammaalpha)
+  + [1. The Parametric Inference Framework](#1-the-parametric-inference-framework)
+  + [2. The Euler Gamma Function $\\Gamma(\\alpha)$](#2-the-euler-gamma-function-gammaalpha)
     - [2.1 Analytical Definition and Convergence](#21-analytical-definition-and-convergence)
     - [2.2 Derivation of the Fundamental Recurrence Relation](#22-derivation-of-the-fundamental-recurrence-relation)
     - [2.3 Half-Integer Evaluation via the Gaussian Integral](#23-half-integer-evaluation-via-the-gaussian-integral)
     - [2.4 Why the Gamma Function Governs Normalizing Constants](#24-why-the-gamma-function-governs-normalizing-constants)
-  - [3. Analytical Derivation of Student's $t$-Distribution](#3-analytical-derivation-of-students-t-distribution)
+  + [3. Analytical Derivation of Student's $t$-Distribution](#3-analytical-derivation-of-students-t-distribution)
     - [3.1 The Ratio of Independent Normal and Chi-Square Variates](#31-the-ratio-of-independent-normal-and-chi-square-variates)
     - [3.2 Joint Distribution and Bivariate Change of Variables](#32-joint-distribution-and-bivariate-change-of-variables)
     - [3.3 Marginalization and the Exact Probability Density Function](#33-marginalization-and-the-exact-probability-density-function)
-  - [4. Geometric Origin of Degrees of Freedom ($\nu = n - 1$)](#4-geometric-origin-of-degrees-of-freedom-nu--n---1)
-    - [4.1 Hyperplane Projection in $n$-Dimensional Space $\mathbb{R}^n$](#41-hyperplane-projection-in-n-dimensional-space-mathbbrn)
+  + [4. Geometric Origin of Degrees of Freedom ($\\nu = n - 1$)](#4-geometric-origin-of-degrees-of-freedom-nu--n---1)
+    - [4.1 Hyperplane Projection in $n$-Dimensional Space $\\mathbb{R}^n$](#41-hyperplane-projection-in-n-dimensional-space-mathbbrn)
     - [4.2 Why Estimating the Sample Mean Costs Exactly One Dimension](#42-why-estimating-the-sample-mean-costs-exactly-one-dimension)
-  - [5. Mathematical Proof of Bessel's Correction and Delta Degrees of Freedom (`ddof`)](#5-mathematical-proof-of-bessels-correction-and-delta-degrees-of-freedom-ddof)
-    - [5.1 Expectation of the Biased Estimator $S_n^2$ (`ddof = 0`)](#51-expectation-of-the-biased-estimator-s_n2-ddof--0)
+  + [5. Mathematical Proof of Bessel's Correction and Delta Degrees of Freedom (`ddof`)](#5-mathematical-proof-of-bessels-correction-and-delta-degrees-of-freedom-ddof)
+    - [5.1 Expectation of the Biased Estimator $S\_n^2$ (`ddof = 0`)](#51-expectation-of-the-biased-estimator-s_n2-ddof--0)
     - [5.2 Derivation of the Unbiased Estimator $s^2$ (`ddof = 1`)](#52-derivation-of-the-unbiased-estimator-s2-ddof--1)
     - [5.3 When Does `ddof > 1` Apply?](#53-when-does-ddof--1-apply)
-  - [6. Asymptotic Proof: Convergence of Student's $t$ to the Gaussian ($\nu \to \infty$)](#6-asymptotic-proof-convergence-of-students-t-to-the-gaussian-nu-to-infty)
-  - [7. Quantile and Tail Notation ($t_{\nu, 1 - \alpha/2}$)](#7-quantile-and-tail-notation-t_nu-1---alpha2)
+  + [6. Asymptotic Proof: Convergence of Student's $t$ to the Gaussian ($\\nu \\to \\infty$)](#6-asymptotic-proof-convergence-of-students-t-to-the-gaussian-nu-to-infty)
+  + [7. Quantile and Tail Notation ($t\_{\\nu, 1 - \\alpha/2}$)](#7-quantile-and-tail-notation-t_nu-1---alpha2)
     - [7.1 Demystifying the $0.975$ Quantile Subscript](#71-demystifying-the-0975-quantile-subscript)
     - [7.2 Numerical Comparison Table: Student's $t$ vs Standard Normal $Z$](#72-numerical-comparison-table-students-t-vs-standard-normal-z)
-  - [8. Python Scientific Implementation](#8-python-scientific-implementation)
-  - [9. Academic References](#9-academic-references)
+  + [8. python Scientific Implementation](#8-python-scientific-implementation)
+  + [9. Academic References](#9-academic-references)
 
 ---
 
 ## 1. The Parametric Inference Framework
 
-In computational benchmarking, parametric inferential statistics allow us to infer properties of an infinite population of stochastic executions from a finite sample of runs ($n = 15$). 
+In computational benchmarking, parametric inferential statistics allow us to infer properties of an infinite population of stochastic executions from a finite sample of runs ($n = 15$).
 
 Parametric tests operate under the assumption that observations $X_1, X_2, \dots, X_n$ are independent, identically distributed realizations from a Gaussian distribution:
 
@@ -92,6 +92,7 @@ The Euler Gamma function $\Gamma: \mathbb{R}^+ \to \mathbb{R}^+$ extends the dis
 $$\Gamma(\alpha) = \int_0^\infty t^{\alpha - 1} e^{-t} \, \mathrm{d}t$$
 
 The integral converges absolutely for all $\alpha > 0$:
+
 - At the lower limit $t \to 0^+$, the integrand behaves as $t^{\alpha - 1}$, which is integrable if and only if $\alpha - 1 > -1 \iff \alpha > 0$.
 - At the upper limit $t \to \infty$, the exponential decay $e^{-t}$ dominates any polynomial growth $t^{\alpha - 1}$.
 
@@ -102,6 +103,7 @@ Applying integration by parts to $\Gamma(\alpha + 1)$:
 $$\Gamma(\alpha + 1) = \int_0^\infty t^\alpha e^{-t} \, \mathrm{d}t$$
 
 Let:
+
 - $u = t^\alpha \implies \mathrm{d}u = \alpha t^{\alpha - 1} \, \mathrm{d}t$
 - $\mathrm{d}v = e^{-t} \, \mathrm{d}t \implies v = -e^{-t}$
 
@@ -110,6 +112,7 @@ Using the integration by parts formula $\int u \, \mathrm{d}v = [uv] - \int v \,
 $$\Gamma(\alpha + 1) = \left[ -t^\alpha e^{-t} \right]_0^\infty - \int_0^\infty (-e^{-t}) \left( \alpha t^{\alpha - 1} \right) \, \mathrm{d}t$$
 
 Evaluating the boundary term:
+
 - As $t \to \infty$, by L'Hôpital's Rule, $\lim_{t \to \infty} \frac{t^\alpha}{e^t} = 0$.
 - At $t = 0$, $0^\alpha = 0$ (for $\alpha > 0$).
 - Thus, the boundary term vanishes identically: $\left[ -t^\alpha e^{-t} \right]_0^\infty = 0$.
@@ -175,6 +178,7 @@ Let $X_1, \dots, X_n \sim \text{i.i.d. } \mathcal{N}(\mu, \sigma^2)$. The sample
 $$\bar{X} = \frac{1}{n}\sum_{i=1}^n X_i, \qquad s^2 = \frac{1}{n-1}\sum_{i=1}^n (X_i - \bar{X})^2$$
 
 By **Cochran's Theorem**:
+
 1. $\bar{X} \sim \mathcal{N}\left(\mu, \frac{\sigma^2}{n}\right) \implies Z = \frac{\bar{X} - \mu}{\sigma / \sqrt{n}} \sim \mathcal{N}(0, 1)$
 2. $V = \frac{(n - 1)s^2}{\sigma^2} \sim \chi^2(\nu)$, where $\nu = n - 1$ degrees of freedom
 3. $Z$ and $V$ are **statistically independent**.
@@ -315,6 +319,7 @@ Taking expectations on both sides:
 $$\mathbb{E}\left[ \sum_{i=1}^n (X_i - \bar{X})^2 \right] = \sum_{i=1}^n \mathbb{E}\left[ (X_i - \mu)^2 \right] - n \mathbb{E}\left[ (\bar{X} - \mu)^2 \right]$$
 
 By definition:
+
 - $\mathbb{E}[(X_i - \mu)^2] = \text{Var}(X_i) = \sigma^2$
 - $\mathbb{E}[(\bar{X} - \mu)^2] = \text{Var}(\bar{X}) = \frac{\sigma^2}{n}$
 
@@ -338,13 +343,15 @@ Check expectation:
 
 $$\mathbb{E}[s^2] = \frac{n}{n - 1} \mathbb{E}[S_n^2] = \frac{n}{n - 1} \left( \frac{n - 1}{n} \sigma^2 \right) = \sigma^2 \quad \blacksquare$$
 
-In Python (`numpy`):
+In python (`numpy`):
+
 - `np.std(data, ddof=0)` computes $\sqrt{S_n^2}$ (biased sample standard deviation; true population $\sigma$ when $\mu$ is known a priori).
 - `np.std(data, ddof=1)` computes $\sqrt{s^2}$ (unbiased sample standard deviation with Bessel's correction). In inferential statistics and $t$-tests, **`ddof=1` must always be used**.
 
 ### 5.3 When Does `ddof > 1` Apply?
 
 `ddof` represents the number of linear constraints or fitted parameters consumed during estimation:
+
 - **`ddof = 0`**: Used when computing variance of an entire known population, or when the true mean $\mu$ is known analytically without estimation from data.
 - **`ddof = 1`**: Standard sample variance ($s^2$); one parameter ($\bar{x}$) was estimated.
 - **`ddof = 2`**: Residual variance in simple linear regression $y = \beta_0 + \beta_1 x + \epsilon$, where two parameters ($\hat{\beta}_0, \hat{\beta}_1$) are estimated from data ($s_e^2 = \frac{1}{n - 2} \sum e_i^2$).
@@ -371,6 +378,7 @@ Rewriting the kernel:
 $$\lim_{\nu \to \infty} \left( 1 + \frac{t^2}{\nu} \right)^{-\frac{\nu + 1}{2}} = \lim_{\nu \to \infty} \left[ \left( 1 + \frac{t^2}{\nu} \right)^\nu \right]^{-1/2} \cdot \lim_{\nu \to \infty} \left( 1 + \frac{t^2}{\nu} \right)^{-1/2}$$
 
 As $\nu \to \infty$:
+
 - $\left( 1 + \frac{t^2}{\nu} \right)^\nu \to e^{t^2}$
 - $\left( 1 + \frac{t^2}{\nu} \right)^{-1/2} \to 1$
 
@@ -411,6 +419,7 @@ Why $0.975$ when testing at the $\alpha = 0.05$ significance level?
 
 Because standard algorithmic hypothesis testing is **two-tailed**: we test against the null hypothesis $H_0: \mu_{\text{CPU}} = \mu_{\text{GPU}}$ against $H_1: \mu_{\text{CPU}} \ne \mu_{\text{GPU}}$.
 The total rejection area $\alpha = 0.05$ must be divided equally between both tails:
+
 - Lower critical tail: $\alpha / 2 = 0.025$ in the extreme negative tail ($t < -2.145$).
 - Upper critical tail: $\alpha / 2 = 0.025$ in the extreme positive tail ($t > +2.145$).
 - Central acceptance region: $1 - \alpha = 0.95$ of the total probability mass lies between $[-2.145, +2.145]$.
@@ -454,7 +463,7 @@ The lower the degrees of freedom $\nu$, the heavier the tails of Student's $t$, 
 
 ---
 
-## 8. Python Scientific Implementation
+## 8. python Scientific Implementation
 
 Below is a self-contained reference script demonstrating the evaluation of the Gamma function, degrees of freedom, Bessel `ddof`, and critical quantiles using `scipy.stats` and `numpy`:
 

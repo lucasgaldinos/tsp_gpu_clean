@@ -43,6 +43,25 @@ tags:
 
 # Generation-0 Policy, `initial_cost` Semantics, and Cohort Comparability
 
+- [Generation-0 Policy, `initial_cost` Semantics, and Cohort Comparability](#generation-0-policy-initial_cost-semantics-and-cohort-comparability)
+  + [0. The question this answers](#0-the-question-this-answers)
+  + [1. The generation-0 contract](#1-the-generation-0-contract)
+    - [1.1 What `fitness` is, and why it is computed before anything else](#11-what-fitness-is-and-why-it-is-computed-before-anything-else)
+    - [1.2 What the removed block did](#12-what-the-removed-block-did)
+    - [1.3 Why it only covered `post_crossover` and `post_mutation`](#13-why-it-only-covered-post_crossover-and-post_mutation)
+    - [1.4 Stage dispatch is written in three places, and `post_evaluation` is written twice](#14-stage-dispatch-is-written-in-three-places-and-post_evaluation-is-written-twice)
+  + [2. What `initial_cost` actually measures](#2-what-initial_cost-actually-measures)
+    - [2.1 The arithmetic that moved "improvement" in the opposite direction of quality](#21-the-arithmetic-that-moved-improvement-in-the-opposite-direction-of-quality)
+  + [3. Why the pre-pass dominated the runtime](#3-why-the-pre-pass-dominated-the-runtime)
+  + [4. Per-phase timing: measured, returned, discarded](#4-per-phase-timing-measured-returned-discarded)
+  + [5. Reading a cohort comparison: what each field constrains](#5-reading-a-cohort-comparison-what-each-field-constrains)
+    - [5.1 The three tiers, stated plainly](#51-the-three-tiers-stated-plainly)
+    - [5.2 Class names no longer identify the transfer strategy](#52-class-names-no-longer-identify-the-transfer-strategy)
+    - [5.3 Why "not much change" was the expected observation on `berlin52`](#53-why-not-much-change-was-the-expected-observation-on-berlin52)
+  + [6. Verification recipe](#6-verification-recipe)
+  + [7. Tasks that must update this document](#7-tasks-that-must-update-this-document)
+  + [8. References](#8-references)
+
 ## 0. The question this answers
 
 Comparing `results_v2/problem_statistics/berlin52_stats.json` with the modular cohort produced numbers that looked "almost unchanged" while `mean_initial_cost` moved from $25{,}030$ to $14{,}315$. Three separate effects were tangled in that comparison, and only one of them was a change in the algorithm:

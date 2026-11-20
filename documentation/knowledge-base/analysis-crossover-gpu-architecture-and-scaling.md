@@ -79,20 +79,23 @@ tags:
 - [Order Crossover (OX) Algorithmic Scaling, GPU Memory Hierarchies, and Warp-Level Parallelism](#order-crossover-ox-algorithmic-scaling-gpu-memory-hierarchies-and-warp-level-parallelism)
   + [1. Executive Summary and the Empirical Scaling Discrepancy](#1-executive-summary-and-the-empirical-scaling-discrepancy)
     - [1.1 Measured Microbenchmark Data ($N = 256$)](#11-measured-microbenchmark-data-n--256)
-    - [1.2 The Power-Law Divergence: $\mathcal{O}(n^{0.87})$ vs. $\mathcal{O}(n^{1.88})$](#12-the-power-law-divergence-mathcalon087-vs-mathcalon188)
+    - [1.2 The Power-Law Divergence: $\\mathcal{O}(n^{0.87})$ vs. $\\mathcal{O}(n^{1.88})$](#12-the-power-law-divergence-mathcalon087-vs-mathcalon188)
     - [1.3 Macroscopic Impact on Genetic Algorithm Cohorts](#13-macroscopic-impact-on-genetic-algorithm-cohorts)
   + [2. Mathematical Formulation of Order Crossover (OX1)](#2-mathematical-formulation-of-order-crossover-ox1)
     - [2.1 Permutation Algebra and Cycle Preservation](#21-permutation-algebra-and-cycle-preservation)
     - [2.2 Step-by-Step Operator Specification](#22-step-by-step-operator-specification)
-  + [3. Algorithmic Dissection: Why the CPU Implementation Scales as $\mathcal{O}(n)$](#3-algorithmic-dissection-why-the-cpu-implementation-scales-as-mathcalon)
+  + [3. Algorithmic Dissection: Why the CPU Implementation Scales as $\\mathcal{O}(n)$](#3-algorithmic-dissection-why-the-cpu-implementation-scales-as-mathcalon)
     - [3.1 Source Inspection of `CrossoverOrder._ox_core` and the Cyclic Clock Fill](#31-source-inspection-of-crossoverorder_ox_core-and-the-cyclic-clock-fill)
+      + [Why Modulo `(c2 + 1 + i) % n` Wraps Like a Clock](#why-modulo-c2--1--i--n-wraps-like-a-clock)
     - [3.2 CPython `set` Internals: Open Addressing, `perturb >>= 5`, and Modulo vs. Bitmasking](#32-cpython-set-internals-open-addressing-perturb--5-and-modulo-vs-bitmasking)
+      + [1. The Probing Sequence and `perturb >>= 5`](#1-the-probing-sequence-and-perturb--5)
+      + [2. Why `& mask` Replaces `% table_size`](#2-why--mask-replaces--table_size)
     - [3.3 Exact Asymptotic Operation Count on CPU](#33-exact-asymptotic-operation-count-on-cpu)
-  + [4. Algorithmic Dissection: Why the Current GPU Kernel Scales as $\mathcal{O}(n^2)$ (`BUG-22`)](#4-algorithmic-dissection-why-the-current-gpu-kernel-scales-as-mathcalon2-bug-22)
+  + [4. Algorithmic Dissection: Why the Current GPU Kernel Scales as $\\mathcal{O}(n^2)$ (`BUG-22`)](#4-algorithmic-dissection-why-the-current-gpu-kernel-scales-as-mathcalon2-bug-22)
     - [4.1 Source Inspection of `order_crossover_kernel`](#41-source-inspection-of-order_crossover_kernel)
     - [4.2 The Nested Linear Scan Bottleneck](#42-the-nested-linear-scan-bottleneck)
     - [4.3 Arithmetic Derivation of Inner Loop Executions](#43-arithmetic-derivation-of-inner-loop-executions)
-    - [4.4 Concrete Walkthrough: $\mathcal{O}(n^2)$ Comparisons on an 8-City Tour ($P_1, P_2$)](#44-concrete-walkthrough-mathcalon2-comparisons-on-an-8-city-tour-p_1-p_2)
+    - [4.4 Concrete Walkthrough: $\\mathcal{O}(n^2)$ Comparisons on an 8-City Tour ($P\_1, P\_2$)](#44-concrete-walkthrough-mathcalon2-comparisons-on-an-8-city-tour-p_1-p_2)
   + [5. Hardware Architecture: SM Starvation and Thread-Level Parallelism Bottlenecks](#5-hardware-architecture-sm-starvation-and-thread-level-parallelism-bottlenecks)
     - [5.1 NVIDIA Pascal GP107 Hardware Model (GTX 1050)](#51-nvidia-pascal-gp107-hardware-model-gtx-1050)
     - [5.2 Analysis of Grid Launch Configuration: Only 2 of 5 SMs Active](#52-analysis-of-grid-launch-configuration-only-2-of-5-sms-active)
@@ -101,20 +104,37 @@ tags:
     - [6.1 The Pitfalls of Dynamic Hash Tables on SIMT Hardware](#61-the-pitfalls-of-dynamic-hash-tables-on-simt-hardware)
     - [6.2 The TSP Domain Guarantee: Dense Contiguous Integer Keys](#62-the-tsp-domain-guarantee-dense-contiguous-integer-keys)
     - [6.3 Direct-Address Lookup: Byte Array vs. Bitpacked Array Mechanics](#63-direct-address-lookup-byte-array-vs-bitpacked-array-mechanics)
-    - [6.4 Shared Memory Capacity Verification across TSPLIB Instances](#64-shared-memory-capacity-verification-across-tsplib-instances--hardware-occupancy-math)
+      + [Format A: Byte Array (`uint8_t in_segment[n]`) — The Recommended Architecture](#format-a-byte-array-uint8_t-in_segmentn--the-recommended-architecture)
+      + [Format B: Bitpacked Array Scalability Extension](#format-b-bitpacked-array-scalability-extension)
+    - [6.4 Shared Memory Capacity Verification across TSPLIB Instances \& Hardware Occupancy Math](#64-shared-memory-capacity-verification-across-tsplib-instances--hardware-occupancy-math)
+      + [Occupancy Derivation for 256 Threads (8 Warps / Block)](#occupancy-derivation-for-256-threads-8-warps--block)
+      + [Mathematical Boundary for Format A](#mathematical-boundary-for-format-a)
+      + [Shared Memory Footprint across TSPLIB Instances](#shared-memory-footprint-across-tsplib-instances)
+      + [Dynamic Block Downscaling for $n \> 6{,}144$](#dynamic-block-downscaling-for-n--6144)
     - [6.5 Why 2-Opt Tiling ($T=2048$) Does Not Apply to Order Crossover](#65-why-2-opt-tiling-t2048-does-not-apply-to-order-crossover)
   + [7. The Redesigned Architecture: 1 Warp per Route and Warp-Level Cooperativity](#7-the-redesigned-architecture-1-warp-per-route-and-warp-level-cooperativity)
     - [7.1 Decomposing Route Construction across 32 Threads](#71-decomposing-route-construction-across-32-threads)
     - [7.2 Grid Sizing and SM Occupancy: Achieving 75%–100% Saturation](#72-grid-sizing-and-sm-occupancy-achieving-75100-saturation)
     - [7.3 Intra-Warp Cooperative Primitives: `__ballot_sync` and `__popc`](#73-intra-warp-cooperative-primitives-__ballot_sync-and-__popc)
     - [7.4 Algorithmic Walkthrough of the Warp-Parallel OX Kernel](#74-algorithmic-walkthrough-of-the-warp-parallel-ox-kernel)
-    - [7.5 Warp-Parallel Trace on $P_1 = [C, D, H, B, G, A, F, E]$ and $P_2 = [A, B, C, D, E, F, G, H]$](#75-warp-parallel-trace-on-p_1--c-d-h-b-g-a-f-e-and-p_2--a-b-c-d-e-f-g-h)
+    - [7.5 Warp-Parallel Trace on $P\_1 = \[C, D, H, B, G, A, F, E\]$ and $P\_2 = \[A, B, C, D, E, F, G, H\]$](#75-warp-parallel-trace-on-p_1--c-d-h-b-g-a-f-e-and-p_2--a-b-c-d-e-f-g-h)
+      + [Demystifying "Lanes" and the Abstract Parallel Stream Compaction](#demystifying-lanes-and-the-abstract-parallel-stream-compaction)
+      + [Execution Trace: Writing to Child Slots in 1 Clock Cycle](#execution-trace-writing-to-child-slots-in-1-clock-cycle)
   + [8. Strict Iso-Algorithmic Bit-Identity Contract (`DP11-11`) and CPU vs. GPU Divergences (`OX-A`)](#8-strict-iso-algorithmic-bit-identity-contract-dp11-11-and-cpu-vs-gpu-divergences-ox-a)
     - [8.1 The Bit-Identity Invariant](#81-the-bit-identity-invariant)
     - [8.2 Architectural Enablers of Bit-Identity](#82-architectural-enablers-of-bit-identity)
     - [8.3 The Three Critical CPU-vs-GPU Algorithmic Divergences (`OX-A`)](#83-the-three-critical-cpu-vs-gpu-algorithmic-divergences-ox-a)
+      + [Divergence 1: Parent Pairing Mechanics](#divergence-1-parent-pairing-mechanics)
+      + [Divergence 2: Cut Points Sampling Strategy](#divergence-2-cut-points-sampling-strategy)
+      + [Divergence 3: Closed-Route Depot Preservation](#divergence-3-closed-route-depot-preservation)
     - [8.4 Host-Side RNG Bottleneck: Serial Sampling vs. Vectorized NumPy Generation](#84-host-side-rng-bottleneck-serial-sampling-vs-vectorized-numpy-generation)
+      + [1. The Root Cause: Serial python Loop and Dynamic Allocation](#1-the-root-cause-serial-python-loop-and-dynamic-allocation)
+      + [2. Vectorized Integer Sampling in NumPy](#2-vectorized-integer-sampling-in-numpy)
+      + [3. Empirical Performance Impact](#3-empirical-performance-impact)
     - [8.5 GPU Warm-Up Nuances: AOT Precompilation, Execution Priming, and Cache-Poisoning Traps](#85-gpu-warm-up-nuances-aot-precompilation-execution-priming-and-cache-poisoning-traps)
+      + [1. AOT Precompilation vs. Execution Warm-Up](#1-aot-precompilation-vs-execution-warm-up)
+      + [2. The Cache-Poisoning Hazard: Dummy Zero Arrays and Topology Heuristics](#2-the-cache-poisoning-hazard-dummy-zero-arrays-and-topology-heuristics)
+      + [3. Architectural Prevention Rules](#3-architectural-prevention-rules)
   + [9. Comparison Summary and Scaling Projection](#9-comparison-summary-and-scaling-projection)
   + [10. References](#10-references)
 
@@ -884,11 +904,11 @@ The pure CUDA kernel scales with a fitted power-law exponent of:
 
 $$\beta_{\text{kernel}} \approx 0.539 \ll 1.20$$
 
-However, when profiling the end-to-end strategy method [`crossover_batch`](../../src/algorithms/strategies/crossover/order_crossover.py#L220), total wall-clock runtime measured $\approx 2.45\text{ ms}$ across all problem dimensions. Host-side flame graphs and timing breakdowns revealed an unexpected bottleneck: **over $90\%$ of total strategy runtime was consumed by the host CPU in Python before kernel launch**.
+However, when profiling the end-to-end strategy method [`crossover_batch`](../../src/algorithms/strategies/crossover/order_crossover.py#L220), total wall-clock runtime measured $\approx 2.45\text{ ms}$ across all problem dimensions. Host-side flame graphs and timing breakdowns revealed an unexpected bottleneck: **over $90\%$ of total strategy runtime was consumed by the host CPU in python before kernel launch**.
 
-#### 1. The Root Cause: Serial Python Loop and Dynamic Allocation
+#### 1. The Root Cause: Serial python Loop and Dynamic Allocation
 
-To satisfy `OX-A` (disjoint pairing $(2k, 2k+1)$ and cut point sampling without replacement), cut points were initially generated on the host CPU using an unvectorized serial Python loop:
+To satisfy `OX-A` (disjoint pairing $(2k, 2k+1)$ and cut point sampling without replacement), cut points were initially generated on the host CPU using an unvectorized serial python loop:
 
 ```python
 cut1_np = np.zeros(num_routes, dtype=np.int32)
@@ -907,9 +927,10 @@ for i in range(0, num_routes - 1, 2):
 ```
 
 For a population of $N = 256$ individuals ($128$ parent pairs), this serial construct introduces devastating interpreter overhead:
+
 1. **$128$ Temporary Array Allocations**: `np.arange(1, n_cities - 1)` allocates and frees an intermediate NumPy buffer on every loop iteration.
-2. **$128$ Dynamic Method Invocations**: `rng.choice(..., replace=False)` incurs CPython bytecode dispatch, Python tuple packing, dynamic type validation, and partial Fisher-Yates array shuffling.
-3. **$256$ Scalar Casts and $512$ Individual Array Writes**: Repeatedly converting NumPy integers to Python `int` and writing scalar values into NumPy arrays across interpreter boundaries.
+2. **$128$ Dynamic Method Invocations**: `rng.choice(..., replace=False)` incurs CPython bytecode dispatch, python tuple packing, dynamic type validation, and partial Fisher-Yates array shuffling.
+3. **$256$ Scalar Casts and $512$ Individual Array Writes**: Repeatedly converting NumPy integers to python `int` and writing scalar values into NumPy arrays across interpreter boundaries.
 
 On an Intel Core i7 host CPU, this serial loop consumes **$1.05\text{ ms}$ to $1.22\text{ ms}$**. Comparing this host preparation duration to pure CUDA kernel execution reveals a severe Amdahl imbalance:
 
@@ -917,13 +938,14 @@ $$\frac{T_{\text{host}}}{T_{\text{CUDA}}(n=52)} = \frac{1.220\text{ ms}}{0.0123\
 
 $$\frac{T_{\text{host}}}{T_{\text{CUDA}}(n=2{,}000)} = \frac{1.220\text{ ms}}{0.0881\text{ ms}} \approx 13.8\times \quad (\mathbf{\approx 14\times \text{ slower than CUDA}})$$
 
-The unvectorized Python cut generation loop takes $14\times$ to $100\times$ longer than the CUDA kernel itself, dominating $>90\%$ of total strategy runtime.
+The unvectorized python cut generation loop takes $14\times$ to $100\times$ longer than the CUDA kernel itself, dominating $>90\%$ of total strategy runtime.
 
 #### 2. Vectorized Integer Sampling in NumPy
 
 To preserve 100% bit-identity with the CPU host PRNG state without offloading RNG to GPU cuRAND (which would break deterministic cross-platform reproducibility), cut point sampling can be vectorized across all $K = N / 2$ pairs simultaneously.
 
 To sample two distinct integers $c_1 \neq c_2$ uniformly at random from $[a, b)$ of length $L = b - a$ without replacement:
+
 1. Draw $c_1 \sim \mathcal{U}\{a, b - 1\}$ uniformly of size $K$.
 2. Draw $c_2' \sim \mathcal{U}\{a, b - 2\}$ uniformly of size $K$ from an alphabet reduced by 1.
 3. Apply a branchless conditional increment:
@@ -934,7 +956,7 @@ To sample two distinct integers $c_1 \neq c_2$ uniformly at random from $[a, b)$
 5. Replicate across disjoint pairs $(2k, 2k + 1)$ via `np.repeat(..., 2)`.
 
 ```python
-# Vectorized host cut generation in NumPy (O(1) dynamic Python dispatches)
+# Vectorized host cut generation in NumPy (O(1) dynamic python dispatches)
 num_pairs = num_routes // 2
 low = 1 if is_closed else 0
 high = (n_cities - 1) if is_closed else n_cities
@@ -959,7 +981,7 @@ cut2_np = np.repeat(end, 2)
 
 | Sampling Implementation | Host Execution Time ($N=256$) | Speedup vs. Serial Loop | Dominant Operation |
 | :--- | :---: | :---: | :--- |
-| **Serial Python Loop** (`rng.choice`) | **$1.220\text{ ms}$** ($1220\ \mu\text{s}$) | $1.0\times$ (Baseline) | CPython loop overhead, 128 allocations |
+| **Serial python Loop** (`rng.choice`) | **$1.220\text{ ms}$** ($1220\ \mu\text{s}$) | $1.0\times$ (Baseline) | CPython loop overhead, 128 allocations |
 | **Vectorized NumPy** (`c2 += c2 >= c1`) | **$0.017\text{ ms}$** ($17\ \mu\text{s}$) | **$71.8\times$ faster** | 2 C-level SIMD RNG draws + vectorized shift |
 
 Vectorized integer sampling reduces host cut generation overhead from $\approx 1.22\text{ ms}$ to $\approx 0.017\text{ ms}$ ($72\times$ faster). This brings host-side preparation time down to parity with the asynchronous CUDA driver kernel launch latency ($\approx 15\text{--}20\ \mu\text{s}$), completely eliminating the host Amdahl bottleneck.
@@ -1002,10 +1024,12 @@ else:
 > [!CAUTION]
 > **The Zero-Array Cache Poisoning Trap**:
 > If a test harness or warm-up script executes an untimed pass using a placeholder dummy array:
+>
 > ```python
 > warm_pop = cp.zeros((pop_size, n), dtype=cp.int32)
 > gpu_strategy.crossover_batch(warm_pop, context=warm_ctx)
 > ```
+>
 > 1. Because the entire array is filled with zeros, `warm_pop[0, 0] == 0` and `warm_pop[0, -1] == 0`.
 > 2. The equality check `first_0 == first_end` evaluates to `0 == 0`, which is **`True`**!
 > 3. The strategy incorrectly infers that the problem is a **closed tour** and commits `self._is_closed_cache = (n, True)`.

@@ -252,6 +252,7 @@ In row-major memory, vertical slices are separated by $n$ elements. Memory coale
 - But the array is stored horizontally by **row**! Reading vertically jumps across rows by stride $n$, completely destroying memory coalescing.
 
 #### Should you transpose the matrix to Column-Major?
+
 **NO!** Transposing an $(N, n)$ matrix costs extra memory allocations and takes valuable kernel execution time.
 
 #### The True Solution: Assign 1 Warp per Route!

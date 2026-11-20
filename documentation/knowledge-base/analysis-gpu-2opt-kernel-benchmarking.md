@@ -42,6 +42,34 @@ tags:
 
 # 2-Opt CUDA Kernel Implementations, Outer Loop Striding, and Benchmarking
 
+- [2-Opt CUDA Kernel Implementations, Outer Loop Striding, and Benchmarking](#2-opt-cuda-kernel-implementations-outer-loop-striding-and-benchmarking)
+  + [Table of Symbols](#table-of-symbols)
+  + [4. Strategy 2: Outer Loop Parallelization — Fixed Thread Count](#4-strategy-2-outer-loop-parallelization--fixed-thread-count)
+    - [4.1 Core Algorithm Structure (ANSWERS Q2, Q4)](#41-core-algorithm-structure-answers-q2-q4)
+    - [4.2 Work Distribution (Q5: Formula Connection)](#42-work-distribution-q5-formula-connection)
+    - [4.3 Execution Visualization (Q5: Annotated with Formulas)](#43-execution-visualization-q5-annotated-with-formulas)
+      + [**(i,j) Space Partitioning Grid**](#ij-space-partitioning-grid)
+      + [**Thread Execution Timeline**](#thread-execution-timeline)
+    - [4.3.1 Workload Imbalance and SIMT Execution Model (Warning #2 Answer)](#431-workload-imbalance-and-simt-execution-model-warning-2-answer)
+      + [4.3.1.1 Workload Imbalance Calculation](#4311-workload-imbalance-calculation)
+      + [4.3.1.2 SIMT Execution Model: Kernel Time = MAX(Thread Times)](#4312-simt-execution-model-kernel-time--maxthread-times)
+      + [4.3.1.3 Impact on Speedup Analysis](#4313-impact-on-speedup-analysis)
+      + [4.3.1.4 Shared Memory in Reduction (Critical for Performance)](#4314-shared-memory-in-reduction-critical-for-performance)
+      + [4.3.1.5 Summary: Workload Imbalance Trade-offs](#4315-summary-workload-imbalance-trade-offs)
+    - [4.4 Why 256 Threads? (Q4 ANSWER with Occupancy Formula)](#44-why-256-threads-q4-answer-with-occupancy-formula)
+      + [**Occupancy Architecture: Why 256 Threads?**](#occupancy-architecture-why-256-threads)
+    - [4.5 Complexity Analysis](#45-complexity-analysis)
+    - [4.6 Advantages and Disadvantages](#46-advantages-and-disadvantages)
+  + [6. Side-by-Side CUDA Code Comparison (Q2 COMPLETE ANSWER)](#6-side-by-side-cuda-code-comparison-q2-complete-answer)
+    - [6.1 Rocki Kernel: One Thread Per Pair](#61-rocki-kernel-one-thread-per-pair)
+    - [6.2 Our Kernel: Outer Loop Parallelization](#62-our-kernel-outer-loop-parallelization)
+    - [6.3 Core-Level Differences (Q2 DIRECT ANSWER)](#63-core-level-differences-q2-direct-answer)
+    - [6.4 Occupancy Calculation (Q2 Extension)](#64-occupancy-calculation-q2-extension)
+    - [6.5 Pseudocode Comparison](#65-pseudocode-comparison)
+    - [6.6 Why Outer Loop is Faster for Large $n\_{cities}$](#66-why-outer-loop-is-faster-for-large-n_cities)
+  + [7. Verified Codebase Kernel Anchors](#7-verified-codebase-kernel-anchors)
+  + [Suite Navigation \& Cross-References](#suite-navigation--cross-references)
+
 ## Table of Symbols
 
 The following standardized mathematical notation and architectural parameters are used consistently across all derivations, timing breakdowns, and performance models:
@@ -61,7 +89,7 @@ The following standardized mathematical notation and architectural parameters ar
 | $T_{\text{red,GPU}}$ | Parallel reduction latency on GPU | Block-level tree reduction latency in shared memory | $\mu\text{s}$ |
 | $T_{\text{red,CPU}}$ | Sequential reduction latency on CPU | Host evaluation latency of thread candidate array $\arg\min_{t} \Delta_{t}$ | $\mu\text{s}$ |
 | $T_{\text{PCIe}}$ | Host-device data transfer latency | Copy latency for candidate moves over PCIe 3.0 x16 bus | $\mu\text{s}$ |
-| $T_{\text{serial,scalar}}$ | Pure Python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
+| $T_{\text{serial,scalar}}$ | Pure python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
 | $T_{\text{serial,simd}}$ | Vectorized NumPy CPU 2-opt time | C-extension SIMD AVX2 vectorized execution time | $\text{ms}$ |
 | $S_{\text{GPU}}$ | $T_{\text{serial}} / T_{\text{exec}}$ | Speedup factor over CPU baseline | Dimensionless ratio |
 | $\text{Occ}_{\text{theoretical}}$ | Active Warps / Maximum Warps | Theoretical warp occupancy on the active SM | Dimensionless $\in [0, 1]$ |
@@ -194,7 +222,7 @@ Thread Assignment (by i column, thread_id = i mod 4):
   Thread 3: i ∈ {3, 7}  → 5+1 = 6 pairs   (columns 3, 7)
 
 Colored by thread assignment:
-  9  │ 0  1  2  3  0  1  2  3  
+  9  │ 0  1  2  3  0  1  2  3
   8  │ 0  1  2  3  0  1  2
   7  │ 0  1  2  3  0  1
   6  │ 0  1  2  3  0
@@ -281,7 +309,7 @@ Time Analysis (n_cities=3000):
   Compute phase: ~2000μs (4.5M evaluations across 256 threads)
   Reduction: ~5μs (O(log 256) = 8 steps with __syncthreads())
   Total: ~2005μs
-  
+
 Formula: T_outer_loop ≈ (n_cities²/2) / (block_size × GPU_throughput) + O(log block_size)
 ```
 
@@ -419,7 +447,7 @@ __shared__ int s_j_vals[256];
 **Why Shared Memory is Critical:**
 
 | Memory Type | Latency | Bandwidth | Speedup vs Global |
-|-------------|---------|-----------|-------------------|
+| ------------- | --------- | ----------- | ------------------- |
 | **Shared Memory** | 5-10 cycles | ~1 TB/s (on-chip) | Baseline |
 | **Global Memory** | 400-800 cycles | 112 GB/s (off-chip) | ~100× SLOWER |
 
@@ -475,6 +503,7 @@ __shared__ int s_j_vals[256];
 #### **Occupancy Architecture: Why 256 Threads?**
 
 Choosing $B = 256$ threads per block is grounded directly in the architectural resource constraints of the Pascal GP107:
+
 - **Warp Alignment**: $256$ threads form exactly $8$ warps ($256 / 32 = 8$).
 - **Warp Capacity**: Each GP107 SM accommodates up to $64$ active warps ($2{,}048$ active threads). A block of $256$ threads occupies $12.5\%$ of an SM's warp slots ($8 / 64$), permitting up to $8$ concurrent blocks per SM if registers and shared memory permit.
 - **Resource Sizing**: Allocating $3 \times 256 \times 4\text{ bytes} \approx 3\text{ KB}$ of shared memory leaves ample capacity within the $M_{\text{shared,block}} = 48\text{ KB}$ block limit and $M_{\text{shared,SM}} = 96\text{ KB}$ total SM capacity.
@@ -527,8 +556,8 @@ $$
 1. **Less parallelism than Rocki:** 256-way vs. 10,240-way (within single wave)
 2. **Serial inner loop:** Each thread has $O(n_{cities})$ serial work
 3. **Load imbalance:** Early threads (small $i$) do more work than later threads
-   - Thread 0: $i=0$ has $(n_{cities}-2)$ $j$ values, $i=256$ has $(n_{cities}-258)$ $j$ values
-   - Thread 255: $i=255$ has $(n_{cities}-257)$ $j$ values, $i=511$ has $(n_{cities}-513)$ $j$ values (less work)
+   + Thread 0: $i=0$ has $(n_{cities}-2)$ $j$ values, $i=256$ has $(n_{cities}-258)$ $j$ values
+   + Thread 255: $i=255$ has $(n_{cities}-257)$ $j$ values, $i=511$ has $(n_{cities}-513)$ $j$ values (less work)
 
 **When to use outer loop:**
 
@@ -703,7 +732,7 @@ __global__ void outer_loop_kernel(int *tour, float *dist, int n_cities) {
 ### 6.3 Core-Level Differences (Q2 DIRECT ANSWER)
 
 | Aspect | Rocki (2013) | This Work (Outer Loop) |
-|--------|-------------|------------------------|
+| -------- | ------------- | ------------------------ |
 | **Thread-to-Work Mapping** | `thread_id → (i,j)` via quadratic formula | `thread_id → i` positions, iterate over `j` |
 | **Parallelism Level** | Both loops parallel (all pairs) | Outer loop parallel, inner serial |
 | **Threads Launched** | $\frac{n_{\text{cities}}^2}{2}$ (variable with $n_{\text{cities}}$) | $B = 256$ (constant) |
@@ -750,7 +779,7 @@ $$
 **Rocki's Parallelization Pattern:**
 
 ```python
-# Python equivalent of Rocki's GPU approach
+# python equivalent of Rocki's GPU approach
 for each (i,j) pair IN PARALLEL:  # 4.5M parallel operations
     delta[i,j] = compute_delta(i, j)
 # Then separate reduction pass
@@ -760,7 +789,7 @@ best = reduce(delta)  # Find minimum
 **Our Parallelization Pattern:**
 
 ```python
-# Python equivalent of outer loop GPU approach
+# python equivalent of outer loop GPU approach
 for each i position IN PARALLEL (256 threads):
     thread_best = infinity
     for j from (i+2) to n_cities:  # Serial within thread
@@ -804,25 +833,26 @@ $$
 The mathematical and algorithmic models derived across this suite correspond directly to production device kernels in the repository:
 
 1. **Single-Start 2-Opt Kernel (`two_opt_kernel`)**:
-   - Location: `[two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu#L31)`
-   - Structure: Single block of $B = 256$ threads, cyclic striding over outer tour loop $i \in [1, n-2]$, shared memory reduction array `shared_best_delta[256]`, and host synchronization.
-   - Purpose: High-speed single-trajectory refinement for constructive heuristics and simulated annealing.
+   + Location: `[two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu#L31)`
+   + Structure: Single block of $B = 256$ threads, cyclic striding over outer tour loop $i \in [1, n-2]$, shared memory reduction array `shared_best_delta[256]`, and host synchronization.
+   + Purpose: High-speed single-trajectory refinement for constructive heuristics and simulated annealing.
 
 2. **Batch Multistart 2-Opt Kernel (`two_opt_batch_kernel`)**:
-   - Location: `[two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L103)`
-   - Structure: Multiprocessor grid where each block evaluates an independent tour trajectory from a population, sharing distance matrix access.
-   - Purpose: Population-wide local search refinement for Genetic Algorithms and parallel multistart.
+   + Location: `[two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L103)`
+   + Structure: Multiprocessor grid where each block evaluates an independent tour trajectory from a population, sharing distance matrix access.
+   + Purpose: Population-wide local search refinement for Genetic Algorithms and parallel multistart.
 
 3. **Multi-Move Disjoint 2-Opt Kernel (`two_opt_multi_move_batch_kernel`)**:
-   - Location: `[two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L81)`
-   - Structure: Simultaneously applies non-overlapping edge swaps across independent segments of the tour in a single iteration.
-   - Purpose: Accelerated convergence on very large instances ($n \ge 1{,}000$).
+   + Location: `[two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L81)`
+   + Structure: Simultaneously applies non-overlapping edge swaps across independent segments of the tour in a single iteration.
+   + Purpose: Accelerated convergence on very large instances ($n \ge 1{,}000$).
 
 ---
 
 ## Suite Navigation & Cross-References
 
 This document details device implementation and empirical benchmarks:
+
 - **Theoretical Performance Modeling**: Mathematical foundations and occupancy models in [analysis-gpu-2opt-performance-modeling.md](./analysis-gpu-2opt-performance-modeling.md).
 - **Parallel Architectures & Baselines**: Design taxonomy and serial baselines in [analysis-gpu-2opt-parallel-architectures.md](./analysis-gpu-2opt-parallel-architectures.md).
 - **Reduction Strategies & Thresholds**: Reduction latency and break-even boundaries in [analysis-gpu-2opt-reduction-strategies.md](./analysis-gpu-2opt-reduction-strategies.md).

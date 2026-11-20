@@ -34,22 +34,77 @@ tags:
 
 # ISO-Algorithmic Genetic Algorithm Variants: Validation Guide
 
----
-
-## Table of Contents
-
-0. [Parallel GA Taxonomy & Literature Context](#0-parallel-ga-taxonomy--literature-context)
-1. [Overview: ISO-Algorithmic Design](#1-overview-iso-algorithmic-design)
-2. [Variant 1: CPU Baseline](#2-variant-1-cpu-baseline)
-3. [Variant 2: HybridNaive (Bottleneck Demo)](#3-variant-2-hybridnaive-bottleneck-demo)
-4. [Variant 3: HybridOptimized (Batch Processing)](#4-variant-3-hybridoptimized-batch-processing)
-5. [Variant 4: FullGPU (Fujimoto Kernel)](#5-variant-4-fullgpu-fujimoto-kernel)
-6. [Validation Methodology](#6-validation-methodology)
-7. [Expected Performance Metrics](#7-expected-performance-metrics)
-8. [Memory Management Specifications](#8-memory-management-specifications)
-9. [References](#9-references)
-
----
+- [ISO-Algorithmic Genetic Algorithm Variants: Validation Guide](#iso-algorithmic-genetic-algorithm-variants-validation-guide)
+  + [0. Parallel GA Taxonomy \& Literature Context](#0-parallel-ga-taxonomy--literature-context)
+    - [0.1 Standard Parallel GA Models](#01-standard-parallel-ga-models)
+      + [Model 1: Master-Slave (Global Parallelization)](#model-1-master-slave-global-parallelization)
+      + [Model 2: Fine-Grained (Cellular/Diffusion Model)](#model-2-fine-grained-cellulardiffusion-model)
+      + [Model 3: Coarse-Grained (Island Model/Distributed GAs)](#model-3-coarse-grained-island-modeldistributed-gas)
+    - [0.2 ISO Variants Classification](#02-iso-variants-classification)
+    - [0.3 Relationship to Literature](#03-relationship-to-literature)
+  + [1. Overview: ISO-Algorithmic Design](#1-overview-iso-algorithmic-design)
+    - [1.1 Design Principle](#11-design-principle)
+    - [1.2 Shared Algorithmic Flow](#12-shared-algorithmic-flow)
+    - [1.3 Algorithm Specification](#13-algorithm-specification)
+    - [1.4 Theoretical Foundation](#14-theoretical-foundation)
+  + [2. Variant 1: CPU Baseline](#2-variant-1-cpu-baseline)
+    - [2.1 Implementation Details](#21-implementation-details)
+    - [2.2 Execution Flow](#22-execution-flow)
+    - [2.3 Memory Pattern](#23-memory-pattern)
+    - [2.4 Expected Performance](#24-expected-performance)
+    - [2.5 Validation Criteria](#25-validation-criteria)
+  + [3. Variant 2: HybridNaive (Bottleneck Demo)](#3-variant-2-hybridnaive-bottleneck-demo)
+    - [3.1 Implementation Details](#31-implementation-details)
+    - [3.2 Execution Flow](#32-execution-flow)
+    - [3.3 Memory Pattern](#33-memory-pattern)
+    - [3.4 Expected Performance](#34-expected-performance)
+    - [3.5 Validation Criteria](#35-validation-criteria)
+  + [4. Variant 3: HybridOptimized (Batch Processing)](#4-variant-3-hybridoptimized-batch-processing)
+    - [4.1 Implementation Details](#41-implementation-details)
+    - [4.2 Execution Flow](#42-execution-flow)
+    - [4.3 Memory Pattern](#43-memory-pattern)
+    - [4.4 Expected Performance](#44-expected-performance)
+    - [4.5 Validation Criteria](#45-validation-criteria)
+  + [5. Variant 4: FullGPU (Fujimoto Kernel)](#5-variant-4-fullgpu-fujimoto-kernel)
+    - [5.1 Implementation Details](#51-implementation-details)
+    - [5.2 Execution Flow](#52-execution-flow)
+    - [5.3 Memory Pattern](#53-memory-pattern)
+    - [5.4 Expected Performance](#54-expected-performance)
+    - [5.5 Validation Criteria](#55-validation-criteria)
+  + [6. Validation Methodology](#6-validation-methodology)
+    - [6.1 Academic Standards](#61-academic-standards)
+    - [6.2 Benchmark Instances](#62-benchmark-instances)
+    - [6.3 Validation Procedure](#63-validation-procedure)
+    - [6.4 Quality Metrics](#64-quality-metrics)
+  + [7. Expected Performance Metrics](#7-expected-performance-metrics)
+    - [7.1 Speedup Summary Table](#71-speedup-summary-table)
+    - [7.2 Memory Transfer Comparison (100 Generations)](#72-memory-transfer-comparison-100-generations)
+    - [7.3 Solution Quality Targets](#73-solution-quality-targets)
+  + [8. Memory Management Specifications](#8-memory-management-specifications)
+    - [8.1 VRAM Budget (GTX 1050 Mobile)](#81-vram-budget-gtx-1050-mobile)
+    - [8.2 Memory Breakdown by Variant](#82-memory-breakdown-by-variant)
+      + [HybridNaive](#hybridnaive)
+      + [HybridOptimized](#hybridoptimized)
+      + [FullGPU](#fullgpu)
+    - [8.3 Maximum Instance Size](#83-maximum-instance-size)
+  + [9. References](#9-references)
+    - [9.1 Core Algorithm Papers](#91-core-algorithm-papers)
+    - [9.0 Parallel GA Taxonomy](#90-parallel-ga-taxonomy)
+    - [9.2 GPU Programming References](#92-gpu-programming-references)
+    - [9.3 Genetic Algorithm Theory](#93-genetic-algorithm-theory)
+    - [9.4 Benchmark Standards](#94-benchmark-standards)
+    - [9.5 Parallelization Strategies](#95-parallelization-strategies)
+    - [9.6 Implementation References](#96-implementation-references)
+  + [Appendix A: Validation Checklist](#appendix-a-validation-checklist)
+    - [Pre-Implementation Checklist](#pre-implementation-checklist)
+    - [Runtime Validation Checklist](#runtime-validation-checklist)
+    - [Statistical Validation Checklist](#statistical-validation-checklist)
+    - [Quality Validation Checklist](#quality-validation-checklist)
+  + [Appendix B: Troubleshooting Guide](#appendix-b-troubleshooting-guide)
+    - [Issue: HybridNaive Slower Than CPU](#issue-hybridnaive-slower-than-cpu)
+    - [Issue: FullGPU Slower Than HybridOptimized](#issue-fullgpu-slower-than-hybridoptimized)
+    - [Issue: Solution Quality Differs Between Variants](#issue-solution-quality-differs-between-variants)
+    - [Issue: VRAM Overflow](#issue-vram-overflow)
 
 ## 0. Parallel GA Taxonomy & Literature Context
 
@@ -145,12 +200,12 @@ Migration every N generations
 
 Our implementations use a **Master-Slave hybrid** approach:
 
-| Variant             | Taxonomy        | Master (CPU)                          | Slave (GPU)                  |
-|---------------------|-----------------|---------------------------------------|------------------------------|
-| GeneticAlgorithmCPU | Sequential      | All operations                        | None                         |
-| HybridNaive         | Master-Slave    | Selection, Crossover, Mutation        | 2-opt (individual launches)  |
-| HybridOptimized     | Master-Slave    | Selection, Crossover, Mutation        | 2-opt (batch processing)     |
-| FullGPU             | GPU-Resident    | None (initialization + finalization) | Entire GA loop               |
+| Variant | Taxonomy | Master (CPU) | Slave (GPU) |
+| --------------------- | ----------------- | --------------------------------------- | ------------------------------ |
+| GeneticAlgorithmCPU | Sequential | All operations | None |
+| HybridNaive | Master-Slave | Selection, Crossover, Mutation | 2-opt (individual launches) |
+| HybridOptimized | Master-Slave | Selection, Crossover, Mutation | 2-opt (batch processing) |
+| FullGPU | GPU-Resident | None (initialization + finalization) | Entire GA loop |
 
 **Key Insight**: `FullGPU` does NOT fit standard taxonomy—it's a **GPU-resident algorithm** (Fujimoto 2011) where the entire population and GA loop remain on GPU. This is distinct from master-slave (which maintains population on CPU) and represents a fourth category: **accelerator-resident evolutionary algorithms**.
 
@@ -204,7 +259,7 @@ flowchart TD
     H --> I[Survival Selection]
     I --> B
     C -->|Yes| J[Return Best Solution]
-    
+
     style G fill:#ffcccc
 ```
 
@@ -216,13 +271,13 @@ The differentiation point between variants is strictly localized to the Local Se
 
 **CRITICAL**: All ISO variants use **identical genetic operators** to ensure algorithmic equivalence.
 
-| Component           | Algorithm                          | Reference                  | Complexity  |
-|---------------------|------------------------------------|----------------------------|-------------|
-| **Selection**       | Tournament Selection (k=2)         | Goldberg & Deb (1991)      | O(p)        |
-| **Crossover**       | Order Crossover (OX)               | Davis (1985)               | O(n)        |
-| **Mutation**        | Swap Mutation                      | Goldberg (1989)            | O(1)        |
-| **Local Search**    | **Best-Improvement 2-opt**         | Croes (1958)               | O(n²)       |
-| **Fitness**         | Tour Cost Calculation              | Direct distance sum        | O(n)        |
+| Component | Algorithm | Reference | Complexity |
+| --------------------- | ------------------------------------ | ---------------------------- | ------------- |
+| **Selection** | Tournament Selection (k=2) | Goldberg & Deb (1991) | O(p) |
+| **Crossover** | Order Crossover (OX) | Davis (1985) | O(n) |
+| **Mutation** | Swap Mutation | Goldberg (1989) | O(1) |
+| **Local Search** | **Best-Improvement 2-opt** | Croes (1958) | O(n²) |
+| **Fitness** | Tour Cost Calculation | Direct distance sum | O(n) |
 
 **Selection Details** (Tournament):
 
@@ -256,7 +311,7 @@ The differentiation point between variants is strictly localized to the Local Se
 for iteration in range(10):  # Fixed 10 iterations
     best_delta = 0.0
     best_i, best_j = -1, -1
-    
+
     # EXHAUSTIVE search for best swap
     for i in range(n-1):
         for j in range(i+2, n):
@@ -264,7 +319,7 @@ for iteration in range(10):  # Fixed 10 iterations
             if delta < best_delta:
                 best_delta = delta
                 best_i, best_j = i, j
-    
+
     # Apply best swap (if improvement found)
     if best_delta < 0:
         tour[best_i+1 : best_j+1] = reversed(tour[best_i+1 : best_j+1])
@@ -299,7 +354,7 @@ This makes 2-opt an ideal candidate for GPU acceleration **if memory transfers a
 
 ### 2.1 Implementation Details
 
-**File**: `genetic_algorithm_cpu.py`  
+**File**: `genetic_algorithm_cpu.py`
 **Class**: `GeneticAlgorithmCPU`
 
 **Key Characteristics**:
@@ -316,29 +371,29 @@ sequenceDiagram
     participant GA as GeneticAlgorithmCPU
     participant Strategy as TournamentSelection
     participant TwoOpt as CPU 2-opt
-    
+
     Main->>GA: evolve(context, customers, max_gen)
     GA->>GA: _initialize_population()
-    
+
     loop Each Generation
         GA->>GA: _select_parents(population, fitness)
         Note over GA: Uses TournamentSelection
-        
+
         GA->>GA: _create_offspring(population, parents)
         Note over GA: OrderCrossover + SwapMutation
-        
+
         GA->>TwoOpt: _improve_population(offspring)
-        
+
         loop For each of 256 tours
             TwoOpt->>TwoOpt: Sequential 2-opt (10 iterations)
             Note over TwoOpt: NumPy operations on CPU
         end
-        
+
         TwoOpt-->>GA: Improved offspring
         GA->>GA: _evaluate_population(offspring)
         GA->>GA: _survival_selection(pop + offspring)
     end
-    
+
     GA-->>Main: Best tour + stats
 ```
 
@@ -365,11 +420,11 @@ Total: ~267 KB (n=100), ~20 MB (n=1000)
 
 **Benchmark Results** (from `benchmark_chapter4_validation.py`):
 
-| Instance   | Cities | Time (s) | Gap to Optimal (%) | Improvement (%) |
-|------------|--------|----------|-------------------|-----------------|
-| kroA100    | 100    | ~15-25   | 5-10              | 40-50           |
-| lin318     | 318    | ~150-250 | 8-15              | 35-45           |
-| pr1002     | 1002   | ~2000+   | 12-20             | 30-40           |
+| Instance | Cities | Time (s) | Gap to Optimal (%) | Improvement (%) |
+| ------------ | -------- | ---------- | ------------------- | ----------------- |
+| kroA100 | 100 | ~15-25 | 5-10 | 40-50 |
+| lin318 | 318 | ~150-250 | 8-15 | 35-45 |
+| pr1002 | 1002 | ~2000+ | 12-20 | 30-40 |
 
 **Quality Expectation**: CPU variant should produce **identical solution quality** to GPU variants (ISO-algorithmic guarantee).
 
@@ -388,7 +443,7 @@ Total: ~267 KB (n=100), ~20 MB (n=1000)
 
 ### 3.1 Implementation Details
 
-**File**: `genetic_algorithm_hybrid_naive.py`  
+**File**: `genetic_algorithm_hybrid_naive.py`
 **Class**: `GeneticAlgorithmHybridNaive`
 
 **Purpose**: Demonstrate **memory transfer bottleneck** by using GPU inefficiently.
@@ -407,26 +462,26 @@ sequenceDiagram
     participant CPU as CPU Memory
     participant GPU as GPU Memory
     participant Kernel as 2-opt Kernel
-    
+
     GA->>GA: _improve_population(offspring)
-    
+
     loop For each of 256 tours
         GA->>CPU: tour_i (NumPy array)
         GA->>GPU: H2D Transfer tour_i
         Note over GA,GPU: 4n bytes per transfer
-        
+
         loop 10 2-opt iterations
             GA->>Kernel: Launch single-tour kernel
             Kernel->>Kernel: 2-opt improvement
             Note over Kernel: Shared memory: 4n + 24T bytes
             Kernel-->>GPU: Improved tour_i
         end
-        
+
         GA->>CPU: D2H Transfer tour_i
         Note over GPU,CPU: 4n bytes per transfer
         CPU-->>GA: Improved tour_i
     end
-    
+
     GA-->>GA: All 256 tours improved
 ```
 
@@ -535,9 +590,9 @@ The "bottleneck" is **relative** to HybridOptimized's batch processing, not abso
 
 - Not absolute slowdown vs CPU (that would indicate broken GPU code)
 - **Relative inefficiency** vs HybridOptimized due to:
-  - 2,560 kernel launches per generation (overhead)
-  - 20.48 MB transfers per generation (bandwidth waste)
-  - vs HybridOptimized: 10 launches, 2.048 MB transfers
+  + 2,560 kernel launches per generation (overhead)
+  + 20.48 MB transfers per generation (bandwidth waste)
+  + vs HybridOptimized: 10 launches, 2.048 MB transfers
 
 ❌ **Actual Failures** (indicates bugs):
 
@@ -551,7 +606,7 @@ The "bottleneck" is **relative** to HybridOptimized's batch processing, not abso
 
 ### 4.1 Implementation Details
 
-**File**: `genetic_algorithm_hybrid_optimized.py`  
+**File**: `genetic_algorithm_hybrid_optimized.py`
 **Class**: `GeneticAlgorithmHybridOptimized`
 
 **Purpose**: Demonstrate **proper GPU optimization** via batch processing and kernel chaining.
@@ -571,30 +626,30 @@ sequenceDiagram
     participant CPU as CPU Memory
     participant GPU as GPU Memory
     participant Kernel as Batch 2-opt Kernel
-    
+
     GA->>GA: _improve_population(offspring)
-    
+
     GA->>CPU: All 256 tours (NumPy array)
     Note over CPU: Shape: (256, n) int32
-    
+
     GA->>GPU: H2D Transfer (SINGLE BATCH)
     Note over GA,GPU: 256 × 4n bytes in one transfer
-    
+
     loop 10 2-opt iterations
         GA->>Kernel: Launch batch kernel
         Note over Kernel: Grid: 256 blocks<br/>Block: min(256, n-2) threads
-        
+
         par For each block (tour)
             Kernel->>Kernel: Parallel 2-opt
             Note over Kernel: Each thread checks<br/>different swap pairs
         end
-        
+
         Kernel-->>GPU: All 256 improved tours
     end
-    
+
     GA->>CPU: D2H Transfer (SINGLE BATCH)
     Note over GPU,CPU: 256 × 4n bytes in one transfer
-    
+
     CPU-->>GA: All 256 tours improved
 ```
 
@@ -684,7 +739,7 @@ Actual measured (from benchmarks): ~500x-1,000x
 
 ### 5.1 Implementation Details
 
-**File**: `genetic_algorithm_full_gpu_iso.py`  
+**File**: `genetic_algorithm_full_gpu_iso.py`
 **Class**: `GeneticAlgorithmFullGPU`
 
 **Purpose**: Implement **Fujimoto's full-GPU genetic algorithm** with minimal memory transfers.
@@ -703,15 +758,15 @@ sequenceDiagram
     participant CPU as CPU Memory
     participant GPU as GPU Memory
     participant Kernel as ga_fujimoto.cu
-    
+
     GA->>GA: evolve(context, customers, max_gen)
-    
+
     GA->>GPU: H2D Transfer distances
     Note over GA,GPU: n² × 8 bytes (ONE-TIME)
-    
+
     GA->>Kernel: Launch Fujimoto GA kernel
     Note over Kernel: Grid: 256 blocks (tours)<br/>Block: 256 threads
-    
+
     loop max_generations (on GPU)
         par GPU-Resident Operations
             Kernel->>Kernel: Tournament Selection
@@ -721,14 +776,14 @@ sequenceDiagram
             Kernel->>Kernel: Fitness Evaluation
             Kernel->>Kernel: Survival Selection
         end
-        
+
         Note over Kernel: NO CPU communication!
     end
-    
+
     Kernel-->>GPU: Best tour found
     GA->>CPU: D2H Transfer best tour only
     Note over GPU,CPU: n × 4 bytes (ONE-TIME)
-    
+
     CPU-->>GA: Final solution
 ```
 
@@ -771,11 +826,11 @@ Total VRAM: ~12 MB (0.46% of 2.6 GB limit)
 
 **Transfer Overhead Comparison**:
 
-| Variant         | H2D (MB/gen) | D2H (MB/gen) | Total (100 gen) |
-|-----------------|--------------|--------------|-----------------|
-| HybridNaive     | 10.24        | 10.24        | 2,048 MB        |
-| HybridOptimized | 1.024        | 1.024        | 205 MB          |
-| **FullGPU**     | **0**        | **0**        | **8.66 MB**     |
+| Variant | H2D (MB/gen) | D2H (MB/gen) | Total (100 gen) |
+| ----------------- | -------------- | -------------- | ----------------- |
+| HybridNaive | 10.24 | 10.24 | 2,048 MB |
+| HybridOptimized | 1.024 | 1.024 | 205 MB |
+| **FullGPU** | **0** | **0** | **8.66 MB** |
 
 **Expected Performance**:
 
@@ -844,11 +899,11 @@ n_max = int(sqrt(max_vram_gb * 1e9 / 8))  # Distance matrix dominates
 
 **Source**: TSPLIB [@reinelt1991tsplib]
 
-| Instance | Cities | Optimal Cost | Edge Type | Notes                    |
-|----------|--------|--------------|-----------|--------------------------|
-| kroA100  | 100    | 21,282       | EUC_2D    | Small instance baseline  |
-| lin318   | 318    | 42,029       | EUC_2D    | Medium instance          |
-| pr1002   | 1,002  | 259,045      | EUC_2D    | Large instance (scaling) |
+| Instance | Cities | Optimal Cost | Edge Type | Notes |
+| ---------- | -------- | -------------- | ----------- | -------------------------- |
+| kroA100 | 100 | 21,282 | EUC_2D | Small instance baseline |
+| lin318 | 318 | 42,029 | EUC_2D | Medium instance |
+| pr1002 | 1,002 | 259,045 | EUC_2D | Large instance (scaling) |
 
 ### 6.3 Validation Procedure
 
@@ -859,13 +914,13 @@ n_max = int(sqrt(max_vram_gb * 1e9 / 8))  # Distance matrix dominates
 for seed in range(5):
     np.random.seed(seed)
     tour_cpu, _ = ga_cpu.evolve(context, customers, 10)
-    
+
     np.random.seed(seed)
     tour_gpu, _ = ga_hybrid_opt.evolve(context, customers, 10)
-    
+
     cost_cpu = calculate_tour_cost(tour_cpu, distances)
     cost_gpu = calculate_tour_cost(tour_gpu, distances)
-    
+
     assert abs(cost_cpu - cost_gpu) < 1e-6, "ISO-algorithmic violation!"
 ```
 
@@ -883,7 +938,7 @@ results = {
 
 for rep in range(30):
     tour, stats = algorithm.evolve(context, customers, max_gen)
-    
+
     results["times"].append(stats["elapsed"])
     results["gaps"].append((cost - optimal) / optimal * 100)
     results["h2d_bytes"].append(stats["h2d_bytes"])
@@ -936,23 +991,23 @@ if friedman_result["reject_null"]:
 
 ### 7.1 Speedup Summary Table
 
-| Variant         | kroA100 (n=100) | lin318 (n=318) | pr1002 (n=1002) | Notes                          |
-|-----------------|-----------------|----------------|-----------------|--------------------------------|
-| CPU (Baseline)  | 1.0x            | 1.0x           | 1.0x            | 15-25s, 150-250s, 2000+ s      |
-| HybridNaive     | **3-8x**        | **5-10x**      | **10-15x**      | SLOWER than HybridOptimized    |
-| HybridOptimized | **500x**        | **1,000x**     | **3,000x**      | Fujimoto-level batch           |
-| FullGPU         | 300x            | 800x           | **5,000x**      | Best for large n               |
+| Variant | kroA100 (n=100) | lin318 (n=318) | pr1002 (n=1002) | Notes |
+| ----------------- | ----------------- | ---------------- | ----------------- | -------------------------------- |
+| CPU (Baseline) | 1.0x | 1.0x | 1.0x | 15-25s, 150-250s, 2000+ s |
+| HybridNaive | **3-8x** | **5-10x** | **10-15x** | SLOWER than HybridOptimized |
+| HybridOptimized | **500x** | **1,000x** | **3,000x** | Fujimoto-level batch |
+| FullGPU | 300x | 800x | **5,000x** | Best for large n |
 
 *Note*: Speedups are **expected ranges** based on literature [@fujimoto2011highly] and hardware characteristics. Actual results may vary by ±20%.
 
 ### 7.2 Memory Transfer Comparison (100 Generations)
 
-| Variant         | H2D (MB) | D2H (MB) | Total (MB) | Kernel Launches |
-|-----------------|----------|----------|------------|-----------------|
-| CPU             | 0        | 0        | 0          | 0               |
-| HybridNaive     | 1,024    | 1,024    | 2,048      | 256,000         |
-| HybridOptimized | 102      | 102      | 204        | 1,000           |
-| FullGPU         | 8.66     | 0.004    | 8.66       | 1               |
+| Variant | H2D (MB) | D2H (MB) | Total (MB) | Kernel Launches |
+| ----------------- | ---------- | ---------- | ------------ | ----------------- |
+| CPU | 0 | 0 | 0 | 0 |
+| HybridNaive | 1,024 | 1,024 | 2,048 | 256,000 |
+| HybridOptimized | 102 | 102 | 204 | 1,000 |
+| FullGPU | 8.66 | 0.004 | 8.66 | 1 |
 
 *Instance*: pr1002 (n=1002 cities)
 
@@ -961,10 +1016,10 @@ if friedman_result["reject_null"]:
 All variants should achieve **identical quality** (ISO-algorithmic guarantee):
 
 | Instance | Optimal | Expected Gap | Expected Cost | Standard Deviation |
-|----------|---------|--------------|---------------|--------------------|
-| kroA100  | 21,282  | 3-7%         | 21,920-22,772 | ±500               |
-| lin318   | 42,029  | 5-10%        | 44,130-46,232 | ±1,200             |
-| pr1002   | 259,045 | 8-15%        | 279,769-297,902| ±5,000             |
+| ---------- | --------- | -------------- | --------------- | -------------------- |
+| kroA100 | 21,282 | 3-7% | 21,920-22,772 | ±500 |
+| lin318 | 42,029 | 5-10% | 44,130-46,232 | ±1,200 |
+| pr1002 | 259,045 | 8-15% | 279,769-297,902 | ±5,000 |
 
 **Validation**: If any variant produces significantly different costs (>2%), the ISO-algorithmic guarantee is violated (implementation bug).
 
@@ -1057,49 +1112,49 @@ max_n = int(sqrt(2.6e9 / 8))  # 2.6 GB / 8 bytes
 
 ### 9.0 Parallel GA Taxonomy
 
-17. **Cantú-Paz, E. (1998)**. A Survey of Parallel Genetic Algorithms. *Calculateurs Paralleles, Reseaux et Systems Repartis*, 10(2), 141-171. [@cantuPaz1998survey]
+ 1. **Cantú-Paz, E. (1998)**. A Survey of Parallel Genetic Algorithms. *Calculateurs Paralleles, Reseaux et Systems Repartis*, 10(2), 141-171. [@cantuPaz1998survey]
 
-18. **Cantú-Paz, E. (2000)**. *Efficient and Accurate Parallel Genetic Algorithms*. Kluwer Academic Publishers. [@cantuPaz2000efficient]
+ 2. **Cantú-Paz, E. (2000)**. *Efficient and Accurate Parallel Genetic Algorithms*. Kluwer Academic Publishers. [@cantuPaz2000efficient]
 
-19. **Alba, E., & Tomassini, M. (2002)**. *Parallelism and Evolutionary Algorithms*. IEEE Transactions on Evolutionary Computation, 6(5), 443-462. [@alba2002parallelism]
+ 3. **Alba, E., & Tomassini, M. (2002)**. *Parallelism and Evolutionary Algorithms*. IEEE Transactions on Evolutionary Computation, 6(5), 443-462. [@alba2002parallelism]
 
-20. **Luque, G., & Alba, E. (2011)**. *Parallel Genetic Algorithms: Theory and Real World Applications*. Springer. [@luque2011parallel]
+ 4. **Luque, G., & Alba, E. (2011)**. *Parallel Genetic Algorithms: Theory and Real World Applications*. Springer. [@luque2011parallel]
 
 ### 9.2 GPU Programming References
 
-4. **Kirk, D. B., & Hwu, W. M. (2010)**. *Programming Massively Parallel Processors: A Hands-on Approach* (1st ed.). Morgan Kaufmann. [@kirk2010programming]
+1. **Kirk, D. B., & Hwu, W. M. (2010)**. *Programming Massively Parallel Processors: A Hands-on Approach* (1st ed.). Morgan Kaufmann. [@kirk2010programming]
 
-5. **NVIDIA Corporation (2024)**. *CUDA C++ Best Practices Guide* (Version 13.0). [@nvidia2024cuda]
+2. **NVIDIA Corporation (2024)**. *CUDA C++ Best Practices Guide* (Version 13.0). [@nvidia2024cuda]
 
-6. **Harris, M. (2007)**. *Optimizing Parallel Reduction in CUDA*. NVIDIA Developer Technology. [@harris2007optimizing]
+3. **Harris, M. (2007)**. *Optimizing Parallel Reduction in CUDA*. NVIDIA Developer Technology. [@harris2007optimizing]
 
 ### 9.3 Genetic Algorithm Theory
 
-7. **Goldberg, D. E. (1989)**. *Genetic Algorithms in Search, Optimization, and Machine Learning*. Addison-Wesley. [@goldberg1989genetic]
+1. **Goldberg, D. E. (1989)**. *Genetic Algorithms in Search, Optimization, and Machine Learning*. Addison-Wesley. [@goldberg1989genetic]
 
-8. **Eiben, A. E., & Smith, J. E. (2015)**. *Introduction to Evolutionary Computing* (2nd ed.). Springer. [@eiben2015introduction]
+2. **Eiben, A. E., & Smith, J. E. (2015)**. *Introduction to Evolutionary Computing* (2nd ed.). Springer. [@eiben2015introduction]
 
-9. **Larrañaga, P., et al. (1999)**. Genetic algorithms for the travelling salesman problem: A review of representations and operators. *Artificial Intelligence Review*, 13(2), 129-170. [@larranaga1999genetic]
+3. **Larrañaga, P., et al. (1999)**. Genetic algorithms for the travelling salesman problem: A review of representations and operators. *Artificial Intelligence Review*, 13(2), 129-170. [@larranaga1999genetic]
 
 ### 9.4 Benchmark Standards
 
-10. **Reinelt, G. (1991)**. TSPLIB—A Traveling Salesman Problem Library. *ORSA Journal on Computing*, 3(4), 376-384. [@reinelt1991tsplib]
+ 1. **Reinelt, G. (1991)**. TSPLIB—A Traveling Salesman Problem Library. *ORSA Journal on Computing*, 3(4), 376-384. [@reinelt1991tsplib]
 
-11. **Cook, W. J. (2012)**. *In Pursuit of the Traveling Salesman: Mathematics at the Limits of Computation*. Princeton University Press. [@cook2012pursuit]
+ 2. **Cook, W. J. (2012)**. *In Pursuit of the Traveling Salesman: Mathematics at the Limits of Computation*. Princeton University Press. [@cook2012pursuit]
 
 ### 9.5 Parallelization Strategies
 
-12. **Alba, E. (2005)**. *Parallel Metaheuristics: A New Class of Algorithms*. John Wiley & Sons. [@alba2005parallel]
+ 1. **Alba, E. (2005)**. *Parallel Metaheuristics: A New Class of Algorithms*. John Wiley & Sons. [@alba2005parallel]
 
-13. **Crainic, T. G., & Toulouse, M. (2010)**. Parallel meta-heuristics. *Handbook of Metaheuristics*, 497-541. Springer. [@crainic2010parallel]
+ 2. **Crainic, T. G., & Toulouse, M. (2010)**. Parallel meta-heuristics. *Handbook of Metaheuristics*, 497-541. Springer. [@crainic2010parallel]
 
-14. **Flynn, M. J. (1972)**. Some Computer Organizations and Their Effectiveness. *IEEE Transactions on Computers*, C-21(9), 948-960. [@flynn1972some]
+ 3. **Flynn, M. J. (1972)**. Some Computer Organizations and Their Effectiveness. *IEEE Transactions on Computers*, C-21(9), 948-960. [@flynn1972some]
 
 ### 9.6 Implementation References
 
-15. **Okuta, R., et al. (2017)**. CuPy: A NumPy-compatible library for NVIDIA GPU calculations. *Proceedings of Workshop on Machine Learning Systems (LearningSys) in NIPS*. [@okuta2017cupy]
+ 1. **Okuta, R., et al. (2017)**. CuPy: A NumPy-compatible library for NVIDIA GPU calculations. *Proceedings of Workshop on Machine Learning Systems (LearningSys) in NIPS*. [@okuta2017cupy]
 
-16. **PEP 544 (2017)**. Protocols: Structural subtyping (static duck typing). Python Software Foundation. [@pep544]
+ 2. **PEP 544 (2017)**. Protocols: Structural subtyping (static duck typing). python Software Foundation. [@pep544]
 
 ---
 

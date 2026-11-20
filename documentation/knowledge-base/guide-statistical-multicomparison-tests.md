@@ -43,36 +43,36 @@ tags:
 # Multi-Comparison Tests: Friedman, Nemenyi, and Error-Control Procedures
 
 - [Multi-Comparison Tests: Friedman, Nemenyi, and Error-Control Procedures](#multi-comparison-tests-friedman-nemenyi-and-error-control-procedures)
-  - [1. Multiplicity and the Family-Wise Error Rate (FWER)](#1-multiplicity-and-the-family-wise-error-rate-fwer)
+  + [1. Multiplicity and the Family-Wise Error Rate (FWER)](#1-multiplicity-and-the-family-wise-error-rate-fwer)
     - [1.1 The Multiplicity Dilemma](#11-the-multiplicity-dilemma)
     - [1.2 Mathematical Derivation of FWER Inflation](#12-mathematical-derivation-of-fwer-inflation)
     - [1.3 Why Not Run Unadjusted Pairwise $t$-Tests?](#13-why-not-run-unadjusted-pairwise-t-tests)
-  - [2. The Friedman Omnibus Test: Non-Parametric Repeated-Measures ANOVA](#2-the-friedman-omnibus-test-non-parametric-repeated-measures-anova)
+  + [2. The Friedman Omnibus Test: Non-Parametric Repeated-Measures ANOVA](#2-the-friedman-omnibus-test-non-parametric-repeated-measures-anova)
     - [2.1 Why Friedman? The "Multi-Paired" Architecture](#21-why-friedman-the-multi-paired-architecture)
     - [2.2 Two-Way Randomized Block Formulation](#22-two-way-randomized-block-formulation)
-    - [2.3 Derivation of the Friedman Test Statistic ($\chi_F^2$)](#23-derivation-of-the-friedman-test-statistic-chi_f2)
-    - [2.4 Iman and Davenport's $F_F$ Correction: Overcoming Conservative Bias](#24-iman-and-davenports-f_f-correction-overcoming-conservative-bias)
+    - [2.3 Derivation of the Friedman Test Statistic ($\\chi\_F^2$)](#23-derivation-of-the-friedman-test-statistic-chi_f2)
+    - [2.4 Iman and Davenport's $F\_F$ Correction: Overcoming Conservative Bias](#24-iman-and-davenports-f_f-correction-overcoming-conservative-bias)
     - [2.5 Kendall's Coefficient of Concordance ($W$)](#25-kendalls-coefficient-of-concordance-w)
-  - [3. Post-Hoc All-Pairs Evaluation: The Nemenyi Test](#3-post-hoc-all-pairs-evaluation-the-nemenyi-test)
+  + [3. Post-Hoc All-Pairs Evaluation: The Nemenyi Test](#3-post-hoc-all-pairs-evaluation-the-nemenyi-test)
     - [3.1 Derivation of the Critical Difference ($CD$)](#31-derivation-of-the-critical-difference-cd)
     - [3.2 Standard Error of Rank Differences](#32-standard-error-of-rank-differences)
-    - [3.3 Tukey's Studentized Range $q_\alpha$ Scaling Factor](#33-tukeys-studentized-range-q_alpha-scaling-factor)
+    - [3.3 Tukey's Studentized Range $q\_\\alpha$ Scaling Factor](#33-tukeys-studentized-range-q_alpha-scaling-factor)
     - [3.4 Working Example: $N = 38, k = 4$ ($CD = 0.761$)](#34-working-example-n--38-k--4-cd--0761)
-  - [4. Post-Hoc Comparison Against a Control: Dunn's Test with Holm Step-Down](#4-post-hoc-comparison-against-a-control-dunns-test-with-holm-step-down)
+  + [4. Post-Hoc Comparison Against a Control: Dunn's Test with Holm Step-Down](#4-post-hoc-comparison-against-a-control-dunns-test-with-holm-step-down)
     - [4.1 Why All-Pairs Nemenyi Sacrifices Power](#41-why-all-pairs-nemenyi-sacrifices-power)
     - [4.2 Dunn's Procedure for Control Benchmarks ($k - 1 = 3$ Comparisons)](#42-dunns-procedure-for-control-benchmarks-k---1--3-comparisons)
-    - [4.3 Holm Step-Down Algorithm ($p_{(i)} \le \alpha / (m - i + 1)$)](#43-holm-step-down-algorithm-p_i-le-alpha--m---i--1)
-  - [5. False Discovery Rate (FDR): Benjamini-Hochberg Procedure](#5-false-discovery-rate-fdr-benjamini-hochberg-procedure)
+    - [4.3 Holm Step-Down Algorithm ($p\_{(i)} \\le \\alpha / (m - i + 1)$)](#43-holm-step-down-algorithm-p_i-le-alpha--m---i--1)
+  + [5. False Discovery Rate (FDR): Benjamini-Hochberg Procedure](#5-false-discovery-rate-fdr-benjamini-hochberg-procedure)
     - [5.1 FWER vs. FDR: Philosophy and Trade-Offs](#51-fwer-vs-fdr-philosophy-and-trade-offs)
     - [5.2 The Benjamini-Hochberg (1995) Algorithm](#52-the-benjamini-hochberg-1995-algorithm)
     - [5.3 Application to Extensive Benchmark Grids](#53-application-to-extensive-benchmark-grids)
-  - [6. Critical Difference (CD) Diagrams: Interpretation and Construction](#6-critical-difference-cd-diagrams-interpretation-and-construction)
-    - [6.1 The Mathematical Invariance of Rank Sums: $\sum R_j = k(k+1)/2$](#61-the-mathematical-invariance-of-rank-sums-sum-r_j--kk12)
+  + [6. Critical Difference (CD) Diagrams: Interpretation and Construction](#6-critical-difference-cd-diagrams-interpretation-and-construction)
+    - [6.1 The Mathematical Invariance of Rank Sums: $\\sum R\_j = k(k+1)/2$](#61-the-mathematical-invariance-of-rank-sums-sum-r_j--kk12)
     - [6.2 Visual Grammar of Clique Bars](#62-visual-grammar-of-clique-bars)
     - [6.3 Publication CD Diagram for TSPLIB ($N = 38, k = 4$)](#63-publication-cd-diagram-for-tsplib-n--38-k--4)
-  - [7. Comprehensive Comparative Protocol Matrix](#7-comprehensive-comparative-protocol-matrix)
-  - [8. Python Scientific Implementation with `scikit-posthocs`](#8-python-scientific-implementation-with-scikit-posthocs)
-  - [9. Academic References](#9-academic-references)
+  + [7. Comprehensive Comparative Protocol Matrix](#7-comprehensive-comparative-protocol-matrix)
+  + [8. python Scientific Implementation with `scikit-posthocs`](#8-python-scientific-implementation-with-scikit-posthocs)
+  + [9. Academic References](#9-academic-references)
 
 ---
 
@@ -420,7 +420,7 @@ CD = 0.761 (N = 38, k = 4, alpha = 0.05)
   1.0       1.35      1.85           2.95           3.85      4.0
 ───┼──────────┼─────────┼──────────────┼──────────────┼────────┼───► Rank (Lower is Better)
              [HybridOpt] [FullGPU]      [HybridNaive]   [CPU]
-   
+
              |---------| (Diff = 0.50 <= CD -> Connected!)
              ===========
 ```
@@ -465,7 +465,7 @@ def run_multicomparison_benchmark(
 ) -> Dict[str, Any]:
     """
     Executes complete Tier-2 multi-comparison testing across problem instances.
-    
+
     Parameters:
         results_matrix: DataFrame of shape (N_instances, k_algorithms).
         control_column: Baseline algorithm name for control comparisons.
@@ -474,39 +474,39 @@ def run_multicomparison_benchmark(
     N, k = results_matrix.shape
     assert k >= 3, "Friedman requires at least 3 algorithms."
     assert N >= 10, "Reliable ranks require at least 10 problem instances."
-    
+
     # 1. Compute Average Ranks
     # Ascending ranks: 1 = lowest runtime/cost (best)
     ranks = results_matrix.rank(axis=1, ascending=True)
     mean_ranks = ranks.mean(axis=0).to_dict()
-    
+
     # Verify rank sum invariance: sum(R_j) == k*(k+1)/2
     theoretical_rank_sum = k * (k + 1) / 2.0
     actual_rank_sum = sum(mean_ranks.values())
     assert np.isclose(actual_rank_sum, theoretical_rank_sum), "Rank sum violation!"
-    
+
     # 2. Friedman Omnibus Test
     stat_friedman, p_friedman = stats.friedmanchisquare(
         *[results_matrix[col] for col in results_matrix.columns]
     )
-    
+
     # 3. Iman-Davenport F_F Correction
     f_f_stat = ((N - 1) * stat_friedman) / (N * (k - 1) - stat_friedman)
     df1 = k - 1
     df2 = (k - 1) * (N - 1)
     p_iman_davenport = 1.0 - stats.f.cdf(f_f_stat, df1, df2)
-    
+
     # 4. Kendall's W Effect Size
     kendalls_w = stat_friedman / (N * (k - 1))
-    
+
     # 5. Nemenyi Post-Hoc All-Pairs Test
     # Calculate exact CD
     q_tukey = stats.studentized_range.ppf(1 - alpha, k, np.inf)
     q_alpha = q_tukey / np.sqrt(2.0)
     critical_distance = q_alpha * np.sqrt((k * (k + 1)) / (6.0 * N))
-    
+
     nemenyi_matrix = sp.posthoc_nemenyi_friedman(results_matrix)
-    
+
     # 6. Dunn's Post-Hoc vs Control with Holm Adjustment
     dunn_matrix = sp.posthoc_dunn(
         results_matrix.melt(var_name='algorithm', value_name='score'),
@@ -515,7 +515,7 @@ def run_multicomparison_benchmark(
         p_adjust='holm'
     )
     control_comparisons = dunn_matrix[control_column].drop(control_column).to_dict()
-    
+
     return {
         "problem_instances_N": N,
         "algorithms_k": k,

@@ -38,53 +38,53 @@ tags:
 ## Table of Contents
 
 - [Genetic Algorithm Hyperparameter Tuning and Performance Benchmarks for Routing Problems](#genetic-algorithm-hyperparameter-tuning-and-performance-benchmarks-for-routing-problems)
-  - [Table of Contents](#table-of-contents)
-  - [1. Executive Summary](#1-executive-summary)
+  + [Table of Contents](#table-of-contents)
+  + [1. Executive Summary](#1-executive-summary)
     - [1.1 Purpose](#11-purpose)
     - [1.2 Key Findings](#12-key-findings)
     - [1.3 Quick Fix Recommendations](#13-quick-fix-recommendations)
-  - [2. Problem Statement: Current GA Performance Gap](#2-problem-statement-current-ga-performance-gap)
+  + [2. Problem Statement: Current GA Performance Gap](#2-problem-statement-current-ga-performance-gap)
     - [2.1 Observed Performance Issues](#21-observed-performance-issues)
     - [2.2 Academic Context: What is "Acceptable" GA Performance?](#22-academic-context-what-is-acceptable-ga-performance)
     - [2.3 Comparison: GA vs SA (Apples to Apples)](#23-comparison-ga-vs-sa-apples-to-apples)
-  - [3. Theoretical Foundation](#3-theoretical-foundation)
+  + [3. Theoretical Foundation](#3-theoretical-foundation)
     - [3.1 Genetic Algorithm Components](#31-genetic-algorithm-components)
     - [3.2 Hyperparameter Influence on Convergence](#32-hyperparameter-influence-on-convergence)
-  - [3.3 Interaction Effects](#33-interaction-effects)
-  - [4. Hyperparameter Tuning Guidelines](#4-hyperparameter-tuning-guidelines)
+  + [3.3 Interaction Effects](#33-interaction-effects)
+  + [4. Hyperparameter Tuning Guidelines](#4-hyperparameter-tuning-guidelines)
     - [4.1 Problem-Size Dependent Scaling](#41-problem-size-dependent-scaling)
     - [4.2 Strategy-Specific Tuning](#42-strategy-specific-tuning)
-  - [5. Tuning Methodology](#5-tuning-methodology)
+  + [5. Tuning Methodology](#5-tuning-methodology)
     - [5.1 Systematic Tuning Approach (Not Trial-and-Error)](#51-systematic-tuning-approach-not-trial-and-error)
     - [5.2 Adaptive Parameter Control (Advanced)](#52-adaptive-parameter-control-advanced)
     - [5.3 Validation Against Academic Benchmarks](#53-validation-against-academic-benchmarks)
-  - [6. Expected Performance Benchmarks](#6-expected-performance-benchmarks)
+  + [6. Expected Performance Benchmarks](#6-expected-performance-benchmarks)
     - [6.1 Quality Benchmarks by Problem Tier](#61-quality-benchmarks-by-problem-tier)
     - [6.2 Convergence Patterns](#62-convergence-patterns)
     - [6.3 Computational Budget Analysis](#63-computational-budget-analysis)
-  - [7. VRAM Analysis and Problem Size Limitations](#7-vram-analysis-and-problem-size-limitations)
+  + [7. VRAM Analysis and Problem Size Limitations](#7-vram-analysis-and-problem-size-limitations)
     - [7.1 Memory Requirements per Individual](#71-memory-requirements-per-individual)
     - [7.2 Maximum Problem Size Calculation](#72-maximum-problem-size-calculation)
     - [7.3 VRAM-Constrained Configuration Table](#73-vram-constrained-configuration-table)
-  - [8. Recommended Configurations](#8-recommended-configurations)
+  + [8. Recommended Configurations](#8-recommended-configurations)
     - [8.1 Quick Reference Table](#81-quick-reference-table)
-    - [8.2 Configuration Examples (Python Code)](#82-configuration-examples-python-code)
+    - [8.2 Configuration Examples (python Code)](#82-configuration-examples-python-code)
     - [8.3 Benchmark-Specific Configurations](#83-benchmark-specific-configurations)
-  - [9. Implementation Checklist](#9-implementation-checklist)
+  + [9. Implementation Checklist](#9-implementation-checklist)
     - [9.1 Immediate Actions (Quick Wins)](#91-immediate-actions-quick-wins)
     - [9.2 Benchmark Validation](#92-benchmark-validation)
     - [9.3 Configuration Management](#93-configuration-management)
     - [9.4 Documentation Updates](#94-documentation-updates)
     - [9.5 Testing and Validation](#95-testing-and-validation)
     - [9.6 Future Enhancements](#96-future-enhancements)
-  - [10. References](#10-references)
+  + [10. References](#10-references)
     - [10.1 Core GA Theory and Foundations](#101-core-ga-theory-and-foundations)
     - [10.2 Hybrid GA and Local Search Integration](#102-hybrid-ga-and-local-search-integration)
     - [10.3 Empirical Studies and Benchmarking](#103-empirical-studies-and-benchmarking)
     - [10.4 Classical Local Search Methods](#104-classical-local-search-methods)
     - [10.5 Additional TSP/VRP References (from refs.bib)](#105-additional-tspvrp-references-from-refsbib)
     - [10.6 Benchmark Datasets](#106-benchmark-datasets)
-  - [11. Appendix: Glossary of Terms](#11-appendix-glossary-of-terms)
+  + [11. Appendix: Glossary of Terms](#11-appendix-glossary-of-terms)
 
 ---
 
@@ -105,7 +105,7 @@ This document provides:
 **Critical Performance Gaps Identified:**
 
 | Aspect | Current Implementation | Academic Best Practice | Impact | Reference |
-|--------|------------------------|------------------------|--------|-----------|
+| -------- | ------------------------ | ------------------------ | -------- | ----------- |
 | **Population Size** | 60 | 100-1200 (problem-dependent) | Insufficient genetic diversity → premature convergence | @goldberg1989genetic |
 | **Max Generations** | 1000 | 2000-5000+ | Early termination before convergence | @lima2018hybrid |
 | **2-opt Iterations** | 10 | 50-200+ | Inadequate local search refinement | @fujimoto2011highly |
@@ -173,7 +173,7 @@ improvement_strategy = TwoOptSimpleStrategy(
 **Quality Metrics (Gap to Best-Known Solution):**
 
 | Problem Size | Acceptable Gap | Excellent Gap | World-Class Gap |
-|--------------|----------------|---------------|-----------------|
+| -------------- | ---------------- | --------------- | ----------------- |
 | Tiny (< 100 nodes) | < 5% | < 2% | < 1% |
 | Small (100-300) | < 10% | < 5% | < 2% |
 | Medium (300-1000) | < 15% | < 8% | < 3% |
@@ -201,7 +201,7 @@ improvement_strategy = TwoOptSimpleStrategy(
 **Current Unfair Comparison:**
 
 | Algorithm | Effective Evaluations | Quality | Runtime |
-|-----------|----------------------|---------|---------|
+| ----------- | ---------------------- | --------- | --------- |
 | **SA** | 200,000 iterations | **Good** (12.6% improvement on ch150) | 7.3s |
 | **GA** | 60,000 (60 pop × 1000 gen) | **Poor** | ~30s |
 
@@ -369,7 +369,7 @@ $$
 **Examples**:
 
 | Mutation Rate | Preserve 10-city subsequence | Preserve 20-city subsequence |
-|---------------|------------------------------|------------------------------|
+| --------------- | ------------------------------ | ------------------------------ |
 | $p_m = 0.01$ | 90.4% | 81.8% |
 | $p_m = 0.05$ | 59.9% | 35.8% |
 | $p_m = 0.10$ | 34.9% | **12.2%** ← **Destroys good patterns!** |
@@ -401,7 +401,7 @@ $$
 **Academic Comparison** (@eiben2015introduction):
 
 | Selection Method | Convergence Speed | Diversity Maintenance | Best For |
-|------------------|-------------------|----------------------|----------|
+| ------------------ | ------------------- | ---------------------- | ---------- |
 | Tournament (k=3) | Medium | High | Balanced search |
 | Tournament (k=7) | Fast | Low | Final refinement |
 | Roulette Wheel | Slow | Very High | Early exploration |
@@ -439,7 +439,7 @@ Elitism consistently improves convergence speed by 10-30% without sacrificing so
 **Performance Comparison** (@vidal2013hybrid):
 
 | Algorithm Type | berlin52 Gap | kroA100 Gap | ch150 Gap |
-|----------------|--------------|-------------|-----------|
+| ---------------- | -------------- | ------------- | ----------- |
 | Pure GA (no 2-opt) | 15-20% | 18-25% | 20-30% |
 | GA + 2-opt (10 iter) | 8-12% | 10-15% | 12-18% |
 | GA + 2-opt (50 iter) | 3-6% | 5-9% | 7-12% |
@@ -464,7 +464,7 @@ Elitism consistently improves convergence speed by 10-30% without sacrificing so
 **Example** (200k evaluation budget):
 
 | Configuration | Population | Generations | Expected Performance | Reference |
-|---------------|------------|-------------|----------------------|-----------|
+| --------------- | ------------ | ------------- | ---------------------- | ----------- |
 | A (Too Small) | 40 | 5000 | ❌ Poor (low diversity) | @goldberg1989genetic |
 | B (Balanced) | 100 | 2000 | ✅ Good | @lima2018hybrid |
 | C (Balanced) | 200 | 1000 | ✅ Good | @vidal2013hybrid |
@@ -522,7 +522,7 @@ Examples:
 **Scaling Laws** (derived from academic literature):
 
 | Parameter | Formula | Justification |
-|-----------|---------|---------------|
+| ----------- | --------- | --------------- |
 | **Population Size** | $N_{pop} = \max(50, 10\sqrt{n})$ | @goldberg1989genetic diversity requirement |
 | **Max Generations** | $G_{max} = \max(1000, 20n)$ | Empirical convergence time (@prins2004simple) |
 | **Crossover Rate** | $p_c = 0.85$ | Constant (@eiben2015introduction) |
@@ -533,7 +533,7 @@ Examples:
 **Examples by Problem Tier** (academic consensus):
 
 | Tier | n (cities) | $N_{pop}$ | $G_{max}$ | $p_c$ | $p_m$ | $I_{2opt}$ | $E$ | Total Evals |
-|------|------------|-----------|-----------|-------|-------|------------|-----|-------------|
+| ------ | ------------ | ----------- | ----------- | ------- | ------- | ------------ | ----- | ------------- |
 | **Tiny** | 50 | 70 | 1000 | 0.85 | 0.05 | 70 | 1 | 70k |
 | **Small** | 100 | 100 | 2000 | 0.85 | 0.03 | 50 | 2 | 200k |
 | **Medium** | 300 | 170 | 6000 | 0.85 | 0.017 | 30 | 3 | 1.02M |
@@ -561,7 +561,7 @@ $$
 **Selection Strategies:**
 
 | Strategy | Configuration | Best For |
-|----------|---------------|----------|
+| ---------- | --------------- | ---------- |
 | **Tournament** | k=3 | Balanced (default) |
 | **Tournament** | k=5-7 | Exploitation (large problems) |
 | **Roulette Wheel** | fitness scaling | Exploration (early search) |
@@ -570,7 +570,7 @@ $$
 **Crossover Operators:**
 
 | Operator | TSP Performance | CVRP Performance | Notes | Reference |
-|----------|-----------------|------------------|-------|-----------|
+| ---------- | ----------------- | ------------------ | ------- | ----------- |
 | **Order Crossover (OX)** | ✅ Excellent | ✅ Excellent | Standard choice | @larranaga1999genetic |
 | **Partially Mapped (PMX)** | ✅ Good | ✅ Good | Alternative to OX | @goldberg1989genetic |
 | **Cycle Crossover (CX)** | ⚠️ Fair | ⚠️ Fair | Preserves absolute positions | @eiben2015introduction |
@@ -590,7 +590,7 @@ OX preserves relative order of cities (critical for TSP), while PMX preserves ab
 **Mutation Operators:**
 
 | Operator | Disruption Level | Best For | Reference |
-|----------|------------------|----------|-----------|
+| ---------- | ------------------ | ---------- | ----------- |
 | **Swap** | Low | Exploitation (current implementation ✓) | @larranaga1999genetic |
 | **Inversion** | Medium | Balanced exploration | @eiben2015introduction |
 | **Insertion** | Medium-High | Diversification | @eiben2015introduction |
@@ -610,7 +610,7 @@ For hybrid GAs with 2-opt local search, **Swap** is preferred because local sear
 **Improvement Strategies (2-opt):**
 
 | Strategy | Description | Complexity | Recommended Iterations | Reference |
-|----------|-------------|------------|------------------------|-----------|
+| ---------- | ------------- | ------------ | ------------------------ | ----------- |
 | **2-opt Simple (CPU)** | Sequential best improvement | O(n²) per iteration | 50-100 | @croes1958method |
 | **2-opt GPU** | Parallel best improvement | O(n²/P) per iteration | 20-50 (faster per iteration) | @fujimoto2011highly |
 | **Random 2-opt** | Random move selection | O(1) per iteration | 100-500 | @eglese1990simulated |
@@ -622,7 +622,7 @@ For hybrid GAs with 2-opt local search, **Swap** is preferred because local sear
 Fujimoto & Tsutsui's GPU implementation on TSP:
 
 | Problem | Pure GA Gap | GA + 2-opt (10 iter) | GA + 2-opt (50 iter) | GA + 2-opt (200 iter) |
-|---------|-------------|----------------------|----------------------|-----------------------|
+| --------- | ------------- | ---------------------- | ---------------------- | ----------------------- |
 | berlin52 | 18.2% | 9.4% | 3.8% | 2.1% |
 | kroA100 | 21.5% | 12.6% | 6.3% | 4.2% |
 | ch150 | 24.8% | 15.1% | 8.7% | 6.5% |
@@ -638,12 +638,12 @@ Fujimoto & Tsutsui's GPU implementation on TSP:
 **Phase 1: Baseline Establishment**
 
 1. **Fix all parameters to defaults**:
-   - $N_{pop} = 100$, $G_{max} = 2000$, $p_c = 0.85$, $p_m = 0.02$, $I_{2opt} = 50$
+   + $N_{pop} = 100$, $G_{max} = 2000$, $p_c = 0.85$, $p_m = 0.02$, $I_{2opt} = 50$
 2. **Run 10 independent trials** on each benchmark instance
 3. **Record metrics**:
-   - Best cost, Average cost, Standard deviation
-   - Convergence generation (when best solution was found)
-   - Runtime
+   + Best cost, Average cost, Standard deviation
+   + Convergence generation (when best solution was found)
+   + Runtime
 
 **Phase 2: Population Size Tuning**
 
@@ -655,8 +655,8 @@ Fujimoto & Tsutsui's GPU implementation on TSP:
 **Phase 3: Crossover/Mutation Rate Tuning**
 
 1. **Test grid**:
-   - $p_c \in \{0.7, 0.8, 0.9\}$
-   - $p_m \in \{0.01, 0.02, 0.05\}$
+   + $p_c \in \{0.7, 0.8, 0.9\}$
+   + $p_m \in \{0.01, 0.02, 0.05\}$
 2. **Use optimal population** from Phase 2
 3. **Select optimal pair** $(p_c^*, p_m^*)$
 
@@ -664,8 +664,8 @@ Fujimoto & Tsutsui's GPU implementation on TSP:
 
 1. **Test range**: $I_{2opt} \in \{0, 10, 25, 50, 100, 200\}$
 2. **Measure**:
-   - Quality improvement vs runtime trade-off
-   - Diminishing returns threshold
+   + Quality improvement vs runtime trade-off
+   + Diminishing returns threshold
 3. **Select optimal** based on quality/runtime Pareto front
 
 **Phase 5: Final Validation**
@@ -730,7 +730,7 @@ When diversity is high ($f_{avg}$ far from $f_{max}$), increase crossover to exp
 **Standard Benchmark Instances**:
 
 | Source | Instance | Cities (n) | Optimal/Best-Known | Type |
-|--------|----------|------------|---------------------|------|
+| -------- | ---------- | ------------ | --------------------- | ------ |
 | **TSPLIB** | berlin52 | 52 | 7542 | TSP |
 | **TSPLIB** | eil76 | 76 | 538 | TSP |
 | **TSPLIB** | kroA100 | 100 | 21282 | TSP |
@@ -774,7 +774,7 @@ $$
 **Tiny Problems (n < 100)**
 
 | Metric | Without 2-opt | With 2-opt (50 iter) | With 2-opt (100 iter) |
-|--------|---------------|----------------------|-----------------------|
+| -------- | --------------- | ---------------------- | ----------------------- |
 | **Gap to Optimal** | 8-15% | 3-8% | 2-5% |
 | **Convergence Generation** | 500-800 | 300-600 | 250-500 |
 | **Runtime (berlin52)** | 2-5s | 10-20s | 20-40s |
@@ -782,7 +782,7 @@ $$
 **Small Problems (100 < n < 300)**
 
 | Metric | Without 2-opt | With 2-opt (50 iter) | With 2-opt (100 iter) |
-|--------|---------------|----------------------|-----------------------|
+| -------- | --------------- | ---------------------- | ----------------------- |
 | **Gap to Best-Known** | 12-20% | 5-12% | 3-8% |
 | **Convergence Generation** | 800-1500 | 500-1200 | 400-1000 |
 | **Runtime (kroA100)** | 10-30s | 60-120s | 120-240s |
@@ -790,7 +790,7 @@ $$
 **Medium Problems (300 < n < 1000)**
 
 | Metric | Without 2-opt | With 2-opt (30 iter) | With 2-opt (50 iter) |
-|--------|---------------|----------------------|----------------------|
+| -------- | --------------- | ---------------------- | ---------------------- |
 | **Gap to Best-Known** | 15-25% | 8-15% | 5-10% |
 | **Convergence Generation** | 2000-4000 | 1500-3000 | 1200-2500 |
 | **Runtime (n=500)** | 60-180s | 300-600s | 500-900s |
@@ -798,7 +798,7 @@ $$
 **Large Problems (1000 < n < 3000)**
 
 | Metric | Without 2-opt | With 2-opt (15 iter) | With 2-opt (30 iter) |
-|--------|---------------|----------------------|----------------------|
+| -------- | --------------- | ---------------------- | ---------------------- |
 | **Gap to Best-Known** | 20-30% | 10-18% | 8-12% |
 | **Convergence Generation** | 5000-10000 | 3000-7000 | 2500-6000 |
 | **Runtime (n=2000)** | 300-900s | 1200-2400s | 2000-4000s |
@@ -806,7 +806,7 @@ $$
 **Very Large Problems (3000 < n < 10000)** - **VRAM Limited**
 
 | Metric | Without 2-opt | With 2-opt (10 iter) | Notes |
-|--------|---------------|----------------------|-------|
+| -------- | --------------- | ---------------------- | ------- |
 | **Gap to Best-Known** | 25-40% | 15-25% | VRAM constraints |
 | **Convergence Generation** | 10000-30000 | 7000-20000 | Partial convergence |
 | **Runtime (n=5000)** | 1800-3600s | 3600-7200s | 1-2 hours |
@@ -880,7 +880,7 @@ $$
 **Comparison with SA**:
 
 | Algorithm | Configuration | Effective Evaluations | Expected Gap (kroA100) |
-|-----------|---------------|----------------------|------------------------|
+| ----------- | --------------- | ---------------------- | ------------------------ |
 | **SA** | 200k iterations, Random2Opt | ≈200k | 12-18% |
 | **GA (poor)** | pop=60, gen=1000, no 2-opt | 60k | 25-35% |
 | **GA (fair)** | pop=100, gen=2000, no 2-opt | 200k | 10-15% |
@@ -967,7 +967,7 @@ $$
 ### 7.3 VRAM-Constrained Configuration Table
 
 | Problem Size (n) | Max $N_{pop}$ (GPU) | Recommended $N_{pop}$ | Strategy |
-|------------------|---------------------|----------------------|----------|
+| ------------------ | --------------------- | ---------------------- | ---------- |
 | 50-100 | Unlimited | 70-100 | GPU (distance matrix fits) |
 | 100-500 | Unlimited | 100-220 | GPU (optimal range) |
 | 500-1000 | ~50,000 | 250-320 | GPU (plenty of headroom) |
@@ -987,7 +987,7 @@ $$
 **Recommended Hyperparameters by Problem Tier** (with 2-opt local search):
 
 | Tier | n (cities) | $N_{pop}$ | $G_{max}$ | $p_c$ | $p_m$ | $I_{2opt}$ | Expected Gap | Expected Runtime |
-|------|------------|-----------|-----------|-------|-------|------------|--------------|------------------|
+| ------ | ------------ | ----------- | ----------- | ------- | ------- | ------------ | -------------- | ------------------ |
 | **Tiny** | 50-100 | 100 | 2000 | 0.85 | 0.02 | 50 | 2-5% | 30-120s |
 | **Small** | 100-300 | 150 | 3000 | 0.85 | 0.02 | 40 | 3-8% | 120-600s |
 | **Medium** | 300-1000 | 250 | 6000 | 0.85 | 0.015 | 30 | 5-10% | 600-3600s |
@@ -997,13 +997,13 @@ $$
 **Without 2-opt local search** (pure GA):
 
 | Tier | n (cities) | $N_{pop}$ | $G_{max}$ | Expected Gap | Expected Runtime |
-|------|------------|-----------|-----------|--------------|------------------|
+| ------ | ------------ | ----------- | ----------- | -------------- | ------------------ |
 | **Tiny** | 50-100 | 150 | 3000 | 8-15% | 10-30s |
 | **Small** | 100-300 | 200 | 5000 | 12-20% | 30-120s |
 | **Medium** | 300-1000 | 300 | 10000 | 15-25% | 120-600s |
 | **Large** | 1000-3000 | 500 | 20000 | 20-30% | 600-3600s |
 
-### 8.2 Configuration Examples (Python Code)
+### 8.2 Configuration Examples (python Code)
 
 **Tiny Problems (berlin52, eil76)**:
 
@@ -1109,7 +1109,7 @@ def run_ga_instance(seed):
         improvement_strategy=TwoOptSimpleStrategy(max_iterations=10),
         backend="numpy"  # CPU backend
     )
-    
+
     ga.set_params(
         population_size=500,
         max_generations=20000,
@@ -1117,7 +1117,7 @@ def run_ga_instance(seed):
         mutation_rate=0.01,
         elitism_count=10
     )
-    
+
     # Run with different random seed
     np.random.seed(seed)
     tour, stats = ga.build_tour_with_stats(context, customers)
@@ -1203,6 +1203,7 @@ config_E_n22_k4 = {
 ### 9.1 Immediate Actions (Quick Wins)
 
 - [ ] **Update default hyperparameters** in `genetic_algorithm.py`:
+
   ```python
   self._hyperparams = {
       "population_size": 150,  # Was: 60
@@ -1214,12 +1215,14 @@ config_E_n22_k4 = {
   ```
 
 - [ ] **Update 2-opt default iterations** in improvement strategies:
+
   ```python
   # In TwoOptSimpleStrategy, TwoOptGPUStrategy
   self.max_iterations = 50  # Was: 10
   ```
 
 - [ ] **Add early stopping criterion**:
+
   ```python
   if generations_without_improvement > 0.1 * max_generations:
       break
@@ -1230,19 +1233,19 @@ config_E_n22_k4 = {
 ### 9.2 Benchmark Validation
 
 - [ ] **Run baseline tests** on TSPLIB benchmarks:
-  - berlin52, eil76, kroA100, ch150
-  - 10 independent trials per instance
-  - Record: best cost, avg cost, std dev, runtime
+  + berlin52, eil76, kroA100, ch150
+  + 10 independent trials per instance
+  + Record: best cost, avg cost, std dev, runtime
 
 - [ ] **Compare with literature**:
-  - Prins (2004): Table 2 results
-  - Vidal (2013): Table 3 results
-  - Lima et al. (2018): Table 2 results
+  + Prins (2004): Table 2 results
+  + Vidal (2013): Table 3 results
+  + Lima et al. (2018): Table 2 results
 
 - [ ] **Document performance gaps**:
-  - Create performance report with gap analysis
-  - Identify instances where GA underperforms
-  - Investigate root causes (convergence, diversity, etc.)
+  + Create performance report with gap analysis
+  + Identify instances where GA underperforms
+  + Investigate root causes (convergence, diversity, etc.)
 
 ### 9.3 Configuration Management
 
@@ -1256,6 +1259,7 @@ config_E_n22_k4 = {
   ```
 
 - [ ] **Add configuration validator**:
+
   ```python
   def validate_ga_config(config, problem_size):
       """Validate GA configuration against problem size."""
@@ -1266,6 +1270,7 @@ config_E_n22_k4 = {
   ```
 
 - [ ] **Add VRAM usage estimator**:
+
   ```python
   def estimate_vram_usage(problem_size, population_size):
       """Estimate VRAM usage for GPU execution."""
@@ -1278,22 +1283,23 @@ config_E_n22_k4 = {
 ### 9.4 Documentation Updates
 
 - [ ] **Update `genetic_algorithm.py` docstring** with:
-  - New default hyperparameters
-  - Recommended configurations by problem tier
-  - Reference to this tuning guide
+  + New default hyperparameters
+  + Recommended configurations by problem tier
+  + Reference to this tuning guide
 
 - [ ] **Add to `QUICK_START.md`**:
-  - Section on GA configuration
-  - Example: "How to tune GA for your problem size"
+  + Section on GA configuration
+  + Example: "How to tune GA for your problem size"
 
 - [ ] **Update `first_draft.md`** (TCC thesis):
-  - Section 3.X: Genetic Algorithm Implementation
-  - Section 4.X: Hyperparameter Tuning Methodology
-  - Section 5.X: Performance Benchmarks
+  + Section 3.X: Genetic Algorithm Implementation
+  + Section 4.X: Hyperparameter Tuning Methodology
+  + Section 5.X: Performance Benchmarks
 
 ### 9.5 Testing and Validation
 
 - [ ] **Create GA-specific tests**:
+
   ```python
   # code/tests/integration/test_ga_tuning.py
   def test_population_size_scaling():
@@ -1301,22 +1307,23 @@ config_E_n22_k4 = {
       for n in [50, 100, 200, 500]:
           expected_pop = max(50, 10 * np.sqrt(n))
           # Test that GA performs well with this population size
-  
+
   def test_convergence_behavior():
       """Verify GA converges within expected generations."""
       # Monitor convergence curve, check 3-phase pattern
-  
+
   def test_vram_limits():
       """Verify GPU execution respects VRAM limits."""
       # Test maximum problem size without OOM errors
   ```
 
 - [ ] **Add benchmark regression tests**:
+
   ```python
   # Ensure GA performance doesn't degrade
   def test_berlin52_quality():
       assert gap_to_optimal < 0.05  # 5% tolerance
-  
+
   def test_kroA100_quality():
       assert gap_to_optimal < 0.08  # 8% tolerance
   ```
@@ -1324,19 +1331,19 @@ config_E_n22_k4 = {
 ### 9.6 Future Enhancements
 
 - [ ] **Implement adaptive parameter control** (optional):
-  - Adaptive mutation rate
-  - Adaptive population size
-  - Diversity-based restart mechanism
+  + Adaptive mutation rate
+  + Adaptive population size
+  + Diversity-based restart mechanism
 
 - [ ] **GPU parallelization of population evaluation** (Phase 7+):
-  - Parallel fitness evaluation
-  - GPU-accelerated crossover/mutation operators
-  - Coalesced memory access patterns
+  + Parallel fitness evaluation
+  + GPU-accelerated crossover/mutation operators
+  + Coalesced memory access patterns
 
 - [ ] **Hybrid metaheuristics** (research direction):
-  - GA + Tabu Search
-  - GA + Simulated Annealing
-  - GA + Ant Colony Optimization
+  + GA + Tabu Search
+  + GA + Simulated Annealing
+  + GA + Ant Colony Optimization
 
 ---
 
@@ -1424,19 +1431,19 @@ See `documentation/refs.bib` for complete BibTeX entries:
 ### 10.6 Benchmark Datasets
 
 - **TSPLIB95**: <http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/>
-  - Standard TSP benchmark instances (berlin52, kroA100, ch150, etc.)
-  - Optimal solutions known for validation
+  + Standard TSP benchmark instances (berlin52, kroA100, ch150, etc.)
+  + Optimal solutions known for validation
 
 - **Christofides CVRP Benchmarks**: <http://vrp.atd-lab.inf.puc-rio.br/index.php/en/>
-  - Capacitated VRP instances with known best solutions
-  - Used by @prins2004simple and @vidal2013hybrid for validation
+  + Capacitated VRP instances with known best solutions
+  + Used by @prins2004simple and @vidal2013hybrid for validation
 
 ---
 
 ## 11. Appendix: Glossary of Terms
 
 | Term | Definition |
-|------|------------|
+| ------ | ------------ |
 | **Gap** | Percentage difference between GA solution and best-known solution: $(GA - BKS) / BKS \times 100\%$ |
 | **Convergence Generation** | Generation number where best solution was found |
 | **Effective Evaluations** | Total fitness evaluations including local search: $N_{pop} \times G_{max} \times (1 + I_{2opt} \times n)$ |

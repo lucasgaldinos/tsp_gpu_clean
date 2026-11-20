@@ -51,25 +51,25 @@ tags:
 # Genetic and Memetic Algorithms: Theoretical Lineage, Operators, and Parallel Taxonomy
 
 - [Genetic and Memetic Algorithms: Theoretical Lineage, Operators, and Parallel Taxonomy](#genetic-and-memetic-algorithms-theoretical-lineage-operators-and-parallel-taxonomy)
-  - [1. Historical and Theoretical Foundations](#1-historical-and-theoretical-foundations)
+  + [1. Historical and Theoretical Foundations](#1-historical-and-theoretical-foundations)
     - [1.1 Holland (1975) and the Schema Theorem](#11-holland-1975-and-the-schema-theorem)
     - [1.2 Goldberg (1989) and the Building Block Hypothesis](#12-goldberg-1989-and-the-building-block-hypothesis)
     - [1.3 The Permutation Barrier and Combinatorial Representations](#13-the-permutation-barrier-and-combinatorial-representations)
-  - [2. Mathematical Formulation of Permutation TSP Operators](#2-mathematical-formulation-of-permutation-tsp-operators)
+  + [2. Mathematical Formulation of Permutation TSP Operators](#2-mathematical-formulation-of-permutation-tsp-operators)
     - [2.1 The Traveling Salesperson Problem on Permutation Spaces](#21-the-traveling-salesperson-problem-on-permutation-spaces)
     - [2.2 Tournament Selection ($k$-Way Tournament)](#22-tournament-selection-k-way-tournament)
     - [2.3 Order Crossover (OX)](#23-order-crossover-ox)
     - [2.4 Mutation Operators: Swap and Inversion](#24-mutation-operators-swap-and-inversion)
     - [2.5 Survival Selection: $(\mu + \lambda)$ Elitism](#25-survival-selection-mu--lambda-elitism)
-  - [3. The Memetic Algorithm Paradigm (Moscato, 1989)](#3-the-memetic-algorithm-paradigm-moscato-1989)
+  + [3. The Memetic Algorithm Paradigm (Moscato, 1989)](#3-the-memetic-algorithm-paradigm-moscato-1989)
     - [3.1 Dawkins' Meme and Moscato's Hybridization Insight](#31-dawkins-meme-and-moscatos-hybridization-insight)
     - [3.2 Lamarckian vs Baldwinian Adaptation](#32-lamarckian-vs-baldwinian-adaptation)
     - [3.3 Fitness Landscape Smoothing via Local Search](#33-fitness-landscape-smoothing-via-local-search)
     - [3.4 Placement of Local Search in the Evolutionary Lifecycle](#34-placement-of-local-search-in-the-evolutionary-lifecycle)
-  - [4. Parallel Metaheuristic Taxonomy (Crainic-Toulouse)](#4-parallel-metaheuristic-taxonomy-crainic-toulouse)
+  + [4. Parallel Metaheuristic Taxonomy (Crainic-Toulouse)](#4-parallel-metaheuristic-taxonomy-crainic-toulouse)
     - [4.1 The Three-Level Classification](#41-the-three-level-classification)
     - [4.2 Codebase Architectural Mapping](#42-codebase-architectural-mapping)
-  - [5. Academic References](#5-academic-references)
+  + [5. Academic References](#5-academic-references)
 
 ---
 
@@ -82,6 +82,7 @@ Genetic Algorithms (GAs) belong to the class of population-based stochastic opti
 The formal mathematical foundation of genetic algorithms was established by **John H. Holland (1975)** in *Adaptation in Natural and Artificial Systems*. Holland modeled individuals as fixed-length bit-strings $\mathbf{x} \in \{0, 1\}^\ell$.
 
 To explain how simple selection, crossover, and mutation find high-quality solutions, Holland introduced the concept of a **schema** (plural *schemata*): a template string over the ternary alphabet $\{0, 1, *\}$, where the asterisk $*$ is a wildcard matching either $0$ or $1$.
+
 - **Schema Order $o(H)$:** The number of fixed positions (non-$*$) in schema $H$.
 - **Defining Length $\delta(H)$:** The physical distance between the first and last fixed positions in $H$.
 
@@ -90,6 +91,7 @@ Holland's **Fundamental Theorem of Genetic Algorithms (Schema Theorem)** bounds 
 $$\mathbb{E}[m(H, t+1)] \ge m(H, t) \cdot \frac{f(H, t)}{\bar{f}(t)} \left[ 1 - p_c \frac{\delta(H)}{\ell - 1} - o(H) p_m \right]$$
 
 where:
+
 - $f(H, t)$ is the average fitness of individuals exemplifying schema $H$ at generation $t$;
 - $\bar{f}(t)$ is the mean fitness of the entire population;
 - $p_c$ is the single-point crossover probability;
@@ -139,6 +141,7 @@ Tournament selection exerts tunable selection pressure without requiring global 
 
 **Mathematical Definition:**
 Given population $P_t = \{ \pi_1, \dots, \pi_N \}$ of size $N$, and tournament size $k \in \{2, \dots, N\}$ (configured in our codebase as `tournament_size = 5`):
+
 1. **Uniform Sampling:** Draw a random subset $S \subseteq P_t$ of $k$ individuals sampled uniformly at random with replacement:
    $$S = \{ s_1, s_2, \dots, s_k \}, \quad \text{where } s_i \sim \mathcal{U}(P_t)$$
 2. **Deterministic Winner Selection:** Return the candidate in $S$ with minimal objective cost:
@@ -184,6 +187,7 @@ Offspring (χ): [ 6 | 2   3   4 | 5   1   8   7 ]
 
 **Formal Operator Formulation:**
 Let $\pi^1$ and $\pi^2$ be two parent permutations.
+
 1. **Cut Points:** Sample two cut indices uniformly at random such that $0 \le c_1 < c_2 < n$.
 2. **Phase 1 (Segment Inheritance):** The offspring $\chi$ inherits the contiguous sub-tour between $c_1$ and $c_2$ directly from parent $\pi^1$:
    $$\forall k \in [c_1, c_2], \quad \chi(k) = \pi^1(k)$$
@@ -220,10 +224,12 @@ Mutation prevents irreversible allele loss and ensures ergodic reachability acro
 Implemented in the core generation step of [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py#L389) via `_select_survivors`.
 
 Originating in the Evolution Strategies literature ([Schwefel, 1981](#5-academic-references)), the $(\mu + \lambda)$ selection scheme provides strict elitist survival:
+
 - $\mu$: Parent population size ($|P_t| = \mu$).
 - $\lambda$: Offspring population size generated in generation $t$ ($|Q_t| = \lambda$).
 
 **Mathematical Execution:**
+
 1. **Pool Union:** Merge parents and offspring into a joint pool $U_t$:
    $$U_t = P_t \cup Q_t, \quad |U_t| = \mu + \lambda$$
 2. **Monotonic Fitness Sorting:** Sort all individuals in $U_t$ in non-decreasing order of cost:
@@ -250,6 +256,7 @@ In 1989, **Pablo Moscato** published the seminal work:
 > *"On Evolution, Search, Optimization, Rough Landscapes and All That Towards a Hierarchy of Complexity"* (Caltech Concurrent Computation Program, C3P Report 826).
 
 Moscato coined the term **Memetic Algorithm (MA)** by drawing an analogy to evolutionary biologist **Richard Dawkins' (1976)** concept of a **meme** in *The Selfish Gene*:
+
 - While a *gene* is a unit of biological information transmitted passively from parent to offspring via reproduction,
 - A *meme* is a unit of cultural transmission (an idea, technique, or behavior) that undergoes active learning, imitation, adaptation, and conscious refinement by an individual during its own lifetime.
 
@@ -275,15 +282,15 @@ Parent B ───┘                                        │
 When an individual's tour $\pi$ is improved by local search (such as 2-opt) to produce an optimized tour $\pi_{\text{opt}}$ with cost $f(\pi_{\text{opt}}) < f(\pi)$, evolutionary computing recognizes two distinct philosophical paradigms:
 
 1. **Lamarckian Evolution (Jean-Baptiste Lamarck):**
-   - The improvements acquired during an individual's lifetime are directly written back into its genetic representation.
-   - **Genotype Update:** $\pi \leftarrow \pi_{\text{opt}}$.
-   - **Fitness Update:** $f(\pi) \leftarrow f(\pi_{\text{opt}})$.
-   - *Result in Codebase:* The optimized tour array is stored back into the population buffer `routes`. Offspring inherit the optimized edges directly.
+   + The improvements acquired during an individual's lifetime are directly written back into its genetic representation.
+   + **Genotype Update:** $\pi \leftarrow \pi_{\text{opt}}$.
+   + **Fitness Update:** $f(\pi) \leftarrow f(\pi_{\text{opt}})$.
+   + *Result in Codebase:* The optimized tour array is stored back into the population buffer `routes`. Offspring inherit the optimized edges directly.
 2. **Baldwinian Evolution (James Mark Baldwin, 1896):**
-   - Learned improvements adjust the individual's fitness, but the underlying genotype remains unaltered.
-   - **Genotype Update:** None ($\pi$ unchanged).
-   - **Fitness Update:** $f(\pi) \leftarrow f(\pi_{\text{opt}})$.
-   - *Result in Codebase:* The individual survives based on its potential, but its offspring must discover the local refinement on their own.
+   + Learned improvements adjust the individual's fitness, but the underlying genotype remains unaltered.
+   + **Genotype Update:** None ($\pi$ unchanged).
+   + **Fitness Update:** $f(\pi) \leftarrow f(\pi_{\text{opt}})$.
+   + *Result in Codebase:* The individual survives based on its potential, but its offspring must discover the local refinement on their own.
 
 **Empirical Consensus in TSP:**
 For combinatorial routing, **Lamarckian evolution is overwhelmingly superior**. By committing 2-opt reversals directly to the chromosome, every crossover operation acts exclusively on locally optimal building blocks.
@@ -352,18 +359,18 @@ Crainic and Toulouse classified parallel metaheuristics into three hierarchical 
 ```
 
 1. **Type 1 (Low-Level / Operation Parallelization):**
-   - The algorithmic trajectory is identical to a sequential metaheuristic.
-   - CPU/GPU threads are dispatched to parallelize computationally intensive inner loops: evaluating an $O(n^2)$ neighborhood, calculating pairwise distances, or running matrix reductions.
+   + The algorithmic trajectory is identical to a sequential metaheuristic.
+   + CPU/GPU threads are dispatched to parallelize computationally intensive inner loops: evaluating an $O(n^2)$ neighborhood, calculating pairwise distances, or running matrix reductions.
 2. **Type 2 (Domain-Level / Solution-Space Parallelization):**
-   - The population or neighborhood is partitioned across compute units.
-   - In a genetic algorithm, all $P$ individuals in the population are evaluated, crossed over, mutated, and refined simultaneously across parallel processing units.
+   + The population or neighborhood is partitioned across compute units.
+   + In a genetic algorithm, all $P$ individuals in the population are evaluated, crossed over, mutated, and refined simultaneously across parallel processing units.
 3. **Type 3 (High-Level / Multi-Search Parallelization):**
-   - Multiple concurrent metaheuristic searches explore the solution space simultaneously.
-   - Algorithms may share identical parameters (homogeneous) or distinct heuristics/mutation rates (heterogeneous), exchanging promising individuals asynchronously via an **Island Model**.
+   + Multiple concurrent metaheuristic searches explore the solution space simultaneously.
+   + Algorithms may share identical parameters (homogeneous) or distinct heuristics/mutation rates (heterogeneous), exchanging promising individuals asynchronously via an **Island Model**.
 
 ### 4.2 Codebase Architectural Mapping
 
-The `gpu_accelerated_clean` codebase explicitly embodies this taxonomy across its Python protocol layers and CUDA C++ kernels:
+The `gpu_accelerated_clean` codebase explicitly embodies this taxonomy across its python protocol layers and CUDA C++ kernels:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
@@ -393,7 +400,8 @@ The `gpu_accelerated_clean` codebase explicitly embodies this taxonomy across it
 ```
 
 Through this layered composition, the architecture achieves maximum GPU utilization:
-- At the metaheuristic orchestration level (Type 3), strategy compositions configured via [__init__.py](../../src/algorithms/__init__.py) and [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py) define modular algorithm suites and multi-island coordination.
+
+- At the metaheuristic orchestration level (Type 3), strategy compositions configured via [**init**.py](../../src/algorithms/__init__.py) and [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py) define modular algorithm suites and multi-island coordination.
 - At the grid level (Type 2), $P$ blocks in [genetic_algorithm.py](../../src/algorithms/metaheuristics/genetic_algorithm.py) and [cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py) saturate the GPU's Streaming Multiprocessors with independent individual solutions.
 - At the block level (Type 1), 256 threads in [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) and [cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) saturate each SM's execution pipelines to evaluate combinatorial neighborhoods and reductions in parallel.
 

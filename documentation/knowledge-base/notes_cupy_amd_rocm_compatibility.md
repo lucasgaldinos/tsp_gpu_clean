@@ -32,6 +32,25 @@ tags:
 
 # CuPy AMD GPU Compatibility
 
+- [CuPy AMD GPU Compatibility](#cupy-amd-gpu-compatibility)
+  + [Executive Summary](#executive-summary)
+  + [1. Does CuPy Run on AMD GPUs?](#1-does-cupy-run-on-amd-gpus)
+  + [2. CUDA Cores vs AMD GPU Architecture](#2-cuda-cores-vs-amd-gpu-architecture)
+    - [NVIDIA CUDA Architecture](#nvidia-cuda-architecture)
+    - [AMD GPU Architecture](#amd-gpu-architecture)
+  + [3. ROCm as CUDA Alternative](#3-rocm-as-cuda-alternative)
+    - [ROCm Components](#rocm-components)
+    - [HIP Code Example (CUDA-Compatible)](#hip-code-example-cuda-compatible)
+    - [ROCm vs CUDA Ecosystem Comparison](#rocm-vs-cuda-ecosystem-comparison)
+  + [4. Current State of python Scientific Computing on AMD GPUs (2025)](#4-current-state-of-python-scientific-computing-on-amd-gpus-2025)
+    - [CuPy ROCm Support Status](#cupy-rocm-support-status)
+    - [Alternative AMD GPU Libraries for python](#alternative-amd-gpu-libraries-for-python)
+    - [Ecosystem Maturity Assessment (2025)](#ecosystem-maturity-assessment-2025)
+  + [5. Recommendations for This Work](#5-recommendations-for-this-work)
+    - [Why This Work Targets NVIDIA CUDA Exclusively](#why-this-work-targets-nvidia-cuda-exclusively)
+    - [Future Work: Multi-Backend Support](#future-work-multi-backend-support)
+  + [6. Conclusion](#6-conclusion)
+
 **Document Purpose:** Technical analysis of CuPy compatibility with AMD GPUs, ROCm support status, and architectural differences between NVIDIA CUDA and AMD compute platforms.
 
 **Status as of 2025:** CuPy provides **experimental** support for AMD GPUs via ROCm backend.
@@ -138,7 +157,7 @@ AMD uses two different naming conventions:
 **Key Architectural Differences:**
 
 | Feature | NVIDIA CUDA | AMD ROCm |
-|---------|-------------|----------|
+| --------- | ------------- | ---------- |
 | **Basic Unit** | CUDA Core (ALU) | Stream Processor (ALU) |
 | **Core Cluster** | SM ($64$-$128$ cores) | CU ($64$ Stream Processors) |
 | **Warp/Wavefront Size** | $32$ threads | $64$ (RDNA 1/2), $32$ (RDNA 3) |
@@ -166,22 +185,22 @@ AMD uses two different naming conventions:
 ### ROCm Components
 
 1. **HIP (Heterogeneous-Compute Interface for Portability):**
-   - CUDA-like API for GPU programming
-   - Syntax nearly identical to CUDA C/C++
-   - Can compile to both AMD and NVIDIA GPUs with minimal code changes
-   - Example: `hipMalloc()` vs `cudaMalloc()`, `hipMemcpy()` vs `cudaMemcpy()`
+   + CUDA-like API for GPU programming
+   + Syntax nearly identical to CUDA C/C++
+   + Can compile to both AMD and NVIDIA GPUs with minimal code changes
+   + Example: `hipMalloc()` vs `cudaMalloc()`, `hipMemcpy()` vs `cudaMemcpy()`
 
 2. **ROCm Libraries:**
-   - `hipBLAS`: BLAS operations (equivalent to cuBLAS)
-   - `rocSPARSE`: Sparse linear algebra (equivalent to cuSPARSE)
-   - `rocFFT`: Fast Fourier Transforms (equivalent to cuFFT)
-   - `rocRAND`: Random number generation (equivalent to cuRAND)
-   - `rocThrust`: Parallel algorithms (equivalent to Thrust)
+   + `hipBLAS`: BLAS operations (equivalent to cuBLAS)
+   + `rocSPARSE`: Sparse linear algebra (equivalent to cuSPARSE)
+   + `rocFFT`: Fast Fourier Transforms (equivalent to cuFFT)
+   + `rocRAND`: Random number generation (equivalent to cuRAND)
+   + `rocThrust`: Parallel algorithms (equivalent to Thrust)
 
 3. **ROCm Runtime:**
-   - Device management and kernel execution
-   - Memory management (host ↔ device transfers)
-   - Stream/event synchronization
+   + Device management and kernel execution
+   + Memory management (host ↔ device transfers)
+   + Stream/event synchronization
 
 ### HIP Code Example (CUDA-Compatible)
 
@@ -209,14 +228,14 @@ hipDeviceSynchronize();
 ### ROCm vs CUDA Ecosystem Comparison
 
 | Aspect | NVIDIA CUDA | AMD ROCm |
-|--------|-------------|----------|
+| -------- | ------------- | ---------- |
 | **Maturity** | $15+$ years (since 2006) | $\sim 8$ years (since 2016) |
 | **Hardware Support** | All NVIDIA GPUs since 2006 | AMD GCN 3.0+ (2015+), RDNA, CDNA |
 | **Library Ecosystem** | Extensive (cuDNN, TensorRT, NCCL, etc.) | Growing (MIOpen, RCCL, hipBLAS, etc.) |
 | **Framework Support** | PyTorch, TensorFlow, JAX (native) | PyTorch, TensorFlow (via ROCm builds) |
 | **Tooling** | Nsight Systems/Compute, CUDA-GDB | ROCProfiler, rocgdb |
 | **Windows Support** | Full support | Limited (Linux-first platform) |
-| **Python Libraries** | CuPy (stable), Numba (stable) | CuPy (experimental), limited Numba support |
+| **python Libraries** | CuPy (stable), Numba (stable) | CuPy (experimental), limited Numba support |
 
 **ROCm Advantages:**
 
@@ -237,7 +256,7 @@ hipDeviceSynchronize();
 
 ---
 
-## 4. Current State of Python Scientific Computing on AMD GPUs (2025)
+## 4. Current State of python Scientific Computing on AMD GPUs (2025)
 
 ### CuPy ROCm Support Status
 
@@ -264,7 +283,7 @@ python -c "import cupy as cp; print(cp.cuda.runtime.getDeviceCount())"
 2. **Performance Parity:** May not match CUDA performance due to less optimized code paths
 3. **Documentation Gaps:** Fewer examples and troubleshooting resources for ROCm backend
 
-### Alternative AMD GPU Libraries for Python
+### Alternative AMD GPU Libraries for python
 
 Since CuPy's ROCm support is experimental, consider these alternatives:
 
@@ -274,6 +293,7 @@ Since CuPy's ROCm support is experimental, consider these alternatives:
 - Directly targets ROCm without CUDA translation layer
 - Better optimized for AMD GPUs than CuPy-ROCm
 - Example usage:
+
   ```python
   import hipdf
   df = hipdf.DataFrame({'a': [1, 2, 3], 'b': [4, 5, 6]})
@@ -302,7 +322,7 @@ Since CuPy's ROCm support is experimental, consider these alternatives:
 ### Ecosystem Maturity Assessment (2025)
 
 | Library | NVIDIA CUDA | AMD ROCm | Verdict |
-|---------|-------------|----------|---------|
+| --------- | ------------- | ---------- | --------- |
 | **CuPy** | Stable | Experimental | CUDA recommended |
 | **PyTorch** | Stable | Stable (AMD-supported) | Both viable |
 | **TensorFlow** | Stable | Stable (AMD fork) | CUDA preferred (simpler) |
@@ -349,9 +369,10 @@ Since CuPy's ROCm support is experimental, consider these alternatives:
 If AMD GPU support becomes a future research direction, consider:
 
 1. **Abstract Backend Interface:**
+
    ```python
    from protocols import BackendProtocol
-   
+
    def get_backend(backend: str = 'numpy') -> BackendProtocol:
        if backend == 'numpy':
            return numpy
@@ -361,11 +382,12 @@ If AMD GPU support becomes a future research direction, consider:
    ```
 
 2. **HIP Kernel Compatibility:**
-   - Evaluate `cp.RawKernel()` compatibility with HIP-compiled kernels
-   - Test 2-opt GPU implementation on AMD hardware
-   - Document performance differences (CUDA vs ROCm)
+   + Evaluate `cp.RawKernel()` compatibility with HIP-compiled kernels
+   + Test 2-opt GPU implementation on AMD hardware
+   + Document performance differences (CUDA vs ROCm)
 
 3. **Conditional Dependencies:**
+
    ```text
    [project.optional-dependencies]
    cuda = ["cupy-cuda12x>=13.0.0"]
@@ -373,9 +395,9 @@ If AMD GPU support becomes a future research direction, consider:
    ```
 
 4. **Benchmark Parity Testing:**
-   - Run SA/GA/ACO benchmarks on NVIDIA (CUDA) and AMD (ROCm)
-   - Compare speedup, memory usage, kernel launch overhead
-   - Publish multi-backend performance study
+   + Run SA/GA/ACO benchmarks on NVIDIA (CUDA) and AMD (ROCm)
+   + Compare speedup, memory usage, kernel launch overhead
+   + Publish multi-backend performance study
 
 ---
 
@@ -383,9 +405,9 @@ If AMD GPU support becomes a future research direction, consider:
 
 **CuPy AMD GPU Compatibility Summary:**
 
-✅ **Technically Possible:** CuPy supports AMD GPUs via ROCm (experimental)  
-⚠️ **Practical Limitations:** Requires source build, manual configuration, experimental status  
-❌ **Not Recommended for This Work:** CUDA ecosystem maturity and reproducibility prioritized  
+✅ **Technically Possible:** CuPy supports AMD GPUs via ROCm (experimental)
+⚠️ **Practical Limitations:** Requires source build, manual configuration, experimental status
+❌ **Not Recommended for This Work:** CUDA ecosystem maturity and reproducibility prioritized
 
 **CUDA vs ROCm Decision:**
 
@@ -397,11 +419,11 @@ For this TCC (undergraduate thesis) work targeting GPU-accelerated metaheuristic
 
 **Key Takeaway:**
 
-AMD GPUs with ROCm represent a viable alternative to NVIDIA CUDA for GPU computing, but the ecosystem maturity gap (especially for Python scientific libraries like CuPy) makes NVIDIA the pragmatic choice for academic work requiring reproducibility and reliability.
+AMD GPUs with ROCm represent a viable alternative to NVIDIA CUDA for GPU computing, but the ecosystem maturity gap (especially for python scientific libraries like CuPy) makes NVIDIA the pragmatic choice for academic work requiring reproducibility and reliability.
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2025-01-XX  
-**Author:** Lucas Galdino  
+**Document Version:** 1.0
+**Last Updated:** 2025-01-XX
+**Author:** Lucas Galdino
 **References:** See inline citations throughout document

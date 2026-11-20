@@ -51,23 +51,38 @@ tags:
 # Statistical Testing Guide: Mathematical Derivations and the Demšar Protocol
 
 - [Statistical Testing Guide: Mathematical Derivations and the Demšar Protocol](#statistical-testing-guide-mathematical-derivations-and-the-demšar-protocol)
-  - [1. Mathematical Foundations of Parametric Distributions](#1-mathematical-foundations-of-parametric-distributions)
-    - [1.1 Derivation of the Euler Gamma Function $\Gamma(\alpha)$](#11-derivation-of-the-euler-gamma-function-gammaalpha)
+  + [1. Mathematical Foundations of Parametric Distributions](#1-mathematical-foundations-of-parametric-distributions)
+    - [1.1 Derivation of the Euler Gamma Function $\\Gamma(\\alpha)$](#11-derivation-of-the-euler-gamma-function-gammaalpha)
+      + [Fundamental Recurrence Relation](#fundamental-recurrence-relation)
+      + [Base Values and Factorial Equivalence](#base-values-and-factorial-equivalence)
+      + [Half-Integer Evaluation ($\\Gamma(1/2)$)](#half-integer-evaluation-gamma12)
     - [1.2 Derivation of the Student's $t$-Distribution PDF Normalization Constant](#12-derivation-of-the-students-t-distribution-pdf-normalization-constant)
+      + [Definition from Normal and Chi-Square Variates](#definition-from-normal-and-chi-square-variates)
+      + [Bivariate Transformation](#bivariate-transformation)
+      + [Marginalization Over $U$](#marginalization-over-u)
     - [1.3 Geometric Intuition of Degrees of Freedom ($df = n - 1$)](#13-geometric-intuition-of-degrees-of-freedom-df--n---1)
     - [1.4 Two-Tailed Critical Values for Benchmark Runs ($n = 15$)](#14-two-tailed-critical-values-for-benchmark-runs-n--15)
-  - [2. Non-Parametric Effect Sizes for Stochastic Metaheuristics](#2-non-parametric-effect-sizes-for-stochastic-metaheuristics)
+  + [2. Non-Parametric Effect Sizes for Stochastic Metaheuristics](#2-non-parametric-effect-sizes-for-stochastic-metaheuristics)
     - [2.1 Why $p$-Values Alone Are Insufficient](#21-why-p-values-alone-are-insufficient)
-    - [2.2 Cliff's Delta ($\delta$)](#22-cliffs-delta-delta)
-    - [2.3 Matched-Pairs Rank-Biserial Correlation ($r_{\text{rb}}$)](#23-matched-pairs-rank-biserial-correlation-r_textrb)
-  - [3. The Two-Tier Demšar (2006) Benchmarking Protocol](#3-the-two-tier-demšar-2006-benchmarking-protocol)
+    - [2.2 Cliff's Delta ($\\delta$)](#22-cliffs-delta-delta)
+      + [Mathematical Definition](#mathematical-definition)
+      + [Interpretation Thresholds (Romano et al., 2006)](#interpretation-thresholds-romano-et-al-2006)
+    - [2.3 Matched-Pairs Rank-Biserial Correlation ($r\_{\\text{rb}}$)](#23-matched-pairs-rank-biserial-correlation-r_textrb)
+      + [Mathematical Definition](#mathematical-definition-1)
+  + [3. The Two-Tier Demšar (2006) Benchmarking Protocol](#3-the-two-tier-demšar-2006-benchmarking-protocol)
     - [3.1 The Incommensurability Problem Across Benchmark Instances](#31-the-incommensurability-problem-across-benchmark-instances)
     - [3.2 Tier 1: Within-Instance Pairwise Comparison (Wilcoxon Signed-Rank)](#32-tier-1-within-instance-pairwise-comparison-wilcoxon-signed-rank)
     - [3.3 Tier 2: Across-Instances Omnibus Comparison (Friedman \& Iman-Davenport)](#33-tier-2-across-instances-omnibus-comparison-friedman--iman-davenport)
+      + [Step 1: Compute Ranks](#step-1-compute-ranks)
+      + [Step 2: The Friedman Statistic ($\\chi\_F^2$)](#step-2-the-friedman-statistic-chi_f2)
+      + [Step 3: The Iman-Davenport Correction ($F\_F$)](#step-3-the-iman-davenport-correction-f_f)
     - [3.4 Post-Hoc Pairwise Multi-Comparison Procedures](#34-post-hoc-pairwise-multi-comparison-procedures)
+      + [1. Nemenyi Test (All-vs-All Comparison)](#1-nemenyi-test-all-vs-all-comparison)
+      + [2. Dunn-Bonferroni and Holm Step-Down (Comparison Against Control)](#2-dunn-bonferroni-and-holm-step-down-comparison-against-control)
+      + [3. Benjamini-Hochberg False Discovery Rate (FDR)](#3-benjamini-hochberg-false-discovery-rate-fdr)
     - [3.5 Constructing and Interpreting Critical Difference (CD) Diagrams](#35-constructing-and-interpreting-critical-difference-cd-diagrams)
-  - [4. Implementation Recipe for Algorithmic Benchmarks](#4-implementation-recipe-for-algorithmic-benchmarks)
-  - [5. Academic References](#5-academic-references)
+  + [4. Implementation Recipe for Algorithmic Benchmarks](#4-implementation-recipe-for-algorithmic-benchmarks)
+  + [5. Academic References](#5-academic-references)
 
 ---
 
@@ -82,6 +97,7 @@ The Gamma function extends the discrete factorial operator to the continuous and
 $$\Gamma(\alpha) = \int_0^\infty x^{\alpha - 1} e^{-x} \, dx$$
 
 #### Fundamental Recurrence Relation
+
 Applying integration by parts with $u = x^{\alpha - 1}$ and $dv = e^{-x} \, dx$:
 
 $$\frac{du}{dx} = (\alpha - 1) x^{\alpha - 2}, \qquad v = -e^{-x}$$
@@ -97,6 +113,7 @@ Replacing $\alpha$ with $\alpha + 1$ yields the fundamental functional equation:
 $$\Gamma(\alpha + 1) = \alpha \Gamma(\alpha)$$
 
 #### Base Values and Factorial Equivalence
+
 For $\alpha = 1$:
 
 $$\Gamma(1) = \int_0^\infty e^{-x} \, dx = \left[ -e^{-x} \right]_0^\infty = 0 - (-1) = 1$$
@@ -106,6 +123,7 @@ By mathematical induction, for any positive integer $k \in \mathbb{N}^+$:
 $$\Gamma(k) = (k - 1)!$$
 
 #### Half-Integer Evaluation ($\Gamma(1/2)$)
+
 For $\alpha = 1/2$:
 
 $$\Gamma\left(\frac{1}{2}\right) = \int_0^\infty x^{-1/2} e^{-x} \, dx$$
@@ -125,6 +143,7 @@ $$\Gamma\left(\frac{1}{2}\right) = 2 \left( \frac{\sqrt{\pi}}{2} \right) = \math
 Published in 1908 by **William Sealy Gosset** under the pseudonym *"Student"*, the $t$-distribution models the sample mean when the true population variance $\sigma^2$ is unknown and estimated from a small sample $n$.
 
 #### Definition from Normal and Chi-Square Variates
+
 Let $Z \sim \mathcal{N}(0, 1)$ and $V \sim \chi^2(\nu)$ be two independent random variables, where $\nu$ represents degrees of freedom.
 The random variable $T$ is defined as:
 
@@ -141,6 +160,7 @@ Because $Z$ and $V$ are mutually independent, their joint PDF is the product:
 $$f_{Z, V}(z, v) = f_Z(z) f_V(v) = \frac{1}{\sqrt{2\pi} 2^{\nu/2} \Gamma(\nu/2)} v^{\nu/2 - 1} \exp\left( -\frac{z^2 + v}{2} \right)$$
 
 #### Bivariate Transformation
+
 Define the transformation:
 
 $$T = \frac{Z}{\sqrt{V / \nu}}, \qquad U = V$$
@@ -170,6 +190,7 @@ Combine terms of $u$:
 $$f_{T, U}(t, u) = \frac{1}{\sqrt{2\pi \nu} 2^{\nu/2} \Gamma(\nu/2)} u^{\frac{\nu + 1}{2} - 1} \exp\left( -u \cdot \frac{1 + t^2/\nu}{2} \right)$$
 
 #### Marginalization Over $U$
+
 To find the marginal density $f_T(t)$, integrate over all $u \in (0, \infty)$:
 
 $$f_T(t) = \int_0^\infty f_{T, U}(t, u) \, du = \frac{1}{\sqrt{2\pi \nu} 2^{\nu/2} \Gamma(\nu/2)} \int_0^\infty u^{\frac{\nu + 1}{2} - 1} \exp\left( -u \cdot \frac{1 + t^2/\nu}{2} \right) \, du$$
@@ -253,6 +274,7 @@ Evaluating the cumulative Student's $t$ distribution with $\nu = 14$:
 $$t_{14, \; 0.975} = \mathbf{2.144787} \approx \mathbf{2.145}$$
 
 **Decision Rule:**
+
 - If the observed test statistic $|t_{\text{stat}}| > 2.145$, reject the null hypothesis $H_0$ at the $95\%$ confidence level.
 - If $|t_{\text{stat}}| \le 2.145$, fail to reject $H_0$; the observed difference is indistinguishable from random sampling variance.
 
@@ -269,6 +291,7 @@ A $p$-value indicates only whether an observed difference is statistically unlik
 Introduced by **Norman Cliff (1993)**, Cliff's Delta is a non-parametric effect size measuring the ordinal dominance of one distribution over another. It requires no normality or equal variance assumptions.
 
 #### Mathematical Definition
+
 Given sample $X = \{x_1, \dots, x_m\}$ from Algorithm A and sample $Y = \{y_1, \dots, y_n\}$ from Algorithm B:
 
 $$\delta = \frac{\#\{x_i > y_j\} - \#\{x_i < y_j\}}{m \cdot n} = \frac{1}{m \cdot n} \sum_{i=1}^m \sum_{j=1}^n \operatorname{sgn}(x_i - y_j)$$
@@ -297,6 +320,7 @@ $$\operatorname{sgn}(x - y) = \begin{cases} +1 & \text{if } x > y \\ 0 & \text{i
 When comparing algorithms on paired runs (e.g., the exact same 15 random seeds), the appropriate non-parametric effect size is the **Rank-Biserial Correlation** derived from the Wilcoxon signed-rank test ([Kerby, 2014](#5-academic-references)).
 
 #### Mathematical Definition
+
 Let $W^+$ be the sum of positive signed ranks and $W^-$ be the sum of negative signed ranks:
 
 $$W^+ = \sum_{d_i > 0} R_i, \qquad W^- = \sum_{d_i < 0} R_i$$
@@ -324,6 +348,7 @@ Demšar demonstrated that the empirical optimization and machine learning commun
 ### 3.1 The Incommensurability Problem Across Benchmark Instances
 
 Why can we not average speedups or tour costs across 38 TSPLIB instances and run a $t$-test?
+
 1. **Violation of Commensurability:** In TSPLIB, `pcb442` has tour cost $\approx 50{,}000$, while `pla85900` has cost $\approx 140{,}000{,}000$. A $1\%$ error on `pla85900` ($\Delta = 1{,}400{,}000$) completely dwarfs a $100\%$ error on `pcb442` ($\Delta = 50{,}000$).
 2. **Violation of Normality:** Algorithmic runtimes across instances follow heavy-tailed log-normal or Pareto distributions.
 3. **Outlier Sensitivity:** A single pathological instance where an algorithm times out will skew the parametric mean and standard deviation, producing false rejections or false non-rejections.
@@ -354,6 +379,7 @@ To resolve this, Demšar established the **Two-Tier Benchmarking Protocol**:
 ### 3.2 Tier 1: Within-Instance Pairwise Comparison (Wilcoxon Signed-Rank)
 
 When evaluating two algorithms (e.g., GPU 2-Opt vs CPU 2-Opt) on a specific instance (e.g., `ch130.tsp`) across $n = 15$ seeds:
+
 1. Compute pairwise differences $d_i = \text{Cost}_A^{(i)} - \text{Cost}_B^{(i)}$ for seed $i \in \{1, \dots, 15\}$.
 2. Exclude zero differences ($d_i = 0$). Let the remaining count be $n_r$.
 3. Rank the absolute differences $|d_i|$ in ascending order, assigning average ranks to ties.
@@ -367,6 +393,7 @@ When evaluating two algorithms (e.g., GPU 2-Opt vs CPU 2-Opt) on a specific inst
 To compare $k$ algorithms across $N$ benchmark problem instances (e.g., $k = 4$ solvers across $N = 38$ TSPLIB instances):
 
 #### Step 1: Compute Ranks
+
 For each instance $i \in \{1, \dots, N\}$, rank the $k$ algorithms from $1$ (best performance) to $k$ (worst performance). Let $r_i^j$ be the rank of algorithm $j$ on instance $i$. In case of ties, assign the average of the ranks.
 
 Compute the **average rank** for each algorithm $j$:
@@ -374,6 +401,7 @@ Compute the **average rank** for each algorithm $j$:
 $$R_j = \frac{1}{N} \sum_{i=1}^N r_i^j$$
 
 #### Step 2: The Friedman Statistic ($\chi_F^2$)
+
 Developed by **Milton Friedman (1937)**, the Friedman test is the non-parametric equivalent of repeated-measures ANOVA:
 
 $$\chi_F^2 = \frac{12N}{k(k + 1)} \left[ \sum_{j=1}^k R_j^2 - \frac{k(k + 1)^2}{4} \right]$$
@@ -383,6 +411,7 @@ Under the null hypothesis $H_0$ (all algorithms perform equivalently, so each ha
 $$\chi_F^2 \sim \chi^2(k - 1)$$
 
 #### Step 3: The Iman-Davenport Correction ($F_F$)
+
 As proven by **Iman & Davenport (1980)**, Friedman's $\chi_F^2$ is notoriously conservative when $N$ is small or moderate, failing to detect true differences. They derived a dramatically more powerful $F$-distributed statistic:
 
 $$F_F = \frac{(N - 1) \chi_F^2}{N(k - 1) - \chi_F^2}$$
@@ -400,6 +429,7 @@ If $p < 0.05$ under the $F_F$ test, reject $H_0$ and proceed to post-hoc tests.
 Once the omnibus Friedman/Iman-Davenport test rejects $H_0$, we must determine **which specific algorithm pairs differ significantly**.
 
 #### 1. Nemenyi Test (All-vs-All Comparison)
+
 When comparing all $k$ algorithms against each other without designating a control:
 Two algorithms $i$ and $j$ perform significantly differently if their average ranks differ by at least the **Critical Difference (CD)**:
 
@@ -412,6 +442,7 @@ $$CD = q_\alpha \sqrt{\frac{k(k + 1)}{6N}}$$
 where $q_\alpha$ is the critical value for the two-tailed Studentized range statistic divided by $\sqrt{2}$.
 
 **Standard Values of $q_\alpha$ ($\alpha = 0.05$):**
+
 - $k = 2$: $q_{0.05} = 1.960$
 - $k = 3$: $q_{0.05} = 2.343$
 - $k = 4$: $q_{0.05} = 2.569$
@@ -423,6 +454,7 @@ where $q_\alpha$ is the critical value for the two-tailed Studentized range stat
 > Alternatively, Tukey's unscaled $Q_\alpha$ can be paired directly with the alternative denominator formulation $CD = Q_\alpha \sqrt{\frac{k(k + 1)}{12N}}$, yielding identical results. Failing to divide by $\sqrt{2}$ when using $\sqrt{6N}$ in the denominator artificially inflates the critical difference by $41.4\%$!
 
 #### 2. Dunn-Bonferroni and Holm Step-Down (Comparison Against Control)
+
 When comparing $k-1$ proposed algorithms against a single baseline/control algorithm (e.g., comparing GPU Hybrid, Monolithic GPU, and Memetic GPU against CPU Baseline):
 The standard error of rank differences is:
 
@@ -441,6 +473,7 @@ $$\alpha_{\text{Holm}}^{(i)} = \frac{\alpha}{k - i}$$
 Reject $H_0^{(i)}$ as long as $p_{(i)} \le \alpha_{\text{Holm}}^{(i)}$. At the first index where $p_{(i)} > \alpha_{\text{Holm}}^{(i)}$, stop testing; all remaining hypotheses are retained.
 
 #### 3. Benjamini-Hochberg False Discovery Rate (FDR)
+
 When testing a large number of pairs (large $k$), controlling the Family-Wise Error Rate (FWER) becomes overly strict. The **Benjamini-Hochberg (1995)** procedure controls the expected proportion of false positive findings (FDR):
 
 $$p_{(i)} \le \frac{i}{m} Q^*$$
@@ -474,14 +507,15 @@ A Critical Difference (CD) diagram visualizes the results of the Demšar protoco
 ```
 
 **How to Read a CD Diagram:**
+
 1. **The Rank Axis:** Ranks are displayed along a horizontal axis from $1.0$ (best performance on the left) to $k.0$ (worst performance on the right). For $k = 4$, average ranks across all algorithms must satisfy the mathematical conservation constraint $\sum_{j=1}^4 R_j = \frac{k(k + 1)}{2} = 10.00$ ($1.35 + 1.85 + 2.95 + 3.85 = 10.00$).
 2. **Algorithm Markers:** Each algorithm is plotted along the axis at its exact average rank $R_j$.
 3. **The Critical Difference Bar:** A horizontal scale bar at the top displays the length of $CD = 2.569 \sqrt{\frac{20}{6 \times 38}} \approx 0.761$.
 4. **Cliques / Thick Connecting Lines:** A thick horizontal line connects any subset of algorithms whose rank difference is **less than $CD$** ($|R_i - R_j| \le CD$).
 5. **Statistical Interpretation:**
-   - Algorithms connected by the same horizontal bar have **no statistically significant difference** in performance.
-   - Any two algorithms **not connected** by a common horizontal bar are **statistically significantly different** at the $\alpha = 0.05$ level.
-   - In the diagram above, HybridOpt ($R_1 = 1.35$) and FullGPU ($R_2 = 1.85$) are connected (difference $0.50 \le 0.761$), but both are separated from HybridNaive ($R_3 = 2.95$, difference $1.10 > CD$) and CPU ($R_4 = 3.85$, difference $2.00 > CD$) by gaps exceeding $CD$, proving conclusive superiority over baseline configurations.
+   + Algorithms connected by the same horizontal bar have **no statistically significant difference** in performance.
+   + Any two algorithms **not connected** by a common horizontal bar are **statistically significantly different** at the $\alpha = 0.05$ level.
+   + In the diagram above, HybridOpt ($R_1 = 1.35$) and FullGPU ($R_2 = 1.85$) are connected (difference $0.50 \le 0.761$), but both are separated from HybridNaive ($R_3 = 2.95$, difference $1.10 > CD$) and CPU ($R_4 = 3.85$, difference $2.00 > CD$) by gaps exceeding $CD$, proving conclusive superiority over baseline configurations.
 
 > [!TIP]
 > For generating publication-ready vector LaTeX/TikZ figures (`.tikz`) suitable for inclusion in thesis manuscripts (`second_draft.tex`), see the companion operational blueprint in [analysis-demsar-critical-difference-diagrams.md](../../documents_tcc/plan/knowledge-base/analysis-demsar-critical-difference-diagrams.md), which provides standalone TikZ templates and an automated clique rendering pipeline.

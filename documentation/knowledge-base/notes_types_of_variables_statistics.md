@@ -38,8 +38,8 @@ tags:
 # Taxonomy of Variables in Complex Systems and Statistical Optimization
 
 - [Taxonomy of Variables in Complex Systems and Statistical Optimization](#taxonomy-of-variables-in-complex-systems-and-statistical-optimization)
-  - [1. Fundamental Concepts of System Variables](#1-fundamental-concepts-of-system-variables)
-  - [2. Taxonomy of Variable Types](#2-taxonomy-of-variable-types)
+  + [1. Fundamental Concepts of System Variables](#1-fundamental-concepts-of-system-variables)
+  + [2. Taxonomy of Variable Types](#2-taxonomy-of-variable-types)
     - [2.1 State Variables](#21-state-variables)
     - [2.2 Control Variables](#22-control-variables)
     - [2.3 Decision Variables](#23-decision-variables)
@@ -48,8 +48,8 @@ tags:
     - [2.6 Parameters](#26-parameters)
     - [2.7 Output Variables](#27-output-variables)
     - [2.8 Auxiliary Variables](#28-auxiliary-variables)
-  - [3. Key Inter-Variable Relationships and Matrix Mappings](#3-key-inter-variable-relationships-and-matrix-mappings)
-  - [4. Cross-Domain Concrete Engineering Examples](#4-cross-domain-concrete-engineering-examples)
+  + [3. Key Inter-Variable Relationships and Matrix Mappings](#3-key-inter-variable-relationships-and-matrix-mappings)
+  + [4. Cross-Domain Concrete Engineering Examples](#4-cross-domain-concrete-engineering-examples)
     - [4.1 Simple Harmonic Pendulum](#41-simple-harmonic-pendulum)
     - [4.2 Macroeconomic Dynamic System](#42-macroeconomic-dynamic-system)
     - [4.3 Electrical Power Distribution Grid](#43-electrical-power-distribution-grid)
@@ -57,16 +57,17 @@ tags:
     - [4.5 Climate System Model](#45-climate-system-model)
     - [4.6 Autonomous Vehicle Cruise Control](#46-autonomous-vehicle-cruise-control)
     - [4.7 Fluid Mechanics: Pipe Flow Under Navier-Stokes](#47-fluid-mechanics-pipe-flow-under-navier-stokes)
-  - [5. Application to Combinatorial GPU Routing Optimization](#5-application-to-combinatorial-gpu-routing-optimization)
-  - [6. Academic and Technical References](#6-academic-and-technical-references)
+  + [5. Application to Combinatorial GPU Routing Optimization](#5-application-to-combinatorial-gpu-routing-optimization)
+  + [6. Academic and Technical References](#6-academic-and-technical-references)
 
 ---
 
 ## 1. Fundamental Concepts of System Variables
 
-In dynamical systems theory, control engineering, and mathematical optimization, **variables** represent quantifiable attributes or states that evolve over time or respond to operational stimuli. 
+In dynamical systems theory, control engineering, and mathematical optimization, **variables** represent quantifiable attributes or states that evolve over time or respond to operational stimuli.
 
 A rigorous classification of variables is essential for:
+
 1. **Mathematical Well-Posedness**: Ensuring that degrees of freedom match the number of governing differential-algebraic equations (DAEs).
 2. **Computational Architecture**: Discerning immutable data (parameters) stored in GPU constant or global cache from volatile trajectory states stored in registers or shared memory.
 3. **Statistical Inference**: Distinguishing controlled treatment factors from random block effects and exogenous environmental noise.
@@ -217,19 +218,19 @@ For a rigid pendulum of length $L$ and bob mass $m$ undergoing planar oscillatio
 Consider incompressible Newtonian fluid flow through a pressurized conduit:
 
 1. **State Fields**:
-   - Velocity vector field $\mathbf{v}(\mathbf{x}, t) = [u, v, w]^T$.
-   - Hydrostatic pressure distribution $p(\mathbf{x}, t)$.
+   + Velocity vector field $\mathbf{v}(\mathbf{x}, t) = [u, v, w]^T$.
+   + Hydrostatic pressure distribution $p(\mathbf{x}, t)$.
 2. **Control Inputs**:
-   - Upstream variable frequency drive pump pressure head $H_{\text{pump}}(t)$.
-   - Downstream throttling valve aperture percentage $\theta_v(t)$.
+   + Upstream variable frequency drive pump pressure head $H_{\text{pump}}(t)$.
+   + Downstream throttling valve aperture percentage $\theta_v(t)$.
 3. **Exogenous Disturbance**:
-   - Ambient thermal gradient influencing fluid bulk temperature $T_{\infty}$.
+   + Ambient thermal gradient influencing fluid bulk temperature $T_{\infty}$.
 4. **Parameters**:
-   - Fluid dynamic viscosity $\mu$, fluid density $\rho_0$, conduit length $L$, diameter profile $D(x)$, wall roughness height $\varepsilon$.
+   + Fluid dynamic viscosity $\mu$, fluid density $\rho_0$, conduit length $L$, diameter profile $D(x)$, wall roughness height $\varepsilon$.
 5. **Algebraic Non-Dimensional Variables**:
-   - Reynolds Number:
+   + Reynolds Number:
      $$Re = \frac{\rho_0 \bar{v} D}{\mu}$$
-   - Darcy-Weisbach Friction Factor $f_D$ via Colebrook-White implicit relation:
+   + Darcy-Weisbach Friction Factor $f_D$ via Colebrook-White implicit relation:
      $$\frac{1}{\sqrt{f_D}} = -2 \log_{10} \left( \frac{\varepsilon}{3.7 D} + \frac{2.51}{Re \sqrt{f_D}} \right)$$
 6. **Governing Navier-Stokes PDE System**:
    $$\nabla \cdot \mathbf{v} = 0$$

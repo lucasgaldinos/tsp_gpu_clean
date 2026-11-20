@@ -43,30 +43,44 @@ tags:
 # Pairwise Comparisons: Paired t-Test and Wilcoxon Signed-Rank Test
 
 - [Pairwise Comparisons: Paired t-Test and Wilcoxon Signed-Rank Test](#pairwise-comparisons-paired-t-test-and-wilcoxon-signed-rank-test)
-  - [1. Fundamental Concepts: Paired vs. Independent Experimental Designs](#1-fundamental-concepts-paired-vs-independent-experimental-designs)
+  + [1. Fundamental Concepts: Paired vs. Independent Experimental Designs](#1-fundamental-concepts-paired-vs-independent-experimental-designs)
     - [1.1 What Exactly is a "Paired" Design?](#11-what-exactly-is-a-paired-design)
     - [1.2 The Mathematics of Variance Reduction via Pairing](#12-the-mathematics-of-variance-reduction-via-pairing)
     - [1.3 The Paired Difference Vector](#13-the-paired-difference-vector)
-  - [2. The Paired Student's $t$-Test: Complete Formulation](#2-the-paired-students-t-test-complete-formulation)
+  + [2. The Paired Student's $t$-Test: Complete Formulation](#2-the-paired-students-t-test-complete-formulation)
     - [2.1 Null Hypothesis and Test Statistic Calculation](#21-null-hypothesis-and-test-statistic-calculation)
     - [2.2 Critical Value and Two-Tailed $p$-Value Calculation](#22-critical-value-and-two-tailed-p-value-calculation)
     - [2.3 Confidence Interval Formulation and Frequentist Semantics](#23-confidence-interval-formulation-and-frequentist-semantics)
     - [2.4 What You CAN and CANNOT Say: Frequentist vs. Bayesian Interpretation](#24-what-you-can-and-cannot-say-frequentist-vs-bayesian-interpretation)
-  - [3. The Wilcoxon Signed-Rank Test: Exact Non-Parametric Mechanics](#3-the-wilcoxon-signed-rank-test-exact-non-parametric-mechanics)
+  + [3. The Wilcoxon Signed-Rank Test: Exact Non-Parametric Mechanics](#3-the-wilcoxon-signed-rank-test-exact-non-parametric-mechanics)
     - [3.1 Ranking Formulation and Zero-Difference Handling](#31-ranking-formulation-and-zero-difference-handling)
     - [3.2 Rank Sum Algebraic Identities ($T^+, T^-$)](#32-rank-sum-algebraic-identities-t-t-)
     - [3.3 Exact Null Expectation Derivation](#33-exact-null-expectation-derivation)
-    - [3.4 Exact Variance Derivations: Clarifying $\text{Var}(T^+)$ vs. $\text{Var}(T)$](#34-exact-variance-derivations-clarifying-textvart-vs-textvart)
+    - [3.4 Exact Variance Derivations: Clarifying $\\text{Var}(T^+)$ vs. $\\text{Var}(T)$](#34-exact-variance-derivations-clarifying-textvart-vs-textvart)
+      + [Derivation of $\\text{Var}(T^+)$:](#derivation-of-textvart)
+      + [Derivation of $\\text{Var}(T)$:](#derivation-of-textvart-1)
     - [3.5 Large-Sample Gaussian Approximation and Continuity Correction](#35-large-sample-gaussian-approximation-and-continuity-correction)
-  - [4. Parametric vs. Non-Parametric Decision Framework](#4-parametric-vs-non-parametric-decision-framework)
+  + [4. Parametric vs. Non-Parametric Decision Framework](#4-parametric-vs-non-parametric-decision-framework)
     - [4.1 Outlier Robustness: Why the $t$-Test Fails on Heavy Tails](#41-outlier-robustness-why-the-t-test-fails-on-heavy-tails)
     - [4.2 The Asymptotic Relative Efficiency (ARE) Trade-Off](#42-the-asymptotic-relative-efficiency-are-trade-off)
     - [4.3 End-to-End Decision Tree for Paired Comparisons](#43-end-to-end-decision-tree-for-paired-comparisons)
-  - [5. Step-by-Step Empirical Calculations with Real Benchmark Data](#5-step-by-step-empirical-calculations-with-real-benchmark-data)
+  + [5. Step-by-Step Empirical Calculations with Real Benchmark Data](#5-step-by-step-empirical-calculations-with-real-benchmark-data)
     - [5.1 Parametric Example: `berlin52` (CPU vs. HybridOptimized Runtime)](#51-parametric-example-berlin52-cpu-vs-hybridoptimized-runtime)
+      + [Step 1: Paired Mean Difference and Standard Deviation](#step-1-paired-mean-difference-and-standard-deviation)
+      + [Step 2: Test Statistic Calculation](#step-2-test-statistic-calculation)
+      + [Step 3: Critical Value and $p$-Value](#step-3-critical-value-and-p-value)
+      + [Step 4: 95% Confidence Interval](#step-4-95-confidence-interval)
+      + [Step 5: Effect Size (Cohen's $d\_z$)](#step-5-effect-size-cohens-d_z)
+      + [APA-Style Publication Reporting:](#apa-style-publication-reporting)
     - [5.2 Non-Parametric Example: `ch130` (HybridNaive vs. FullGPU Cost)](#52-non-parametric-example-ch130-hybridnaive-vs-fullgpu-cost)
-  - [6. Python Verification Script with `scipy.stats`](#6-python-verification-script-with-scipystats)
-  - [7. Academic References](#7-academic-references)
+      + [Step 1: Paired Differences and Ranks](#step-1-paired-differences-and-ranks)
+      + [Step 2: Sum of Positive and Negative Ranks](#step-2-sum-of-positive-and-negative-ranks)
+      + [Step 3: Mean, Variance, and $Z$-Score Calculation](#step-3-mean-variance-and-z-score-calculation)
+      + [Step 4: $p$-Value Calculation](#step-4-p-value-calculation)
+      + [Step 5: Rank-Biserial Correlation ($r\_{\\text{rb}}$)](#step-5-rank-biserial-correlation-r_textrb)
+      + [Conclusion:](#conclusion)
+  + [6. python Verification Script with `scipy.stats`](#6-python-verification-script-with-scipystats)
+  + [7. Academic References](#7-academic-references)
 
 ---
 
@@ -341,10 +355,10 @@ flowchart TD
     Start(["Start: Paired Comparison (n = 15 runs)"]) --> Diff["Compute Differences: d_i = x_A,i - x_B,i"]
     Diff --> Shapiro["Run Shapiro-Wilk Test on d_i"]
     Shapiro --> CheckNorm{"Shapiro-Wilk<br/>p >= 0.05?"}
-    
+
     CheckNorm -->|"Yes (Gaussian)"| TTest["✅ Paired Student's t-test<br/>t = d_bar * sqrt(n) / s_d<br/>Report: t(14), p-value, Cohen's d_z, 95% CI"]
     CheckNorm -->|"No (Non-Gaussian)"| WTest["✅ Wilcoxon Signed-Rank Test<br/>Calculate T+, T-, Z-score<br/>Report: W_stat, p-value, Rank-Biserial r_rb"]
-    
+
     TTest --> Output["Publication Reporting & Effect Size"]
     WTest --> Output
 ```
@@ -451,34 +465,34 @@ def run_paired_comparison(
     assert len(group_a) == len(group_b), "Sample sizes must be identical."
     n = len(group_a)
     diffs = group_a - group_b
-    
+
     # 1. Test normality of paired differences
     shapiro_w, shapiro_p = stats.shapiro(diffs)
     is_normal = shapiro_p >= alpha
-    
+
     # 2. Summary Statistics
     d_bar = float(np.mean(diffs))
     s_d = float(np.std(diffs, ddof=1))
     se_d = s_d / np.sqrt(n)
-    
+
     # 3. Parametric Calculations (Student's t)
     t_stat, t_pval = stats.ttest_rel(group_a, group_b)
     t_crit = float(stats.t.ppf(1 - alpha/2, df=n-1))
     ci_lower = d_bar - t_crit * se_d
     ci_upper = d_bar + t_crit * se_d
     cohens_dz = d_bar / s_d if s_d != 0 else 0.0
-    
+
     # 4. Non-Parametric Calculations (Wilcoxon Signed-Rank)
     try:
         w_stat, w_pval = stats.wilcoxon(group_a, group_b, alternative='two-sided')
     except ValueError:
         # Handles all-zero differences
         w_stat, w_pval = 0.0, 1.0
-        
+
     total_ranks = n * (n + 1) / 2
     # Rank-biserial correlation estimate
     rank_biserial = 1.0 - (2.0 * float(w_stat) / total_ranks) if total_ranks > 0 else 0.0
-    
+
     return {
         "sample_size": n,
         "mean_difference": d_bar,

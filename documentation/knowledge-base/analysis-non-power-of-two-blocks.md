@@ -33,11 +33,29 @@ tags:
 
 # Non-Power-of-2 Block Sizes: Mathematical Proof
 
-**Question:** Are there situations where non-power-of-2 block sizes are better than power-of-2? Prove it mathematically.
-
-**Answer:** **YES**—this document provides a rigorous proof with worked examples, performance graphs, and optimal block size formula.
-
----
+- [Non-Power-of-2 Block Sizes: Mathematical Proof](#non-power-of-2-block-sizes-mathematical-proof)
+  + [1. Background: Warp Alignment Constraint](#1-background-warp-alignment-constraint)
+    - [What is a Warp?](#what-is-a-warp)
+    - [Why Not Other Sizes?](#why-not-other-sizes)
+  + [2. Performance Metrics with Clear Notation](#2-performance-metrics-with-clear-notation)
+    - [2.1 Efficiency (Thread Utilization)](#21-efficiency-thread-utilization)
+    - [2.2 Occupancy (SM Hardware Utilization)](#22-occupancy-sm-hardware-utilization)
+    - [2.3 Combined Performance Metric](#23-combined-performance-metric)
+  + [3. Worked Example: $n\_{\\text{problem}} = 576$](#3-worked-example-n_textproblem--576)
+    - [Case A: $b\_{\\text{threads}} = 256$ (Power-of-2)](#case-a-b_textthreads--256-power-of-2)
+    - [Case B: $b\_{\\text{threads}} = 288$ (Non-Power-of-2)](#case-b-b_textthreads--288-non-power-of-2)
+    - [Comparison Table](#comparison-table)
+  + [4. Performance Graphs](#4-performance-graphs)
+    - [Graph 1: Efficiency vs Block Size for $n\_{\\text{problem}} = 576$](#graph-1-efficiency-vs-block-size-for-n_textproblem--576)
+    - [Graph 2: Performance vs Block Size for Multiple Problem Sizes](#graph-2-performance-vs-block-size-for-multiple-problem-sizes)
+    - [Graph 3: Occupancy vs Block Size (GTX 1050)](#graph-3-occupancy-vs-block-size-gtx-1050)
+  + [5. Mathematical Theorem](#5-mathematical-theorem)
+  + [6. When Non-Power-of-2 Wins](#6-when-non-power-of-2-wins)
+  + [7. Optimal Block Size Algorithm](#7-optimal-block-size-algorithm)
+  + [8. Conclusion](#8-conclusion)
+    - [Direct Answer to Question](#direct-answer-to-question)
+    - [Practical Recommendation](#practical-recommendation)
+    - [Mathematical Proof Summary](#mathematical-proof-summary)
 
 ## 1. Background: Warp Alignment Constraint
 
@@ -75,7 +93,7 @@ If you choose $b_{\text{threads}}$ that is NOT a multiple of 32:
 **Example:**
 
 | Block Size Request | Warps Launched | Actual Threads | Waste |
-|--------------------|----------------|----------------|-------|
+| -------------------- | ---------------- | ---------------- | ------- |
 | 32 | 1 | 32 | 0 |
 | 64 | 2 | 64 | 0 |
 | **100** | $\lceil 100/32 \rceil = 4$ | **128** | **28 threads (28%)** |
@@ -142,7 +160,7 @@ $$
 **Example for GTX 1050 ($T_{\text{SM}}^{\text{max}} = 2048$):**
 
 | $b_{\text{threads}}$ | $w_{\text{warps}}$ | Power of 2? | $N_{\text{blocks/SM}}$ | Concurrent Threads/SM | Occupancy |
-|----------------------|--------------------|-------------|------------------------|----------------------|-----------|
+| ---------------------- | -------------------- | ------------- | ------------------------ | ---------------------- | ----------- |
 | 64 | 2 | ✓ | $\lfloor 2048/64 \rfloor = 32$ | $32 \times 64 = 2048$ | 100% |
 | 96 | 3 | ✗ | $\lfloor 2048/96 \rfloor = 21$ | $21 \times 96 = 2016$ | 98% |
 | 128 | 4 | ✓ | $\lfloor 2048/128 \rfloor = 16$ | $16 \times 128 = 2048$ | 100% |
@@ -264,7 +282,7 @@ $$
 ### Comparison Table
 
 | Metric | $b = 256$ (pow2) | $b = 288$ (non-pow2) | Winner |
-|--------|-----------------|----------------------|--------|
+| -------- | ----------------- | ---------------------- | -------- |
 | Warps per block | 8 | 9 | — |
 | Occupancy | 100% | 98.4% | 256 |
 | Blocks needed | 3 | 2 | 288 |
@@ -439,29 +457,29 @@ import math
 def get_optimal_block_size_1d(n_problem, T_SM_max=2048):
     """
     Find optimal block size for 1D problem on GTX 1050 Mobile.
-    
+
     Args:
         n_problem: Problem size (number of elements)
         T_SM_max: Max threads per SM (default 2048 for GTX 1050)
-        
+
     Returns:
         Optimal block size b_threads (multiple of 32) maximizing Performance(b, n).
     """
     # Valid block sizes: multiples of 32 from 32 to 1024
     valid_sizes = [b for b in range(32, 1025, 32)]
-    
+
     def performance(b_threads):
         # Occupancy component
         blocks_per_sm = T_SM_max // b_threads
         occupancy = min(1.0, blocks_per_sm * b_threads / T_SM_max)
-        
+
         # Efficiency component
         blocks_needed = math.ceil(n_problem / b_threads)
         efficiency = n_problem / (blocks_needed * b_threads)
-        
+
         # Combined performance
         return occupancy * efficiency
-    
+
     # Return block size with maximum performance
     return max(valid_sizes, key=performance)
 

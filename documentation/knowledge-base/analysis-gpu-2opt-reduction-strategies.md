@@ -39,6 +39,28 @@ tags:
 
 # 2-Opt Reduction Strategies: Shared Memory, Warp Shuffle, and Host Break-Even
 
+- [2-Opt Reduction Strategies: Shared Memory, Warp Shuffle, and Host Break-Even](#2-opt-reduction-strategies-shared-memory-warp-shuffle-and-host-break-even)
+  + [Table of Symbols](#table-of-symbols)
+  + [5. Strategy 3: Hybrid CPU-GPU Reduction](#5-strategy-3-hybrid-cpu-gpu-reduction)
+    - [5.1 Core Algorithm Structure](#51-core-algorithm-structure)
+    - [5.2 Timing Breakdown (Q1 Partial Answer)](#52-timing-breakdown-q1-partial-answer)
+    - [5.3 Complexity Analysis](#53-complexity-analysis)
+    - [5.4 Advantages and Disadvantages](#54-advantages-and-disadvantages)
+  + [7. When Does CPU Reduction Matter? (Q1 COMPLETE ANSWER)](#7-when-does-cpu-reduction-matter-q1-complete-answer)
+    - [7.1 The Question Restated](#71-the-question-restated)
+    - [7.2 CPU Reduction Time Formula](#72-cpu-reduction-time-formula)
+    - [7.3 Break-Even Table: CPU vs. GPU Time](#73-break-even-table-cpu-vs-gpu-time)
+    - [7.4 Resolution: Measuring the ACTUAL CPU Time](#74-resolution-measuring-the-actual-cpu-time)
+    - [7.5 When DOES CPU Reduction Become a Bottleneck?](#75-when-does-cpu-reduction-become-a-bottleneck)
+    - [7.6 Conditions When CPU Reduction Matters](#76-conditions-when-cpu-reduction-matters)
+    - [7.7 Summary Formula (Q1 Complete Answer)](#77-summary-formula-q1-complete-answer)
+  + [8. Intra-Kernel Reduction Primitives: Shared Memory vs. Warp Shuffle vs. Global Atomics](#8-intra-kernel-reduction-primitives-shared-memory-vs-warp-shuffle-vs-global-atomics)
+    - [8.1 Block Shared Memory Tree Reduction](#81-block-shared-memory-tree-reduction)
+    - [8.2 Warp Shuffle Reduction (`__shfl_down_sync`)](#82-warp-shuffle-reduction-__shfl_down_sync)
+    - [8.3 Global Memory Atomic Reduction (`atomicMin`)](#83-global-memory-atomic-reduction-atomicmin)
+    - [8.4 Comparative Reduction Paradigm Matrix](#84-comparative-reduction-paradigm-matrix)
+  + [Suite Navigation \& Cross-References](#suite-navigation--cross-references)
+
 ## Table of Symbols
 
 The following standardized mathematical notation and architectural parameters are used consistently across all derivations, timing breakdowns, and performance models:
@@ -58,7 +80,7 @@ The following standardized mathematical notation and architectural parameters ar
 | $T_{\text{red,GPU}}$ | Parallel reduction latency on GPU | Block-level tree reduction latency in shared memory | $\mu\text{s}$ |
 | $T_{\text{red,CPU}}$ | Sequential reduction latency on CPU | Host evaluation latency of thread candidate array $\arg\min_{t} \Delta_{t}$ | $\mu\text{s}$ |
 | $T_{\text{PCIe}}$ | Host-device data transfer latency | Copy latency for candidate moves over PCIe 3.0 x16 bus | $\mu\text{s}$ |
-| $T_{\text{serial,scalar}}$ | Pure Python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
+| $T_{\text{serial,scalar}}$ | Pure python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
 | $T_{\text{serial,simd}}$ | Vectorized NumPy CPU 2-opt time | C-extension SIMD AVX2 vectorized execution time | $\text{ms}$ |
 | $S_{\text{GPU}}$ | $T_{\text{serial}} / T_{\text{exec}}$ | Speedup factor over CPU baseline | Dimensionless ratio |
 | $\text{Occ}_{\text{theoretical}}$ | Active Warps / Maximum Warps | Theoretical warp occupancy on the active SM | Dimensionless $\in [0, 1]$ |
@@ -96,7 +118,7 @@ __global__ void compute_deltas_kernel(
 }
 ```
 
-**Python Host Code:**
+**python Host Code:**
 
 ```python
 def improve_tour_hybrid(tour_gpu, distances_gpu, n):
@@ -279,7 +301,7 @@ $$
 ### 7.3 Break-Even Table: CPU vs. GPU Time
 
 | $n_{cities}$ | Evaluations ($n_{cities}^2/2$) | $T_{time,\text{GPU}}$ (measured) | $T_{time,\text{CPU}}$ (calculated) | Ratio ($T_{time,\text{CPU}}/T_{time,\text{GPU}}$) |
-|-----|----------------------|----------------------------|------------------------------|----------------------------------------|
+| ----- | ---------------------- | ---------------------------- | ------------------------------ | ---------------------------------------- |
 | 100 | 4,950 | $\sim 10\mu s$ | $\frac{5K}{3 \times 10^9} = 1.65\mu s$ | **16.5%** |
 | 500 | 124,750 | $\sim 50\mu s$ | $\frac{125K}{3 \times 10^9} = 41.7\mu s$ | **83%** (!!) |
 | 1000 | 499,500 | $\sim 200\mu s$ | $\frac{500K}{3 \times 10^9} = 167\mu s$ | **83.5%** |
@@ -328,7 +350,7 @@ $$
 **Revised table:**
 
 | $n_{cities}$ | $T_{time,\text{GPU}}$ | $T_{time,\text{CPU}}$ (vectorized) | Ratio |
-|-----|-----------------|------------------------------|-------|
+| ----- | ----------------- | ------------------------------ | ------- |
 | 100 | 10μs | 0.002μs | **0.02%** |
 | 500 | 50μs | 0.025μs | **0.05%** |
 | 1000 | 200μs | 0.1μs | **0.05%** |
@@ -344,7 +366,7 @@ $$
 Where $G$ = GPU throughput (evals/second). This ratio is **independent of $n_{cities}$**!
 
 > [!NOTE]
-> Empirical evaluation of sequential CPU reduction demonstrates that unvectorized scalar scans incur substantial CPU cache thrashing on large candidate arrays, whereas vectorized NumPy C-extensions and CuPy GPU reductions achieve near-peak memory throughput as analyzed in the monograph manuscript [second_draft.md](../../documents_tcc/tex/second_draft.md).
+> Empirical evaluation of sequential CPU reduction demonstrates that unvectorized scalar scans incur substantial CPU cache thrashing on large candidate arrays, whereas vectorized NumPy C-extensions and CuPy GPU reductions achieve near-peak memory throughput as analyzed in the monograph manuscript [second_draft.md](../../documents_tcc/tex/thesis/second_draft.md).
 
 ### 7.5 When DOES CPU Reduction Become a Bottleneck?
 
@@ -405,21 +427,21 @@ $$
 **CPU reduction becomes bottleneck when:**
 
 1. **GPU speedup > 1000×:** Requires extreme hardware advancement
-   - Current fastest GPU (H100): ~400× faster than GTX 1050
-   - Would need ~2.5× more improvement
+   + Current fastest GPU (H100): ~400× faster than GTX 1050
+   + Would need ~2.5× more improvement
 
 2. **Algorithmic change:** GPU work becomes $O(n)$ or $O(n \log n)$ while reduction stays $O(n^2)$
-   - Example: GPU computes candidate set of size $O(n)$, CPU reduces over $O(n^2)$ post-processing
+   + Example: GPU computes candidate set of size $O(n)$, CPU reduces over $O(n^2)$ post-processing
    > [!warning]
    > This is the scenario with fujimoto, correct?
 
-3. **Unvectorized CPU reduction:** Using naive Python loop instead of NumPy
-   - Loss of 830× SIMD speedup
-   - $T_{\text{CPU}} = 1500\mu s$ → 75% of GPU time (PROBLEM!)
+3. **Unvectorized CPU reduction:** Using naive python loop instead of NumPy
+   + Loss of 830× SIMD speedup
+   + $T_{\text{CPU}} = 1500\mu s$ → 75% of GPU time (PROBLEM!)
 
 4. **Different problem:** Reduction over MASSIVE arrays ($n_{cities} > 100,000$)
-   - For $n_{cities}=100,000$: $T_{\text{CPU}} \approx 1ms$ (but GPU also takes ~200ms)
-   - Ratio still constant at 0.5%
+   + For $n_{cities}=100,000$: $T_{\text{CPU}} \approx 1ms$ (but GPU also takes ~200ms)
+   + Ratio still constant at 0.5%
 
 ### 7.7 Summary Formula (Q1 Complete Answer)
 
@@ -546,12 +568,12 @@ __device__ void atomic_min_float(float* address, float val) {
 | **Synchronization** | $8 \times \text{__syncthreads()}$ | Intra-warp: None; Inter-warp: $1$ barrier | Memory bus serialization | Host-device stream sync |
 | **Break-even Scale** | Optimal for single-block | Optimal for block-level | Optimal for sparse grid | Optimal when $T_{\text{red,CPU}} < T_{\text{red,GPU}}$ |
 
-
 ---
 
 ## Suite Navigation & Cross-References
 
 This document resolves the reduction bottleneck and host-device trade-offs:
+
 - **Theoretical Performance Modeling**: Occupancy models and memory-bound derivations in [analysis-gpu-2opt-performance-modeling.md](./analysis-gpu-2opt-performance-modeling.md).
 - **Parallel Architectures & Baselines**: Design taxonomy and serial baselines in [analysis-gpu-2opt-parallel-architectures.md](./analysis-gpu-2opt-parallel-architectures.md).
 - **Kernel Benchmarking & Code**: Side-by-side CUDA code, kernel anchors, and profiling in [analysis-gpu-2opt-kernel-benchmarking.md](./analysis-gpu-2opt-kernel-benchmarking.md).

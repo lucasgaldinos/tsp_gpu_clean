@@ -19,8 +19,8 @@ modifications:
           active thesis compiles natively with LuaLaTeX while Pandoc serves as the Markdown draft pipeline.
 related_files:
   - "[guide-latex-math-notation.md](./guide-latex-math-notation.md)"
-  - "[second_draft.md](../../documents_tcc/tex/second_draft.md)"
-  - "[second_draft.tex](../../documents_tcc/tex/second_draft.tex)"
+  - "[second_draft.md](../../documents_tcc/tex/thesis/second_draft.md)"
+  - "[second_draft.tex](../../documents_tcc/tex/thesis/second_draft.tex)"
   - "[diagram.lua](../../documents_tcc/scripts/diagram.lua)"
   - "[fix_captions.py](../../documents_tcc/scripts/fix_captions.py)"
 tags:
@@ -38,16 +38,37 @@ tags:
 
 # Guide: Pandoc and XeLaTeX Academic Compilation Pipeline
 
-This guide defines the compilation process, toolchain configuration, LaTeX preamble architecture, and vector diagram rendering pipeline for authoring academic manuscripts (such as [second_draft.md](../../documents_tcc/tex/second_draft.md)) using Pandoc and XeLaTeX.
+- [Guide: Pandoc and XeLaTeX Academic Compilation Pipeline](#guide-pandoc-and-xelatex-academic-compilation-pipeline)
+  + [1. Automated Compilation Pipeline](#1-automated-compilation-pipeline)
+    - [Pipeline Execution Commands](#pipeline-execution-commands)
+    - [Critical Compilation Rules](#critical-compilation-rules)
+  + [2. Dissecting the Pandoc-Generated LaTeX Preamble](#2-dissecting-the-pandoc-generated-latex-preamble)
+    - [2.1 Initial Options and Section Numbering](#21-initial-options-and-section-numbering)
+    - [2.2 Engine Conditionals and Unicode Typography](#22-engine-conditionals-and-unicode-typography)
+    - [2.3 Microtypography and Verbatim Quotes](#23-microtypography-and-verbatim-quotes)
+    - [2.4 Syntax Highlighting Macros](#24-syntax-highlighting-macros)
+    - [2.5 Tables and Bounded Images](#25-tables-and-bounded-images)
+    - [2.6 Citation Engine Comparison: `--citeproc` vs. `--biblatex`](#26-citation-engine-comparison---citeproc-vs---biblatex)
+    - [2.7 Frontmatter Metadata Mapping](#27-frontmatter-metadata-mapping)
+  + [3. Mermaid \& Vector Diagram Rendering: AST Context](#3-mermaid--vector-diagram-rendering-ast-context)
+    - [Why AST Architecture Matters: `Para` vs. `Figure`](#why-ast-architecture-matters-para-vs-figure)
+    - [Lua Filter Workflow (`diagram.lua`)](#lua-filter-workflow-diagramlua)
+    - [Legacy `mermaid-filter` Configuration Attributes](#legacy-mermaid-filter-configuration-attributes)
+  + [4. Tested Troubleshooting \& Fixes](#4-tested-troubleshooting--fixes)
+    - [1. Escaped Quotes in Code Block Attributes](#1-escaped-quotes-in-code-block-attributes)
+    - [2. Duplicate Figure Captions](#2-duplicate-figure-captions)
+    - [3. LaTeX Math Alignment](#3-latex-math-alignment)
+
+This guide defines the compilation process, toolchain configuration, LaTeX preamble architecture, and vector diagram rendering pipeline for authoring academic manuscripts (such as [second_draft.md](../../documents_tcc/tex/thesis/second_draft.md)) using Pandoc and XeLaTeX.
 
 > [!NOTE]
-> The active thesis manuscript is maintained and compiled directly in native LuaLaTeX from [second_draft.tex](../../documents_tcc/tex/second_draft.tex) (`lualatex --shell-escape second_draft.tex`). Pandoc remains the compilation pipeline for the Markdown draft ([second_draft.md](../../documents_tcc/tex/second_draft.md)). Both manuscript source files, along with [refs.bib](../../documents_tcc/tex/refs.bib) and [associacao-brasileira-de-normas-tecnicas-numerico.csl](../../documents_tcc/tex/associacao-brasileira-de-normas-tecnicas-numerico.csl), reside in `documents_tcc/tex/` (NOT `documents_tcc/`).
+> The active thesis manuscript is maintained and compiled directly in native LuaLaTeX from [second_draft.tex](../../documents_tcc/tex/thesis/second_draft.tex) (`lualatex --shell-escape second_draft.tex`). Pandoc remains the compilation pipeline for the Markdown draft ([second_draft.md](../../documents_tcc/tex/thesis/second_draft.md)). Both manuscript source files, along with [refs.bib](../../documents_tcc/tex/thesis/refs.bib) and [associacao-brasileira-de-normas-tecnicas-numerico.csl](../../documents_tcc/tex/thesis/abntex2/associacao-brasileira-de-normas-tecnicas-numerico.csl), reside in `documents_tcc/tex/` (NOT `documents_tcc/`).
 
 ---
 
 ## 1. Automated Compilation Pipeline
 
-When compiling the academic Markdown draft ([second_draft.md](../../documents_tcc/tex/second_draft.md)) into a formatted PDF, automated agents and contributors follow this workflow:
+When compiling the academic Markdown draft ([second_draft.md](../../documents_tcc/tex/thesis/second_draft.md)) into a formatted PDF, automated agents and contributors follow this workflow:
 
 1. **Pre-render diagrams or use the native Lua filter** (`[diagram.lua](../../documents_tcc/scripts/diagram.lua)`).
 2. **Compile with Pandoc**, ensuring Brazilian ABNT CSL citations and Unicode typography map correctly.
@@ -78,7 +99,7 @@ python3 ../scripts/fix_captions.py
 
 ### Critical Compilation Rules
 
-1. **Explicit CSL Specification**: Always supply `--csl` explicitly pointing to [associacao-brasileira-de-normas-tecnicas-numerico.csl](../../documents_tcc/tex/associacao-brasileira-de-normas-tecnicas-numerico.csl) for Brazilian numerical ABNT compliance.
+1. **Explicit CSL Specification**: Always supply `--csl` explicitly pointing to [associacao-brasileira-de-normas-tecnicas-numerico.csl](../../documents_tcc/tex/thesis/abntex2/associacao-brasileira-de-normas-tecnicas-numerico.csl) for Brazilian numerical ABNT compliance.
 2. **XeLaTeX Engine**: `--pdf-engine=xelatex` is required for the Markdown draft to ensure font specification (`fontspec`), Unicode mathematical characters, and TrueType/OpenType font stability.
 3. **No `mermaid-filter` in Production**: Do not pass `-F mermaid-filter` in the LaTeX output pipeline; use the pure Lua filter (`[diagram.lua](../../documents_tcc/scripts/diagram.lua)`).
 4. **Verification Protocol**: Automated agents should not attempt to visually verify the compiled PDF render. Use interactive evaluation tools to request human review for final page breaks, citation numbering, and diagram scaling.
@@ -160,11 +181,11 @@ When converting Markdown to standalone LaTeX (`pandoc -s file.md -o file.tex`), 
 ### 2.6 Citation Engine Comparison: `--citeproc` vs. `--biblatex`
 
 1. **`--citeproc` (Internal Filter)**:
-   - Pandoc parses [refs.bib](../../documents_tcc/tex/refs.bib) internally and replaces citation keys (`[@cook2012]`) with static formatted text strings directly in the generated LaTeX source.
-   - The underlying LaTeX compiler does not need `biblatex` or Biber.
+   + Pandoc parses [refs.bib](../../documents_tcc/tex/thesis/refs.bib) internally and replaces citation keys (`[@cook2012]`) with static formatted text strings directly in the generated LaTeX source.
+   + The underlying LaTeX compiler does not need `biblatex` or Biber.
 2. **`--biblatex` + `--bibliography` (LaTeX Engine Delegate)**:
-   - Pandoc emits `\usepackage{biblatex}` and `\addbibresource{refs.bib}`, replacing citation keys with `\autocite{key}` and printing the bibliography via `\printbibliography`.
-   - Requires running `biber` as an auxiliary compilation stage.
+   + Pandoc emits `\usepackage{biblatex}` and `\addbibresource{refs.bib}`, replacing citation keys with `\autocite{key}` and printing the bibliography via `\printbibliography`.
+   + Requires running `biber` as an auxiliary compilation stage.
 
 ### 2.7 Frontmatter Metadata Mapping
 
@@ -177,6 +198,7 @@ Metadata declared in Markdown YAML frontmatter is injected into the LaTeX `\hype
 ### Why AST Architecture Matters: `Para` vs. `Figure`
 
 In Pandoc's Abstract Syntax Tree (AST), a `Para` represents a standard text paragraph. Legacy tools often converted diagrams into inline images: `Para[Image(...)]`. In LaTeX, inline images do not generate floating figure environments (`\begin{figure}`), which breaks:
+
 - Inclusion in the List of Figures (`\listoffigures`).
 - Proper caption placement.
 - Cross-referencing via `\ref{fig:...}`.
@@ -223,18 +245,22 @@ sequenceDiagram
 ## 4. Tested Troubleshooting & Fixes
 
 ### 1. Escaped Quotes in Code Block Attributes
+
 - **Symptom**: Code blocks rendered as raw Markdown text rather than generating figures.
 - **Root Cause**: Escaped quotes (e.g., `\"80%\"`) cause Pandoc's reader to classify the header as a plaintext string (`Str`) instead of attribute metadata.
 - **Fix**: Use clean unescaped quotes in the attribute header: `caption="Diagram Title"` and `width="80%"`.
 
 ### 2. Duplicate Figure Captions
+
 - **Symptom**: Double caption labels appeared in the PDF (e.g., `Figura 1: ...` immediately followed by another `Figura 1: ...`).
 - **Root Cause**: The filter automatically wraps the output in `\begin{figure}\caption{...}`, while the Markdown source also contained a manual trailing paragraph `Figura~\ref{fig:myfig}: Description`.
 - **Fix**: Remove all hardcoded trailing figure labels from the Markdown source; rely exclusively on the code block `caption="..."` attribute.
 
 ### 3. LaTeX Math Alignment
+
 - **Symptom**: Formula misalignment in complex expressions like 2-opt $\Delta C$ calculations.
 - **Fix**: Replace raw Markdown `$$` block math with canonical LaTeX alignment environments:
+
   ```text
   \begin{align}
       \Delta C &= d(t_i, t_{j+1}) + d(t_{i+1}, t_j) - d(t_i, t_{i+1}) - d(t_j, t_{j+1})

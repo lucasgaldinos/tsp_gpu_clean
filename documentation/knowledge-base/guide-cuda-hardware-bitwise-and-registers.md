@@ -47,8 +47,15 @@ tags:
   + [1. Executive overview](#1-executive-overview)
   + [2. Bitwise operations from zero: the binary foundation](#2-bitwise-operations-from-zero-the-binary-foundation)
     - [2.1 Binary representation, powers of two, and hexadecimal notation](#21-binary-representation-powers-of-two-and-hexadecimal-notation)
+      + [Powers of Two](#powers-of-two)
+      + [Why Hexadecimal (`0x...`)?](#why-hexadecimal-0x)
+      + [Demystifying `0xFFFFFFFFu`:](#demystifying-0xffffffffu)
     - [2.2 Fundamental bitwise operators (`&`, `|`, `^`, `~`, `<<`, `>>`)](#22-fundamental-bitwise-operators------)
     - [2.3 The unified 4-trick example: tracking City 75 in hardware](#23-the-unified-4-trick-example-tracking-city-75-in-hardware)
+      + [Step 1: Find the Word Index (`c >> 5`)](#step-1-find-the-word-index-c--5)
+      + [Step 2: Find the Bit Position inside that Word (`c & 31`)](#step-2-find-the-bit-position-inside-that-word-c--31)
+      + [Step 3: Create a Probe Mask to Set or Test Bit 11 (`1u << k`)](#step-3-create-a-probe-mask-to-set-or-test-bit-11-1u--k)
+      + [Step 4: Create "Blinders" to Look Only at Lower Cities (`(1u << k) - 1u`)](#step-4-create-blinders-to-look-only-at-lower-cities-1u--k---1u)
   + [3. GPU clock cycles, instruction latency, and execution pipeline starvation](#3-gpu-clock-cycles-instruction-latency-and-execution-pipeline-starvation)
     - [3.1 What is a clock cycle in hardware?](#31-what-is-a-clock-cycle-in-hardware)
     - [3.2 Why latency varies by operation type (and which takes the most time)](#32-why-latency-varies-by-operation-type-and-which-takes-the-most-time)
@@ -59,12 +66,17 @@ tags:
     - [4.3 The signed 8-bit sign-extension trap: why `__popc(-5)` returns 31 instead of 7](#43-the-signed-8-bit-sign-extension-trap-why-__popc-5-returns-31-instead-of-7)
     - [4.4 SIMD Within A Register (SWAR) for 4-byte batch loads](#44-simd-within-a-register-swar-for-4-byte-batch-loads)
     - [4.5 Floating-point bitwise reinterpretation (`__float_as_uint`): using floats masked as ints](#45-floating-point-bitwise-reinterpretation-__float_as_uint-using-floats-masked-as-ints)
+      + [Why is this immensely useful in GPU optimization?](#why-is-this-immensely-useful-in-gpu-optimization)
   + [5. Core integer bit-manipulation intrinsics (`__popc`, `__clz`, `__ffs`, `__brev`)](#5-core-integer-bit-manipulation-intrinsics-__popc-__clz-__ffs-__brev)
     - [5.1 Summary table and mathematical definitions](#51-summary-table-and-mathematical-definitions)
     - [5.2 Detailed visual traces and TSP solver applications](#52-detailed-visual-traces-and-tsp-solver-applications)
+      + [1. `__popc`: Stream Compaction and Active Thread Count](#1-__popc-stream-compaction-and-active-thread-count)
+      + [2. `__clz`: Dynamic Reduction Step Sizes and $\\lfloor \\log\_2(x) \\rfloor$](#2-__clz-dynamic-reduction-step-sizes-and-lfloor-log_2x-rfloor)
+      + [3. `__ffs`: Finding the First Improving 2-Opt Move](#3-__ffs-finding-the-first-improving-2-opt-move)
+      + [4. `__brev`: Reversing Bitpacked Routes in Inversion Mutation](#4-__brev-reversing-bitpacked-routes-in-inversion-mutation)
   + [6. Hardware comparison of stream compaction alternatives](#6-hardware-comparison-of-stream-compaction-alternatives)
     - [6.1 Why `atomicAdd` in Global or Shared Memory scrambles tour ordering](#61-why-atomicadd-in-global-or-shared-memory-scrambles-tour-ordering)
-    - [6.2 Is there a problem with $P_2[5]$ being placed before $P_2[2]$?](#62-is-there-a-problem-with-p_25-being-placed-before-p_22)
+    - [6.2 Is there a problem with $P\_2\[5\]$ being placed before $P\_2\[2\]$?](#62-is-there-a-problem-with-p_25-being-placed-before-p_22)
     - [6.3 Latency comparison across all 5 compaction mechanisms](#63-latency-comparison-across-all-5-compaction-mechanisms)
 
 ---
@@ -73,7 +85,7 @@ tags:
 
 Writing high-performance CUDA kernels for discrete combinatorial optimization (like the Traveling Salesperson Problem and Genetic Algorithms) requires mastering the physical reality of the GPU: registers, clock cycles, bitwise operations, and memory transactions.
 
-Unlike high-level Python or standard C++ where variables exist as abstract objects, every variable in a GPU Streaming Multiprocessor (SM) physically sits on **32 metal wires** inside a register file. Understanding how these wires represent numbers, how bits are shifted in a single clock tick, and why memory access must follow hardware rules is essential to writing code that is both blisteringly fast and mathematically sound.
+Unlike high-level python or standard C++ where variables exist as abstract objects, every variable in a GPU Streaming Multiprocessor (SM) physically sits on **32 metal wires** inside a register file. Understanding how these wires represent numbers, how bits are shifted in a single clock tick, and why memory access must follow hardware rules is essential to writing code that is both blisteringly fast and mathematically sound.
 
 This guide provides the foundational hardware and bitwise knowledge required before exploring warp-level collectives. For warp vote and shuffle primitives, see the companion guide [guide-cuda-warp-primitives-and-intrinsics.md](./guide-cuda-warp-primitives-and-intrinsics.md).
 
@@ -86,6 +98,7 @@ This guide provides the foundational hardware and bitwise knowledge required bef
 Computers store all information using electrical voltages: a high voltage represents `1`, and a low voltage represents `0`. A single digit is a **bit**.
 
 #### Powers of Two
+
 In standard decimal (base 10), each place value represents a power of 10: $10^0 = 1, 10^1 = 10, 10^2 = 100$.
 In binary (base 2), each place value represents a power of 2:
 

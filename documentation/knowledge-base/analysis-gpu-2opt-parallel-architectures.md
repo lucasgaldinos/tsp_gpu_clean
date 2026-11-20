@@ -46,6 +46,46 @@ tags:
 
 # 2-Opt GPU Parallel Architectures: Taxonomy, Serial Baselines, and Rocki Paradigm
 
+- [2-Opt GPU Parallel Architectures: Taxonomy, Serial Baselines, and Rocki Paradigm](#2-opt-gpu-parallel-architectures-taxonomy-serial-baselines-and-rocki-paradigm)
+  + [Table of Symbols](#table-of-symbols)
+  + [1. Introduction: The 2-Opt Parallelization Design Space](#1-introduction-the-2-opt-parallelization-design-space)
+    - [1.1 The Parallelization Question](#11-the-parallelization-question)
+      + [**Visualization: Parallelization Strategy Comparison**](#visualization-parallelization-strategy-comparison)
+      + [**Axis 1: Thread Count**](#axis-1-thread-count)
+      + [**Axis 2: Work Distribution**](#axis-2-work-distribution)
+      + [**Axis 3: Reduction Location**](#axis-3-reduction-location)
+    - [1.2 Why This Matters: Cascading Trade-offs](#12-why-this-matters-cascading-trade-offs)
+      + [**$O(n\_{\\text{cities}}^2)$ threads (Rocki approach):**](#on_textcities2-threads-rocki-approach)
+      + [**Fixed 256 threads (This work's approach):**](#fixed-256-threads-this-works-approach)
+      + [**GPU reduction vs. CPU reduction:**](#gpu-reduction-vs-cpu-reduction)
+    - [1.3 Our Implementation Context](#13-our-implementation-context)
+    - [1.4 Document Roadmap](#14-document-roadmap)
+  + [2. Serial Baseline: Foundation for Comparison](#2-serial-baseline-foundation-for-comparison)
+    - [2.1 Serial Algorithm](#21-serial-algorithm)
+    - [2.1.1 CPU Vectorization: NumPy SIMD/AVX2 Speedup](#211-cpu-vectorization-numpy-simdavx2-speedup)
+      + [**Naive python Implementation** (`naive_cpu_2opt.py`)](#naive-python-implementation-naive_cpu_2optpy)
+      + [**NumPy Vectorized Implementation** (`benchmark_cpu_variants.py`)](#numpy-vectorized-implementation-benchmark_cpu_variantspy)
+      + [**SIMD/AVX2 Explanation**](#simdavx2-explanation)
+      + [**Performance Comparison Table**](#performance-comparison-table)
+      + [**Why GPU Still Faster Than NumPy?**](#why-gpu-still-faster-than-numpy)
+      + [**Code Artifacts**](#code-artifacts)
+    - [2.2 Complexity Analysis](#22-complexity-analysis)
+    - [2.3 Execution Timeline Visualization (Q5: Connecting diagrams to formulas)](#23-execution-timeline-visualization-q5-connecting-diagrams-to-formulas)
+    - [2.4 Why GPU Parallelization Helps](#24-why-gpu-parallelization-helps)
+  + [3. Strategy 1: Rocki \& Suda (2013) — Data Parallelism with $O(n\_{cities}^2)$ Threads](#3-strategy-1-rocki--suda-2013--data-parallelism-with-on_cities2-threads)
+    - [3.1 Core Algorithm Structure](#31-core-algorithm-structure)
+      + [**CUDA Kernel (Pseudocode):**](#cuda-kernel-pseudocode)
+        - [**Thread-to-Pair Mapping:**](#thread-to-pair-mapping)
+        - [**Mapping Algorithm:**](#mapping-algorithm)
+    - [3.2 GPU Reduction Phase](#32-gpu-reduction-phase)
+    - [3.3 Execution Visualization with Wave Serialization (Q5: Formula Connection)](#33-execution-visualization-with-wave-serialization-q5-formula-connection)
+    - [3.4 Complexity Analysis](#34-complexity-analysis)
+    - [3.5 Advantages and Disadvantages](#35-advantages-and-disadvantages)
+  + [8. Move Application Phase: Serial Thread 0 Reversal vs. Cooperative Block Reversal (`2OPT-A`)](#8-move-application-phase-serial-thread-0-reversal-vs-cooperative-block-reversal-2opt-a)
+    - [8.1 The Serial Thread 0 Bottleneck](#81-the-serial-thread-0-bottleneck)
+    - [8.2 Why Cooperative Block Reversal (`2OPT-A`) is 100% 2-Opt Best-Improvement](#82-why-cooperative-block-reversal-2opt-a-is-100-2-opt-best-improvement)
+  + [Suite Navigation \& Cross-References](#suite-navigation--cross-references)
+
 ## Table of Symbols
 
 The following standardized mathematical notation and architectural parameters are used consistently across all derivations, timing breakdowns, and performance models:
@@ -255,7 +295,7 @@ Each section includes:
 **Related Documentation:**
 
 - [CUDA Synchronization Levels](guide-cuda-synchronization-levels.md) - Detailed analysis of `__syncthreads()`, grid sync, and PCIe transfer synchronization
-- [second_draft.md](../../documents_tcc/tex/second_draft.md) - Active academic thesis manuscript and benchmark analysis
+- [second_draft.md](../../documents_tcc/tex/thesis/second_draft.md) - Active academic thesis manuscript and benchmark analysis
 
 ---
 

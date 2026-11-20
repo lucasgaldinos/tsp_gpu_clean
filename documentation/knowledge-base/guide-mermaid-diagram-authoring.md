@@ -31,6 +31,9 @@ tags:
 
 # Mermaid Diagram Authoring Standards and Pandoc LaTeX Rendering
 
+- [Mermaid Diagram Authoring Standards and Pandoc LaTeX Rendering](#mermaid-diagram-authoring-standards-and-pandoc-latex-rendering)
+  + [Making nodes bigger in mermaid](#making-nodes-bigger-in-mermaid)
+
 ```mermaid
 %%{
  init: {

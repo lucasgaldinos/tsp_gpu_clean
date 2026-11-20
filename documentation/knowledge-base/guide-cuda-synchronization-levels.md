@@ -36,52 +36,52 @@ tags:
 # CUDA Synchronization Levels and Thread Hierarchy
 
 - [CUDA Synchronization Levels and Thread Hierarchy](#cuda-synchronization-levels-and-thread-hierarchy)
-  - [1. CUDA Execution Hierarchy (Terminology Explained)](#1-cuda-execution-hierarchy-terminology-explained)
+  + [1. CUDA Execution Hierarchy (Terminology Explained)](#1-cuda-execution-hierarchy-terminology-explained)
     - [1.0 Hierarchical Architecture Overview](#10-hierarchical-architecture-overview)
     - [1.1 Kernel](#11-kernel)
     - [1.2 Grid](#12-grid)
-      - [**Are Non-Power-of-2 Block Sizes Ever Optimal?**](#are-non-power-of-2-block-sizes-ever-optimal)
+      + [**Are Non-Power-of-2 Block Sizes Ever Optimal?**](#are-non-power-of-2-block-sizes-ever-optimal)
     - [1.3 Block](#13-block)
     - [1.4 Thread](#14-thread)
     - [1.5 Warp](#15-warp)
-  - [2. Synchronization Mechanisms](#2-synchronization-mechanisms)
+  + [2. Synchronization Mechanisms](#2-synchronization-mechanisms)
     - [2.1 Warp-Level Synchronization (Implicit)](#21-warp-level-synchronization-implicit)
     - [2.2 Block-Level Synchronization (`__syncthreads()`)](#22-block-level-synchronization-__syncthreads)
     - [2.3 Kernel-Level Synchronization (Launch/Completion)](#23-kernel-level-synchronization-launchcompletion)
-  - [3. Measurement Sources and Platform Specificity](#3-measurement-sources-and-platform-specificity)
+  + [3. Measurement Sources and Platform Specificity](#3-measurement-sources-and-platform-specificity)
     - [3.1 Architectural Constants (All CUDA GPUs)](#31-architectural-constants-all-cuda-gpus)
     - [3.2 Typical Ranges (Hardware-Dependent, Literature Values)](#32-typical-ranges-hardware-dependent-literature-values)
     - [3.3 GTX 1050 Mobile Specific Measurements (Empirical)](#33-gtx-1050-mobile-specific-measurements-empirical)
-  - [4. Implications for Metaheuristic Design](#4-implications-for-metaheuristic-design)
+  + [4. Implications for Metaheuristic Design](#4-implications-for-metaheuristic-design)
     - [4.1 When Synchronization Costs Dominate Computation](#41-when-synchronization-costs-dominate-computation)
     - [4.2 Amortizing Kernel Launch Overhead](#42-amortizing-kernel-launch-overhead)
     - [4.3 Block Synchronization in Reduction Operations](#43-block-synchronization-in-reduction-operations)
-  - [5. Summary and Design Guidelines](#5-summary-and-design-guidelines)
+  + [5. Summary and Design Guidelines](#5-summary-and-design-guidelines)
     - [Key Takeaways](#key-takeaways)
     - [Design Guidelines for GPU-Accelerated Metaheuristics](#design-guidelines-for-gpu-accelerated-metaheuristics)
     - [Implementation Status Summary](#implementation-status-summary)
-      - [**Why Are These Optimizations Not Implemented? (Origins and Rationale)**](#why-are-these-optimizations-not-implemented-origins-and-rationale)
-      - [**General Rationale for Deferral (All Three Optimizations)**](#general-rationale-for-deferral-all-three-optimizations)
+      + [**Why Are These Optimizations Not Implemented? (Origins and Rationale)**](#why-are-these-optimizations-not-implemented-origins-and-rationale)
+      + [**General Rationale for Deferral (All Three Optimizations)**](#general-rationale-for-deferral-all-three-optimizations)
     - [Experimental Validation](#experimental-validation)
-  - [Appendix A: Hardware Evolution and Speedup Normalization (Warning #1 Answer)](#appendix-a-hardware-evolution-and-speedup-normalization-warning-1-answer)
+  + [Appendix A: Hardware Evolution and Speedup Normalization (Warning #1 Answer)](#appendix-a-hardware-evolution-and-speedup-normalization-warning-1-answer)
     - [A.1 Hardware Comparison: GTX 285 (2009) vs GTX 1050 Mobile (2016)](#a1-hardware-comparison-gtx-285-2009-vs-gtx-1050-mobile-2016)
     - [A.2 Roofline Model: Is 2-opt Memory-Bound or Compute-Bound?](#a2-roofline-model-is-2-opt-memory-bound-or-compute-bound)
-    - [A.3 Why Our Speedup (128×) \> Fujimoto's (24.2×)?](#a3-why-our-speedup-128×--fujimotos-242×)
+    - [A.3 Why Our Speedup (128×) \> Fujimoto's (24.2×)?](#a3-why-our-speedup-128--fujimotos-242)
     - [A.4 Speedup Scaling with Hardware](#a4-speedup-scaling-with-hardware)
     - [A.5 Summary: Addressing the Warning](#a5-summary-addressing-the-warning)
     - [A.6 Experimental Validation Protocol](#a6-experimental-validation-protocol)
-      - [A.6.1 Why Multiple Runs Matter](#a61-why-multiple-runs-matter)
-      - [A.6.2 Benchmarking Methodology](#a62-benchmarking-methodology)
-      - [A.6.3 Statistical Comparison Protocol](#a63-statistical-comparison-protocol)
-      - [A.6.4 Results Template](#a64-results-template)
-      - [A.6.5 Python Implementation Example](#a65-python-implementation-example)
+      + [A.6.1 Why Multiple Runs Matter](#a61-why-multiple-runs-matter)
+      + [A.6.2 Benchmarking Methodology](#a62-benchmarking-methodology)
+      + [A.6.3 Statistical Comparison Protocol](#a63-statistical-comparison-protocol)
+      + [A.6.4 Results Template](#a64-results-template)
+      + [A.6.5 python Implementation Example](#a65-python-implementation-example)
     - [A.7 NSight Profiling Commands and Validation](#a7-nsight-profiling-commands-and-validation)
-      - [A.7.1 Memory Bandwidth Utilization](#a71-memory-bandwidth-utilization)
-      - [A.7.2 Occupancy and Warp Utilization](#a72-occupancy-and-warp-utilization)
-      - [A.7.3 Roofline Model Visualization](#a73-roofline-model-visualization)
-      - [A.7.4 Cache Performance and Bandwidth Compensation](#a74-cache-performance-and-bandwidth-compensation)
-      - [A.7.5 Summary: Profiling Validation Checklist](#a75-summary-profiling-validation-checklist)
-  - [References](#references)
+      + [A.7.1 Memory Bandwidth Utilization](#a71-memory-bandwidth-utilization)
+      + [A.7.2 Occupancy and Warp Utilization](#a72-occupancy-and-warp-utilization)
+      + [A.7.3 Roofline Model Visualization](#a73-roofline-model-visualization)
+      + [A.7.4 Cache Performance and Bandwidth Compensation](#a74-cache-performance-and-bandwidth-compensation)
+      + [A.7.5 Summary: Profiling Validation Checklist](#a75-summary-profiling-validation-checklist)
+  + [References](#references)
     - [NVIDIA Official Documentation](#nvidia-official-documentation)
     - [Academic Publications](#academic-publications)
     - [Dissertation References](#dissertation-references)
@@ -194,7 +194,7 @@ A **kernel** is a function that executes on the GPU device. When invoked from CP
 **Example from Metaheuristics:**
 
 ```cpp
-__global__ void evaluate_2opt_moves(float *dist_matrix, int *tour, 
+__global__ void evaluate_2opt_moves(float *dist_matrix, int *tour,
                                     float *delta_costs, int n) {
     // Each thread evaluates one potential 2-opt swap
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -252,7 +252,7 @@ block_dim = (threads_per_block,)  # (256,)
 For GTX 1050 Mobile ($5$ SMs, $2048$ threads/SM, $48$ KB shared memory/SM):
 
 | Block Size | Blocks/SM | Threads/SM | Occupancy | When to Use |
-|------------|-----------|------------|-----------|-------------|
+| ------------ | ----------- | ------------ | ----------- | ------------- |
 | $128$ | $16$ | $2048$ | $100\%$ | Low register/memory usage per thread |
 | $256$ | $8$ | $2048$ | $100\%$ | **Balanced (most common)** |
 | $512$ | $4$ | $2048$ | $100\%$ | High register/memory usage per thread |
@@ -270,37 +270,37 @@ All achieve $100\%$ occupancy on GTX 1050, so the choice depends on:
 def get_optimal_block_dim_2d(n, sm_count=5, max_threads_per_sm=2048):
     """
     Optimize block dimensions for n×n 2-opt evaluation on GTX 1050 Mobile.
-    
+
     Strategy: Choose block size to maximize occupancy while minimizing idle threads.
     """
     # Candidate block sizes (all multiples of 32 for warp alignment)
     candidates = [(8, 8), (16, 16), (32, 32)]  # 64, 256, 1024 threads
-    
+
     best_config = None
     best_score = 0
-    
+
     for (bx, by) in candidates:
         threads_per_block = bx * by
         blocks_per_sm = max_threads_per_sm // threads_per_block
         concurrent_threads = sm_count * blocks_per_sm * threads_per_block
-        
+
         # Grid dimensions (how many blocks needed to cover n×n problem)
         grid_x = (n + bx - 1) // bx
         grid_y = (n + by - 1) // by
         total_blocks = grid_x * grid_y
-        
+
         # Compute wasted threads (threads launched but outside problem bounds)
         total_threads = grid_x * bx * grid_y * by
         useful_threads = n * n
         waste_ratio = (total_threads - useful_threads) / total_threads
-        
+
         # Score: balance occupancy (high concurrent threads) vs waste (low waste ratio)
         score = concurrent_threads * (1 - waste_ratio)
-        
+
         if score > best_score:
             best_score = score
             best_config = ((grid_x, grid_y), (bx, by))
-    
+
     return best_config
 
 # Example for n=3000
@@ -430,7 +430,7 @@ $$
 **Critical Thresholds for 5% Waste:**
 
 | Block Dim | $b$ | $n_{\text{crit}} = 19b$ | Interpretation |
-|-----------|-----|------------------------|----------------|
+| ----------- | ----- | ------------------------ | ---------------- |
 | $8 \times 8$ | $8$ | $n < 152$ | Use $b=8$ for **small problems** ($n < 150$) |
 | $16 \times 16$ | $16$ | $n < 304$ | Use $b=16$ for **medium problems** ($150 \leq n < 300$) |
 | $32 \times 32$ | $32$ | $n < 608$ | Use $b=32$ for **large problems** ($n \geq 600$) |
@@ -466,7 +466,7 @@ $$
 **Comparison for n=3000:**
 
 | Config | Threads/Block | Blocks/SM | Grid Size | Total Threads | Waste | Score |
-|--------|---------------|-----------|-----------|---------------|-------|-------|
+| -------- | --------------- | ----------- | ----------- | --------------- | ------- | ------- |
 | 8×8 | 64 | 32 | (375, 375) | 9,000,000 | 0% | **10,240** (best if minimal waste critical) |
 | 16×16 | 256 | 8 | (188, 188) | 8,978,432 | 0.2% | **10,238** (best balanced) |
 | 32×32 | 1024 | 2 | (94, 94) | 8,863,744 | 1.5% | **10,086** |
@@ -480,7 +480,7 @@ $$
 **For smaller problems (n=300):**
 
 | Config | Grid Size | Total Blocks | Waste | Score |
-|--------|-----------|--------------|-------|-------|
+| -------- | ----------- | -------------- | ------- | ------- |
 | 8×8 | (38, 38) | 1,444 | 0.4% | **10,236** (best) |
 | 16×16 | (19, 19) | 361 | 1.6% | **10,078** |
 | 32×32 | (10, 10) | 100 | 7.1% | **9,515** |
@@ -509,7 +509,7 @@ $$
 - Occupancy remains high ($\geq 90\%$, satisfied for $b \leq 384$ on GTX 1050)
 - Power-of-2 sizes create significant waste for that specific $n$
 
-**Mathematical Proof:** See comprehensive proof document:  
+**Mathematical Proof:** See comprehensive proof document:
 [**Non-Power-of-2 Block Sizes: Mathematical Proof**](./analysis-non-power-of-two-blocks.md)
 
 **Document Contents:**
@@ -519,16 +519,16 @@ $$
 - Worked example: $n=576$, comparing $b=256$ vs $b=288$ step-by-step
 - 3 performance graphs showing efficiency, performance, and occupancy curves
 - Mathematical theorem with constructive proof
-- Optimal block size algorithm (Python implementation)
+- Optimal block size algorithm (python implementation)
 - Test results for $n \in \{300, 576, 1536, 3000\}$
 
 **When Non-Power-of-2 Wins (Summary):**
 
 | $n_{\text{problem}}$ | Optimal $b$ | Power of 2? | Performance | Best Power-of-2 | Improvement |
-|----------------------|-------------|-------------|-------------|-----------------|-------------|
+| ---------------------- | ------------- | ------------- | ------------- | ----------------- | ------------- |
 | 300 | 160 | ✗ | 0.938 | 128 (0.781) | **+20%** |
 | 576 | 288 | ✗ | 0.984 | 256 (0.75) | **+31%** |
-| 1536 | 512 | ✓ | 1.0 | — | —  |
+| 1536 | 512 | ✓ | 1.0 | — | — |
 | 3000 | 256 | ✓ | 0.998 | — | — |
 
 **Practical Recommendation for TSP:**
@@ -657,11 +657,11 @@ A **block** (also called **thread block**) is an independent group of threads th
 - Threads within a block can cooperate via fast shared memory
 - Blocks within a grid are independent—no inter-block communication during kernel execution
 
-**Scalability Implication:**  
+**Scalability Implication:**
 A kernel launching $1000$ blocks will execute correctly on both:
 
-- GTX 1050 Mobile: $5$ SMs → executes $200$ blocks per SM sequentially  
-- RTX 3090: $82$ SMs → executes $\sim12$ blocks per SM  
+- GTX 1050 Mobile: $5$ SMs → executes $200$ blocks per SM sequentially
+- RTX 3090: $82$ SMs → executes $\sim12$ blocks per SM
 The hardware automatically distributes blocks without code changes.
 
 **Example from GA Implementation:**
@@ -695,7 +695,7 @@ Block 2: threads 512-767 (blockIdx.x=2, threadIdx.x=0..255)
 Global ID = blockIdx.x * 256 + threadIdx.x
 ```
 
-**Memory Access Pattern:**  
+**Memory Access Pattern:**
 In SA neighbor evaluation, thread $i$ reads `dist_matrix[tour[i]][tour[i+1]]` while thread $j$ reads `dist_matrix[tour[j]][tour[j+1]]`—same code, different data addresses.
 
 ### 1.5 Warp
@@ -761,7 +761,7 @@ __global__ void accept_moves(float *deltas, bool *accept, float temperature) {
 
 If threads 0-15 have `deltas[i] < 0` but threads 16-31 have `deltas[i] >= 0`, the warp executes the `true` branch 16 times (with 16 threads masked), then the `else` branch 16 times (with the other 16 masked). Execution time doubles compared to all threads taking the same path.
 
-**Implication for Metaheuristics:**  
+**Implication for Metaheuristics:**
 SA's stochastic acceptance decision causes branch divergence. GPU implementations often evaluate ALL neighbor moves in parallel (no branches), then perform acceptance on CPU to avoid divergence penalties.
 
 ---
@@ -816,12 +816,12 @@ if (threadIdx.x < 32) {
 ```cpp
 __global__ void find_minimum_tour_cost(float *costs, float *result, int n) {
     __shared__ float block_min[256];  // Shared memory for block
-    
+
     // Stage 1: Each thread loads one element
     int tid = threadIdx.x;
     block_min[tid] = costs[blockIdx.x * blockDim.x + tid];
     __syncthreads();  // Ensure all loads complete before reduction
-    
+
     // Stage 2: Parallel reduction (log₂ steps)
     for (int stride = blockDim.x / 2; stride > 32; stride /= 2) {
         if (tid < stride) {
@@ -829,7 +829,7 @@ __global__ void find_minimum_tour_cost(float *costs, float *result, int n) {
         }
         __syncthreads();  // Synchronize after each reduction step
     }
-    
+
     // Final warp reduction (no sync needed)
     if (tid < 32) {
         block_min[tid] = min(block_min[tid], block_min[tid + 32]);
@@ -838,7 +838,7 @@ __global__ void find_minimum_tour_cost(float *costs, float *result, int n) {
 }
 ```
 
-**Cost Analysis (256-thread block):**  
+**Cost Analysis (256-thread block):**
 
 - Reduction requires $\log_2(256) - 5 = 3$ block-level syncs (excluding final warp)
 - Each sync costs $\sim5\mu s$ (typical)
@@ -846,7 +846,7 @@ __global__ void find_minimum_tour_cost(float *costs, float *result, int n) {
 - For comparison: evaluating $256$ distance calculations might take $\sim100\mu s$
 - Sync overhead is $15\%$ of computation—acceptable
 
-**When This Becomes Problematic:**  
+**When This Becomes Problematic:**
 If computation per thread is very small ($<1\mu s$), synchronization overhead dominates. Solution: batch more work per thread to amortize sync costs.
 
 ### 2.3 Kernel-Level Synchronization (Launch/Completion)
@@ -862,7 +862,7 @@ If computation per thread is very small ($<1\mu s$), synchronization overhead do
 3. **Kernel Initialization:** Setting up grid/block configuration, loading kernel code (~100-150μs)
 4. **Synchronization Barriers:** Ensuring previous work completes before new kernel starts (~50-100μs)
 
-**Platform Specificity:**  
+**Platform Specificity:**
 
 - $\sim500\mu s$ on GTX 1050 Mobile (Pascal architecture, mobile GPU, measured)
 - $\sim200\mu s$ on RTX 3090 (Ampere architecture, desktop GPU, typical)
@@ -874,19 +874,19 @@ These measurements are **empirical** (not from citations)—obtained by averagin
 
 The $500\mu s$ kernel launch overhead creates a **problem size threshold** below which GPU execution is slower than CPU:
 
-- **Small problem** ($n=100$ cities, $\sim5000$ 2-opt moves): GPU evaluation takes $\sim200\mu s$ + $500\mu s$ launch = $700\mu s$  
-  CPU sequential evaluation: $\sim100\mu s$  
+- **Small problem** ($n=100$ cities, $\sim5000$ 2-opt moves): GPU evaluation takes $\sim200\mu s$ + $500\mu s$ launch = $700\mu s$
+  CPU sequential evaluation: $\sim100\mu s$
   **Verdict:** CPU faster due to launch overhead
 
-- **Medium problem** ($n=1000$ cities, $\sim500000$ moves): GPU evaluation takes $\sim5000\mu s$ + $500\mu s$ launch = $5500\mu s$  
-  CPU sequential evaluation: $\sim50000\mu s$  
+- **Medium problem** ($n=1000$ cities, $\sim500000$ moves): GPU evaluation takes $\sim5000\mu s$ + $500\mu s$ launch = $5500\mu s$
+  CPU sequential evaluation: $\sim50000\mu s$
   **Verdict:** GPU $9\times$ faster despite launch overhead
 
-- **Large problem** ($n=3000$ cities, $\sim4.5M$ moves): GPU evaluation takes $\sim20000\mu s$ + $500\mu s$ launch = $20500\mu s$  
-  CPU sequential evaluation: $\sim500000\mu s$  
+- **Large problem** ($n=3000$ cities, $\sim4.5M$ moves): GPU evaluation takes $\sim20000\mu s$ + $500\mu s$ launch = $20500\mu s$
+  CPU sequential evaluation: $\sim500000\mu s$
   **Verdict:** GPU $24\times$ faster, launch overhead negligible
 
-**Experimental Validation:**  
+**Experimental Validation:**
 Section 4.2 (Analysis 1: 2-opt Deterministic Performance) validates these thresholds empirically, confirming that GPU acceleration becomes beneficial for $n \gtrsim 200$ cities on GTX 1050 Mobile.
 
 **Batching Strategy to Amortize Overhead:**
@@ -925,7 +925,7 @@ It is critical to distinguish between **architectural constants** (true for all 
 The following values are **guaranteed by the CUDA architecture** and apply to ALL CUDA-capable GPUs from Fermi (2010) through Hopper (2024) architectures:
 
 | Constant | Value | Source |
-|----------|-------|--------|
+| ---------- | ------- | -------- |
 | Warp size | $32$ threads | CUDA Programming Guide \[1\] |
 | Max threads per block | $1024$ threads | CUDA Programming Guide \[1\] |
 | Thread ID indexing | `blockIdx`, `threadIdx`, `blockDim` | CUDA Programming Guide \[1\] |
@@ -939,12 +939,12 @@ The following values are **guaranteed by the CUDA architecture** and apply to AL
 The following values are **typical ranges documented in CUDA best practices** but vary across GPU models:
 
 | Operation | Typical Range | Source |
-|-----------|---------------|--------|
+| ----------- | --------------- | -------- |
 | Block-level `__syncthreads()` | $1$-$10\mu s$ | CUDA Best Practices Guide \[1\] |
 | Shared memory latency | $\sim1$ cycle ($<1\mu s$) | CUDA Programming Guide \[1\] |
 | Global memory latency | $\sim200$ cycles ($\sim50\mu s$) | CUDA Programming Guide \[1\] |
 
-**Hardware Dependency:**  
+**Hardware Dependency:**
 
 - GTX 1050 Mobile: `__syncthreads()` closer to $10\mu s$ (lower memory bandwidth, older architecture)
 - RTX 3090: `__syncthreads()` closer to $2\mu s$ (higher bandwidth, newer architecture)
@@ -957,7 +957,7 @@ These values come from **NVIDIA's published guidelines**, not from this work's e
 The following measurements are **specific to the GTX 1050 Mobile GPU** used in this work and were obtained through empirical benchmarking:
 
 | Operation | Measured Value | Method |
-|-----------|----------------|--------|
+| ----------- | ---------------- | -------- |
 | Kernel launch overhead | $\sim500\mu s$ | Averaged over 10,000 kernel launches in 2-opt benchmarks |
 | `__syncthreads()` cost | $\sim8\mu s$ | Microbenchmark measuring empty kernel with sync barriers |
 | Memory copy (host→device) | $\sim50$ MB/s pinned | Transfer time measurement for distance matrices |
@@ -1092,7 +1092,7 @@ Total: 5 × 8μs = 40μs synchronization overhead
 - Computation (1024 comparisons): $\sim10\mu s$
 - Overhead ratio: $40/10 = 4$ (sync is $80\%$ of runtime)
 
-**Is This Acceptable?**  
+**Is This Acceptable?**
 Yes, because:
 
 1. Reduction happens ONCE per SA iteration (not inner loop)
@@ -1100,7 +1100,7 @@ Yes, because:
 3. GPU reduction ($40\mu s$ sync + $10\mu s$ compute = $50\mu s$) matches CPU performance
 4. The REAL speedup comes from the $O(n^2)$ neighbor evaluation before reduction
 
-**When Reduction Overhead Becomes Problematic:**  
+**When Reduction Overhead Becomes Problematic:**
 If we were finding the minimum after evaluating only $32$ neighbors (one warp), the overhead would be:
 
 - Warp reduction: $<1\mu s$ (no sync needed)
@@ -1128,7 +1128,7 @@ If we were finding the minimum after evaluating only $32$ neighbors (one warp), 
 ### Design Guidelines for GPU-Accelerated Metaheuristics
 
 | Guideline | Rationale | Implementation Status in This Work |
-|-----------|-----------|-----------------------------------|
+| ----------- | ----------- | ----------------------------------- |
 | **Use GPU for $n \geq 200$ cities (2-opt)** | Ensures computation time exceeds $500\mu s$ kernel launch overhead | ✅ IMPLEMENTED: Hybrid strategy in Section 3.2.5 uses CPU for small instances, GPU for $n \geq 200$ |
 | **Batch $k=10$-$100$ iterations per kernel** | Amortizes launch overhead across multiple operations | ⚠️ PARTIAL: Current SA implementation launches per-iteration. Batching deferred to optimization phase (Task #33) |
 | **Minimize `__syncthreads()` in inner loops** | Each sync costs $\sim8\mu s$; avoid in per-element processing | ✅ IMPLEMENTED: Fujimoto 2-opt kernel uses no explicit synchronization (embarrassingly parallel evaluation) |
@@ -1163,7 +1163,7 @@ If we were finding the minimum after evaluating only $32$ neighbors (one warp), 
 
 **Technique:** Launch one kernel computing $k=10$-$100$ iterations instead of $k$ separate kernel launches. Amortizes $500\mu s$ launch overhead across batch.
 
-**Speedup Potential:**  
+**Speedup Potential:**
 
 - Current: $k$ iterations × $500\mu s$ = $50ms$ overhead (for $k=100$)
 - Batched: $1$ launch × $500\mu s$ = $0.5ms$ overhead
@@ -1201,7 +1201,7 @@ val = min(val, __shfl_down_sync(0xffffffff, val, 8));
 // ... 5 shuffle ops instead of 8 __syncthreads()
 ```
 
-**Speedup Potential:**  
+**Speedup Potential:**
 
 - Saves $\sim 40\mu s$ per reduction (3-5 `__syncthreads()` eliminated)
 - For $n=3000$ 2-opt: Reduction is ~50μs out of ~2000μs total → **<3% improvement**
@@ -1233,7 +1233,7 @@ __syncthreads();
 // Reuse tile data multiple times (100x+ faster than global memory)
 ```
 
-**Speedup Potential:**  
+**Speedup Potential:**
 
 - Global memory: ~400 cycles latency
 - Shared memory: ~4 cycles latency
@@ -1253,21 +1253,21 @@ __syncthreads();
 
 #### **General Rationale for Deferral (All Three Optimizations)**
 
-**Performance Targets Met:**  
+**Performance Targets Met:**
 Current implementation achieves:
 
 - GPU speedup for $n \geq 200$ (Section 4.2 validation)
 - 90% TSPLIB coverage (Section 3.1 hardware selection)
 - Correct algorithmic behavior (Section 4.1 verification)
 
-**Complexity-Performance Trade-off:**  
+**Complexity-Performance Trade-off:**
 Academic work prioritizes:
 
 1. **Correctness:** Verify algorithm behavior before optimizing
 2. **Reproducibility:** Simpler code easier to validate and replicate
 3. **Educational value:** Clear implementation over micro-optimizations
 
-**Marginal Gains:**  
+**Marginal Gains:**
 Profiling shows (Section 4.2):
 
 - Launch overhead: ~2% of total runtime for $k=1000$ iterations
@@ -1276,7 +1276,7 @@ Profiling shows (Section 4.2):
 
 **Combined speedup:** Batching (2%) + warp shuffle (2.5%) + shared memory (depends) ≈ **5-10% improvement** for **3× code complexity**
 
-**When to Implement:**  
+**When to Implement:**
 Production systems targeting:
 
 - Very large problem sizes ($n > 10000$) where memory bandwidth becomes bottleneck
@@ -1290,7 +1290,7 @@ Production systems targeting:
 **Summary Table: Deferred Optimizations**
 
 | Optimization | Origin | Potential Speedup | Why Deferred | When to Implement |
-|-------------|--------|-------------------|--------------|-------------------|
+| ------------- | -------- | ------------------- | -------------- | ------------------- |
 | Kernel batching | NVIDIA 2008+, Rocki 2013 | 100× launch overhead | Adds complexity, current overhead <2% | Production systems, real-time |
 | Warp shuffle reduction | Harris 2007, NVIDIA 2017 | <3% (not bottleneck) | Marginal gain, educational clarity | Large-scale batch processing |
 | Shared memory caching | Kirk & Hwu 2010, Luong 2013 | Depends (L2 sufficient) | Memory NOT bottleneck for n≤3000 | n>10000, memory-bound workloads |
@@ -1330,7 +1330,7 @@ From "A Highly-Parallel TSP Solver for a GPU Computing Platform" (NMA 2010, LNCS
 **Hardware Specifications Comparison:**
 
 | Metric | GTX 285 (2009) | GTX 1050 Mobile (2016) | Ratio (1050/285) |
-|--------|----------------|------------------------|------------------|
+| -------- | ---------------- | ------------------------ | ------------------ |
 | **CUDA Cores** | 240 | 640 | **2.67×** |
 | **Base Clock** | 648 MHz | 1354 MHz | **2.09×** |
 | **Shader Clock** | 1476 MHz | 1354 MHz (unified) | **0.92×** |
@@ -1361,17 +1361,17 @@ To understand why bandwidth matters more than compute for 2-opt:
 For one 2-opt evaluation:
 
 1. **Memory Access (worst case, no cache):**
-   - Read `dist[tour[i], tour[i+1]]` → 4 bytes
-   - Read `dist[tour[i], tour[j]]` → 4 bytes
-   - Read `dist[tour[i+1], tour[j+1]]` → 4 bytes
-   - Read `dist[tour[j], tour[j+1]]` → 4 bytes
-   - **Total: 16 bytes**
+   + Read `dist[tour[i], tour[i+1]]` → 4 bytes
+   + Read `dist[tour[i], tour[j]]` → 4 bytes
+   + Read `dist[tour[i+1], tour[j+1]]` → 4 bytes
+   + Read `dist[tour[j], tour[j+1]]` → 4 bytes
+   + **Total: 16 bytes**
 
 2. **Compute Operations:**
-   - 4 distance lookups (from memory)
-   - 4 floating-point additions/subtractions (delta calculation)
-   - 1 comparison (`delta < best`)
-   - **Total: ≈ 10 FLOPs**
+   + 4 distance lookups (from memory)
+   + 4 floating-point additions/subtractions (delta calculation)
+   + 1 comparison (`delta < best`)
+   + **Total: ≈ 10 FLOPs**
 
 **Operational Intensity:**
 $$
@@ -1407,20 +1407,20 @@ $$
 **Problem with Direct Comparison:**
 
 1. **Different Algorithms:**
-   - Fujimoto: Genetic Algorithm + OX crossover + 2-opt (population-based)
-   - Our work: Pure 2-opt within Simulated Annealing (single-solution)
-   - GA has additional overhead: crossover, population management, selection
-   - **NOT comparable workloads**
+   + Fujimoto: Genetic Algorithm + OX crossover + 2-opt (population-based)
+   + Our work: Pure 2-opt within Simulated Annealing (single-solution)
+   + GA has additional overhead: crossover, population management, selection
+   + **NOT comparable workloads**
 
 2. **Different Problem Sizes:**
-   - Fujimoto: n=120-512 cities (best speedup at n=225)
-   - Our work: n=3000 cities
-   - Larger n → better GPU utilization (more work to amortize overhead)
+   + Fujimoto: n=120-512 cities (best speedup at n=225)
+   + Our work: n=3000 cities
+   + Larger n → better GPU utilization (more work to amortize overhead)
 
 3. **Different Speedup Measurement:**
-   - Fujimoto: GPU (entire GA) vs. CPU (entire GA)
-   - Our work: GPU (2-opt only) vs. CPU (2-opt only)
-   - Fujimoto's GA includes sequential components (harder to parallelize)
+   + Fujimoto: GPU (entire GA) vs. CPU (entire GA)
+   + Our work: GPU (2-opt only) vs. CPU (2-opt only)
+   + Fujimoto's GA includes sequential components (harder to parallelize)
 
 **Honest Assessment:**
 We **cannot** normalize speedup directly against Fujimoto due to algorithmic differences.
@@ -1428,7 +1428,7 @@ We **cannot** normalize speedup directly against Fujimoto due to algorithmic dif
 **What We CAN Say:**
 
 | Comparison | Result |
-|------------|--------|
+| ------------ | -------- |
 | Fujimoto (2011): GA+2-opt on GTX 285 | 24.2× speedup |
 | Rocki (2013): Pure 2-opt on GPU | 20-30× speedup (n≈1000) |
 | Our work (2024): Pure 2-opt on GTX 1050 | 128× speedup (n=3000) |
@@ -1550,43 +1550,45 @@ This section provides a rigorous methodology for validating the performance clai
 **Recommended Protocol:**
 
 1. **System Isolation:**
-   - Close all non-essential applications
-   - Disable GPU display output (use integrated graphics for display, dedicate GPU to compute)
-   - Set GPU to maximum performance mode: `sudo nvidia-smi -pm 1` (persistence mode) and `sudo nvidia-smi -lgc 1800,1800` (lock clock to max frequency)
-   - Cool down between configuration changes (wait 5 minutes for thermal equilibrium)
+   + Close all non-essential applications
+   + Disable GPU display output (use integrated graphics for display, dedicate GPU to compute)
+   + Set GPU to maximum performance mode: `sudo nvidia-smi -pm 1` (persistence mode) and `sudo nvidia-smi -lgc 1800,1800` (lock clock to max frequency)
+   + Cool down between configuration changes (wait 5 minutes for thermal equilibrium)
 
 2. **Warm-Up Phase:**
-   - Execute 5 discarded runs to stabilize GPU state (cache, thermal, memory allocator)
-   - Do NOT include warm-up runs in statistical analysis
+   + Execute 5 discarded runs to stabilize GPU state (cache, thermal, memory allocator)
+   + Do NOT include warm-up runs in statistical analysis
 
 3. **Measurement Phase:**
-   - Execute 30+ timed runs per configuration
-   - Use CUDA events for microsecond-precision timing:
+   + Execute 30+ timed runs per configuration
+   + Use CUDA events for microsecond-precision timing:
+
      ```cpp
      cudaEvent_t start, stop;
      cudaEventCreate(&start);
      cudaEventCreate(&stop);
-     
+
      cudaEventRecord(start);
      kernel<<<grid, block>>>(args);
      cudaEventRecord(stop);
-     
+
      cudaEventSynchronize(stop);
      float milliseconds = 0;
      cudaEventElapsedTime(&milliseconds, start, stop);
      ```
-   - Store all run times for post-processing
+
+   + Store all run times for post-processing
 
 4. **Reporting Metrics:**
-   - **Central Tendency:** Median (50th percentile)
-   - **Spread:** Standard deviation (using Bessel's correction, $n-1$ divisor)
-   - **Uncertainty:** 95% confidence interval via bootstrap (10,000 resamples) or percentile method (2.5th and 97.5th percentiles)
-   - **Sample Size:** Report $N$ (number of valid runs, excluding outliers if justified)
+   + **Central Tendency:** Median (50th percentile)
+   + **Spread:** Standard deviation (using Bessel's correction, $n-1$ divisor)
+   + **Uncertainty:** 95% confidence interval via bootstrap (10,000 resamples) or percentile method (2.5th and 97.5th percentiles)
+   + **Sample Size:** Report $N$ (number of valid runs, excluding outliers if justified)
 
 **Example Table Format:**
 
-| Configuration | Median (μs) | Std Dev (μs) | 95% CI (μs) | N  | Notes |
-|---------------|-------------|--------------|-------------|----|-----------------------|
+| Configuration | Median (μs) | Std Dev (μs) | 95% CI (μs) | N | Notes |
+| --------------- | ------------- | -------------- | ------------- | ---- | ----------------------- |
 | GTX 1050, Block=32 | 160.4 | 12.3 | [156.2, 164.6] | 30 | Steady thermal state |
 | GTX 1050, Block=64 | 172.1 | 15.7 | [167.3, 176.9] | 30 | Higher register pressure |
 
@@ -1621,10 +1623,10 @@ To rigorously compare performance across configurations or validate improvement 
      $$
      where $\sigma_{\text{pooled}} = \sqrt{\frac{\sigma_{\text{baseline}}^2 + \sigma_{\text{optimized}}^2}{2}}$
 - **Interpretation:**
-  - $|d| < 0.2$: Negligible effect
-  - $0.2 \le |d| < 0.5$: Small effect
-  - $0.5 \le |d| < 0.8$: Medium effect
-  - $|d| \ge 0.8$: Large effect
+  + $|d| < 0.2$: Negligible effect
+  + $0.2 \le |d| < 0.5$: Small effect
+  + $0.5 \le |d| < 0.8$: Medium effect
+  + $|d| \ge 0.8$: Large effect
 - **Example:** If baseline is 180 μs (σ=15) and optimized is 160 μs (σ=12), then $d = \frac{20}{13.5} \approx 1.48$ (large effect).
 
 **Decision Framework:**
@@ -1640,7 +1642,7 @@ To rigorously compare performance across configurations or validate improvement 
 When reporting benchmarking results in academic publications, use this standardized table format:
 
 | Metric | Baseline | Optimized | Difference | Statistical Test | p-value | Effect Size (d) |
-|--------|----------|-----------|------------|------------------|---------|-----------------|
+| -------- | ---------- | ----------- | ------------ | ------------------ | --------- | ----------------- |
 | Median (μs) | 180.3 | 160.4 | -19.9 (-11.0%) | Paired t-test | 0.002 | 1.48 (large) |
 | Mean (μs) | 184.7 | 163.2 | -21.5 (-11.6%) | — | — | — |
 | Std Dev (μs) | 15.2 | 12.3 | -2.9 | — | — | — |
@@ -1652,9 +1654,9 @@ When reporting benchmarking results in academic publications, use this standardi
 
 ---
 
-#### A.6.5 Python Implementation Example
+#### A.6.5 python Implementation Example
 
-The following Python script demonstrates the complete benchmarking workflow, from raw timing data to statistical validation:
+The following python script demonstrates the complete benchmarking workflow, from raw timing data to statistical validation:
 
 ```python
 """
@@ -1695,14 +1697,14 @@ def compute_statistics(data, label):
     mean = np.mean(data)
     std = np.std(data, ddof=1)  # Bessel's correction (n-1)
     ci_lower, ci_upper = np.percentile(data, [2.5, 97.5])
-    
+
     print(f"\n{label} Configuration:")
     print(f"  Median:   {median:.2f} μs")
     print(f"  Mean:     {mean:.2f} μs")
     print(f"  Std Dev:  {std:.2f} μs")
     print(f"  95% CI:   [{ci_lower:.2f}, {ci_upper:.2f}] μs")
     print(f"  N:        {len(data)}")
-    
+
     return median, mean, std
 
 baseline_median, baseline_mean, baseline_std = compute_statistics(baseline_times, "Baseline")
@@ -1864,7 +1866,7 @@ lts__throughput.avg.pct_of_peak_sustained_elapsed \
 **Expected Outputs:**
 
 | Metric | Expected Range | Interpretation |
-|--------|----------------|----------------|
+| -------- | ---------------- | ---------------- |
 | `dram__throughput.avg.pct_of_peak_sustained_elapsed` | 70-80% | DRAM bandwidth utilization (validates 76% prediction) |
 | `l1tex__throughput.avg.pct_of_peak_sustained_elapsed` | 60-75% | L1 cache/texture throughput (irregular access patterns) |
 | `lts__throughput.avg.pct_of_peak_sustained_elapsed` | 65-80% | L2 cache throughput (benefits from 1 MB cache on GTX 1050) |
@@ -1923,7 +1925,7 @@ sm__warps_active.avg.per_cycle_active \
 **Expected Outputs:**
 
 | Metric | Expected Value | Interpretation |
-|--------|----------------|----------------|
+| -------- | ---------------- | ---------------- |
 | `sm__warps_active.avg.pct_of_peak_sustained_active` | ~12.5% | Percentage of max warps active (8/64) |
 | `sm__maximum_warps_per_active_cycle` | 8 | Max warps simultaneously active per SM |
 | `sm__warps_active.avg.per_cycle_active` | ~8.0 | Average active warps (confirms full utilization of allocated warps) |
@@ -1992,7 +1994,7 @@ ncu-ui 2opt_roofline.ncu-rep
 **Expected Roofline Plot Characteristics:**
 
 | Component | Expected Position | Interpretation |
-|-----------|-------------------|----------------|
+| ----------- | ------------------- | ---------------- |
 | **Ridge Point** | ~16.1 FLOPs/byte | Transition from memory-bound to compute-bound |
 | **Our Kernel** | ~0.625 FLOPs/byte | Far left of ridge point (firmly memory-bound) |
 | **Peak Performance** | ~1.8 TFLOPS (FP32) | GTX 1050's theoretical compute ceiling |
@@ -2067,7 +2069,7 @@ l1tex__average_t_sectors_per_request_pipe_lsu_mem_global_op_ld.ratio \
 **Expected Outputs:**
 
 | Metric | Expected Range | Interpretation |
-|--------|----------------|----------------|
+| -------- | ---------------- | ---------------- |
 | `l1tex__t_sector_hit_rate.pct` | 20-40% | L1 cache hit rate (low due to 2-opt's irregular access patterns) |
 | `lts__t_sector_hit_rate.pct` | **60-80%** | **L2 cache hit rate (HIGH due to 1 MB cache on GTX 1050)** |
 | `l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum` | ~100,000 | Total memory sectors read (validates 16 bytes/swap calculation) |
@@ -2129,7 +2131,7 @@ If these metrics show replay overhead >10%, this indicates bank conflicts in sha
 Use this checklist to confirm all theoretical claims from Appendix A using empirical profiling data:
 
 | Claim (Section) | Profiling Metric | Expected Value | Status |
-|-----------------|------------------|----------------|--------|
+| ----------------- | ------------------ | ---------------- | -------- |
 | **Memory-Bound Hypothesis (A.2)** | `dram__throughput.avg.pct_of_peak_sustained_elapsed` | 70-80% | ☐ Validated |
 | **1-Wave Execution (A.3)** | `sm__maximum_warps_per_active_cycle` | 8 warps | ☐ Validated |
 | **Occupancy by Design (A.3)** | `sm__warps_active.avg.pct_of_peak_sustained_active` | ~12.5% | ☐ Validated |
@@ -2159,30 +2161,30 @@ Combine benchmarking (A.6) with profiling (A.7) to provide **comprehensive valid
 ### NVIDIA Official Documentation
 
 - **CUDA Programming Guide:** NVIDIA Corporation. *CUDA C Programming Guide*. Version 12.6, 2024. Available at: <https://docs.nvidia.com/cuda/cuda-c-programming-guide/>
-  - (Architectural constants, thread hierarchy, SIMT model)
+  + (Architectural constants, thread hierarchy, SIMT model)
 
 - **CUDA Best Practices Guide:** NVIDIA Corporation. *CUDA C Best Practices Guide*. 2024. Available at: <https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/>
-  - (Synchronization cost ranges, optimization strategies)
+  + (Synchronization cost ranges, optimization strategies)
 
 - **NSight Compute Documentation:** NVIDIA Corporation. *NVIDIA Nsight Compute User Guide*. Version 2024.3, 2024. Available at: <https://docs.nvidia.com/nsight-compute/>
-  - (Profiling tools, performance metrics, roofline analysis)
+  + (Profiling tools, performance metrics, roofline analysis)
 
 - **NSight Systems Documentation:** NVIDIA Corporation. *NVIDIA Nsight Systems User Guide*. 2024. Available at: <https://docs.nvidia.com/nsight-systems/>
-  - (Timeline profiling, system-wide performance analysis)
+  + (Timeline profiling, system-wide performance analysis)
 
 ### Academic Publications
 
 - **Harris, M.** (2007). *Optimizing Parallel Reduction in CUDA*. NVIDIA Developer Technology. Available at: <http://developer.download.nvidia.com/compute/cuda/1.1/Website/projects/reduction/doc/reduction.pdf>
-  - (Warp-level reduction technique, CUDA optimization patterns)
+  + (Warp-level reduction technique, CUDA optimization patterns)
 
 - **Fujimoto, N., & Tsutsui, S.** (2011). A Highly-Parallel TSP Solver for a GPU Computing Platform. In *Proceedings of the International Conference on Numerical Methods and Applications* (pp. 264-271). Springer, Berlin, Heidelberg. DOI: 10.1007/978-3-642-18466-6_31
-  - (GPU-accelerated 2-opt for TSP, genetic algorithm with local search)
+  + (GPU-accelerated 2-opt for TSP, genetic algorithm with local search)
 
 - **Rocki, K., & Suda, R.** (2013). High Performance GPU Accelerated Local Optimization in TSP. In *Proceedings of the 2013 IEEE 27th International Symposium on Parallel and Distributed Processing Workshops* (pp. 1788-1796). IEEE. DOI: 10.1109/IPDPSW.2013.246
-  - (Pure 2-opt GPU implementation, 20-30× speedup results)
+  + (Pure 2-opt GPU implementation, 20-30× speedup results)
 
 - **Cohen, J.** (1988). *Statistical Power Analysis for the Behavioral Sciences* (2nd ed.). Hillsdale, NJ: Lawrence Erlbaum Associates. ISBN: 0-8058-0283-5
-  - (Cohen's d effect size, statistical significance testing)
+  + (Cohen's d effect size, statistical significance testing)
 
 ### Dissertation References
 
@@ -2194,9 +2196,9 @@ Combine benchmarking (A.6) with profiling (A.7) to provide **comprehensive valid
 ### Cross-Referenced Technical Documents
 
 - **2-opt Parallelization Strategies Comparison:** See [analysis-gpu-2opt-parallel-architectures.md](./analysis-gpu-2opt-parallel-architectures.md) for detailed analysis of:
-  - Section 0.5: Speedup formula synthesis with hardware parameters
-  - Section 8.2.1: 3-way comparison (Fujimoto vs. Rocki vs. This Work)
-  - RTX 3090 performance prediction (137× improvement calculation)
+  + Section 0.5: Speedup formula synthesis with hardware parameters
+  + Section 8.2.1: 3-way comparison (Fujimoto vs. Rocki vs. This Work)
+  + RTX 3090 performance prediction (137× improvement calculation)
 
 ---
 

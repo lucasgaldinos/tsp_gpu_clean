@@ -37,32 +37,56 @@ tags:
 **(Based on Voudouris & Tsang, 1999)**
 
 - [A Technical Recompilation and Parallelism Analysis of Guided Local Search for the Traveling Salesman Problem](#a-technical-recompilation-and-parallelism-analysis-of-guided-local-search-for-the-traveling-salesman-problem)
-  - [Part 1: Mathematical Foundations of Guided Local Search](#part-1-mathematical-foundations-of-guided-local-search)
+  + [Part 1: Mathematical Foundations of Guided Local Search](#part-1-mathematical-foundations-of-guided-local-search)
     - [1.1 List of Mathematical Symbols](#11-list-of-mathematical-symbols)
     - [1.2 Sequential Mathematical Formulation and Rationale](#12-sequential-mathematical-formulation-and-rationale)
-  - [Part 2: Core Algorithmic Pseudocode](#part-2-core-algorithmic-pseudocode)
+  + [Part 2: Core Algorithmic Pseudocode](#part-2-core-algorithmic-pseudocode)
     - [2.1 Procedure: GuidedLocalSearch (Figure 1)](#21-procedure-guidedlocalsearch-figure-1)
     - [2.2 Procedures: GuidedFastLocalSearch and FastLocalSearch (Figure 2)](#22-procedures-guidedfastlocalsearch-and-fastlocalsearch-figure-2)
     - [2.3 Procedure: Iterated Lin-Kernighan (Figure 9)](#23-procedure-iterated-lin-kernighan-figure-9)
-  - [Part 3: Taxonomy and Parallelism Analysis of TSP Heuristics](#part-3-taxonomy-and-parallelism-analysis-of-tsp-heuristics)
+  + [Part 3: Taxonomy and Parallelism Analysis of TSP Heuristics](#part-3-taxonomy-and-parallelism-analysis-of-tsp-heuristics)
     - [3.1 A Note on Parallel Execution Models: SIMD vs. SIMT](#31-a-note-on-parallel-execution-models-simd-vs-simt)
     - [3.2 The Crainic-Toulouse Algorithmic Parallelism Taxonomy](#32-the-crainic-toulouse-algorithmic-parallelism-taxonomy)
     - [3.3 Analysis of Local Improvement Heuristics](#33-analysis-of-local-improvement-heuristics)
     - [3.4 Analysis of Metaheuristic Strategies](#34-analysis-of-metaheuristic-strategies)
-      - [1. Simulated Annealing (SA)](#1-simulated-annealing-sa)
-      - [2. Tabu Search (TS)](#2-tabu-search-ts)
-      - [3. Genetic Algorithms (GA) / Genetic Local Search](#3-genetic-algorithms-ga--genetic-local-search)
-      - [4. Iterated Lin-Kernighan (ILK) / Double-Bridge (DB)](#4-iterated-lin-kernighan-ilk--double-bridge-db)
-      - [5. Guided Local Search (GLS) & Fast Local Search (FLS)](#5-guided-local-search-gls--fast-local-search-fls)
-  - [Part 4: Empirical Evaluation and Key Findings (Chapter 8)](#part-4-empirical-evaluation-and-key-findings-chapter-8)
+      + [1. Simulated Annealing (SA)](#1-simulated-annealing-sa)
+      + [2. Tabu Search (ts)](#2-tabu-search-ts)
+      + [3. Genetic Algorithms (GA) / Genetic Local Search](#3-genetic-algorithms-ga--genetic-local-search)
+      + [4. Iterated Lin-Kernighan (ILK) / Double-Bridge (DB)](#4-iterated-lin-kernighan-ilk--double-bridge-db)
+      + [5. Guided Local Search (GLS) \& Fast Local Search (FLS)](#5-guided-local-search-gls--fast-local-search-fls)
+  + [Part 4: Empirical Evaluation and Key Findings (Chapter 8)](#part-4-empirical-evaluation-and-key-findings-chapter-8)
     - [4.1 The Power of Fast Local Search (FLS) (Table 3)](#41-the-power-of-fast-local-search-fls-table-3)
     - [4.2 GLS vs. General Metaheuristics (Table 4)](#42-gls-vs-general-metaheuristics-table-4)
     - [4.3 The Central Finding: GLS-FLS-2Opt vs. State-of-the-Art (Tables 5, 7, Fig 11)](#43-the-central-finding-gls-fls-2opt-vs-state-of-the-art-tables-5-7-fig-11)
-      - [Analysis and Synthesis: The "Voudouris Paradox"](#analysis-and-synthesis-the-voudouris-paradox)
-  - [Appendix: Complete Experimental Data Tables](#appendix-complete-experimental-data-tables)
+      + [Analysis and Synthesis: The "Voudouris Paradox"](#analysis-and-synthesis-the-voudouris-paradox)
+  + [Appendix: Complete Experimental Data Tables](#appendix-complete-experimental-data-tables)
     - [Table A.1: Results for Guided Local Search on the TSP](#table-a1-results-for-guided-local-search-on-the-tsp)
     - [Table A.2: Results for Iterated Local Search (DB-Move) on the TSP](#table-a2-results-for-iterated-local-search-db-move-on-the-tsp)
     - [Table A.3: Results for Repeated Local Search on the TSP](#table-a3-results-for-repeated-local-search-on-the-tsp)
+    - [A Clearer Guide to Parallel Taxonomy](#a-clearer-guide-to-parallel-taxonomy)
+      + [1. S-Task (Sequential Task): The Assembly Line](#1-s-task-sequential-task-the-assembly-line)
+      + [2. P-Data (Parallel Data): The Coordinated Team](#2-p-data-parallel-data-the-coordinated-team)
+      + [3. P-Task (Parallel Task): The Independent Cooperating Teams](#3-p-task-parallel-task-the-independent-cooperating-teams)
+    - [The Most Common Model: The S-Task / P-Data Hybrid](#the-most-common-model-the-s-task--p-data-hybrid)
+    - [Answering Your Specific Questions](#answering-your-specific-questions)
+      + [On 2-Opt (Your Q1, Q2, Q3)](#on-2-opt-your-q1-q2-q3)
+      + [On Simulated Annealing: Multi-Start (Your Q4)](#on-simulated-annealing-multi-start-your-q4)
+      + [On Simulated Annealing: Parallel Neighborhood (Your Q5)](#on-simulated-annealing-parallel-neighborhood-your-q5)
+      + [On GLS + FLS (Your Q6)](#on-gls--fls-your-q6)
+  + [Part 3 (Revised): A Deeper Analysis of Heuristic Parallelism](#part-3-revised-a-deeper-analysis-of-heuristic-parallelism)
+    - [3.1 A Note on SIMD vs. SIMT (Revisiting Your Warning)](#31-a-note-on-simd-vs-simt-revisiting-your-warning)
+    - [3.2 The Crainic-Toulouse Taxonomy (Clearer Definitions)](#32-the-crainic-toulouse-taxonomy-clearer-definitions)
+    - [3.3 The Key: The "S-Task + P-Data" Hybrid Model](#33-the-key-the-s-task--p-data-hybrid-model)
+    - [3.4 Summary of Heuristic Classifications](#34-summary-of-heuristic-classifications)
+    - [3.5 Detailed Parallel Analysis and Diagrams](#35-detailed-parallel-analysis-and-diagrams)
+      + [1. Local Improvement Heuristics (2-Opt, 3-Opt, LK)](#1-local-improvement-heuristics-2-opt-3-opt-lk)
+      + [2. Simulated Annealing (SA)](#2-simulated-annealing-sa)
+      + [3. Genetic Algorithms (GA) / Genetic Local Search](#3-genetic-algorithms-ga--genetic-local-search-1)
+      + [4. Guided Local Search (GLS) + Fast Local Search (FLS)](#4-guided-local-search-gls--fast-local-search-fls)
+    - [Example: High-Level CuPy for 2-Opt $\\Delta\\text{cost}$ Matrix](#example-high-level-cupy-for-2-opt-deltatextcost-matrix)
+      + [Method 1: The Naive (Slow) Broadcasting Method](#method-1-the-naive-slow-broadcasting-method)
+      + [Method 2: The `ElementwiseKernel` (Fast) Method](#method-2-the-elementwisekernel-fast-method)
+    - [Conclusion: Performance vs. Abstraction](#conclusion-performance-vs-abstraction)
 
 ## Part 1: Mathematical Foundations of Guided Local Search
 
@@ -260,17 +284,17 @@ begin
 
     /* Find the local minimum s_{k+1} with respect to h */
     s_{k+1} <- LocalSearch(s_k, h)
-    
+
     /* Calculate utility for penalizing each feature */
     for i <- 1 until M do
         util_i <- I_i(s_{k+1}) \cdot \frac{c_i}{1 + p_i}
-    
+
     /* Find and increment penalty for all features with maximum utility */
     max_util <- max(util_1, ..., util_M)
     for i <- 1 until M do
         if util_i = max_util then
             p_i <- p_i + 1
-    
+
     k <- k + 1
 end
 
@@ -312,11 +336,11 @@ begin
 
     /* Find local minimum using FLS */
     s_{k+1} <- FastLocalSearch(s_k, h, [bit_1,…,bit_L], L)
-    
+
     /* Calculate utility for penalizing each feature */
     for i <- 1 until M do
         util_i <- I_i(s_{k+1}) \cdot \frac{c_i}{1 + p_i}
-    
+
     /* Find and increment penalty for all features with maximum utility */
     max_util <- max(util_1, ..., util_M)
     for i <- 1 until M do
@@ -328,7 +352,7 @@ begin
             for each b in SetBits do
                 bit_b <- 1
         end
-    
+
     k <- k + 1
 end
 
@@ -378,7 +402,7 @@ bit\_b \<- 1
             end
         end
         bit_i <- 0 /* no improving move found in this sub-neighborhood */
-    ImprovingMoveFound: 
+    ImprovingMoveFound:
         continue
     end
 return s
@@ -416,11 +440,11 @@ begin
 
     /* 2. Optimize: Find the local minimum from the new tour */
     T'' <- LinKernighan(T')
-    
+
     /* 3. Accept: Apply Metropolis-style acceptance or simple improvement */
     if cost(T'') < cost(T_{best}) then
         T_{best} <- T''
-    
+
     T <- T'' /* Use the new minimum as the base for the next kick */
 end
 
@@ -464,9 +488,9 @@ These are the foundational neighborhood search operators used by the metaheurist
 - **Heuristics:** 2-Opt, 3-Opt, Lin-Kernighan (LK)
 - **Heuristic Classification:** **Improvement Heuristics**. These are not metaheuristics. They are local search procedures that, when run in isolation, simply iterate until they find the first local minimum, at which point they terminate.
 - **Parallelism Analysis:**
-  - **P-Data (High Potential):** The primary computational bottleneck in these heuristics is the evaluation of the neighborhood. For 2-Opt, this involves checking the cost difference ($\Delta \text{cost}$) for all $O(N^2)$ possible edge swaps. This evaluation is "embarrassingly parallel" and a canonical example of a P-Data algorithm. A SIMT architecture can assign $N^2$ threads to compute the $\Delta \text{cost}$ for every possible swap simultaneously. A recent study on GPU-based 2-Opt solvers highlights a hierarchical strategy: parallelizing independent climbs between blocks (P-Data) and parallelizing the 2-Opt evaluations *within* a climb across threads (also P-Data).3
-  - **S-Task (Low Potential):** The *process* of a First Improvement search (find first good move, apply it, restart search) is inherently sequential (S-Task). However, this is a trivial application of the S-Task classification, as the computational work within each "find" step is parallel (P-Data).
-  - **P-Task (Potential):** While the standard 2-Opt evaluation is P-Data, a P-Task design is also possible. This could involve multiple, different tasks operating on the tour concurrently (e.g., Task A performs 2-Opt on cities 1-100, Task B performs 3-Opt on cities 101-200) and communicating through a shared data structure. This aligns with the concept of cooperative search.
+  + **P-Data (High Potential):** The primary computational bottleneck in these heuristics is the evaluation of the neighborhood. For 2-Opt, this involves checking the cost difference ($\Delta \text{cost}$) for all $O(N^2)$ possible edge swaps. This evaluation is "embarrassingly parallel" and a canonical example of a P-Data algorithm. A SIMT architecture can assign $N^2$ threads to compute the $\Delta \text{cost}$ for every possible swap simultaneously. A recent study on GPU-based 2-Opt solvers highlights a hierarchical strategy: parallelizing independent climbs between blocks (P-Data) and parallelizing the 2-Opt evaluations *within* a climb across threads (also P-Data).3
+  + **S-Task (Low Potential):** The *process* of a First Improvement search (find first good move, apply it, restart search) is inherently sequential (S-Task). However, this is a trivial application of the S-Task classification, as the computational work within each "find" step is parallel (P-Data).
+  + **P-Task (Potential):** While the standard 2-Opt evaluation is P-Data, a P-Task design is also possible. This could involve multiple, different tasks operating on the tour concurrently (e.g., Task A performs 2-Opt on cities 1-100, Task B performs 3-Opt on cities 101-200) and communicating through a shared data structure. This aligns with the concept of cooperative search.
 
 ### 3.4 Analysis of Metaheuristic Strategies
 
@@ -476,27 +500,27 @@ This section addresses the user's query regarding the classification of metaheur
 
 - **Heuristic Classification:** **Metaheuristic**.1
 - **Parallelism Analysis:**
-  - **S-Task:** The core algorithm (the cooling schedule) is fundamentally sequential. The decision to accept or reject a move at temperature $T_k$ and the subsequent transition to $T_{k-1}$ is a sequential process.
-  - **P-Data:** SA can be parallelized in two primary P-Data ways:
+  + **S-Task:** The core algorithm (the cooling schedule) is fundamentally sequential. The decision to accept or reject a move at temperature $T_k$ and the subsequent transition to $T_{k-1}$ is a sequential process.
+  + **P-Data:** SA can be parallelized in two primary P-Data ways:
         1. **Multi-Start (Independent Runs):** This is the simplest and most common parallelization. $N$ independent SA algorithms are executed on $N$ cores or GPU blocks, each with a different random seed. This is an embarrassingly parallel P-Data strategy [User-provided Context].
         2. **Parallel Neighborhood Evaluation:** At a given temperature, the "Generate" step can be parallelized. Instead of generating one random neighbor, the algorithm could evaluate $k$ neighbors in parallel (P-Data) and select one to move to.
-  - **P-Task:** More complex cooperative SA models (P-Task) exist where multiple SA threads (at different temperatures) exchange solutions, but the simplest parallelization is P-Data.
+  + **P-Task:** More complex cooperative SA models (P-Task) exist where multiple SA threads (at different temperatures) exchange solutions, but the simplest parallelization is P-Data.
 
-#### 2\. Tabu Search (TS)
+#### 2\. Tabu Search (ts)
 
 - **Heuristic Classification:** **Metaheuristic**.1
 - **Parallelism Analysis:**
-  - **S-Task:** The main control loop is sequential: (1) Evaluate Neighborhood, (2) Select Best Admissible Move, (3) Update Tabu List, (4) Repeat.
-  - **P-Data:** The most common and effective parallelization is in step (1). The "Evaluate Neighborhood" step (e.g., finding the $\Delta \text{cost}$ for all $O(N^2)$ 2-Opt moves) is a massive P-Data task, perfectly suited for a SIMT implementation on a GPU.
-  - **P-Task:** Cooperative Tabu Search is a well-established P-Task strategy.4 This involves multiple, independent searchers exploring different parts of the search space. These searchers run on different (MIMD) processors and periodically communicate their best solutions or, more importantly, *parts of their tabu lists* to coordinate the global search and avoid redundant effort.
+  + **S-Task:** The main control loop is sequential: (1) Evaluate Neighborhood, (2) Select Best Admissible Move, (3) Update Tabu List, (4) Repeat.
+  + **P-Data:** The most common and effective parallelization is in step (1). The "Evaluate Neighborhood" step (e.g., finding the $\Delta \text{cost}$ for all $O(N^2)$ 2-Opt moves) is a massive P-Data task, perfectly suited for a SIMT implementation on a GPU.
+  + **P-Task:** Cooperative Tabu Search is a well-established P-Task strategy.4 This involves multiple, independent searchers exploring different parts of the search space. These searchers run on different (MIMD) processors and periodically communicate their best solutions or, more importantly, *parts of their tabu lists* to coordinate the global search and avoid redundant effort.
 
 #### 3\. Genetic Algorithms (GA) / Genetic Local Search
 
 - **Heuristic Classification:** **Metaheuristic**.1
 - **Parallelism Analysis:**
-  - **S-Task:** The generational loop is an S-Task: (1) Select -> (2) Crossover -> (3) Mutate -> (4) Evaluate -> (5) Replace.
-  - **P-Data:** GAs are inherently P-Data. Step (4), "Evaluate," involves calculating the fitness for every individual in the population. These calculations are independent and can be done in parallel. In Genetic *Local Search*, this step is even more expensive (and thus benefits more from parallelism), as each new offspring is optimized with a local search heuristic (like LK).1 Each of these local searches is an independent task, making the evaluation step a large-scale P-Data operation.
-  - **P-Task:** The "island model" (or coarse-grained GA) is a classic P-Task algorithm, as seen in the `fujimoto2011` work.6 In this model:
+  + **S-Task:** The generational loop is an S-Task: (1) Select -> (2) Crossover -> (3) Mutate -> (4) Evaluate -> (5) Replace.
+  + **P-Data:** GAs are inherently P-Data. Step (4), "Evaluate," involves calculating the fitness for every individual in the population. These calculations are independent and can be done in parallel. In Genetic *Local Search*, this step is even more expensive (and thus benefits more from parallelism), as each new offspring is optimized with a local search heuristic (like LK).1 Each of these local searches is an independent task, making the evaluation step a large-scale P-Data operation.
+  + **P-Task:** The "island model" (or coarse-grained GA) is a classic P-Task algorithm, as seen in the `fujimoto2011` work.6 In this model:
         1. Multiple, separate populations (islands) evolve independently. This *within-island* evolution is itself a P-Data algorithm.
         2. Periodically, the islands engage in *migration*, exchanging individuals. This communication and integration step makes the overall architecture a P-Task (cooperative) model.
 
@@ -504,19 +528,19 @@ This section addresses the user's query regarding the classification of metaheur
 
 - **Heuristic Classification:** **Metaheuristic**.1
 - **Parallelism Analysis:**
-  - **S-Task:** The high-level loop described in the pseudocode (Kick -> Optimize -> Accept) is sequential (S-Task).1 The result of the "Optimize" step is required for the "Accept" step.
-  - **P-Data:** The algorithm can be parallelized in two P-Data ways:
+  + **S-Task:** The high-level loop described in the pseudocode (Kick -> Optimize -> Accept) is sequential (S-Task).1 The result of the "Optimize" step is required for the "Accept" step.
+  + **P-Data:** The algorithm can be parallelized in two P-Data ways:
         1. **Multi-Start:** Run $N$ independent ILK searches in parallel (P-Data).
         2. **Parallelize the Operator:** The "Optimize" step (running the LK heuristic) is itself a complex, data-intensive local search that contains P-Data-parallelizable components (e.g., evaluating potential k-opt exchanges).
-  - **P-Task:** A P-Task version could have concurrent tasks performing different "kicks" (e.g., one task applies 4-Opt, another applies 5-Opt) and sharing the best-found solution with a central manager.
+  + **P-Task:** A P-Task version could have concurrent tasks performing different "kicks" (e.g., one task applies 4-Opt, another applies 5-Opt) and sharing the best-found solution with a central manager.
 
 #### 5\. Guided Local Search (GLS) & Fast Local Search (FLS)
 
 - **Heuristic Classification:** **Metaheuristic** (GLS) 1 + **Improvement Heuristic** (FLS, a neighborhood reduction scheme).1
 - **Parallelism Analysis:**
-  - **S-Task:** The main `GuidedLocalSearch` loop (Figure 1) is a clear S-Task: `LocalSearch(s_k)` -> `UpdatePenalties(s_{k+1})` -> `LocalSearch(s_{k+1})`… The penalty update *must* happen before the next local search can begin.
-  - **P-Data:** The `LocalSearch(s_k, h)` step (Figure 1) is where parallelism resides. If this local search is BI-2Opt, its neighborhood evaluation is a P-Data task.
-  - **S-Task + P-Data (Hybrid):** The `GuidedFastLocalSearch` (Figure 2) combination is the most interesting case.1
+  + **S-Task:** The main `GuidedLocalSearch` loop (Figure 1) is a clear S-Task: `LocalSearch(s_k)` -> `UpdatePenalties(s_{k+1})` -> `LocalSearch(s_{k+1})`… The penalty update *must* happen before the next local search can begin.
+  + **P-Data:** The `LocalSearch(s_k, h)` step (Figure 1) is where parallelism resides. If this local search is BI-2Opt, its neighborhood evaluation is a P-Data task.
+  + **S-Task + P-Data (Hybrid):** The `GuidedFastLocalSearch` (Figure 2) combination is the most interesting case.1
         1. The outer GLS loop remains an S-Task.
         2. The `FastLocalSearch` procedure 1 is designed to *reduce* work by only searching *active* sub-neighborhoods.
         3. The synergy is an S-Task pipeline: The GLS penalty update (S_Task) *informs* the FLS procedure, which then executes.
@@ -565,7 +589,7 @@ The results from Table 3 are definitive.
 
 ### 4.2 GLS vs. General Metaheuristics (Table 4)
 
-This table compares the optimized GLS-FLS-2Opt against standard implementations of Simulated Annealing (SA) and Tabu Search (TS), both using the same 2-Opt neighborhood. It also includes simple Repeated 2-Opt as a baseline.
+This table compares the optimized GLS-FLS-2Opt against standard implementations of Simulated Annealing (SA) and Tabu Search (ts), both using the same 2-Opt neighborhood. It also includes simple Repeated 2-Opt as a baseline.
 
 - **Table 4: GLS, Simulated Annealing, and Tabu Search performance on TSPLIB instances.**
 
@@ -587,9 +611,9 @@ Analysis:
 
 The superiority of GLS is evident.
 
-1. **Scalability:** GLS-FLS-2Opt scales remarkably well, maintaining 0.0% excess (finding the optimum) on nearly all instances up to 200 cities and achieving 0.005% on `lin318`. In contrast, both SA and TS degrade significantly on larger instances, with excesses of 1.34% and 1.31% on `lin318`, respectively.
-2. **Efficiency:** GLS is not only more effective but *vastly* more efficient. On `lin318`, GLS finds a near-optimal solution in 346 seconds. TS requires 2672 seconds (7.7x slower) and SA requires 829 seconds (2.4x slower) to find much *worse* solutions.
-3. **Guidance:** This demonstrates that the *intelligent, memory-based guidance* of GLS (penalizing high-cost features found in local minima) is a far more effective search strategy than SA's probabilistic acceptance or the specific recency-based memory implemented in the TS variant.
+1. **Scalability:** GLS-FLS-2Opt scales remarkably well, maintaining 0.0% excess (finding the optimum) on nearly all instances up to 200 cities and achieving 0.005% on `lin318`. In contrast, both SA and ts degrade significantly on larger instances, with excesses of 1.34% and 1.31% on `lin318`, respectively.
+2. **Efficiency:** GLS is not only more effective but *vastly* more efficient. On `lin318`, GLS finds a near-optimal solution in 346 seconds. ts requires 2672 seconds (7.7x slower) and SA requires 829 seconds (2.4x slower) to find much *worse* solutions.
+3. **Guidance:** This demonstrates that the *intelligent, memory-based guidance* of GLS (penalizing high-cost features found in local minima) is a far more effective search strategy than SA's probabilistic acceptance or the specific recency-based memory implemented in the ts variant.
 
 ### 4.3 The Central Finding: GLS-FLS-2Opt vs. State-of-the-Art (Tables 5, 7, Fig 11)
 
@@ -657,13 +681,13 @@ The data from Tables 5, 7, and Figure 11 is undeniable and presents a significan
 1. **GLS-FLS-2Opt Wins:** The simplest combination, GLS-FLS-2Opt, is the overall best-performing algorithm in the 5-minute study. It beats the highly complex and specialized DB-FLS-LK (Iterated Lin-Kernighan) on average (0.079% vs. 0.088%). On some instances, the difference is stark: on `lin318`, GLS-FLS-2Opt is almost 10x better (0.026% excess) than DB-FLS-LK (0.240% excess).
 2. **GLS Beats GA:** Table 7 shows GLS-FLS-2Opt outperforming a state-of-the-art Genetic Local Search. It finds *optimal* solutions (0% excess) for `att532` and `rat783` where the GA finds non-optimal solutions (0.05% and 0.04%). It also does so in a fraction of the time (e.g., 5232s vs 14925s on `rat783`).
 3. **Why GLS-FLS-2Opt Wins (The Core Insight):** Figure 10 1 provides the explanation. This figure plots the "Absolute Improvement" that the metaheuristic (GLS or DB) provides *over* its corresponding simple Repeated Local Search baseline.
-    - GLS adds **5.14%** of quality improvement to the baseline FLS-2Opt.
-    - DB (ILK) adds only **1.06%** of quality improvement to the baseline FLS-LK.
-    - This demonstrates that GLS is a *vastly* superior metaheuristic framework. It provides *more guidance* and *more improvement* to its base heuristic than ILK does.
-    - The "paradox" is resolved: The study proves that the *quality of the guidance* (the metaheuristic) is more important than the *power of the local search operator*.
-    - ILK (DB-LK) uses a "dumb" diversification: a random 4-Opt "kick".1 It is powerful but uninformed.
-    - GLS uses an *intelligent*, memory-based diversification: it specifically penalizes *problematic features* (long edges) that *persist in local minima*.
-    - **Conclusion:** The GLS-FLS-2Opt algorithm wins because it represents a perfect synergy. FLS-2Opt is an incredibly fast, simple, and "directable" search engine. GLS is a "smart navigator" that uses its memory (penalties) to tell this fast engine exactly where to focus its effort. This "smart guide + fast engine" (GLS+FLS-2Opt) is empirically shown to be superior to the "dumb guide + complex engine" (ILK+LK).
+    + GLS adds **5.14%** of quality improvement to the baseline FLS-2Opt.
+    + DB (ILK) adds only **1.06%** of quality improvement to the baseline FLS-LK.
+    + This demonstrates that GLS is a *vastly* superior metaheuristic framework. It provides *more guidance* and *more improvement* to its base heuristic than ILK does.
+    + The "paradox" is resolved: The study proves that the *quality of the guidance* (the metaheuristic) is more important than the *power of the local search operator*.
+    + ILK (DB-LK) uses a "dumb" diversification: a random 4-Opt "kick".1 It is powerful but uninformed.
+    + GLS uses an *intelligent*, memory-based diversification: it specifically penalizes *problematic features* (long edges) that *persist in local minima*.
+    + **Conclusion:** The GLS-FLS-2Opt algorithm wins because it represents a perfect synergy. FLS-2Opt is an incredibly fast, simple, and "directable" search engine. GLS is a "smart navigator" that uses its memory (penalties) to tell this fast engine exactly where to focus its effort. This "smart guide + fast engine" (GLS+FLS-2Opt) is empirically shown to be superior to the "dumb guide + complex engine" (ILK+LK).
 
 -----
 
@@ -773,8 +797,8 @@ This is the easiest to understand. An algorithm is S-Task if it's an assembly li
 
 - **Analogy:** Building a car. You *must* build the frame (Step 1) *before* you can install the engine (Step 2) *before* you can paint the body (Step 3).
 - **Example:** The main loop of *almost every* metaheuristic.
-  - **Simulated Annealing:** [Generate Neighbor] -\> [Evaluate Cost] -\>. This is a sequential, three-stage pipeline.
-  - **Guided Local Search:** -\> [Find Max Utility Features] -\> [Update Penalties]. This is a sequential, three-stage pipeline.[1]
+  + **Simulated Annealing:** [Generate Neighbor] -\> [Evaluate Cost] -\>. This is a sequential, three-stage pipeline.
+  + **Guided Local Search:** -\> [Find Max Utility Features] -\> [Update Penalties]. This is a sequential, three-stage pipeline.[1]
 - **Your insight was 100% correct:** The *overall* 2-Opt algorithm (a full hill climb) is an S-Task: -\> -\> -\>...
 
 #### 2\. P-Data (Parallel Data): The Coordinated Team
@@ -784,16 +808,16 @@ This is the most common type of parallelism used in scientific computing and GPU
 - **Analogy:** A manager tells 1,000 workers to "calculate the $\Delta\text{cost}$." The *instruction* is identical for all 1,000 workers, but each worker gets a *different* pair of edges (different *data*) to check.
 - **Hardware:** This is what GPUs (and SIMT) are *built for*.
 - **Examples:**
-  - Evaluating the $O(N^2)$ 2-Opt neighborhood. This is the "hotspot" [2] of the algorithm.
-  - Calculating the fitness of 1,000 individuals in a Genetic Algorithm population.
+  + Evaluating the $O(N^2)$ 2-Opt neighborhood. This is the "hotspot" [2] of the algorithm.
+  + Calculating the fitness of 1,000 individuals in a Genetic Algorithm population.
 
 #### 3\. P-Task (Parallel Task): The Independent Cooperating Teams
 
 This is a higher-level, more complex form of parallelism. It means you have multiple, *different* tasks (programs) running at the same time, often on different data, and they *cooperate*.
 
 - **Analogy:** A manager wants to build 100 cars.
-  - **P-Data:** The manager hires 1,000 workers to all work on *one car* (e.g., all 1,000 workers bolt on wheels at the same time).
-  - **P-Task:** The manager builds 10 *separate assembly lines* (i.e., 10 "tasks"). Each assembly line (task) runs *independently* to build a full car. Periodically, the manager has the teams *cooperate* by "migrating" the best-designed engine from line 3 over to line 7.
+  + **P-Data:** The manager hires 1,000 workers to all work on *one car* (e.g., all 1,000 workers bolt on wheels at the same time).
+  + **P-Task:** The manager builds 10 *separate assembly lines* (i.e., 10 "tasks"). Each assembly line (task) runs *independently* to build a full car. Periodically, the manager has the teams *cooperate* by "migrating" the best-designed engine from line 3 over to line 7.
 - **Hardware:** This requires MIMD (Multiple Instruction, Multiple Data), as found in multi-core CPUs. Each CPU core can run a completely different program.
 
 -----
@@ -875,7 +899,7 @@ It *becomes* **P-Task** the *moment they start cooperating*.
 
 It can, but you're mixing levels.
 
-- **Level 1 (Strategy):** "Multi-Start" is a *strategy*. You would use a tool like **Dask** or Python's `multiprocessing` to launch $N$ *processes* (e.g., on $N$ CPU cores).
+- **Level 1 (Strategy):** "Multi-Start" is a *strategy*. You would use a tool like **Dask** or python's `multiprocessing` to launch $N$ *processes* (e.g., on $N$ CPU cores).
 - **Level 2 (Implementation):** *Each* of those $N$ independent processes could *internally* use **CuPy** to run its *own* P-Data neighborhood evaluations on the GPU.
 
 Alternatively, you can implement multi-start *entirely on one GPU* by launching $N$ different CUDA thread blocks, where each *block* runs one full, independent SA search.[3] This is also a P-Data model.
@@ -930,28 +954,28 @@ Let's define the three classifications with clear analogies.
 
 1. **S-Task (Sequential Task): The Assembly Line**
 
-      - **Concept:** The algorithm is broken into a *pipeline* of sequential stages. Stage 2 *cannot* start until Stage 1 finishes.
-      - **Analogy:** A car factory assembly line. You must install the engine (Stage 1) *before* you can install the hood (Stage 2) *before* you can paint the car (Stage 3).
-      - **Heuristic Example:** The main loop of *any* metaheuristic.
+      + **Concept:** The algorithm is broken into a *pipeline* of sequential stages. Stage 2 *cannot* start until Stage 1 finishes.
+      + **Analogy:** A car factory assembly line. You must install the engine (Stage 1) *before* you can install the hood (Stage 2) *before* you can paint the car (Stage 3).
+      + **Heuristic Example:** The main loop of *any* metaheuristic.
           - **GLS:** `->` -\> \`\`.[1, 1]
           - **SA:** `->` -\> \`\`.[1, 1]
 
 2. **P-Data (Parallel Data): The Coordinated Team**
 
-      - **Concept:** This is data parallelism. You perform the *exact same instruction* on many different pieces of data simultaneously.
-      - **Analogy:** A manager (the instruction) tells 1,000 workers (the processors) to "Calculate the cost of this edge swap." Each worker gets a *different* pair of edges (the data) but performs the *identical* calculation.
-      - **Heuristic Example:** The "hotspot" or bottleneck in most local search.
+      + **Concept:** This is data parallelism. You perform the *exact same instruction* on many different pieces of data simultaneously.
+      + **Analogy:** A manager (the instruction) tells 1,000 workers (the processors) to "Calculate the cost of this edge swap." Each worker gets a *different* pair of edges (the data) but performs the *identical* calculation.
+      + **Heuristic Example:** The "hotspot" or bottleneck in most local search.
           - **2-Opt:** Calculating the $O(N^2)$ $\Delta\text{cost}$ for *all possible swaps* at the same time.[4]
           - **GA:** Calculating the fitness for all 1,000 individuals in a population.
-      - **Implementation:** This maps perfectly to SIMT (GPU) architectures. High-level libraries like **CuPy** are *designed* to execute these P-Data operations by translating array operations (like `cost_matrix * mask`) into parallel kernels.
+      + **Implementation:** This maps perfectly to SIMT (GPU) architectures. High-level libraries like **CuPy** are *designed* to execute these P-Data operations by translating array operations (like `cost_matrix * mask`) into parallel kernels.
 
 3. **P-Task (Parallel Task): The Independent, Cooperating Teams**
 
-      - **Concept:** This is task parallelism. You have multiple, *different* (or different-in-purpose) tasks running at the same time, often on different data, and they *cooperate* by communicating.
-      - **Analogy:** A company with 10 independent factories. Each factory (a task) builds a complete car.
+      + **Concept:** This is task parallelism. You have multiple, *different* (or different-in-purpose) tasks running at the same time, often on different data, and they *cooperate* by communicating.
+      + **Analogy:** A company with 10 independent factories. Each factory (a task) builds a complete car.
           - **Case A (P-Task):** Factory 1 runs a Genetic Algorithm, and Factory 2 runs Simulated Annealing. They periodically *cooperate* by sending their best-found car design to each other. Their internal *tasks are different*.
           - **Case B (P-Task):** All 10 factories run the *same* GA, but on different subsets of the problem. They "migrate" individuals (communicate) between factories. This is the "island model" GA.[5, 6, 7, 8, 9]
-      - **Your Multi-Start Question:** This is the key.
+      + **Your Multi-Start Question:** This is the key.
           - If the 10 factories run *independently* and *never talk*, and you just pick the best car at the end, it's **P-Data** (Multi-Start). It's the same instruction (`run_factory()`) on different data (`seed=1`, `seed=2`...).
           - If the 10 factories *talk and share parts* during the process, it's **P-Task**.
 
@@ -1004,7 +1028,7 @@ First, a simple classification of the algorithms themselves as discussed in the 
 | Fast Local Search (FLS) | Improvement Heuristic / Neighborhood Reduction Scheme [1, 1] |
 | Repeated Local Search | Metaheuristic [1, 1] |
 | Simulated Annealing (SA) | Metaheuristic [1, 1] |
-| Tabu Search (TS) | Metaheuristic [1, 1] |
+| Tabu Search (ts) | Metaheuristic [1, 1] |
 | Genetic Algorithms (GA) | Metaheuristic [1, 1] |
 | Iterated Lin-Kernighan (ILK) | Metaheuristic [1, 1] |
 | Guided Local Search (GLS) | Metaheuristic [1, 1] |
@@ -1017,7 +1041,7 @@ Now, the parallel taxonomy you requested.
 | :--- | :--- | :--- | :--- |
 | **2-Opt (as Hill Climb)** | The `Find -> Apply -> Repeat` loop. | **Neighborhood Evaluation** (Find $\Delta\text{cost}$ for all $O(N^2)$ swaps).[4] | Cooperative 2-Opt (e.g., tasks on different tour segments).[10] |
 | **Simulated Annealing** | The `Generate -> Evaluate -> Accept/Reject -> Cool` loop. | 1. **Parallel Neighborhood Evaluation** (as in 2-Opt). 2. **Multi-Start** (independent runs). | Cooperative SA / Parallel Tempering (tasks at different temps share solutions). |
-| **Tabu Search** | The `Evaluate All -> Select Best Non-Tabu -> Update List` loop. | **Neighborhood Evaluation** (Find $\Delta\text{cost}$ for all $O(N^2)$ swaps). | Cooperative TS (tasks with different tabu lists share solutions). |
+| **Tabu Search** | The `Evaluate All -> Select Best Non-Tabu -> Update List` loop. | **Neighborhood Evaluation** (Find $\Delta\text{cost}$ for all $O(N^2)$ swaps). | Cooperative ts (tasks with different tabu lists share solutions). |
 | **Genetic Algorithms** | The `Select -> Crossover -> Mutate -> Evaluate -> Replace` loop. | **Fitness Evaluation** (Run fitness function for all individuals in parallel). | **Island Model** (Independent populations "migrate" solutions).[5, 7, 8] |
 | **Iterated LK** | The `Kick (4-Opt) -> Optimize (LK) -> Accept` loop.[1, 1] | 1. **Multi-Start** (independent ILK runs). 2. The "Optimize" (LK) step is itself a complex S-Task/P-Data hybrid. | Concurrent Kicks (Task 1 tries 4-Opt, Task 2 tries 5-Opt, share best). |
 | **Guided Local Search** | The `LocalSearch() -> UpdatePenalties()` loop.[1, 1] | The `LocalSearch()` call (e.g., FLS-2Opt) is the P-Data bottleneck. | N/A (GLS is the guide, not the parallel strategy). |
@@ -1034,8 +1058,8 @@ Here is the breakdown for each heuristic, answering your specific warnings.
 - **Classification:** Improvement Heuristic.[1, 1]
 - **Your Question:** "Is 2-opt really a P-data? It seems more like P-tasks... An S-task algorithm can have... some steps parallelized with p-data. But the overall algorithm is s-task. Is that correct?"
 - **Answer:** You are **exactly correct**. This is the S-Task + P-Data hybrid.
-  - The **S-Task** component is the *hill-climbing algorithm*: ` -> [2. Apply Move] -> `.
-  - The **P-Data** component is Stage 1, "Find Best Move." This step requires checking all $O(N^2)$ possible 2-Opt swaps. This is a massive, "embarrassingly parallel" P-Data task.[4]
+  + The **S-Task** component is the *hill-climbing algorithm*: ` -> [2. Apply Move] -> `.
+  + The **P-Data** component is Stage 1, "Find Best Move." This step requires checking all $O(N^2)$ possible 2-Opt swaps. This is a massive, "embarrassingly parallel" P-Data task.[4]
 - **CuPy vs. Custom Kernel:** You can *absolutely* use high-level CuPy for this. You would use array operations to compute the $\Delta\text{cost}$ for all $N^2$ pairs. A custom `RawKernel` would only be needed for squeezing out the last 5-10% of performance.
 - **P-Task Model:** A P-Task model would be different, e.g., Task A runs 2-Opt, Task B runs 3-Opt, and they share the tour. This is a cooperative model.[10, 11, 12]
 
@@ -1076,8 +1100,8 @@ Algorithm: 2-Opt Hill Climb (S-Task + P-Data Hybrid)
 - **Classification:** Metaheuristic.[1, 1]
 - **Your Question (Multi-Start):** "Why is this P-data and not P-task?"
 - **Answer:** This is the core distinction:
-  - **Multi-Start (P-Data):** Launch 1,000 *identical*, *independent* SA runs. The "instruction" is `Run_SA()`. The "data" is `seed=1`, `seed=2`, etc. They **do not communicate**. The manager just picks the best result at the very end.
-  - **Cooperative SA (P-Task):** Launch 1,000 SA runs that *communicate*. For example, they periodically "vote" on the best solution, or tasks at different temperatures ("Parallel Tempering") swap solutions. Because they cooperate, it's P-Task.
+  + **Multi-Start (P-Data):** Launch 1,000 *identical*, *independent* SA runs. The "instruction" is `Run_SA()`. The "data" is `seed=1`, `seed=2`, etc. They **do not communicate**. The manager just picks the best result at the very end.
+  + **Cooperative SA (P-Task):** Launch 1,000 SA runs that *communicate*. For example, they periodically "vote" on the best solution, or tasks at different temperatures ("Parallel Tempering") swap solutions. Because they cooperate, it's P-Task.
 - **Your Question (Parallel Neighborhood):** "is this SA + 2-opt or what?"
 - **Answer:** Yes. This is just the S-Task + P-Data hybrid, but the S-Task loop is SA's. Instead of generating *one* random 2-Opt neighbor, you *evaluate all $N^2$ neighbors* (P-Data) and pick the best one to feed into the SA acceptance criteria. (This is also how Tabu Search works).
 
@@ -1119,8 +1143,8 @@ Algorithm: SA + Parallel Neighborhood (S-Task + P-Data Hybrid)
 
 - **Classification:** Metaheuristic.[1, 1]
 - **Analysis:** GAs are a perfect example of the S-Task + P-Data hybrid. The **P-Task** "island model" (as in `fujimoto2011`) is a *different, higher-level strategy*.[5, 6, 7, 8, 9]
-  - **S-Task:** The generational loop: ` -> [Crossover] -> [Mutate] -> -> `.
-  - **P-Data:** The \`\` step. You have a population of 1,000 new individuals. Their fitness calculations are 1,000 independent computations. This is an embarrassingly parallel P-Data task. In Genetic *Local Search*, this step is even more massive, as each "evaluation" is a full (and parallelizable) LK run.[1, 1]
+  + **S-Task:** The generational loop: ` -> [Crossover] -> [Mutate] -> -> `.
+  + **P-Data:** The \`\` step. You have a population of 1,000 new individuals. Their fitness calculations are 1,000 independent computations. This is an embarrassingly parallel P-Data task. In Genetic *Local Search*, this step is even more massive, as each "evaluation" is a full (and parallelizable) LK run.[1, 1]
 
 <!-- end list -->
 
@@ -1163,9 +1187,9 @@ Algorithm: Genetic Algorithm (S-Task + P-Data Hybrid)
 - **Classification:** GLS (Metaheuristic), FLS (Improvement Scheme).[1, 1]
 - **Your Question:** "Now there's also s-task + p-data (isn't this like the 2-opt?)"
 - **Answer:** **YES\!** You have 100% grasped the concept. GLS+FLS is a *hierarchical* S-Task + P-Data model.
-  - **S-Task (Outer Loop - GLS):** This is the high-level control. ` -> `.[1, 1]
-  - **S-Task (Inner Loop - FLS):** Stage 1 (`Run FLS`) is *itself* an S-Task: `[Find Move] -> [Apply Move] -> [Activate Neighbors] ->`.[1, 1]
-  - **P-Data (The Work):** The `[Find Move]` step in the FLS loop is the P-Data task. FLS is "smart" P-Data: instead of checking all $N^2$ swaps, the `SubNeighbourhoodsForFeature()` function [1, 1] tells it to *only* check (in parallel) the sub-neighborhoods that are *active*.
+  + **S-Task (Outer Loop - GLS):** This is the high-level control. ` -> `.[1, 1]
+  + **S-Task (Inner Loop - FLS):** Stage 1 (`Run FLS`) is *itself* an S-Task: `[Find Move] -> [Apply Move] -> [Activate Neighbors] ->`.[1, 1]
+  + **P-Data (The Work):** The `[Find Move]` step in the FLS loop is the P-Data task. FLS is "smart" P-Data: instead of checking all $N^2$ swaps, the `SubNeighbourhoodsForFeature()` function [1, 1] tells it to *only* check (in parallel) the sub-neighborhoods that are *active*.
 
 <!-- end list -->
 
@@ -1218,12 +1242,12 @@ To answer your specific questions directly:
 
 1. **`tsplogo solver`:** You are correct. The `LOGO-TSP-Solver` (by Kamil Rocki) is a high-performance solver that uses low-level, custom-written **CUDA, C, and C++ kernels**. It does not use CuPy. Its performance comes from meticulous, low-level optimization.
 
-2. **High-Level CuPy for Performance:** Your question is, "Is there ANY way to do this with any of cupy's tools?" **Yes.** The answer is to use CuPy's "fused" kernel tools, which are a bridge between high-level Python and a single, high-performance kernel.
+2. **High-Level CuPy for Performance:** Your question is, "Is there ANY way to do this with any of cupy's tools?" **Yes.** The answer is to use CuPy's "fused" kernel tools, which are a bridge between high-level python and a single, high-performance kernel.
 
 The key is to **not** use naive broadcasting for the *entire* 2-Opt logic, but to use it to *set up* the data for a **single, fused kernel call**. CuPy provides two tools for this:
 
-- `cupy.ElementwiseKernel`: This is the "high-level" tool I was referring to. You write the C++ loop body *inside* a Python string, and CuPy compiles it into a single, efficient kernel. You get the performance of a single kernel launch without the boilerplate of writing a full CUDA file.
-- `cupy.RawKernel`: This is the "expert" tool. You write the *entire* CUDA C++ kernel, including thread/block management, and compile it within Python. This is for maximum, `LOGO-TSP-Solver`-style optimization.
+- `cupy.ElementwiseKernel`: This is the "high-level" tool I was referring to. You write the C++ loop body *inside* a python string, and CuPy compiles it into a single, efficient kernel. You get the performance of a single kernel launch without the boilerplate of writing a full CUDA file.
+- `cupy.RawKernel`: This is the "expert" tool. You write the *entire* CUDA C++ kernel, including thread/block management, and compile it within python. This is for maximum, `LOGO-TSP-Solver`-style optimization.
 
 For your 2-Opt P-Data task (calculating the $\Delta\text{cost}$ for all $O(N^2)$ swaps), `ElementwiseKernel` is the "high-level" way to do it in a single, fast kernel launch.
 
@@ -1316,10 +1340,10 @@ calculate_delta_matrix = cp.ElementwiseKernel(
     } else {
         // Look up distances using the raw pointer D
         // D[y * N + x] is how you access D[y, x] from a raw pointer
-        
+
         T cost_removed = D + D;
         T cost_added = D[A * N + C] + D;
-        
+
         delta_matrix = cost_added - cost_removed;
     }
     ''',

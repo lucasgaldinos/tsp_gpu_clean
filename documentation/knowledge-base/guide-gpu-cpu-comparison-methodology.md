@@ -49,8 +49,8 @@ tags:
 
 # GPU vs CPU Algorithm Comparison Methodology
 
-**Document Status:** Research findings compiled 2025-11-01  
-**Research Context:** Task 5 - Statistical methodology for performance comparison  
+**Document Status:** Research findings compiled 2025-11-01
+**Research Context:** Task 5 - Statistical methodology for performance comparison
 **Memory Graph:** Findings stored in knowledge graph with 5 entities and 7 relations
 
 ---
@@ -58,37 +58,37 @@ tags:
 ## TOC
 
 - [GPU vs CPU Algorithm Comparison Methodology](#gpu-vs-cpu-algorithm-comparison-methodology)
-  - [TOC](#toc)
-  - [Overview](#overview)
-  - [Primary Sources](#primary-sources)
+  + [TOC](#toc)
+  + [Overview](#overview)
+  + [Primary Sources](#primary-sources)
     - [1. Hoefler \& Belli (2015)](#1-hoefler--belli-2015)
     - [2. Hothorn, Leisch, Zeileis, Hornik (2005)](#2-hothorn-leisch-zeileis-hornik-2005)
-  - [Statistical Methodology](#statistical-methodology)
+  + [Statistical Methodology](#statistical-methodology)
     - [Core Principles](#core-principles)
-  - [Experimental Design Best Practices](#experimental-design-best-practices)
+  + [Experimental Design Best Practices](#experimental-design-best-practices)
     - [Dataset/Problem Instance Selection](#datasetproblem-instance-selection)
-  - [Performance Reporting Standards](#performance-reporting-standards)
+  + [Performance Reporting Standards](#performance-reporting-standards)
     - [Required Metrics](#required-metrics)
     - [Visualization Guidelines](#visualization-guidelines)
-  - [TSP/Routing-Specific Considerations](#tsprouting-specific-considerations)
+  + [TSP/Routing-Specific Considerations](#tsprouting-specific-considerations)
     - [Benchmark Selection](#benchmark-selection)
     - [Algorithm-Specific Metrics](#algorithm-specific-metrics)
-  - [Reproducibility Checklist](#reproducibility-checklist)
+  + [Reproducibility Checklist](#reproducibility-checklist)
     - [Essential Documentation](#essential-documentation)
     - [Code and Data Availability](#code-and-data-availability)
-  - [Statistical Tests Reference](#statistical-tests-reference)
+  + [Statistical Tests Reference](#statistical-tests-reference)
     - [When to Use Which Test](#when-to-use-which-test)
     - [Assumption Checks](#assumption-checks)
-  - [Python Implementation Notes](#python-implementation-notes)
+  + [python Implementation Notes](#python-implementation-notes)
     - [Recommended Libraries](#recommended-libraries)
     - [Example: Paired Comparison (CPU vs GPU)](#example-paired-comparison-cpu-vs-gpu)
-  - [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
-  - [References](#references)
+  + [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
+  + [References](#references)
     - [Core Methodology Papers](#core-methodology-papers)
     - [Statistical Methods References](#statistical-methods-references)
     - [TSP GPU Implementation References](#tsp-gpu-implementation-references)
-  - [Memory Graph Structure](#memory-graph-structure)
-  - [Application to This Project](#application-to-this-project)
+  + [Memory Graph Structure](#memory-graph-structure)
+  + [Application to This Project](#application-to-this-project)
     - [Immediate Applicability](#immediate-applicability)
     - [Hardware Constraints](#hardware-constraints)
 
@@ -102,16 +102,16 @@ This document synthesizes academic best practices for statistically rigorous GPU
 
 ### 1. Hoefler & Belli (2015)
 
-**Title:** "Scientific Benchmarking of Parallel Computing Systems: Twelve ways to tell the masses when reporting performance results"  
-**Published:** SC '15 Conference Proceedings  
-**DOI:** [10.1145/2807591.2807644](https://doi.org/10.1145/2807591.2807644)  
-**Citations:** 186 (highly influential in HPC community)  
+**Title:** "Scientific Benchmarking of Parallel Computing Systems: Twelve ways to tell the masses when reporting performance results"
+**Published:** SC '15 Conference Proceedings
+**DOI:** [10.1145/2807591.2807644](https://doi.org/10.1145/2807591.2807644)
+**Citations:** 186 (highly influential in HPC community)
 **Key Contribution:** Investigated 120 papers and found most lack clarity on whether performance improvements are deterministic or observed by chance. Proposes statistically sound analysis and reporting techniques.
 
 ### 2. Hothorn, Leisch, Zeileis, Hornik (2005)
 
-**Title:** "The Design and Analysis of Benchmark Experiments"  
-**Published:** American Statistical Association, Institute of Mathematical Statistics, Interface Foundation  
+**Title:** "The Design and Analysis of Benchmark Experiments"
+**Published:** American Statistical Association, Institute of Mathematical Statistics, Interface Foundation
 **Key Contribution:** Theoretical framework for comparison of candidate algorithms and algorithm selection using cross-validation and standard statistical test procedures.
 
 ---
@@ -121,28 +121,28 @@ This document synthesizes academic best practices for statistically rigorous GPU
 ### Core Principles
 
 1. **Report Uncertainty, Not Just Point Estimates**
-   - Always include confidence intervals (e.g., 95% CI)
-   - Report standard deviation or interquartile ranges
-   - Use bootstrap/resampling methods (Efron & Tibshirani 1993) for robust estimates
-   - Consider quantile regression (Koenker 2005) to understand performance distribution
+   + Always include confidence intervals (e.g., 95% CI)
+   + Report standard deviation or interquartile ranges
+   + Use bootstrap/resampling methods (Efron & Tibshirani 1993) for robust estimates
+   + Consider quantile regression (Koenker 2005) to understand performance distribution
 
 2. **Statistical Significance Testing**
-   - Test whether performance differences are real vs. chance occurrences
-   - Use appropriate tests based on data distribution:
+   + Test whether performance differences are real vs. chance occurrences
+   + Use appropriate tests based on data distribution:
      - **Paired t-test:** When normality holds (use Shapiro-Wilk test to check)
      - **Wilcoxon signed-rank test:** Non-parametric alternative for paired comparisons
      - **Bootstrap confidence intervals:** When distribution is unknown or non-normal
 
 3. **Multiple Comparison Corrections**
-   - When comparing >2 algorithms, apply correction methods:
+   + When comparing >2 algorithms, apply correction methods:
      - Bonferroni correction (conservative)
      - Holm correction (less conservative, more power)
-   - Use Kruskal-Wallis test for multiple algorithm comparison (non-parametric ANOVA)
+   + Use Kruskal-Wallis test for multiple algorithm comparison (non-parametric ANOVA)
 
 4. **Effect Size vs. Statistical Significance**
-   - Report practical significance, not just p-values
-   - Calculate effect sizes (e.g., Cohen's d) to quantify magnitude of differences
-   - Small p-value doesn't always mean practically important difference
+   + Report practical significance, not just p-values
+   + Calculate effect sizes (e.g., Cohen's d) to quantify magnitude of differences
+   + Small p-value doesn't always mean practically important difference
 
 ---
 
@@ -151,27 +151,27 @@ This document synthesizes academic best practices for statistically rigorous GPU
 ### Dataset/Problem Instance Selection
 
 1. **Diversity Requirement**
-   - Test on multiple problem instances - avoid single-instance claims
-   - For TSP/VRP: Use standard benchmarks (TSPLIB, Reinelt's collection)
-   - Cover range of problem sizes: small (n ≤ 100), medium (100 < n ≤ 1000), large (n > 1000)
-   - Include different problem characteristics (clustered, random, structured)
+   + Test on multiple problem instances - avoid single-instance claims
+   + For TSP/VRP: Use standard benchmarks (TSPLIB, Reinelt's collection)
+   + Cover range of problem sizes: small (n ≤ 100), medium (100 < n ≤ 1000), large (n > 1000)
+   + Include different problem characteristics (clustered, random, structured)
 
 2. **Repetition and Variability**
-   - Report number of repetitions for each experiment
-   - Document how variability is measured (across runs, across instances, both)
-   - Minimum 30 runs recommended for robust statistics (Central Limit Theorem)
-   - Control for system noise and external factors:
+   + Report number of repetitions for each experiment
+   + Document how variability is measured (across runs, across instances, both)
+   + Minimum 30 runs recommended for robust statistics (Central Limit Theorem)
+   + Control for system noise and external factors:
      - Pin CPU processes to cores
      - Disable CPU frequency scaling
      - Monitor thermal throttling
      - Isolate benchmark processes
 
 3. **Parameter Documentation**
-   - Hardware specifications (CPU model, GPU model, VRAM, RAM)
-   - Software versions (CUDA toolkit, Python, CuPy, NumPy)
-   - Compiler flags and optimization levels
-   - Runtime settings and environment variables
-   - For GPU: block size, grid dimensions, shared memory configuration
+   + Hardware specifications (CPU model, GPU model, VRAM, RAM)
+   + Software versions (CUDA toolkit, python, CuPy, NumPy)
+   + Compiler flags and optimization levels
+   + Runtime settings and environment variables
+   + For GPU: block size, grid dimensions, shared memory configuration
 
 ---
 
@@ -180,41 +180,41 @@ This document synthesizes academic best practices for statistically rigorous GPU
 ### Required Metrics
 
 1. **Execution Time**
-   - Mean execution time with confidence interval
-   - Standard deviation or IQR
-   - Minimum/maximum if showing full distribution
-   - Time measurement methodology (wall-clock, CPU time, GPU kernel time)
+   + Mean execution time with confidence interval
+   + Standard deviation or IQR
+   + Minimum/maximum if showing full distribution
+   + Time measurement methodology (wall-clock, CPU time, GPU kernel time)
 
 2. **Speedup Factors**
-   - Report speedup with statistical backing (not single measurements)
-   - Include confidence intervals on speedup estimates
-   - Clearly define baseline (e.g., "GPU speedup relative to single-threaded NumPy CPU")
-   - Distinguish between weak scaling and strong scaling
+   + Report speedup with statistical backing (not single measurements)
+   + Include confidence intervals on speedup estimates
+   + Clearly define baseline (e.g., "GPU speedup relative to single-threaded NumPy CPU")
+   + Distinguish between weak scaling and strong scaling
 
 3. **Memory Usage**
-   - Critical for GPU with limited VRAM
-   - Report peak memory consumption
-   - Document memory transfer overhead (host-to-device, device-to-host)
+   + Critical for GPU with limited VRAM
+   + Report peak memory consumption
+   + Document memory transfer overhead (host-to-device, device-to-host)
 
 4. **Scalability**
-   - Performance across different problem sizes
-   - Identify inflection points where one approach becomes superior
-   - Report complexity trends (does it match theoretical O() analysis?)
+   + Performance across different problem sizes
+   + Identify inflection points where one approach becomes superior
+   + Report complexity trends (does it match theoretical O() analysis?)
 
 ### Visualization Guidelines
 
 1. **Appropriate Plot Types**
-   - **Box plots:** Show distribution, median, quartiles, outliers
-   - **Violin plots:** Similar to box plots but shows full distribution shape
-   - **Error bars:** On bar charts, must specify if showing std dev, std err, or CI
-   - **Avoid:** Simple bar charts without error bars or variability indicators
+   + **Box plots:** Show distribution, median, quartiles, outliers
+   + **Violin plots:** Similar to box plots but shows full distribution shape
+   + **Error bars:** On bar charts, must specify if showing std dev, std err, or CI
+   + **Avoid:** Simple bar charts without error bars or variability indicators
 
 2. **Clarity Requirements**
-   - Clear axis labels with units
-   - Legend identifying all series
-   - Error bars must specify what they represent
-   - Use log scale when appropriate (large performance differences)
-   - Annotate statistical significance when comparing groups
+   + Clear axis labels with units
+   + Legend identifying all series
+   + Error bars must specify what they represent
+   + Use log scale when appropriate (large performance differences)
+   + Annotate statistical significance when comparing groups
 
 ---
 
@@ -223,34 +223,34 @@ This document synthesizes academic best practices for statistically rigorous GPU
 ### Benchmark Selection
 
 1. **Standard Instances**
-   - TSPLIB: Reinelt's classic benchmark collection
-   - Use instances with known optimal solutions for correctness verification
-   - Include both symmetric and asymmetric TSP instances
+   + TSPLIB: Reinelt's classic benchmark collection
+   + Use instances with known optimal solutions for correctness verification
+   + Include both symmetric and asymmetric TSP instances
 
 2. **Instance Characteristics**
-   - Euclidean distance matrices (most common)
-   - Geographic instances (real-world cities)
-   - Random instances (for stress testing)
+   + Euclidean distance matrices (most common)
+   + Geographic instances (real-world cities)
+   + Random instances (for stress testing)
 
 ### Algorithm-Specific Metrics
 
 1. **Construction Heuristics**
-   - Solution quality (tour length vs. optimal)
-   - Construction time
-   - Memory footprint
+   + Solution quality (tour length vs. optimal)
+   + Construction time
+   + Memory footprint
 
 2. **Meta-heuristics**
-   - Solution quality over iterations
-   - Convergence speed
-   - Population/swarm size optimization
-   - Document random seed handling for reproducibility
+   + Solution quality over iterations
+   + Convergence speed
+   + Population/swarm size optimization
+   + Document random seed handling for reproducibility
 
 3. **GPU-Specific Parameters**
-   - Optimal CUDA block size (typically 128-512 threads)
-   - Grid dimensions impact
-   - Shared memory vs. global memory tradeoffs
-   - Occupancy metrics
-   - Memory coalescing efficiency
+   + Optimal CUDA block size (typically 128-512 threads)
+   + Grid dimensions impact
+   + Shared memory vs. global memory tradeoffs
+   + Occupancy metrics
+   + Memory coalescing efficiency
 
 ---
 
@@ -284,7 +284,7 @@ This document synthesizes academic best practices for statistically rigorous GPU
 ### When to Use Which Test
 
 | Scenario | Parametric Test | Non-parametric Alternative |
-|----------|----------------|---------------------------|
+| ---------- | ---------------- | --------------------------- |
 | Two related samples (same algorithm, CPU vs GPU) | Paired t-test | Wilcoxon signed-rank test |
 | Two independent samples | Independent t-test | Mann-Whitney U test |
 | Multiple related samples | Repeated measures ANOVA | Friedman test |
@@ -298,7 +298,7 @@ This document synthesizes academic best practices for statistically rigorous GPU
 
 ---
 
-## Python Implementation Notes
+## python Implementation Notes
 
 ### Recommended Libraries
 
@@ -343,7 +343,7 @@ else:
 from scipy.stats import bootstrap
 
 speedups = cpu_times / gpu_times
-ci = bootstrap((speedups,), np.mean, confidence_level=0.95, 
+ci = bootstrap((speedups,), np.mean, confidence_level=0.95,
                n_resamples=10000, method='percentile')
 print(f"Mean speedup: {np.mean(speedups):.2f}x")
 print(f"95% CI: [{ci.confidence_interval.low:.2f}x, "
@@ -355,41 +355,41 @@ print(f"95% CI: [{ci.confidence_interval.low:.2f}x, "
 ## Common Pitfalls to Avoid
 
 1. **Single-Run Comparisons**
-   - ❌ "GPU is 10x faster" based on one measurement
-   - ✅ "GPU shows mean speedup of 10.2x (95% CI: [9.5x, 10.9x]) over 100 runs"
+   + ❌ "GPU is 10x faster" based on one measurement
+   + ✅ "GPU shows mean speedup of 10.2x (95% CI: [9.5x, 10.9x]) over 100 runs"
 
 2. **Cherry-Picking Problem Instances**
-   - ❌ Only showing instances where GPU excels
-   - ✅ Report results across all benchmark instances, including unfavorable cases
+   + ❌ Only showing instances where GPU excels
+   + ✅ Report results across all benchmark instances, including unfavorable cases
 
 3. **Ignoring Variability**
-   - ❌ Bar chart with no error bars
-   - ✅ Box plot or bar chart with confidence interval error bars
+   + ❌ Bar chart with no error bars
+   + ✅ Box plot or bar chart with confidence interval error bars
 
 4. **P-Hacking**
-   - ❌ Trying multiple tests until finding p < 0.05
-   - ✅ Pre-specify statistical test based on data characteristics
+   + ❌ Trying multiple tests until finding p < 0.05
+   + ✅ Pre-specify statistical test based on data characteristics
 
 5. **Overlooking Practical Significance**
-   - ❌ "p < 0.001, therefore GPU is better"
-   - ✅ "Statistically significant (p < 0.001) speedup of 1.05x - not practically meaningful given implementation complexity"
+   + ❌ "p < 0.001, therefore GPU is better"
+   + ✅ "Statistically significant (p < 0.001) speedup of 1.05x - not practically meaningful given implementation complexity"
 
 6. **Conflating AOT Precompilation with Execution Warm-Up**
-   - ❌ Assuming that JIT/AOT-compiling the CUDA kernel eliminated all cold-start overheads.
-   - ✅ Distinguish between pure AOT compilation (PTX/cubin generation via NVRTC) and runtime execution warm-up. An untimed warm-up dispatch is strictly required to:
+   + ❌ Assuming that JIT/AOT-compiling the CUDA kernel eliminated all cold-start overheads.
+   + ✅ Distinguish between pure AOT compilation (PTX/cubin generation via NVRTC) and runtime execution warm-up. An untimed warm-up dispatch is strictly required to:
      - Prime dynamic memory pools (avoiding expensive OS-level `cudaMalloc` calls during timing);
      - Initialize CUDA driver stream queues and event contexts;
      - Ramp GPU hardware clocks from idle power states (P8/P5, $\approx 139\text{ MHz}$) to boost frequencies (P0, $\approx 1{,}493\text{ MHz}$);
      - Populate instruction and L2 SRAM cache lines.
-   - ⚠️ Omitting per-dimension execution warm-up causes the first tested size ($n_0$) to absorb allocation latency, artificially tilting fitted power-law scaling ($\log T = \beta \log n$) into spurious negative slopes ($\beta < 0$).
+   + ⚠️ Omitting per-dimension execution warm-up causes the first tested size ($n_0$) to absorb allocation latency, artificially tilting fitted power-law scaling ($\log T = \beta \log n$) into spurious negative slopes ($\beta < 0$).
 
 7. **Host-Side Serialization Bottlenecks Masking GPU Acceleration**
-   - ❌ Benchmarking whole-strategy Python methods and attributing all latency to GPU execution.
-   - ✅ Use hardware CUDA events (`cp.cuda.Event`) to measure pure device kernel time alongside host wall time. Unvectorized Python parameter loops (e.g. generating cut points or mutation pairs via `for i in range(N): rng.choice(...)`) consume $\approx 1.22\text{ ms}$ on the CPU, dominating pure CUDA execution ($0.012\text{--}0.088\text{ ms}$) by $14\times$ to $100\times$ (accounting for $>90\%$ of runtime). Vectorized NumPy sampling ($c_2 += c_2 \ge c_1$) reduces host overhead to $0.017\text{ ms}$ ($72\times$ faster).
+   + ❌ Benchmarking whole-strategy python methods and attributing all latency to GPU execution.
+   + ✅ Use hardware CUDA events (`cp.cuda.Event`) to measure pure device kernel time alongside host wall time. Unvectorized python parameter loops (e.g. generating cut points or mutation pairs via `for i in range(N): rng.choice(...)`) consume $\approx 1.22\text{ ms}$ on the CPU, dominating pure CUDA execution ($0.012\text{--}0.088\text{ ms}$) by $14\times$ to $100\times$ (accounting for $>90\%$ of runtime). Vectorized NumPy sampling ($c_2 += c_2 \ge c_1$) reduces host overhead to $0.017\text{ ms}$ ($72\times$ faster).
 
 8. **Topology Cache Poisoning via Placeholder Warm-Up Payloads**
-   - ❌ Passing dummy zero arrays (`cp.zeros((N, n))`) to execution warm-up dispatches.
-   - ✅ Dummy zero arrays satisfy `batch[0, 0] == batch[0, -1]` ($0 == 0$), falsely triggering closed-tour heuristics and committing `_is_closed_cache = (n, True)`. When subsequent Open TSP benchmarks execute, the poisoned cache restricts cut boundaries and injects duplicate cities. Warm-up passes must always use structurally valid permutations.
+   + ❌ Passing dummy zero arrays (`cp.zeros((N, n))`) to execution warm-up dispatches.
+   + ✅ Dummy zero arrays satisfy `batch[0, 0] == batch[0, -1]` ($0 == 0$), falsely triggering closed-tour heuristics and committing `_is_closed_cache = (n, True)`. When subsequent Open TSP benchmarks execute, the poisoned cache restricts cut boundaries and injects duplicate cities. Warm-up passes must always use structurally valid permutations.
 
 9. **Mistaking a Decorator Barrier for Intrinsic Device Synchronization**
    + ❌ Concluding that a GPU strategy "blocks internally" because three different clocks (`perf_counter`, `cp.cuda.Event`, drained `perf_counter`) agree on its duration.
@@ -417,17 +417,17 @@ print(f"95% CI: [{ci.confidence_interval.low:.2f}x, "
 
 ### Statistical Methods References
 
-5. Efron, B., & Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
+1. Efron, B., & Tibshirani, R. J. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
 
-6. Koenker, R. (2005). *Quantile Regression*. Cambridge University Press.
+2. Koenker, R. (2005). *Quantile Regression*. Cambridge University Press.
 
-7. Dietterich, T. G. (1998). Approximate Statistical Tests for Comparing Supervised Classification Learning Algorithms. *Neural Computation*, 10(7), 1895-1923.
+3. Dietterich, T. G. (1998). Approximate Statistical Tests for Comparing Supervised Classification Learning Algorithms. *Neural Computation*, 10(7), 1895-1923.
 
 ### TSP GPU Implementation References
 
-8. Robinson, T., et al. (2018). Analysis of a High-Performance TSP Solver on the GPU. *ACM Journal of Experimental Algorithmics*.
+1. Robinson, T., et al. (2018). Analysis of a High-Performance TSP Solver on the GPU. *ACM Journal of Experimental Algorithmics*.
 
-9. Various authors. Performance investigations of genetic algorithms on graphics cards (TSP applications).
+2. Various authors. Performance investigations of genetic algorithms on graphics cards (TSP applications).
 
 ---
 
@@ -458,19 +458,19 @@ Use memory search tools to query these entities for specific guidance.
 ### Immediate Applicability
 
 1. **Section 4 RESULTADOS Analysis**
-   - Apply these principles when reporting backend comparison results
-   - Use appropriate statistical tests for NumPy vs CuPy comparisons
-   - Create visualizations following reporting standards
+   + Apply these principles when reporting backend comparison results
+   + Use appropriate statistical tests for NumPy vs CuPy comparisons
+   + Create visualizations following reporting standards
 
 2. **Benchmark Suite Design**
-   - Select diverse TSPLIB instances covering size range
-   - Plan repetition strategy (minimum 30 runs per configuration)
-   - Document all experimental parameters
+   + Select diverse TSPLIB instances covering size range
+   + Plan repetition strategy (minimum 30 runs per configuration)
+   + Document all experimental parameters
 
 3. **Q1 Notebook Enhancement (Task 3)**
-   - Add confidence intervals to existing plots
-   - Apply statistical significance testing
-   - Improve visualizations (box plots for multi-run results)
+   + Add confidence intervals to existing plots
+   + Apply statistical significance testing
+   + Improve visualizations (box plots for multi-run results)
 
 ### Hardware Constraints
 
@@ -483,6 +483,6 @@ Given project hardware (GTX 1050 Mobile, 4GB VRAM):
 
 ---
 
-**Last Updated:** 2025-11-01  
-**Stored in Knowledge Graph:** Yes (5 entities, 7 relations)  
+**Last Updated:** 2025-11-01
+**Stored in Knowledge Graph:** Yes (5 entities, 7 relations)
 **Next Steps:** Apply to Task 3 (Q1 Notebook Enhancement) and Section 4 analysis

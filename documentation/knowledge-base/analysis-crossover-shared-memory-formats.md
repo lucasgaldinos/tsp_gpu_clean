@@ -79,9 +79,10 @@ The remaining positions in $C$ must be filled by iterating through Parent 2 in c
 
 $$\text{is\_duplicate}(\text{city}) = \begin{cases} 1, & \text{if } \text{city} \in P_1[i:j] \\ 0, & \text{otherwise} \end{cases}$$
 
-On general-purpose CPUs (e.g., standard CPython execution), membership testing is implemented via hash tables (`std::unordered_set` or Python `set`), achieving average-case $\mathcal{O}(1)$ query time and $\mathcal{O}(n)$ total crossover runtime. However, when porting Order Crossover naively to NVIDIA GPUs, allocating dynamic hash tables per thread or per route is prohibitive. A naive GPU implementation that linearly scans the transferred slice $P_1[i:j]$ for each candidate city incurs $\mathcal{O}(n)$ steps per city, inflating overall kernel execution time to $\mathcal{O}(n^2)$ (`BUG-22`).
+On general-purpose CPUs (e.g., standard CPython execution), membership testing is implemented via hash tables (`std::unordered_set` or python `set`), achieving average-case $\mathcal{O}(1)$ query time and $\mathcal{O}(n)$ total crossover runtime. However, when porting Order Crossover naively to NVIDIA GPUs, allocating dynamic hash tables per thread or per route is prohibitive. A naive GPU implementation that linearly scans the transferred slice $P_1[i:j]$ for each candidate city incurs $\mathcal{O}(n)$ steps per city, inflating overall kernel execution time to $\mathcal{O}(n^2)$ (`BUG-22`).
 
 To restore optimal $\mathcal{O}(n)$ linear scaling on GPU architectures, the membership test must be evaluated in on-chip CUDA Shared Memory (`__shared__`, SRAM). Two distinct physical formats exist for structuring this lookup table:
+
 1. **Format A**: Direct Byte Array (`uint8_t in_segment[n]`), allocating one full byte per city.
 2. **Format B**: Bitpacked Bitmap (`uint32_t bitmap[\lceil n/32 \rceil]`), compressing 32 city flags into each 32-bit integer word.
 
@@ -120,6 +121,7 @@ __syncwarp();
 ```
 
 Because every city in a valid TSP tour is strictly unique, no two threads in the warp can ever process the same city index. Consequently:
+
 - **Unique Memory Addresses**: Every thread writes to an independent byte address in shared memory.
 - **Zero Race Conditions**: Write-after-write (WAW) hazards are mathematically impossible.
 - **Zero Atomics**: Marking is achieved through standard register-to-shared stores without requiring `atomicOr` or serialization barriers.
@@ -137,6 +139,7 @@ At the hardware instruction level (SASS), this compiles to a single `LDS.U8` (Lo
 ### 2.4 Occupancy & Capacity Math on Pascal GP107 (GeForce GTX 1050)
 
 The target NVIDIA GeForce GTX 1050 (GP107-300, Compute Capability 6.1) exhibits the following physical architectural limits:
+
 - **Shared Memory per SM / Block**: $48\text{ KB} = 49{,}152\text{ bytes}$.
 - **Warps per SM**: Maximum 64 resident warps ($2{,}048\text{ threads}$).
 - **Thread Block Sizing**: $256\text{ threads per block} = 8\text{ warps per block}$.
@@ -190,6 +193,7 @@ City 31                                               City 0
 ### 3.2 Bitwise Coordinate Arithmetic
 
 Accessing a city flag requires converting the scalar city index into two coordinates:
+
 1. **Word Index**: Calculated by dividing the city index by 32 using a right bit-shift:
    $$\text{word\_idx} = \text{city} \gg 5 = \left\lfloor \frac{\text{city}}{32} \right\rfloor$$
 2. **Bit Offset**: Calculated modulo 32 using bitwise AND:
@@ -198,6 +202,7 @@ Accessing a city flag requires converting the scalar city index into two coordin
    $$\text{mask} = 1\text{u} \ll \text{bit\_offset}$$
 
 For example, for City 75:
+
 - $\text{word\_idx} = 75 \gg 5 = 2$ (lives in `bitmap[2]`).
 - $\text{bit\_offset} = 75 \ \& \ 31 = 11$ (occupies Bit 11).
 - $\text{mask} = 1\text{u} \ll 11 = 0\text{x}00000800$.
@@ -205,6 +210,7 @@ For example, for City 75:
 ### 3.3 The Write Hazard: Race Conditions & Atomic Serialization
 
 While Format B reduces memory footprint by $87.5\%$, it introduces a critical concurrency hazard during the marking phase:
+
 - Suppose Thread 0 marks City 70 ($\text{word\_idx} = 2$, $\text{bit\_offset} = 6$).
 - Simultaneously, Thread 1 marks City 75 ($\text{word\_idx} = 2$, $\text{bit\_offset} = 11$).
 
@@ -217,6 +223,7 @@ atomicOr(&bitmap[city >> 5], 1u << (city & 31));
 ```
 
 Under NVIDIA CUDA architecture (NVIDIA Corporation, 2024):
+
 - Shared-memory atomics (`ATOMS.OR`) targeting the same word within a warp are **hardware-serialized**.
 - Multiple threads contending for the same 32-bit address stall the instruction pipeline, increasing the marking phase latency by up to $32\times$ in the worst-case scenario where all warp threads target the same word.
 
@@ -229,6 +236,7 @@ bool is_duplicate = (bitmap[city >> 5] >> (city & 31)) & 1;
 ```
 
 This sequence replaces a single `LDS.U8` instruction with:
+
 1. `SHR` / `LEA` for word index calculation.
 2. `LDS.U32` for 32-bit shared memory load.
 3. `AND` for bit offset calculation.
@@ -273,6 +281,7 @@ The following table contrasts Format A and Format B across all hardware, algorit
 ### 4.2 Production Rationalization for TSPLIB95
 
 For the complete TSPLIB95 suite ($n \le 2{,}103$), **Format A is decisively optimal** for the following reasons:
+
 1. **Zero Atomic Contention**: Every thread writes to an independent byte address, eliminating the `atomicOr` pipeline stalls that plague Format B.
 2. **Zero ALU Shift Latency**: Querying duplicates requires a single 8-bit memory load, bypassing bit shifts and mask evaluations.
 3. **Abundant Hardware Headroom**: Even for the largest TSPLIB95 instance (`d2103`, $n = 2{,}103$), Format A requires only $16.8\text{ KB}$ across 8 active warps, leaving $65.7\%$ of the $48\text{ KB}$ shared memory untouched.
@@ -280,6 +289,7 @@ For the complete TSPLIB95 suite ($n \le 2{,}103$), **Format A is decisively opti
 ### 4.3 Scalability Roadmap Integration
 
 Format B is preserved in the project roadmap as a future-proofing scalability extension:
+
 - **Instances $n \le 6{,}144$**: Format A is the default production implementation in `src/algorithms/strategies/crossover/kernels/order_crossover.cu`.
 - **Instances $6{,}144 < n \le 49{,}152$**: Format B allows maintaining 8 warps per block on GP107 hardware without spilling shared memory to L2 cache or DRAM.
 - **Instances $n > 49{,}152$**: Format B combined with dynamic block downscaling ($W = 1$ to $4$ warps per block) extends GPU Order Crossover up to $393{,}216$ cities.
@@ -289,8 +299,9 @@ Format B is preserved in the project roadmap as a future-proofing scalability ex
 ## 5. Repository Implementation Anchors
 
 The production CUDA implementation of Format A resides in:
+
 - Kernel implementation: [`order_crossover.cu`](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu#L25-L124)
-- Python strategy driver: [`order_crossover.py`](../../src/algorithms/strategies/crossover/order_crossover.py)
+- python strategy driver: [`order_crossover.py`](../../src/algorithms/strategies/crossover/order_crossover.py)
 
 Key implementation excerpts demonstrating Format A in production:
 
@@ -348,7 +359,7 @@ for (int step = 0; step < stream_len; step += 32) {
 ## 6. References
 
 1. **Davis, L.** (1985). *Applying adaptive algorithms to epistatic domains*. In Proceedings of the International Joint Conference on Artificial Intelligence (IJCAI-85), pp. 162–164.
-2. **NVIDIA Corporation** (2024). *CUDA C++ Best Practices Guide*. Version 13.0. URL: https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/ (`nvidia2024cuda`).
+2. **NVIDIA Corporation** (2024). *CUDA C++ Best Practices Guide*. Version 13.0. URL: <https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/> (`nvidia2024cuda`).
 3. **Oliver, I. M., Smith, D. J., & Holland, J. R. C.** (1987). *A study of permutation crossover operators on the traveling salesman problem*. In Genetic Algorithms and their Applications: Proceedings of the Second International Conference on Genetic Algorithms, pp. 224–230.
 4. **O'Neil, M. A., & Burtscher, M.** (2014). *Floating-point data compression at 22 GB/s on a GPU*. Proceedings of the 23rd International Conference on Parallel Architectures and Compilation Techniques (PACT), pp. 155–166.
 5. **Reinelt, G.** (1991). *TSPLIB—A Traveling Salesman Problem Library*. ORSA Journal on Computing, 3(4), 376–384 (`reinelt1991tsplib`).

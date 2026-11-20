@@ -44,36 +44,38 @@ tags:
 # Normality Assessment, Shapiro-Wilk Matrix Derivations, and Metaheuristic Outliers
 
 - [Normality Assessment, Shapiro-Wilk Matrix Derivations, and Metaheuristic Outliers](#normality-assessment-shapiro-wilk-matrix-derivations-and-metaheuristic-outliers)
-  - [1. The Small-Sample Mandate: Why Normality Testing is Non-Negotiable at $n = 15$](#1-the-small-sample-mandate-why-normality-testing-is-non-negotiable-at-n--15)
+  + [1. The Small-Sample Mandate: Why Normality Testing is Non-Negotiable at $n = 15$](#1-the-small-sample-mandate-why-normality-testing-is-non-negotiable-at-n--15)
     - [1.1 The "Rule of 30" Fallacy in Metaheuristics](#11-the-rule-of-30-fallacy-in-metaheuristics)
     - [1.2 Small Samples as the Gatekeeper of Statistical Inference](#12-small-samples-as-the-gatekeeper-of-statistical-inference)
-  - [2. Shapiro-Wilk Test: Full Matrix Derivation via Generalized Least Squares](#2-shapiro-wilk-test-full-matrix-derivation-via-generalized-least-squares)
+  + [2. Shapiro-Wilk Test: Full Matrix Derivation via Generalized Least Squares](#2-shapiro-wilk-test-full-matrix-derivation-via-generalized-least-squares)
     - [2.1 Order Statistics and Covariance Structure](#21-order-statistics-and-covariance-structure)
     - [2.2 Generalized Least Squares (GLS) Formulation](#22-generalized-least-squares-gls-formulation)
     - [2.3 Derivation of the $W$ Statistic](#23-derivation-of-the-w-statistic)
     - [2.4 Geometric Interpretation and Boundedness](#24-geometric-interpretation-and-boundedness)
     - [2.5 Computational Approximation for $n = 15$](#25-computational-approximation-for-n--15)
-  - [3. The Scale Illusion: Absolute Dispersion vs. Coefficient of Variation ($CV$)](#3-the-scale-illusion-absolute-dispersion-vs-coefficient-of-variation-cv)
+  + [3. The Scale Illusion: Absolute Dispersion vs. Coefficient of Variation ($CV$)](#3-the-scale-illusion-absolute-dispersion-vs-coefficient-of-variation-cv)
     - [3.1 The Compression Illusion in GPU Timings](#31-the-compression-illusion-in-gpu-timings)
     - [3.2 Mathematical Formulation of $CV$](#32-mathematical-formulation-of-cv)
     - [3.3 Empirical Demonstration on TSPLIB Instances](#33-empirical-demonstration-on-tsplib-instances)
-  - [4. Multimodality Diagnosis in Combinatorial Search](#4-multimodality-diagnosis-in-combinatorial-search)
+  + [4. Multimodality Diagnosis in Combinatorial Search](#4-multimodality-diagnosis-in-combinatorial-search)
     - [4.1 Modality Taxonomy in Optimization Benchmarks](#41-modality-taxonomy-in-optimization-benchmarks)
     - [4.2 Basin-of-Attraction Dynamics and Local Optima Trapping](#42-basin-of-attraction-dynamics-and-local-optima-trapping)
     - [4.3 Statistical Detection of Multimodality](#43-statistical-detection-of-multimodality)
-  - [5. Genetic Algorithm Stagnation and Runtime Outlier Analysis](#5-genetic-algorithm-stagnation-and-runtime-outlier-analysis)
+  + [5. Genetic Algorithm Stagnation and Runtime Outlier Analysis](#5-genetic-algorithm-stagnation-and-runtime-outlier-analysis)
     - [5.1 Algorithmic Root Causes of Runtime Outliers](#51-algorithmic-root-causes-of-runtime-outliers)
     - [5.2 The 50-Generation Stagnation Termination Criterion](#52-the-50-generation-stagnation-termination-criterion)
     - [5.3 Hardware Coupling: Thread Blocks, Shared Memory, and Divergence](#53-hardware-coupling-thread-blocks-shared-memory-and-divergence)
     - [5.4 CPU vs. GPU Variance Signatures](#54-cpu-vs-gpu-variance-signatures)
-  - [6. Alternative Normality Probes](#6-alternative-normality-probes)
+  + [6. Alternative Normality Probes](#6-alternative-normality-probes)
     - [6.1 D'Agostino-Pearson $K^2$ Omnibus Test](#61-dagostino-pearson-k2-omnibus-test)
     - [6.2 Anderson-Darling $A^2$ Test with Tail Emphasis](#62-anderson-darling-a2-test-with-tail-emphasis)
     - [6.3 Comparative Suitability Matrix for $n = 15$](#63-comparative-suitability-matrix-for-n--15)
-  - [7. Production Implementation and Empirical Benchmark Verification](#7-production-implementation-and-empirical-benchmark-verification)
+  + [7. Production Implementation and Empirical Benchmark Verification](#7-production-implementation-and-empirical-benchmark-verification)
     - [7.1 Automated Normality Verification Pipeline](#71-automated-normality-verification-pipeline)
     - [7.2 Real-Data Verification: `ch130` and `berlin52`](#72-real-data-verification-ch130-and-berlin52)
-  - [8. Academic References](#8-academic-references)
+      + [Case 1: `berlin52` Runtime Normality Check ($n = 15$)](#case-1-berlin52-runtime-normality-check-n--15)
+      + [Case 2: `ch130` Solution Cost Normality Check ($n = 15$)](#case-2-ch130-solution-cost-normality-check-n--15)
+  + [8. Academic References](#8-academic-references)
 
 ---
 
@@ -109,6 +111,7 @@ However, invoking the "Rule of 30" uncritically in metaheuristic benchmarking in
 ### 1.2 Small Samples as the Gatekeeper of Statistical Inference
 
 At $n = 15$, statistical testing of normality is not an optional diagnostic—it is the **mandatory gatekeeper** dictating the valid branch of statistical inference:
+
 - If the normality hypothesis cannot be rejected ($p \ge 0.05$), the parametric path (Student's $t$-test) achieves optimal statistical power ($1 - \beta$).
 - If normality is rejected ($p < 0.05$), continuing with a $t$-test risks severe Type I error inflation and false speedup claims. The protocol must dynamically route the comparison to the **Wilcoxon Signed-Rank Test**.
 
@@ -116,7 +119,7 @@ At $n = 15$, statistical testing of normality is not an optional diagnostic—it
 
 ## 2. Shapiro-Wilk Test: Full Matrix Derivation via Generalized Least Squares
 
-The Shapiro-Wilk test (Shapiro & Wilk, 1965) remains the most powerful omnibus test for univariate normality across a wide spectrum of asymmetric and symmetric non-Gaussian distributions. 
+The Shapiro-Wilk test (Shapiro & Wilk, 1965) remains the most powerful omnibus test for univariate normality across a wide spectrum of asymmetric and symmetric non-Gaussian distributions.
 
 ### 2.1 Order Statistics and Covariance Structure
 
@@ -145,6 +148,7 @@ $$\mathbf{m} = \mathbb{E}[\mathbf{Z}] = \begin{pmatrix} \mathbb{E}[Z_{(1)}] \\ \
 $$\mathbf{V} = \text{Cov}(\mathbf{Z}) = \mathbb{E}\left[(\mathbf{Z} - \mathbf{m})(\mathbf{Z} - \mathbf{m})^T\right] \in \mathbb{R}^{n \times n}$$
 
 By symmetry of the standard normal distribution about zero:
+
 - $m_i = -m_{n - i + 1}$ for all $i = 1, \dots, n$.
 - $V_{ij} = V_{ji} = V_{n-i+1, n-j+1}$.
 
@@ -446,7 +450,7 @@ import numpy as np
 from scipy import stats
 
 def evaluate_sample_distribution(
-    data: np.ndarray, 
+    data: np.ndarray,
     alpha: float = 0.05
 ) -> Dict[str, Any]:
     """
@@ -456,18 +460,18 @@ def evaluate_sample_distribution(
     mean_val = float(np.mean(data))
     std_val = float(np.std(data, ddof=1))
     cv_val = std_val / mean_val if mean_val != 0 else 0.0
-    
+
     # 1. Shapiro-Wilk Normality Test
     w_stat, p_val = stats.shapiro(data)
     is_normal = p_val >= alpha
-    
+
     # 2. Skewness and Kurtosis
     skew_val = float(stats.skew(data))
     kurt_val = float(stats.kurtosis(data))  # Excess kurtosis (normal = 0.0)
-    
+
     # 3. Decision Recommendation
     recommended_path = "parametric_t_test" if is_normal else "wilcoxon_signed_rank"
-    
+
     return {
         "sample_size": n,
         "mean": mean_val,

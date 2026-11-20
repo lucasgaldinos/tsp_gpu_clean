@@ -1,3 +1,42 @@
+---
+title: "TSPLIB95 — file format, distance functions and instance catalogue"
+description: >
+  Verbatim transcription of Gerhard Reinelt's official TSPLIB95 documentation:
+  specification keywords, data sections, the eight distance functions and the
+  instance catalogue, kept as the normative reference for the parser and for the
+  integer-distance conventions the solver relies on.
+created: 2026-05-19
+status: review
+type: notes
+scope: global
+modifications:
+  - date_modified: 2026-11-17
+    modifications:
+      - description: >
+          Added YAML frontmatter and a provenance note identifying the source of the
+          transcription and the section that is an addition by this project; tagged
+          the previously bare code fences and escaped the bracketed optimal-value
+          intervals so that the Markdown renderer does not read them as link labels.
+related_files:
+  - "[tsplib_loader.py](../../../src/loaders/tsplib_loader.py)"
+  - "[database_loader.py](../../../src/loaders/database_loader.py)"
+  - "[pairwise.py](../../../src/distances/pairwise.py)"
+  - "[discussion-CPU-vectorization.md](./discussion-CPU-vectorization.md)"
+  - "[knowledge-how-stratification-works.md](./knowledge-how-stratification-works.md)"
+tags:
+  - analysis/tsplib
+  - guide/format
+  - guide/parsing
+  - notes/reference
+  - notes/data
+  - notes/benchmark
+  - algorithm/tsp
+  - algorithm/cvrp
+  - analysis/distances
+  - analysis/arithmetic
+  - guide/reproducibility
+---
+
 # TSPLIB 95
 
 Gerhard Reinelt
@@ -6,6 +45,15 @@ Institut für Angewandte Mathematik
 Im Neuenheimer Feld 294
 D-69120 Heidelberg
 <Gerhard.Reinelt@IWR.Uni-Heidelberg.DE>
+
+> [!NOTE]
+> **Provenance.** Sections 1–3.6, 4 and the reference list are a verbatim transcription of the official TSPLIB95 documentation published by Gerhard Reinelt (Universität Heidelberg) and distributed with the data files at <http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/>.
+> Section 3.7, the CVRPLIB catalogue of vehicle-routing instances, is an addition made for this project and is not part of the original document.
+>
+> **Why it is kept here.** This text is the normative reference the solver is implemented against: [tsplib_loader.py](../../../src/loaders/tsplib_loader.py) delegates parsing to the `routing_data` package, and [pairwise.py](../../../src/distances/pairwise.py) re-exports the scalar distance functions from it.
+> The integer convention of §2 — round to the nearest integer, truncate the degrees and minutes of `GEO` — is reproduced literally in code, and the `GEO` truncation was the subject of `BUG-32`.
+>
+> **Notation.** In the instance tables of §3, `[lower,upper]` is the range of best-known solution values, not a reference-style link.
 
 TSPLIB is a library of sample instances for the TSP (and related problems) from various sources and of various types. Instances of the following problem classes are available.
 
@@ -135,13 +183,13 @@ Node coordinates are given in this section.
 
 - If `NODE_COORD_TYPE` is `TWOD_COORDS`:
 
-  ```
+  ```text
   <integer> <real> <real>
   ```
 
 - If `NODE_COORD_TYPE` is `THREED_COORDS`:
 
-  ```
+  ```text
   <integer> <real> <real> <real>
   ```
 
@@ -155,7 +203,7 @@ Contains a list of possible alternate depot nodes. This list is terminated by a 
 
 The demands of all nodes of a CVRP are given in the form (per line):
 
-```
+```text
 <integer> <integer>
 ```
 
@@ -167,7 +215,7 @@ Edges of a graph are specified in either of the two formats allowed in the `EDGE
 
 - If the type is `EDGE_LIST`, then the edges are given as a sequence of lines of the form:
 
-  ```
+  ```text
   <integer> <integer>
   ```
 
@@ -175,7 +223,7 @@ Edges of a graph are specified in either of the two formats allowed in the `EDGE
 
 - If the type is `ADJ_LIST`, the section consists of a list of adjacency lists for nodes. The adjacency list of a node x is specified as:
 
-  ```
+  ```text
   <integer> <integer> ... <integer> -1
   ```
 
@@ -185,7 +233,7 @@ Edges of a graph are specified in either of the two formats allowed in the `EDGE
 
 In this section, edges are listed that are required to appear in each solution to the problem. The edges to be fixed are given in the form (per line):
 
-```
+```text
 <integer> <integer>
 ```
 
@@ -195,7 +243,7 @@ meaning that the edge (arc) from the first node to the second node has to be con
 
 If `DISPLAY_DATA_TYPE` is `TWOD_DISPLAY`, the 2-dimensional coordinates from which a display can be generated are given in the form (per line):
 
-```
+```text
 <integer> <real> <real>
 ```
 
@@ -329,7 +377,7 @@ The edge weight type `CEIL_2D` requires that the 2-dimensional Euclidean distanc
 
 ### 2.7 Distance for crystallography problems
 
-We have included into TSPLIB the crystallography problems as described in [1]. These problems are not explicitly given but subroutines are provided to generate the 12 problems mentioned in this reference and subproblems thereof (see section 3.2). To compute distances for these problems the movement of three motors has to be taken into consideration. There are two types of distance functions: one that assumes equal speed of the motors (`XRAY1`) and one that uses different speeds (`XRAY2`). The corresponding distance functions are given as FORTRAN implementations (files `deq.f`, resp. `duneq.f`) in the distribution file.
+We have included into TSPLIB the crystallography problems as described in \[1\]. These problems are not explicitly given but subroutines are provided to generate the 12 problems mentioned in this reference and subproblems thereof (see section 3.2). To compute distances for these problems the movement of three motors has to be taken into consideration. There are two types of distance functions: one that assumes equal speed of the motors (`XRAY1`) and one that uses different speeds (`XRAY2`). The corresponding distance functions are given as FORTRAN implementations (files `deq.f`, resp. `duneq.f`) in the distribution file.
 
 For obtaining integer distances, we propose to multiply the distances computed by the original subroutines by 100.0 and round to the nearest integer. We list our modified distance function for the case of equal motor speeds in the FORTRAN version below.
 
@@ -357,7 +405,7 @@ To verify correctness of the distance function implementations we give the lengt
 - `pcb442` — 221 440
 - `gr666` — 423 710
 - `att532` — 309 636
-- `xray14012` (problem 8 in [1]):
+- `xray14012` (problem 8 in \[1\]):
   + with `XRAY1` — 15 429 219
   + with `XRAY2` — 12 943 294
 
@@ -382,7 +430,7 @@ The TSP instances are contained in directory `tsp`. Table 1 gives the problem na
 | berlin52 | 52 | EUC2D | 7542 |
 | bier127 | 127 | EUC2D | 118282 |
 | brazil58 | 58 | MATRIX | 25395 |
-| brd14051 | 14051 | EUC2D | [468942,469445] |
+| brd14051 | 14051 | EUC2D | \[468942,469445\] |
 | brg180 | 180 | MATRIX | 1950 |
 | burma14 | 14 | GEO | 3323 |
 | ch130 | 130 | EUC2D | 6110 |
@@ -392,9 +440,9 @@ The TSP instances are contained in directory `tsp`. Table 1 gives the problem na
 | d657 | 657 | EUC2D | 48912 |
 | d1291 | 1291 | EUC2D | 50801 |
 | d1655 | 1655 | EUC2D | 62128 |
-| d2103 | 2103 | EUC2D | [79952,80450] |
-| d15112 | 15112 | EUC2D | [1564590,1573152] |
-| d18512 | 18512 | EUC2D | [644650,645488] |
+| d2103 | 2103 | EUC2D | \[79952,80450\] |
+| d15112 | 15112 | EUC2D | \[1564590,1573152\] |
+| d18512 | 18512 | EUC2D | \[644650,645488\] |
 | dantzig42 | 42 | MATRIX | 699 |
 | dsj1000 | 1000 | CEIL2D | 18659688 |
 | eil51 | 51 | EUC2D | 426 |
@@ -402,8 +450,8 @@ The TSP instances are contained in directory `tsp`. Table 1 gives the problem na
 | eil101 | 101 | EUC2D | 629 |
 | fl417 | 417 | EUC2D | 11861 |
 | fl1400 | 1400 | EUC2D | 20127 |
-| fl1577 | 1577 | EUC2D | [22204,22249] |
-| fl3795 | 3795 | EUC2D | [28723,28772] |
+| fl1577 | 1577 | EUC2D | \[22204,22249\] |
+| fl3795 | 3795 | EUC2D | \[28723,28772\] |
 | fnl4461 | 4461 | EUC2D | 182566 |
 | fri26 | 26 | MATRIX | 937 |
 | gil262 | 262 | EUC2D | 2378 |
@@ -438,8 +486,8 @@ The TSP instances are contained in directory `tsp`. Table 1 gives the problem na
 | pcb1173 | 1173 | EUC2D | 56892 |
 | pcb3038 | 3038 | EUC2D | 137694 |
 | pla7397 | 7397 | CEIL2D | 23260728 |
-| pla33810 | 33810 | CEIL2D | [65913275,66116530] |
-| pla85900 | 85900 | CEIL2D | [141904862,142487006] |
+| pla33810 | 33810 | CEIL2D | \[65913275,66116530\] |
+| pla85900 | 85900 | CEIL2D | \[141904862,142487006\] |
 | pr76 | 76 | EUC2D | 108159 |
 | pr107 | 107 | EUC2D | 44303 |
 | pr124 | 124 | EUC2D | 59030 |
@@ -461,9 +509,9 @@ The TSP instances are contained in directory `tsp`. Table 1 gives the problem na
 | rl1304 | 1304 | EUC2D | 252948 |
 | rl1323 | 1323 | EUC2D | 270199 |
 | rl1889 | 1889 | EUC2D | 316536 |
-| rl5915 | 5915 | EUC2D | [565040,565530] |
-| rl5934 | 5934 | EUC2D | [554070,556045] |
-| rl11849 | 11849 | EUC2D | [920847,923368] |
+| rl5915 | 5915 | EUC2D | \[565040,565530\] |
+| rl5934 | 5934 | EUC2D | \[554070,556045\] |
+| rl11849 | 11849 | EUC2D | \[920847,923368\] |
 | si175 | 175 | MATRIX | 21407 |
 | si535 | 535 | MATRIX | 48450 |
 | si1032 | 1032 | MATRIX | 92650 |
@@ -481,13 +529,13 @@ The TSP instances are contained in directory `tsp`. Table 1 gives the problem na
 | u2319 | 2319 | EUC2D | 234256 |
 | ulysses16 | 16 | GEO | 6859 |
 | ulysses22 | 22 | GEO | 7013 |
-| usa13509 | 13509 | EUC2D | [19947008,19982889] |
+| usa13509 | 13509 | EUC2D | \[19947008,19982889\] |
 | vm1084 | 1084 | EUC2D | 239297 |
 | vm1748 | 1748 | EUC2D | 336556 |
 
 #### Crystallography problems
 
-In the file `xray.problems` in directory `tsp` we distribute the routines written by Bland and Shallcross and the necessary data to generate the crystallography problems discussed in [1]. The file `xray.problems` is one file into which the single files mentioned in the sequel have been merged. These single files have to be extracted from `xray.problems` using an editor.
+In the file `xray.problems` in directory `tsp` we distribute the routines written by Bland and Shallcross and the necessary data to generate the crystallography problems discussed in \[1\]. The file `xray.problems` is one file into which the single files mentioned in the sequel have been merged. These single files have to be extracted from `xray.problems` using an editor.
 
 The following original files are provided
 
@@ -504,7 +552,7 @@ e.data
 f.data
 ```
 
-In addition we have included specially prepared data files to generate the 12 problems mentioned in [1]. The files have the names `xray1.data` through `xray12.data`. Using these data files 12 symmetric TSPs can be generated using the program `gentsp.f`. We propose to name the respective problem instances `xray4472`, `xray2950`, `xray7008`, `xray2762`, `xray6922`, `xray9070`, `xray5888`, `xray14012`, `xray5520`, `xray13804`, `xray14464`, and `xray13590`.
+In addition we have included specially prepared data files to generate the 12 problems mentioned in \[1\]. The files have the names `xray1.data` through `xray12.data`. Using these data files 12 symmetric TSPs can be generated using the program `gentsp.f`. We propose to name the respective problem instances `xray4472`, `xray2950`, `xray7008`, `xray2762`, `xray6922`, `xray9070`, `xray5888`, `xray14012`, `xray5520`, `xray13804`, `xray14464`, and `xray13590`.
 
 To verify the correct use of the generating routines we list part of the file `xray14012.tsp`.
 
@@ -599,38 +647,38 @@ Table 3:
 | ESC78 | 807 | 77 | MATRIX | 18230 |
 | br17.10 | 17 | 10 | MATRIX | 55 |
 | br17.12 | 17 | 12 | MATRIX | 55 |
-| ft53.1 | 54 | 12 | MATRIX | [7438,7570] |
-| ft53.2 | 54 | 25 | MATRIX | [7630,8335] |
-| ft53.3 | 54 | 48 | MATRIX | [9473,10935] |
+| ft53.1 | 54 | 12 | MATRIX | \[7438,7570\] |
+| ft53.2 | 54 | 25 | MATRIX | \[7630,8335\] |
+| ft53.3 | 54 | 48 | MATRIX | \[9473,10935\] |
 | ft53.4 | 56 | 63 | MATRIX | 14425 |
 | ft70.1 | 71 | 17 | MATRIX | 39313 |
-| ft70.2 | 71 | 35 | MATRIX | [39739,41778] |
-| ft70.3 | 71 | 68 | MATRIX | [41305,44732] |
-| ft70.4 | 71 | 86 | MATRIX | [52269,53882] |
-| kro124p.1 | 101 | 25 | MATRIX | [37722,42845] |
-| kro124p.2 | 101 | 49 | MATRIX | [38534,45848] |
-| kro124p.3 | 101 | 97 | MATRIX | [40967,55649] |
-| kro124p.4 | 101 | 131 | MATRIX | [64858,80753] |
+| ft70.2 | 71 | 35 | MATRIX | \[39739,41778\] |
+| ft70.3 | 71 | 68 | MATRIX | \[41305,44732\] |
+| ft70.4 | 71 | 86 | MATRIX | \[52269,53882\] |
+| kro124p.1 | 101 | 25 | MATRIX | \[37722,42845\] |
+| kro124p.2 | 101 | 49 | MATRIX | \[38534,45848\] |
+| kro124p.3 | 101 | 97 | MATRIX | \[40967,55649\] |
+| kro124p.4 | 101 | 131 | MATRIX | \[64858,80753\] |
 | p43.1 | 44 | 9 | MATRIX | 27990 |
-| p43.2 | 44 | 20 | MATRIX | [28175,28330] |
-| p43.3 | 44 | 37 | MATRIX | [28366,28680] |
-| p43.4 | 44 | 50 | MATRIX | [69569,82960] |
+| p43.2 | 44 | 20 | MATRIX | \[28175,28330\] |
+| p43.3 | 44 | 37 | MATRIX | \[28366,28680\] |
+| p43.4 | 44 | 50 | MATRIX | \[69569,82960\] |
 | prob.42 | 42 | 10 | MATRIX | 243 |
-| prob.100 | 100 | 41 | MATRIX | [1024,1385] |
+| prob.100 | 100 | 41 | MATRIX | \[1024,1385\] |
 | rbg048a | 50 | 192 | MATRIX | 351 |
 | rbg050c | 52 | 256 | MATRIX | 467 |
 | rbg109a | 111 | 622 | MATRIX | 1038 |
-| rbg150a | 152 | 952 | MATRIX | [1748,1750] |
+| rbg150a | 152 | 952 | MATRIX | \[1748,1750\] |
 | rbg174a | 176 | 1113 | MATRIX | 2053 |
-| rbg253a | 255 | 1721 | MATRIX | [2928,2987] |
-| rbg323a | 325 | 2412 | MATRIX | [3136,3221] |
-| rbg341a | 343 | 2542 | MATRIX | [2543,2854] |
-| rbg358a | 360 | 3239 | MATRIX | [2518,2758] |
-| rbg378a | 380 | 3069 | MATRIX | [2761,3142] |
-| ry48p.1 | 49 | 11 | MATRIX | [15220,15935] |
-| ry48p.2 | 49 | 23 | MATRIX | [15524,17071] |
-| ry48p.3 | 49 | 42 | MATRIX | [18156,20051] |
-| ry48p.4 | 49 | 58 | MATRIX | [29967,31446] |
+| rbg253a | 255 | 1721 | MATRIX | \[2928,2987\] |
+| rbg323a | 325 | 2412 | MATRIX | \[3136,3221\] |
+| rbg341a | 343 | 2542 | MATRIX | \[2543,2854\] |
+| rbg358a | 360 | 3239 | MATRIX | \[2518,2758\] |
+| rbg378a | 380 | 3069 | MATRIX | \[2761,3142\] |
+| ry48p.1 | 49 | 11 | MATRIX | \[15220,15935\] |
+| ry48p.2 | 49 | 23 | MATRIX | \[15524,17071\] |
+| ry48p.3 | 49 | 42 | MATRIX | \[18156,20051\] |
+| ry48p.4 | 49 | 58 | MATRIX | \[29967,31446\] |
 
 ### 3.5 Capacitated vehicle routing problems
 
@@ -966,9 +1014,9 @@ In addition to the data and solution files, the following special files are cont
 ## 4. Remarks
 
 1. The problem `lin318` is originally a Hamiltonian path problem. One obtains this problem by adding the additional requirement that the edge from 1 to 214 is contained in the tour. The data is given in `linhp318.tsp`.
-2. Some data sets are referred to by different names in the literature. Below we give the corresponding names used in [3] and [2].
+2. Some data sets are referred to by different names in the literature. Below we give the corresponding names used in \[3\] and \[2\].
 
-| TSPLIB | [3] | [2]
+| TSPLIB | \[3\] | \[2\] |
 | --- | --- | ------- |
 | att48 | ATT048 | - |
 | dantzig42 | - | 42 |

@@ -40,6 +40,22 @@ tags:
 
 # Unified GPU Performance Modeling and Mathematical Derivations for 2-Opt
 
+- [Unified GPU Performance Modeling and Mathematical Derivations for 2-Opt](#unified-gpu-performance-modeling-and-mathematical-derivations-for-2-opt)
+  + [Table of Symbols](#table-of-symbols)
+  + [0. Mathematical Foundation: Unified Performance Model](#0-mathematical-foundation-unified-performance-model)
+    - [0.1 Hardware Parameters](#01-hardware-parameters)
+    - [0.2 Algorithm Parameters](#02-algorithm-parameters)
+    - [0.3 Occupancy Model Derivation](#03-occupancy-model-derivation)
+    - [0.4 Performance Model: Memory-Bound Analysis](#04-performance-model-memory-bound-analysis)
+    - [0.5 Speedup Formula Synthesis](#05-speedup-formula-synthesis)
+  + [9. Mathematical Foundations: Occupancy and Work Distribution (Q4 \& Q5 COMPLETE)](#9-mathematical-foundations-occupancy-and-work-distribution-q4--q5-complete)
+    - [9.1 Occupancy Formula Derivation (Q4 Complete Answer)](#91-occupancy-formula-derivation-q4-complete-answer)
+    - [9.2 Work Distribution Formulas (Q5 Connection to Diagrams)](#92-work-distribution-formulas-q5-connection-to-diagrams)
+    - [9.3 Performance Model (Q5: Linking Timing Diagrams to Formulas)](#93-performance-model-q5-linking-timing-diagrams-to-formulas)
+    - [9.4 Speedup Formula](#94-speedup-formula)
+    - [9.5 Summary: Formulas Connected to Visualizations (Q5 Complete Answer)](#95-summary-formulas-connected-to-visualizations-q5-complete-answer)
+  + [Suite Navigation \& Cross-References](#suite-navigation--cross-references)
+
 ## Table of Symbols
 
 The following standardized mathematical notation and architectural parameters are used consistently across all derivations, timing breakdowns, and performance models:
@@ -61,7 +77,7 @@ The following standardized mathematical notation and architectural parameters ar
 | $T_{\text{red,GPU}}$ | Parallel reduction latency on GPU | Block-level tree reduction latency in shared memory | $\mu\text{s}$ |
 | $T_{\text{red,CPU}}$ | Sequential reduction latency on CPU | Host evaluation latency of thread candidate array $\arg\min_{t} \Delta_{t}$ | $\mu\text{s}$ |
 | $T_{\text{PCIe}}$ | Host-device data transfer latency | Copy latency for candidate moves over PCIe 3.0 x16 bus | $\mu\text{s}$ |
-| $T_{\text{serial,scalar}}$ | Pure Python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
+| $T_{\text{serial,scalar}}$ | Pure python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
 | $T_{\text{serial,simd}}$ | Vectorized NumPy CPU 2-opt time | C-extension SIMD AVX2 vectorized execution time | $\text{ms}$ |
 | $S_{\text{GPU}}$ | $T_{\text{serial}} / T_{\text{exec}}$ | Speedup factor over CPU baseline | Dimensionless ratio |
 | $\text{Occ}_{\text{theoretical}}$ | Active Warps / Maximum Warps | Theoretical warp occupancy on the active SM | Dimensionless $\in [0, 1]$ |
@@ -78,7 +94,7 @@ This section establishes the mathematical framework relating **all variables** a
 **Target Hardware: NVIDIA GeForce GTX 1050 Mobile**
 
 | Parameter | Symbol | Value | Description |
-|-----------|--------|-------|-------------|
+| ----------- | -------- | ------- | ------------- |
 | **Streaming Multiprocessors** | $N_{\text{SM}}$ | 5 | Number of independent processing units |
 | **Max Threads/SM** | $T_{\text{max,SM}}$ | 2048 | Maximum concurrent threads per SM |
 | **Max Warps/SM** | $W_{\text{max,SM}}$ | 64 | Maximum concurrent warps per SM (32 threads/warp) |
@@ -97,7 +113,7 @@ The formulas in this document use $N_{\text{SM}}$ as a variable to enable analys
 **2-Opt TSP Problem Definition:**
 
 | Parameter | Symbol | Example | Formula |
-|-----------|--------|---------|---------|
+| ----------- | -------- | --------- | --------- |
 | **Problem Size** | $n_{\text{cities}}$ | 3000 | Number of cities in TSP tour |
 | **Total Work** | $W_{\text{total}}$ | 4,498,500 | $W_{\text{total}} = \frac{n_{\text{cities}}(n_{\text{cities}}-3)}{2} \approx \frac{n_{\text{cities}}^2}{2}$ |
 | **Threads per Block** | $B$ | 256 | Fixed block size (tunable parameter) |
@@ -345,7 +361,7 @@ $$
 **Table: Occupancy for Different Block Sizes**
 
 | Block Size $B$ | Blocks/SM | Warps/Block | Active Warps | Occupancy |
-|---------------|-----------|-------------|--------------|-----------|
+| --------------- | ----------- | ------------- | -------------- | ----------- |
 | 32 | 64 | 1 | 64 | **100%** |
 | 64 | 32 | 2 | 64 | **100%** |
 | 128 | 16 | 4 | 64 | **100%** |
@@ -534,13 +550,12 @@ $$
 
 **Actual measured:** $\sim 130\times$ (better than predicted due to GPU throughput variation)
 
-
 ---
 
 ### 9.5 Summary: Formulas Connected to Visualizations (Q5 Complete Answer)
 
 | Visualization (Section) | Mathematical Formula | Connection |
-|------------------------|---------------------|------------|
+| ------------------------ | --------------------- | ------------ |
 | **Serial timeline (2.3)** | $W = \frac{n(n-3)}{2}$ | Shows 36 sequential evals for $n_{cities}=10$ |
 | **Rocki waves (3.3)** | Waves $= \lceil n^2/2 / 10,240 \rceil = 439$ | Annotated on wave diagram |
 | **Outer loop work (4.3)** | Thread work $= \lceil \frac{n-2}{256} \rceil \times \frac{n}{2}$ | Shows 12+10+8+6 = 36 for $n_{cities}=10$ |
@@ -563,6 +578,7 @@ This directly answers **Q5**: Visualizations are not decorative—they are **ann
 ## Suite Navigation & Cross-References
 
 This document provides the mathematical foundation for the GPU 2-Opt Local Search Suite:
+
 - **Parallel Architectures & Baselines**: Detailed design space taxonomy and NumPy SIMD baseline in [analysis-gpu-2opt-parallel-architectures.md](./analysis-gpu-2opt-parallel-architectures.md).
 - **Reduction Strategies & Thresholds**: Shared memory, warp shuffle, and host-device break-even analysis in [analysis-gpu-2opt-reduction-strategies.md](./analysis-gpu-2opt-reduction-strategies.md).
 - **Kernel Benchmarking & Implementations**: CUDA C++ code comparisons, kernel anchors, and profiling in [analysis-gpu-2opt-kernel-benchmarking.md](./analysis-gpu-2opt-kernel-benchmarking.md).

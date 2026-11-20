@@ -24,7 +24,7 @@ related_files:
   - "[analysis-gpu-2opt-reduction-strategies.md](./analysis-gpu-2opt-reduction-strategies.md)"
   - "[analysis-gpu-2opt-kernel-benchmarking.md](./analysis-gpu-2opt-kernel-benchmarking.md)"
   - "[two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu)"
-  - "[refs.bib](../../documents_tcc/tex/refs.bib)"
+  - "[refs.bib](../../documents_tcc/tex/thesis/refs.bib)"
 tags:
   - analysis/gpu
   - analysis/literature
@@ -39,6 +39,28 @@ tags:
 ---
 
 # 2-Opt GPU Literature Attribution, Novelty Assessment, and Academic Lineage
+
+- [2-Opt GPU Literature Attribution, Novelty Assessment, and Academic Lineage](#2-opt-gpu-literature-attribution-novelty-assessment-and-academic-lineage)
+  + [Table of Symbols](#table-of-symbols)
+  + [8. Attribution: Literature Search and Novelty Assessment (Q3 COMPLETE ANSWER)](#8-attribution-literature-search-and-novelty-assessment-q3-complete-answer)
+    - [8.1 Literature Search Results](#81-literature-search-results)
+    - [8.2 Fujimoto \& Tsutsui (2011) - NOT Pure 2-Opt](#82-fujimoto--tsutsui-2011---not-pure-2-opt)
+      + [8.2.1 Detailed Analysis: Fujimoto's 2-Opt Parallelization (Answering "Is it Applicable?")](#821-detailed-analysis-fujimotos-2-opt-parallelization-answering-is-it-applicable)
+    - [8.3 Rocki \& Suda (2013) - Full $O(n^2)$ Thread Parallelization](#83-rocki--suda-2013---full-on2-thread-parallelization)
+    - [8.4 IntechOpen / CUDA Educational Resources - Outer Loop Pattern](#84-intechopen--cuda-educational-resources---outer-loop-pattern)
+    - [8.5 LogoTSP / LOGO-Solver (James Madison University, 2018)](#85-logotsp--logo-solver-james-madison-university-2018)
+    - [8.6 CPU Reduction Variant - Cannot Confirm Prior Art](#86-cpu-reduction-variant---cannot-confirm-prior-art)
+    - [8.7 Attribution Summary (Q3 Direct Answer)](#87-attribution-summary-q3-direct-answer)
+    - [8.8 Novel Contributions (This Work)](#88-novel-contributions-this-work)
+    - [8.9 Recommended Citation (Q3 Final Answer)](#89-recommended-citation-q3-final-answer)
+  + [11. Summary and Recommendations](#11-summary-and-recommendations)
+    - [11.1 Comparative Summary](#111-comparative-summary)
+    - [11.2 Recommendations by Problem Size](#112-recommendations-by-problem-size)
+    - [11.3 Key Findings (Answers to Critical Questions)](#113-key-findings-answers-to-critical-questions)
+    - [11.4 Implementation Guidelines](#114-implementation-guidelines)
+    - [11.5 References](#115-references)
+    - [11.6 Conclusion](#116-conclusion)
+  + [12. Master Index: GPU 2-Opt Knowledge Suite](#12-master-index-gpu-2-opt-knowledge-suite)
 
 ## Table of Symbols
 
@@ -59,7 +81,7 @@ The following standardized mathematical notation and architectural parameters ar
 | $T_{\text{red,GPU}}$ | Parallel reduction latency on GPU | Block-level tree reduction latency in shared memory | $\mu\text{s}$ |
 | $T_{\text{red,CPU}}$ | Sequential reduction latency on CPU | Host evaluation latency of thread candidate array $\arg\min_{t} \Delta_{t}$ | $\mu\text{s}$ |
 | $T_{\text{PCIe}}$ | Host-device data transfer latency | Copy latency for candidate moves over PCIe 3.0 x16 bus | $\mu\text{s}$ |
-| $T_{\text{serial,scalar}}$ | Pure Python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
+| $T_{\text{serial,scalar}}$ | Pure python CPU 2-opt iteration time | Unvectorized sequential nested loop execution time | $\text{ms}$ |
 | $T_{\text{serial,simd}}$ | Vectorized NumPy CPU 2-opt time | C-extension SIMD AVX2 vectorized execution time | $\text{ms}$ |
 | $S_{\text{GPU}}$ | $T_{\text{serial}} / T_{\text{exec}}$ | Speedup factor over CPU baseline | Dimensionless ratio |
 | $\text{Occ}_{\text{theoretical}}$ | Active Warps / Maximum Warps | Theoretical warp occupancy on the active SM | Dimensionless $\in [0, 1]$ |
@@ -137,10 +159,10 @@ p = evaluate(sd) in parallel within this block;
 1. **No 2-opt kernel code:** Unlike OX (Listing 1.3 and 1.4 show serial and parallel versions), no code is provided for `2OPTbest()`.
 
 2. **No parallelization strategy:** Paper does not explain:
-   - How $(i,j)$ pairs are distributed to threads
-   - Whether all $\frac{n_{cities}(n_{cities}-3)}{2}$ pairs are evaluated in parallel
-   - What reduction algorithm is used to find best delta
-   - How synchronization is handled
+   + How $(i,j)$ pairs are distributed to threads
+   + Whether all $\frac{n_{cities}(n_{cities}-3)}{2}$ pairs are evaluated in parallel
+   + What reduction algorithm is used to find best delta
+   + How synchronization is handled
 
 3. **No complexity analysis:** No mention of time complexity for 2-opt portion.
 
@@ -169,7 +191,7 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 **3-Way Comparison: Fujimoto vs Rocki vs Our Implementation**
 
 | **Aspect** | **Fujimoto (2011)** | **Rocki (2013)** | **Our Implementation (2024)** |
-|-----------|-------------------|-----------------|---------------------------|
+| ----------- | ------------------- | ----------------- | --------------------------- |
 | **Context** | GA with OX + 2-opt local search | Pure 2-opt search | Pure 2-opt search |
 | **Hardware** | GTX 285 (240 cores) | GTX 480 (480 cores) | GTX 1050 (640 cores) |
 | **Problem Size** | ≤512 cities | ≤3000 cities | 3000 cities (target) |
@@ -179,7 +201,7 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 | **Reduction Algorithm** | **NOT SPECIFIED** | GPU tree reduction | CPU-side `argmin` over deltas |
 | **Memory Pattern** | Shared memory per block | Global memory for all deltas | Pinned memory + PCIe transfer |
 | **Synchronization** | Block-level `__syncthreads()` | Grid-level kernel launch | Wave-level kernel launches |
-| **Speedup (vs CPU)** | 24.2× (vs single core) | ~13× (vs multi-core) | ~8800× (vs naive Python), ~10.6× (vs NumPy SIMD) |
+| **Speedup (vs CPU)** | 24.2× (vs single core) | ~13× (vs multi-core) | ~8800× (vs naive python), ~10.6× (vs NumPy SIMD) |
 | **Key Innovation** | Parallel OX crossover via prefix sums | Full parallelization of pair space | Wave distribution for occupancy |
 | **Applicability to Pure 2-Opt** | ❌ No extractable 2-opt strategy | ✅ Direct application | ✅ Our design |
 | **Prior Art Relevance** | ❌ Demonstrates GPU acceleration in **GA context only** | ✅ Establishes pure 2-opt GPU baseline | N/A (our work) |
@@ -300,7 +322,7 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 ### 8.7 Attribution Summary (Q3 Direct Answer)
 
 | Component | Attribution | Status |
-|-----------|-------------|--------|
+| ----------- | ------------- | -------- |
 | **2-opt algorithm** | Croes (1958) | Established |
 | **Outer loop parallelization** | IntechOpen, educational resources | **Documented pattern** ✓ |
 | **Fixed 256 threads** | Common CUDA practice (warp alignment) | **Standard technique** ✓ |
@@ -379,7 +401,7 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 ### 11.1 Comparative Summary
 
 | Strategy | Threads | Work/Thread | Waves | Occupancy | Reduction | Speedup (n=3000) | Best Use Case |
-|----------|---------|-------------|-------|-----------|-----------|-----------------|---------------|
+| ---------- | --------- | ------------- | ------- | ----------- | ----------- | ----------------- | --------------- |
 | **Serial** | 1 | $\frac{n^2}{2}$ | 1 | N/A | N/A | 1× (baseline) | Small $n_{cities} < 500$ |
 | **Rocki (2013)** | $\frac{n^2}{2}$ | 1 | 439 | 0.23% | GPU tree | 6× | Academic reference |
 | **Outer Loop** | 256 | $\frac{n^2}{512}$ | 1 | 100% | Shared mem | 90-130× | Large $n_{cities} > 2000$ |
@@ -391,7 +413,7 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 
 - Use **Serial** algorithm
 - GPU overhead dominates benefit
-- Python overhead negligible
+- python overhead negligible
 
 **Medium Problems ($500 \leq n < 2000$):**
 
@@ -423,8 +445,8 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 **Q2: How does our implementation differ from Rocki?**
 
 - **Core difference:** Thread-to-work mapping
-  - Rocki: thread_id → (i,j) pair (one evaluation per thread)
-  - Ours: thread_id → i positions (many evaluations per thread)
+  + Rocki: thread_id → (i,j) pair (one evaluation per thread)
+  + Ours: thread_id → i positions (many evaluations per thread)
 - **Result:** 439 waves → 1 wave, 22× faster
 
 **Q3: Is hybrid CPU-GPU novel?**
@@ -490,7 +512,7 @@ PrefixSums(n, ps, to, (cut2 < n) ? cut2 : 0);  // Line 22
 **Attribution Clarification:**
 
 - Fujimoto, N., & Tsutsui, S. (2011). "A highly-parallel TSP solver for a GPU computing platform." *Numerical Algorithms*.
-  - **Note:** This paper describes GA + 2-opt (genetic algorithm with 2-opt refinement), NOT pure 2-opt parallelization.
+  + **Note:** This paper describes GA + 2-opt (genetic algorithm with 2-opt refinement), NOT pure 2-opt parallelization.
 
 ### 11.6 Conclusion
 
@@ -515,10 +537,10 @@ This document compared **four 2-opt parallelization strategies**, providing:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2025  
-**Hardware Context:** NVIDIA GTX 1050 Mobile (4GB VRAM, Compute Capability 6.1)  
-**Software:** Python 3.10, CUDA 12.6, CuPy 13.6.0
+**Document Version:** 1.0
+**Last Updated:** 2025
+**Hardware Context:** NVIDIA GTX 1050 Mobile (4GB VRAM, Compute Capability 6.1)
+**Software:** python 3.10, CUDA 12.6, CuPy 13.6.0
 
 ---
 > [!warning]

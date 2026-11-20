@@ -44,21 +44,22 @@ tags:
 # Statistical Testing Suite for Metaheuristics: Architecture and Master Index
 
 - [Statistical Testing Suite for Metaheuristics: Architecture and Master Index](#statistical-testing-suite-for-metaheuristics-architecture-and-master-index)
-  - [1. Mission and Architecture of the Testing Suite](#1-mission-and-architecture-of-the-testing-suite)
-  - [2. The Two-Tier Experimental Validation Protocol](#2-the-two-tier-experimental-validation-protocol)
+  + [1. Mission and Architecture of the Testing Suite](#1-mission-and-architecture-of-the-testing-suite)
+  + [2. The Two-Tier Experimental Validation Protocol](#2-the-two-tier-experimental-validation-protocol)
     - [2.1 Tier 1: Within-Instance Stochastic Validation ($n = 15$ Runs)](#21-tier-1-within-instance-stochastic-validation-n--15-runs)
     - [2.2 Tier 2: Across-Instance Scalability Validation ($N = 38$ Instances)](#22-tier-2-across-instance-scalability-validation-n--38-instances)
-  - [3. Modular Documentation Directory](#3-modular-documentation-directory)
-  - [4. Global End-to-End Decision Workflow](#4-global-end-to-end-decision-workflow)
-  - [5. Standardized Mathematical Symbol Legend](#5-standardized-mathematical-symbol-legend)
-  - [6. Python Scientific Computing Ecosystem Mapping](#6-python-scientific-computing-ecosystem-mapping)
-  - [7. Academic References](#7-academic-references)
+  + [3. Modular Documentation Directory](#3-modular-documentation-directory)
+  + [4. Global End-to-End Decision Workflow](#4-global-end-to-end-decision-workflow)
+  + [5. Standardized Mathematical Symbol Legend](#5-standardized-mathematical-symbol-legend)
+  + [6. python Scientific Computing Ecosystem Mapping](#6-python-scientific-computing-ecosystem-mapping)
+  + [7. Academic References](#7-academic-references)
 
 ---
 
 ## 1. Mission and Architecture of the Testing Suite
 
 When assessing metaheuristics and GPU-accelerated optimization algorithms, empirical benchmarking easily suffers from severe statistical pitfalls:
+
 1. **The Multiplicity Trap**: Running unadjusted pairwise $t$-tests across $k$ algorithms inflates the Family-Wise Error Rate ($\alpha_{\text{FWER}} = 1 - (1 - \alpha)^m$), yielding spurious "breakthrough" claims.
 2. **The Aggregation Conflation**: Pooling repeated stochastic runs ($n = 15$) together with heterogeneous problem instances ($N = 38$) violates independence assumptions and dilutes between-problem variance.
 3. **The Non-Normality Blindspot**: Assuming runtime distributions are Gaussian without checking skewness, multimodal stagnation states, or heavy tails.
@@ -146,7 +147,7 @@ The table below outlines each module in the documentation suite, its scope, and 
 | **[guide-statistical-multicomparison-tests.md](./guide-statistical-multicomparison-tests.md)** | Multi-algorithm across-instance testing | Friedman omnibus $\chi_F^2$, Iman-Davenport $F_F$, Nemenyi $CD$, Dunn-Holm, Benjamini-Hochberg FDR | Multi-paired testing rationale, Dunn's test, Nemenyi CD derivation, CD diagram reading, FDR control |
 | **[guide-statistical-effect-sizes-and-power.md](./guide-statistical-effect-sizes-and-power.md)** | Effect quantification & experimental power | Cohen's $d$, pooled variance derivation, Cohen's $U_3$ non-overlap, sample size $n(\alpha, \beta)$, ARE | Pooled variance algebra, percentile shift $\Phi(d)$, APA reporting format, empirical TSPLIB grounding |
 | **[guide-statistical-demsar-post-hoc-tests.md](./guide-statistical-demsar-post-hoc-tests.md)** | Post-hoc multi-comparison & CD diagrams | Studentized range division by $\sqrt{2}$, exact rank sum identity $\sum R_j = 10.00$, CD cliques | Critical Difference diagram interpretation, SciPy `studentized_range.ppf` scaling convention |
-| **[analysis-complete-statistical-results.md](./analysis-complete-statistical-results.md)** | Three-level data architecture & empirical benchmarks | Complete 38-instance TSPLIB analysis, Python pipeline, empirical speedup and gap tables | Three-tier data structure, within-problem vs across-problem meta-analysis |
+| **[analysis-complete-statistical-results.md](./analysis-complete-statistical-results.md)** | Three-level data architecture & empirical benchmarks | Complete 38-instance TSPLIB analysis, python pipeline, empirical speedup and gap tables | Three-tier data structure, within-problem vs across-problem meta-analysis |
 | **[notes_types_of_variables_statistics.md](./notes_types_of_variables_statistics.md)** | Variables taxonomy in dynamical & optimization systems | Mathematical characterization ($\mathbf{x}, \mathbf{u}, \mathbf{w}, \boldsymbol{\theta}$), DAE constraints, GPU memory hierarchy mappings | Taxonomy of variables, state/control/decision distinctions, GPU solver variables |
 
 ---
@@ -230,13 +231,13 @@ To maintain uncompromising mathematical rigor across all modules, every symbol i
 
 ---
 
-## 6. Python Scientific Computing Ecosystem Mapping
+## 6. python Scientific Computing Ecosystem Mapping
 
-The repository's statistical analysis module ([statistics.py](../../src/benchmarking/analysis/statistics.py)) interfaces directly with three specialized Python libraries:
+The repository's statistical analysis module ([statistics.py](../../src/benchmarking/analysis/statistics.py)) interfaces directly with three specialized python libraries:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        PYTHON SCIENTIFIC COMPUTING SUITE                               │
+│                        python SCIENTIFIC COMPUTING SUITE                               │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ 1. scipy.stats:                                                                        │
 │    - Parametric tests: ttest_rel, ttest_ind, f_oneway                                  │

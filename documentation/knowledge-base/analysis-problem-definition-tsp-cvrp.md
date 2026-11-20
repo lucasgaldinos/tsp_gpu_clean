@@ -32,6 +32,8 @@ tags:
 
 # Machine specs
 
+- [Machine specs](#machine-specs)
+
 Make a step by step of how to develop the following problem: `# Analysis, development and comparison of multiple vrp optimization algorithms`, with focus in a solution that will solve both Vehicle Routing Problem with Pickup and Delivery (VRPPD) and Capacitated Vehicle Routing Problem (CVRP), with another variation analysis for the Open Vehicle Routing Problem (OVRP).
 
 The solution may use any of the following software technologies as the project requirements: sqlite3, python, c++, javascript, docker and linux.

@@ -18,9 +18,9 @@ tags:
   - methodology/statistics
   - review/quality
 links:
-  - "[plan-reorganization-and-typing.plan.md](../plan-reorganization-and-typing.plan.md)"
-  - "[analysis-demsar-critical-difference-diagrams.md](../knowledge-base/analysis-demsar-critical-difference-diagrams.md)"
-  - "[knowledge_candidate_lists_and_inverse_positions.md](../knowledge-base/knowledge_candidate_lists_and_inverse_positions.md)"
+  - "[plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md)"
+  - "[analysis-demsar-critical-difference-diagrams.md](../../documents_tcc/plan/knowledge-base/analysis-demsar-critical-difference-diagrams.md)"
+  - "[knowledge_candidate_lists_and_inverse_positions.md](../../documents_tcc/plan/knowledge-base/knowledge_candidate_lists_and_inverse_positions.md)"
 ---
 
 # Walkthrough: Task 13.4 — Reescrita do Capítulo 3 (Materiais e Métodos)
@@ -33,13 +33,13 @@ Substituir no Capítulo 3 os números e a nomenclatura que não descrevem mais o
 
 | Artifact | Location | Relevant Observation |
 | --- | --- | --- |
-| Configuração das variantes | [configs/algorithms.json](../../../configs/algorithms.json) | Quatro chaves (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`), todas com `metaheuristic: GeneticAlgorithm`, `local_search_stage: post_mutation`, `max_iterations: 10` e `candidate_k: 20`. |
-| Script da coorte | [run_chapter4_benchmark.py](../../../benchmark_scripts/run_chapter4_benchmark.py#L87-L104) | `PROBLEMS` com 15 instâncias, `REPETITIONS = 30`, `CPU_SIZE_THRESHOLD = 400`, `SEED = 42`. |
-| Derivação de sementes | [algorithm_runner.py](../../../src/benchmarking/runner/algorithm_runner.py#L398) | `run_seed = seed_base + current_run_idx` — sementes fixas e distintas por repetição. |
-| Compilação de kernels | [algorithm_runner.py](../../../src/benchmarking/runner/algorithm_runner.py#L364-L381) | `warmup(context)` compila os kernels antes do laço medido; `cp.RawKernel` sobre fontes `.cu`. |
-| Fórmula da CD | [stats_utils.py](../../../src/benchmarking/analysis/stats_utils.py#L151-L166) | `CD = (q_tukey / sqrt(2)) * sqrt(k(k+1)/(6n))`. |
-| Correção pareada | [problem_statistics.py](../../../src/benchmarking/analysis/problem_statistics.py#L136) | `holm_bonferroni_correction` aplicada aos valores-p pareados. |
-| Texto antes da edição | [03-materiais-metodos.tex](../../../documents_tcc/tex/parts/03-materiais-metodos.tex) | §3.2.1 "10 varreduras completas" e "ao final de cada geração"; §3.2.2 quatro classes `GeneticAlgorithm*`; §3.3 38 instâncias, 26 repetições, $N \le 100$; §3.4 Nemenyi descrito como teste par a par. |
+| Configuração das variantes | [configs/algorithms.json](../../configs/algorithms.json) | Quatro chaves (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`), todas com `metaheuristic: GeneticAlgorithm`, `local_search_stage: post_mutation`, `max_iterations: 10` e `candidate_k: 20`. |
+| Script da coorte | [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py#L87-L104) | `PROBLEMS` com 15 instâncias, `REPETITIONS = 30`, `CPU_SIZE_THRESHOLD = 400`, `SEED = 42`. |
+| Derivação de sementes | [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py#L398) | `run_seed = seed_base + current_run_idx` — sementes fixas e distintas por repetição. |
+| Compilação de kernels | [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py#L364-L381) | `warmup(context)` compila os kernels antes do laço medido; `cp.RawKernel` sobre fontes `.cu`. |
+| Fórmula da CD | [stats_utils.py](../../src/benchmarking/analysis/stats_utils.py#L151-L166) | `CD = (q_tukey / sqrt(2)) * sqrt(k(k+1)/(6n))`. |
+| Correção pareada | [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py#L136) | `holm_bonferroni_correction` aplicada aos valores-p pareados. |
+| Texto antes da edição | [03-materiais-metodos.tex](../../documents_tcc/tex/thesis/parts/03-materiais-metodos.tex) | §3.2.1 "10 varreduras completas" e "ao final de cada geração"; §3.2.2 quatro classes `GeneticAlgorithm*`; §3.3 38 instâncias, 26 repetições, $N \le 100$; §3.4 Nemenyi descrito como teste par a par. |
 
 ---
 
@@ -66,8 +66,8 @@ Três números do capítulo (38 instâncias, 26 repetições, CPU $\le 100$) e a
 
 | Attempt / Event | Evidence Read | Correction / Decision | Outcome |
 | --- | --- | --- | --- |
-| Interpretar "10 varreduras completas" como orçamento comum às quatro variantes | [two_opt.py](../../../src/algorithms/strategies/local_search/two_opt.py#L171-L190) e §5.3.1.1 | Truncamento descrito por `candidate_k = 20` na CPU e por semântica própria nas GPU | Texto não contradiz mais a §5.3.1.1. |
-| Atribuir `RawKernel` + *warm-up* a todas as variantes GPU | [algorithm_runner.py](../../../src/benchmarking/runner/algorithm_runner.py#L364-L381) | A frase foi colocada apenas no item `FullGPUModular`, onde o mecanismo é integral | Evita generalização indevida para as híbridas. |
+| Interpretar "10 varreduras completas" como orçamento comum às quatro variantes | [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py#L171-L190) e §5.3.1.1 | Truncamento descrito por `candidate_k = 20` na CPU e por semântica própria nas GPU | Texto não contradiz mais a §5.3.1.1. |
+| Atribuir `RawKernel` + *warm-up* a todas as variantes GPU | [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py#L364-L381) | A frase foi colocada apenas no item `FullGPUModular`, onde o mecanismo é integral | Evita generalização indevida para as híbridas. |
 | Verificação `rg -n "GeneticAlgorithmCPU\|GeneticAlgorithmFullGPU"` → 0 | Diagrama `mermaid` de §3.1.3 (linhas L122, L137, L144, L147) | **Bloqueado:** o bloco protegido pelo escopo ainda nomeia as classes antigas | 4 ocorrências remanescentes; ver *Additional Findings*. |
 | `rg "candidate_k"` não casa com o texto | `\texttt{candidate\_k}` (underscore escapado, obrigatório em LaTeX) | Mantida a convenção `\texttt{}` do arquivo; o termo aparece como `candidate\_k`/`post\_mutation` na fonte | A checagem combinada atinge 9 linhas (limiar $\ge 6$). |
 
@@ -77,7 +77,7 @@ Três números do capítulo (38 instâncias, 26 repetições, CPU $\le 100$) e a
 
 ### LaTeX thesis text (1 file)
 
-1. [03-materiais-metodos.tex](../../../documents_tcc/tex/parts/03-materiais-metodos.tex)
+1. [03-materiais-metodos.tex](../../documents_tcc/tex/thesis/parts/03-materiais-metodos.tex)
    - L193–L196: §3.2.1 — busca local `post_mutation`, `max_iterations = 10` com `candidate_k = 20`, assimetria das GPU.
    - L203: §3.2.2 — quatro variantes como configurações da mesma `GeneticAlgorithm` via `configs/algorithms.json`.
    - L207–L222: §3.2.2 — itens renomeados (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`), padrão de transferência preservado, `RawKernel` + *warm-up*.
@@ -124,7 +124,7 @@ Holm–Bonferroni foi incluído como item próprio porque ele opera sobre outra 
 
 A assimetria registrada em §3.2.1 é o que a §5.3.1.1 qualifica: a CPU avalia a lista de candidatos e aplica a melhor melhoria; a GPU residente varre até não haver melhoria; as híbridas executam uma passada por chamada de *kernel*. Por isso o texto passou a dizer que `max_iterations` não representa o mesmo trabalho entre variantes, em vez de sugerir um orçamento idêntico.
 
-Nenhum artefato de conhecimento novo foi criado: a derivação da CD já está em [analysis-demsar-critical-difference-diagrams.md](../knowledge-base/analysis-demsar-critical-difference-diagrams.md) e as listas de candidatos em [knowledge_candidate_lists_and_inverse_positions.md](../knowledge-base/knowledge_candidate_lists_and_inverse_positions.md).
+Nenhum artefato de conhecimento novo foi criado: a derivação da CD já está em [analysis-demsar-critical-difference-diagrams.md](../../documents_tcc/plan/knowledge-base/analysis-demsar-critical-difference-diagrams.md) e as listas de candidatos em [knowledge_candidate_lists_and_inverse_positions.md](../../documents_tcc/plan/knowledge-base/knowledge_candidate_lists_and_inverse_positions.md).
 
 ---
 

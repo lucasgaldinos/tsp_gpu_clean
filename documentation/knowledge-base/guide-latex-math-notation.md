@@ -31,6 +31,21 @@ tags:
 
 # Guide: Mathematical Notation and LaTeX Cheat Sheet for Markdown
 
+- [Guide: Mathematical Notation and LaTeX Cheat Sheet for Markdown](#guide-mathematical-notation-and-latex-cheat-sheet-for-markdown)
+  + [1. Fundamentals of Math in Markdown](#1-fundamentals-of-math-in-markdown)
+    - [Core Syntax Rules](#core-syntax-rules)
+  + [2. LaTeX Math Reference Tables](#2-latex-math-reference-tables)
+    - [2.1 Arithmetic](#21-arithmetic)
+    - [2.2 Equality and Relations](#22-equality-and-relations)
+    - [2.3 Comparison and Inequalities](#23-comparison-and-inequalities)
+    - [2.4 Algebra, Summations, and Products](#24-algebra-summations-and-products)
+    - [2.5 Probability and Statistics](#25-probability-and-statistics)
+    - [2.6 Linear Algebra: Vectors and Matrices](#26-linear-algebra-vectors-and-matrices)
+    - [2.7 Calculus and Differential Equations](#27-calculus-and-differential-equations)
+    - [2.8 Complex Numbers](#28-complex-numbers)
+    - [2.9 Greek Alphabet](#29-greek-alphabet)
+  + [3. Tooling and Rendering Support](#3-tooling-and-rendering-support)
+
 A reference guide and cheat sheet on writing mathematical notation and formulas in GitHub Markdown and LaTeX/Pandoc documents.
 
 ## 1. Fundamentals of Math in Markdown
@@ -45,17 +60,17 @@ There are two primary ways to include mathematical notation in Markdown:
 - **Escaping Dollar Signs**: Use a backslash `\$` when you need a dollar sign in prose without triggering math parsing.
 - **Common Operators & Functions**: Standard arithmetic operators (`+`, `-`, `*`, `/`, `=`) and standard functions (`\sin`, `\cos`, `\tan`, `\log`, `\ln`, `\exp`, `\max`, `\min`).
 - **Subscripts and Superscripts**:
-  - Subscript: Underscore `_` (e.g., `x_i`, `x_{i+1}`).
-  - Superscript: Caret `^` (e.g., `x^2`, `x^{2k}`).
+  + Subscript: Underscore `_` (e.g., `x_i`, `x_{i+1}`).
+  + Superscript: Caret `^` (e.g., `x^2`, `x^{2k}`).
 - **Fractions**: `\frac{numerator}{denominator}` (e.g., `\frac{a}{b}`).
 - **Roots**:
-  - Square root: `\sqrt{x}`
-  - $n$-th root: `\sqrt[n]{x}`
+  + Square root: `\sqrt{x}`
+  + $n$-th root: `\sqrt[n]{x}`
 - **Brackets and Parentheses**:
-  - Use `\left(` and `\right)` (or `\left[`, `\right]`, `\left\{`, `\right\}`) to dynamically scale delimiters to fit the enclosed expression:
+  + Use `\left(` and `\right)` (or `\left[`, `\right]`, `\left\{`, `\right\}`) to dynamically scale delimiters to fit the enclosed expression:
     $$\left( \frac{a}{b} \right)$$
 - **Matrices & Vectors**:
-  - Use environments like `pmatrix` (parentheses), `bmatrix` (square brackets), or `vmatrix` (determinants) inside `\begin{...}` and `\end{...}`:
+  + Use environments like `pmatrix` (parentheses), `bmatrix` (square brackets), or `vmatrix` (determinants) inside `\begin{...}` and `\end{...}`:
     $$\begin{pmatrix} a & b \\ c & d \end{pmatrix}$$
 
 ```text

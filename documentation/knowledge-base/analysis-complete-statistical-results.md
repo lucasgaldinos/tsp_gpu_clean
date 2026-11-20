@@ -43,21 +43,21 @@ tags:
 # Complete Statistical Analysis Framework: Multi-Level Architecture for GPU Benchmarks
 
 - [Complete Statistical Analysis Framework: Multi-Level Architecture for GPU Benchmarks](#complete-statistical-analysis-framework-multi-level-architecture-for-gpu-benchmarks)
-  - [1. Two Orthogonal Classification Dimensions](#1-two-orthogonal-classification-dimensions)
+  + [1. Two Orthogonal Classification Dimensions](#1-two-orthogonal-classification-dimensions)
     - [1.1 Dimension 1: Parametric vs Non-Parametric](#11-dimension-1-parametric-vs-non-parametric)
     - [1.2 Dimension 2: Paired (Dependent) vs Independent](#12-dimension-2-paired-dependent-vs-independent)
-    - [1.3 The 2×2 Test Classification Matrix](#13-the-2×2-test-classification-matrix)
-  - [2. The Experimental Benchmark Data Architecture](#2-the-experimental-benchmark-data-architecture)
-  - [3. Three-Tier Hierarchical Analysis Protocol](#3-three-tier-hierarchical-analysis-protocol)
+    - [1.3 The 2×2 Test Classification Matrix](#13-the-22-test-classification-matrix)
+  + [2. The Experimental Benchmark Data Architecture](#2-the-experimental-benchmark-data-architecture)
+  + [3. Three-Tier Hierarchical Analysis Protocol](#3-three-tier-hierarchical-analysis-protocol)
     - [3.1 Level 1: Within-Problem Paired Analysis ($n = 15$ Runs)](#31-level-1-within-problem-paired-analysis-n--15-runs)
     - [3.2 Level 2: Across-Problem Meta-Analysis ($N = 38$ Instances)](#32-level-2-across-problem-meta-analysis-n--38-instances)
     - [3.3 Level 3: Multi-Algorithm Omnibus and Post-Hoc Ranking ($k = 4$ Variants)](#33-level-3-multi-algorithm-omnibus-and-post-hoc-ranking-k--4-variants)
-  - [4. Resolution of Common Statistical Misconceptions](#4-resolution-of-common-statistical-misconceptions)
+  + [4. Resolution of Common Statistical Misconceptions](#4-resolution-of-common-statistical-misconceptions)
     - [4.1 Misconception 1: "Sample Size ($n = 15$) Dictates Parametric Validity"](#41-misconception-1-sample-size-n--15-dictates-parametric-validity)
     - [4.2 Misconception 2: "Multi-Instance Benchmarks Require Independent Group ANOVA"](#42-misconception-2-multi-instance-benchmarks-require-independent-group-anova)
-  - [5. Complete Executable Analysis Pipeline](#5-complete-executable-analysis-pipeline)
-  - [6. Grounding with Empirical Benchmark Results](#6-grounding-with-empirical-benchmark-results)
-  - [7. Academic References](#7-academic-references)
+  + [5. Complete Executable Analysis Pipeline](#5-complete-executable-analysis-pipeline)
+  + [6. Grounding with Empirical Benchmark Results](#6-grounding-with-empirical-benchmark-results)
+  + [7. Academic References](#7-academic-references)
 
 ---
 
@@ -105,6 +105,7 @@ DEPENDENCY               ├─────────────────�
 The repository benchmark corpus stored in [problem_statistics/](../../results/benchmark_results/problem_statistics/) comprises $N = 38$ standard TSPLIB benchmark instances spanning problem dimensions from $n_{\text{cities}} = 51$ (`eil51`) up to $n_{\text{cities}} = 1{,}002$ (`pr1002`).
 
 For each problem instance, $k = 4$ algorithmic implementations are evaluated across $n_{\text{runs}} = 15$ independent stochastic seeds:
+
 1. `CPU`: Pure sequential host baseline with 2-opt local search.
 2. `HybridNaive`: Host-orchestrated GA with uncoalesced global memory GPU 2-opt invocations and per-generation PCIe transfers.
 3. `HybridOptimized`: Pipelined asynchronous CUDA stream execution with persistent scratchpad buffer pooling.
@@ -134,11 +135,11 @@ graph TD
     B --> B1[Shapiro-Wilk on Differences Delta_i]
     B1 -->|p >= 0.05| B2[Paired t-Test + Cohen's d_z]
     B1 -->|p < 0.05| B3[Wilcoxon Signed-Rank + Cliff's Delta]
-    
+
     A --> C[Tier 2: Across-Instance Meta-Analysis]
     C --> C1[Aggregate 38 Effect Sizes d_i or Speedups S_i]
     C1 --> C2[Meta-Mean Effect Size, 95% Confidence Intervals]
-    
+
     A --> D[Tier 3: Multi-Algorithm Ranking Architecture]
     D --> D1[Compute Median Runtime Matrix M in R^{38 x 4}]
     D1 --> D2[Friedman Omnibus Test & Iman-Davenport F_F]
@@ -149,16 +150,18 @@ graph TD
 ### 3.1 Level 1: Within-Problem Paired Analysis ($n = 15$ Runs)
 
 For any single problem instance (e.g., `ch130`), we compare Algorithm A (CPU) against Algorithm B (FullGPU):
+
 1. **Coupling**: Form paired difference vector $\mathbf{d} = \mathbf{x}_A - \mathbf{x}_B \in \mathbb{R}^{15}$.
 2. **Normality Gate**: Evaluate Shapiro-Wilk statistic $W$ on $\mathbf{d}$.
-   - If $p_W \ge 0.05$: Compute Paired Student's $t$-statistic:
+   + If $p_W \ge 0.05$: Compute Paired Student's $t$-statistic:
      $$t = \frac{\bar{d}}{s_d / \sqrt{n}}, \qquad s_d = \sqrt{\frac{1}{n-1} \sum_{i=1}^n (d_i - \bar{d})^2}$$
-   - If $p_W < 0.05$: Compute Wilcoxon Signed-Rank test statistic $W_{\text{Wilc}} = \min(T^+, T^-)$.
+   + If $p_W < 0.05$: Compute Wilcoxon Signed-Rank test statistic $W_{\text{Wilc}} = \min(T^+, T^-)$.
 3. **Effect Size**: Compute paired Cohen's $d_z = \bar{d} / s_d$ or Cliff's Delta $\delta$.
 
 ### 3.2 Level 2: Across-Problem Meta-Analysis ($N = 38$ Instances)
 
 To establish generalizable claims across the entire TSPLIB benchmark suite:
+
 1. Extract the paired effect size $d_j$ or speedup ratio $S_j = \bar{t}_{\text{CPU}, j} / \bar{t}_{\text{GPU}, j}$ for each of the $j \in \{1, \dots, 38\}$ independent problem instances.
 2. Treat the $N = 38$ summary metrics as independent observations from the universe of symmetric Euclidean TSPs.
 3. Calculate the grand mean effect size and its 95% confidence interval via Student's $t$ or BCa bootstrapping:
@@ -167,12 +170,13 @@ To establish generalizable claims across the entire TSPLIB benchmark suite:
 ### 3.3 Level 3: Multi-Algorithm Omnibus and Post-Hoc Ranking ($k = 4$ Variants)
 
 To simultaneously rank all $k = 4$ algorithm variants across all $N = 38$ problem instances without inflating Family-Wise Error Rate ($\alpha_{\text{FWER}}$):
+
 1. Construct median performance matrix $\mathbf{M} \in \mathbb{R}^{38 \times 4}$, where $M_{ij} = \text{median}(\text{times}_{ij})$.
 2. Convert each row into ranks $r_{ij} \in \{1, 2, 3, 4\}$, with rank 1 assigned to the fastest algorithm.
 3. Execute the [Friedman Omnibus Test](./guide-statistical-multicomparison-tests.md) and Iman-Davenport $F_F$ correction.
 4. If $H_0$ is rejected ($p < 0.05$), execute post-hoc pairwise procedures:
-   - **Nemenyi All-Pairs CD**: Compute Critical Difference $CD = q_\alpha \sqrt{\frac{k(k+1)}{6N}} = 2.569 \sqrt{\frac{20}{228}} \approx 0.761$.
-   - **Dunn-Holm 1-vs-All**: Compare the three GPU variants against the CPU baseline with Holm step-down correction.
+   + **Nemenyi All-Pairs CD**: Compute Critical Difference $CD = q_\alpha \sqrt{\frac{k(k+1)}{6N}} = 2.569 \sqrt{\frac{20}{228}} \approx 0.761$.
+   + **Dunn-Holm 1-vs-All**: Compare the three GPU variants against the CPU baseline with Holm step-down correction.
 
 ---
 
@@ -192,7 +196,7 @@ To simultaneously rank all $k = 4$ algorithm variants across all $N = 38$ proble
 
 ## 5. Complete Executable Analysis Pipeline
 
-Below is the self-contained Python analysis engine implementing this three-tier architecture:
+Below is the self-contained python analysis engine implementing this three-tier architecture:
 
 ```python
 """Complete Statistical Analysis Pipeline for TSPLIB Benchmark Corpora."""
@@ -289,6 +293,7 @@ Evaluating empirical data from `results/benchmark_results/problem_statistics/` a
 | **`pr1002`** | 1,002 | $1{,}845.2 \pm 42.1\text{ s}$ | $2.418 \pm 0.082\text{ s}$ | $763.1\times$ | $0.038$ | Wilcoxon ($p = 6.1 \times 10^{-5}$) | $43.8$ |
 
 **Statistical Summary across all 38 Instances**:
+
 - Tier 1: In 38 out of 38 instances ($100\%$), GPU variants demonstrate statistically significant superiority over the CPU baseline ($p < 0.001$).
 - Tier 2: The meta-analytic mean standardized speedup across all 38 instances is $\bar{S}_{\text{meta}} = 412.6\times$ ($95\%\text{ CI}: [368.2\times, 457.0\times]$).
 - Tier 3: The Iman-Davenport omnibus test yields $F_F = 184.2$ ($p < 10^{-20}$), conclusively rejecting the null hypothesis of equivalent algorithmic performance across benchmark instances. Post-hoc Nemenyi analysis confirms that `FullGPU` ($\bar{R} = 1.35$) and `HybridOptimized` ($\bar{R} = 1.85$) form a superior performance clique distinctly separated from `CPU` ($\bar{R} = 3.85$) by a margin far exceeding $CD = 0.761$.

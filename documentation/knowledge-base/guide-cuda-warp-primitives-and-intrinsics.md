@@ -8,7 +8,7 @@ description: >
   deterministic stream compaction for Davis (1985) Order Crossover (DP11-11).
 created: 2026-11-08
 date_created: 2026-11-08
-date_changed: 2026-11-09
+date_changed: 2026-11-19
 status: final
 author:
   - "Lucas Galdino"
@@ -27,6 +27,17 @@ modifications:
           Refactored into dedicated warp-level primitives guide; decoupled foundational hardware
           and register bitwise arithmetic into companion guide; clarified Pascal CC 6.1 vs Volta+
           scheduling, sub-warps, teacher-broadcast analogies, and Davis 1985 algorithmic identity.
+  - date_modified: 2026-11-19
+    modifications:
+      - description: >
+          Expanded §4.2 with the issue-vs-work granularity framing, the three-way taxonomy of
+          intra-warp work division (data-level, control-level, collective-level) with the mask
+          efficiency formula, a 4-lane divergent-branch trace, the Pascal lockstep vs. Volta+
+          Independent Thread Scheduling caveat (ITS does not widen issue), verified repository
+          kernel anchors, and the Lindholm 2008 and Volta whitepaper citations. The two
+          display-math blocks whose closing `$$` was glued to `\end{array}` were split onto
+          their own line so every heading stays visible to the linter and the 25 TOC fragments
+          in this file resolve (MD051 cleared).
 related_files:
   - "[guide-cuda-hardware-bitwise-and-registers.md](./guide-cuda-hardware-bitwise-and-registers.md)"
   - "[analysis-crossover-matrix-formulation-and-mechanics.md](./analysis-crossover-matrix-formulation-and-mechanics.md)"
@@ -34,6 +45,8 @@ related_files:
   - "[analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md)"
   - "[order_crossover.cu](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu)"
   - "[order_crossover.py](../../src/algorithms/strategies/crossover/order_crossover.py)"
+  - "[two_opt_single.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu)"
+  - "[cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu)"
 tags:
   - guide/cuda
   - guide/architecture
@@ -65,9 +78,13 @@ tags:
     - [4.2 Sub-Warps Decoded: Physical Hardware Reality, Register Isolation, and Limits on Parallelization](#42-sub-warps-decoded-physical-hardware-reality-register-isolation-and-limits-on-parallelization)
       + [1. The Physical Hardware Rule: Warps are Indivisible in Silicon](#1-the-physical-hardware-rule-warps-are-indivisible-in-silicon)
       + [2. What, Then, is a "Sub-Warp" in CUDA? (A Logical Shuffle Crossbar Mask)](#2-what-then-is-a-sub-warp-in-cuda-a-logical-shuffle-crossbar-mask)
-      + [3. Do Sub-Warps Share Registers and Memory?](#3-do-sub-warps-share-registers-and-memory)
-      + [4. What Limits GPU Parallelization?](#4-what-limits-gpu-parallelization)
-      + [5. EXPLICIT RECTIFICATION: Why Our Real TSP Solver NEVER Uses Sub-Warps!](#5-explicit-rectification-why-our-real-tsp-solver-never-uses-sub-warps)
+      + [3. Three Ways to Divide Work Inside a Warp](#3-three-ways-to-divide-work-inside-a-warp)
+      + [4. Worked Trace: What a Divergent Branch Actually Costs](#4-worked-trace-what-a-divergent-branch-actually-costs)
+      + [5. Do Sub-Warps Share Registers and Memory?](#5-do-sub-warps-share-registers-and-memory)
+      + [6. Pascal Lockstep vs. Volta+ Independent Thread Scheduling: What Changes (and What Does Not)](#6-pascal-lockstep-vs-volta-independent-thread-scheduling-what-changes-and-what-does-not)
+      + [7. What Limits GPU Parallelization?](#7-what-limits-gpu-parallelization)
+      + [8. In This Repository: Three Concrete Granularity Choices](#8-in-this-repository-three-concrete-granularity-choices)
+      + [9. EXPLICIT RECTIFICATION: Why Our Real TSP Solver NEVER Uses Sub-Warps](#9-explicit-rectification-why-our-real-tsp-solver-never-uses-sub-warps)
     - [4.3 Demystifying Direct Indexed Shuffle: the classroom announcement analogy](#43-demystifying-direct-indexed-shuffle-the-classroom-announcement-analogy)
     - [4.4 Matrix transformations of the four shuffle modes](#44-matrix-transformations-of-the-four-shuffle-modes)
   + [5. Step-by-step walkthrough: warp stream compaction in Order Crossover (`DP11-11`)](#5-step-by-step-walkthrough-warp-stream-compaction-in-order-crossover-dp11-11)
@@ -213,7 +230,8 @@ $$\begin{array}{rcccccccc}
 \text{City}: & A & B & \mathbf{C} & D & \mathbf{E} & \mathbf{F} & G & \mathbf{H} \\
 \text{Predicate } P(\ell): & 0 & 0 & \mathbf{1} & 0 & \mathbf{1} & \mathbf{1} & 0 & \mathbf{1} \\
 \text{Bit Weight } 2^\ell: & 1 & 2 & 4 & 8 & 16 & 32 & 64 & 128
-\end{array}$$
+\end{array}
+$$
 
 When the threads execute `ballot_mask = __ballot_sync(0xFFFFFFFFu, is_valid);`:
 The hardware bundles the 8 private boolean conditions into a single integer:
@@ -231,32 +249,39 @@ Now, every thread uses this integer to calculate its exact write position withou
 
 1. **Each thread creates blinders (`lower_lanes_mask`)**:
    Lane $\ell$ only cares about threads to its left:
+
    ```cpp
    uint32_t lower_lanes_mask = (1u << lane_id) - 1u;
    ```
+
 2. **Each thread computes its write rank**:
+
    ```cpp
    int rank = __popc(ballot_mask & lower_lanes_mask);
    ```
-   - **Lane 2 ($C$)**: `lower_lanes_mask` is `0b00000011`.
+
+   + **Lane 2 ($C$)**: `lower_lanes_mask` is `0b00000011`.
      `0b10110100 & 0b00000011 = 0`.
      `rank = __popc(0) = 0` $\implies$ writes to **Slot 0**!
-   - **Lane 4 ($E$)**: `lower_lanes_mask` is `0b00001111`.
+   + **Lane 4 ($E$)**: `lower_lanes_mask` is `0b00001111`.
      `0b10110100 & 0b00001111 = 0b00000100`.
      `rank = __popc(4) = 1` $\implies$ writes to **Slot 1**!
-   - **Lane 5 ($F$)**: `lower_lanes_mask` is `0b00011111`.
+   + **Lane 5 ($F$)**: `lower_lanes_mask` is `0b00011111`.
      `0b10110100 & 0b00011111 = 0b00010100`.
      `rank = __popc(20) = 2` $\implies$ writes to **Slot 2**!
-   - **Lane 7 ($H$)**: `lower_lanes_mask` is `0b01111111`.
+   + **Lane 7 ($H$)**: `lower_lanes_mask` is `0b01111111`.
      `0b10110100 & 0b01111111 = 0b00110100`.
      `rank = __popc(52) = 3` $\implies$ writes to **Slot 3**!
 3. **Each valid thread writes to the child tour**:
+
    ```cpp
    if (is_valid) {
        child[write_pos + rank] = my_city;
    }
    ```
+
 4. **All threads update the shared write position**:
+
    ```cpp
    write_pos += __popc(ballot_mask); // Exactly 4 cities were written!
    ```
@@ -282,14 +307,22 @@ This is one of the most vital questions for understanding GPU hardware! Let us e
 
 #### 1. The Physical Hardware Rule: Warps are Indivisible in Silicon
 
-Inside an NVIDIA Streaming Multiprocessor (SM), the instruction dispatcher **physically operates ONLY on 32-thread warps**.
-- There is **no silicon circuit** that can dispatch an instruction to 8 threads alone or 4 threads alone.
-- When an SM executes an instruction, exactly 32 ALU pipelines fire on the exact same clock cycle.
-- **A warp of 32 threads is the absolute smallest execution unit that exists in NVIDIA hardware!**
+Two granularities are routinely conflated, and almost every confusion about sub-warps comes from mixing them:
+
+- **The warp (32 lanes on NVIDIA) is the smallest unit of instruction issue.** Inside an NVIDIA Streaming Multiprocessor (SM), the instruction dispatcher physically operates only on 32-thread warps: each cycle it routes one instruction into the lanes, and there is no silicon circuit that can dispatch an instruction to 8 threads alone or 4 threads alone. When an SM executes an instruction, exactly 32 ALU pipelines fire on the same clock tick[^lindholm-tesla].
+- **The thread is the smallest unit of state and work assignment.** Each lane has private registers (`R0..R255`), its own `lane_id`, its own operand values, and its own memory addresses. Assigning different work to different lanes is exactly what a CUDA programmer does — the lanes really do carry different values at full throughput; what stays warp-wide is the instruction, not the data.
+
+So **a warp of 32 threads is the absolute smallest execution unit that exists in NVIDIA hardware**, while each of its 32 threads remains an independent unit of state. What is strictly impossible, on **every** NVIDIA architecture (Pascal, Volta, Turing, Ampere, Hopper, Blackwell), is a second thing often assumed to follow from the first:
+
+> [!IMPORTANT]
+> Two different instruction streams can never be issued for the same warp in the same cycle. Anything that looks like "half the warp runs instruction A while the other half runs instruction B at the same time" is a scheduling illusion created by executing the two paths one after the other and masking lanes.
+
+[^lindholm-tesla]: Lindholm, J. E., Nickolls, J., Oberman, S., & Montrym, J. (2008). [NVIDIA Tesla: A Unified Graphics and Computing Architecture](https://doi.org/10.1109/MM.2008.31). IEEE Micro, 28(2), 39–55.
 
 #### 2. What, Then, is a "Sub-Warp" in CUDA? (A Logical Shuffle Crossbar Mask)
 
 In CUDA, the term "sub-warp" (or sub-warp collective, configured via the `width` parameter in `__shfl_sync` or `cg::tiled_partition<8>`) is **purely a software/routing filter inside the register crossbar**.
+
 - All 32 threads in the warp still execute the instruction at the **exact same physical clock tick**.
 - However, the internal crossbar switches are instructed to **partition communication boundaries**:
 
@@ -304,22 +337,83 @@ In CUDA, the term "sub-warp" (or sub-warp collective, configured via the `width`
 - If `width = 8`, Lane 9 reads from Lane 8 (the base of its 8-thread partition), completely isolated from Lane 0.
 - **When is this used in GPU engineering?**
   Only when an algorithm has very small, independent micro-tasks (e.g. processing $4 \times 4$ image pixel tiles or 8-element quaternions) and you want 1 single 32-thread hardware warp to process 4 independent micro-tasks simultaneously without crosstalk.
+- The same logical boundary appears in three equivalent spellings: the `width` parameter of `__shfl_*_sync`; the `cg::tiled_partition<N>` collective; and `__syncwarp(mask)`, which uses a participation mask to wait on or re-converge a named subset of lanes. None of them creates execution hardware: the instruction they guard is still issued once, warp-wide, and the mask only constrains which lanes exchange values or wait together.
 
-#### 3. Do Sub-Warps Share Registers and Memory?
+#### 3. Three Ways to Divide Work Inside a Warp
+
+Because issue is warp-wide but state is per-lane, there are exactly three ways to give different lanes different work — and they are not interchangeable in cost:
+
+| Split | Mechanism | Cost | Where it fits |
+| :--- | :--- | :--- | :--- |
+| **(a) Data-level** | The same instruction applied to different data per lane | **Free** — one issue covers every ALU lane | The natural CUDA pattern; e.g. one lane per candidate move |
+| **(b) Control-level** | `if (lane_id < 16) { ... } else { ... }` | **Serialized by masking** — one issue per disjoint path | Few, short paths; cheap only while each path is short |
+| **(c) Collective-level** | `width` in `__shfl_*_sync`, `cg::tiled_partition<N>`, `__syncwarp(mask)` | **One warp-wide issue with constrained routing** — the crossbar mask of §2 | Independent micro-tasks that must exchange values without crosstalk |
+
+For case (b), let path $i$ keep $a_i$ active lanes for $L_i$ issued instructions; the warp issues $\sum_i L_i$ instructions while the useful lane-work is $\sum_i a_i L_i$, so the efficiency of the split is
+
+$$E \;=\; \frac{\sum_i a_i\,L_i}{32\,\sum_i L_i}.$$
+
+For $k$ fully disjoint, equally long paths this collapses to $E = 1/k$: a two-way branch runs the divergent region at half throughput and a four-way branch at a quarter. Case (c) pays no such price — every lane executes every instruction — which is why warp collectives are the standard cure for a divergence hotspot.
+
+#### 4. Worked Trace: What a Divergent Branch Actually Costs
+
+The real warp is 32 lanes wide; the trace below uses **4 lanes** so every mask is visible at a glance. Let each lane hold one value of `x = {3, 5, 7, 9}`.
+
+```cuda
+// 1 issue: every lane executes the same multiply on its own data (case a).
+int y = x * x;                  // y = 9, 25, 49, 81
+```
+
+```cuda
+// 2 issues: issue 1 runs the lanes with x < 6 while the other lanes are masked;
+//           issue 2 runs the remaining lanes while the first pair is masked (case b).
+if (x < 6) { y = x * x; }       // lanes 0-1 -> y = 9, 25
+else       { y = x + x; }       // lanes 2-3 -> y = 14, 18
+```
+
+| Issue | Lane 0 (`x = 3`) | Lane 1 (`x = 5`) | Lane 2 (`x = 7`) | Lane 3 (`x = 9`) | Active lanes | Masked lanes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 — `y = x * x` | 9 | 25 | — | — | 2 | 2 |
+| 2 — `y = x + x` | — | — | 14 | 18 | 2 | 2 |
+
+The branch-free version finishes in **1 issue** with `y = {9, 25, 49, 81}`; the divergent version finishes in **2 issues** with `y = {9, 25, 14, 18}`. Same 4 lanes, same result size, double the issue cost — the $E = 1/2$ of a two-way split, and the concrete reason a divergent hotspot is worth restructuring into ballot/mask arithmetic.
+
+#### 5. Do Sub-Warps Share Registers and Memory?
 
 - **Registers are NEVER Shared!**
   Each thread in CUDA has its own private, isolated physical 32-bit registers (`R0..R255`). Lane 0 cannot see Lane 1's registers, and Sub-Warp 0 cannot see Sub-Warp 1's registers, except through explicit shuffle instructions.
 - **Shared Memory is Shared at the Block Level**:
   All threads in the entire thread block (typically 256 threads = 8 warps) share the exact same 48 KB of on-chip SRAM.
 
-#### 4. What Limits GPU Parallelization?
+#### 6. Pascal Lockstep vs. Volta+ Independent Thread Scheduling: What Changes (and What Does Not)
+
+- **Pascal (CC 6.1, the GTX 1050 used in this project) is de-facto lockstep.** One program counter per warp; divergent paths execute one after the other until the lanes re-converge. That is exactly why the trace above costs two issues.
+- **Volta+ (CC $\ge$ 7.0) adds Independent Thread Scheduling (ITS).** Each thread receives its own program counter and call stack, so a subgroup can make forward progress while another subgroup is parked on a dependency, and the explicit participation masks of the `_sync` primitives described in [§3.1](#31-compute-capability-pascal-gtx-1050-cc-61-vs-volta-cc-ge-70) become mandatory to keep warp collectives well defined[^volta-whitepaper].
+- **What ITS does not change is issue width.** The warp scheduler still dispatches one warp-wide instruction per cycle. ITS changes *which* subgroup is eligible to be issued next — it never lets two instruction streams occupy the same warp's issue slot in the same cycle.
+
+[^volta-whitepaper]: NVIDIA (2017). [NVIDIA Tesla V100 GPU Architecture](https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf). Whitepaper WP-08608.
+
+#### 7. What Limits GPU Parallelization?
+
 The total number of concurrent warps an SM can run is strictly governed by four physical hardware ceilings:
+
 1. **Register Budget**: A GP107 SM has 65,536 registers. If a kernel uses 32 registers per thread, each warp consumes $32 \times 32 = 1{,}024$ registers. Maximum warps supported by registers = $65{,}536 / 1{,}024 = \mathbf{64\text{ warps}}$ ($2{,}048$ threads). If a kernel spills and uses 64 registers per thread, occupancy drops to 32 warps.
 2. **Shared Memory Capacity**: Each GP107 SM has 48 KB of SRAM. If each block requests 16 KB, the SM can host at most $48 / 16 = \mathbf{3\text{ blocks}}$ simultaneously.
 3. **Warp Scheduler Limits**: Pascal GP107 has 4 warp schedulers per SM, with a maximum architectural cap of **64 active warps (2,048 threads) per SM**.
 4. **Memory Bus Bandwidth (DRAM Roofline)**: GDDR5 memory delivers 128 bytes per memory transaction. If threads access memory without coalescing, the memory bus chokes and starves the compute pipelines.
 
-#### 5. EXPLICIT RECTIFICATION: Why Our Real TSP Solver NEVER Uses Sub-Warps!
+#### 8. In This Repository: Three Concrete Granularity Choices
+
+| Kernel | What the lanes do | Case |
+| :--- | :--- | :--- |
+| [two_opt_single.cu::two_opt_kernel](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) | Every lane owns a disjoint strided slice of the `i` rows and runs the identical `two_opt_consider` code on its own `(i, j)` pair deltas | (a) data-level |
+| [cost_calculator.cu::cost_calculator_kernel](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) | Each lane accumulates its own partial cost; the block then exchanges partials with `__shfl_down_sync` | (c) collective-level |
+| [order_crossover.cu::order_crossover_kernel](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu) | The "does this city enter the offspring?" predicate becomes `__ballot_sync` + `__popc` mask arithmetic instead of a divergent heavy branch | (c) collective-level |
+
+None of the three kernels asks the hardware for sub-warp scheduling: the two warp-collective kernels use case (c) to escape the case-(b) price, and the 2-opt kernel simply never diverges.
+
+#### 9. EXPLICIT RECTIFICATION: Why Our Real TSP Solver NEVER Uses Sub-Warps
+
 > [!IMPORTANT]
 > **Clarification of Documentation Examples:**
 > In our real GPU TSP solver (`order_crossover.cu`, `tournament_selection.cu`, `inversion_mutation.cu`), **WE NEVER USE SUB-WARPS!**
@@ -337,14 +431,17 @@ The user asked:
 > *"Why is $x_0$ substituted on Direct Indexed Shuffle? This is greek to me."*
 
 Let us use an intuitive analogy:
-> **The Classroom Analogy**:
+
+>[!note] The Classroom Analogy
 > Imagine a classroom with 32 students (Lanes 0..31).
 > The teacher (Lane 0) runs the tournament selection and finds that the winning route is **Route 42**.
 > Currently:
+>
 > - Student 0's notebook says: `42`
 > - Student 1's notebook says: `15`
 > - Student 2's notebook says: `88`
 > - ...
+>
 > The teacher speaks into a microphone: *"Everyone, today's winning route is 42!"*
 > All 32 students immediately write `42` into their notebooks.
 
@@ -401,6 +498,7 @@ Let $\mathbf{x} = \begin{bmatrix} x_0 & x_1 & x_2 & x_3 & x_4 & x_5 & x_6 & x_7 
 Order Crossover copies a slice from Parent 1 into `child`, and then fills the vacant positions with the remaining cities of Parent 2 in their original relative order.
 
 Imagine 8 passengers (threads $\ell \in \{0 \dots 7\}$) boarding a bus:
+
 - Passengers whose cities were already copied from $P_1$ step out of line (`is_valid = 0`).
 - Passengers who need a seat raise their hand (`is_valid = 1`).
 - Every passenger puts on **horse blinders (*antolhos*)** so they can only look to their left!
@@ -431,10 +529,12 @@ $$\mathbf{L} = \begin{array}{r|cccccccc|l}
 \text{Lane } 5 & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & 0 & 0 & 0 & \texttt{0x1F} \quad (31) \\
 \text{Lane } 6 & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & 0 & 0 & \texttt{0x3F} \quad (63) \\
 \text{Lane } 7 & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & \mathbf{1} & 0 & \texttt{0x7F} \quad (127)
-\end{array}$$
+\end{array}
+$$
 
 Row $\ell$ has ones **only for threads strictly to the left of lane $\ell$**.
 When Lane $\ell$ computes `rank = __popc(ballot_mask & lower_lanes_mask);`:
+
 1. `ballot_mask & lower_lanes_mask` zeroes out all threads to the right.
 2. `__popc(...)` counts the remaining valid threads to the left in **1 clock cycle**!
 
@@ -472,13 +572,14 @@ Every single city is visited exactly once, and the cyclic relative order of $P_2
 ### 5.4 Historical Lineage and the 40-Year Evolution of Order Crossover (1985–2026)
 
 The user asked:
-> *"Did Davis propose using bitwise operations even on serialized sequential loops? Python didn't exist in 1985, so this must have been done in C or Lisp and could maybe be parallelized. How was the parallelization of OX developed over time? Did the original proposal use bit manipulation techniques?"*
+> *"Did Davis propose using bitwise operations even on serialized sequential loops? python didn't exist in 1985, so this must have been done in C or Lisp and could maybe be parallelized. How was the parallelization of OX developed over time? Did the original proposal use bit manipulation techniques?"*
 
 Let us trace the four-decade historical and algorithmic journey of Order Crossover from its invention to modern CUDA GPU architecture:
 
 #### Phase 1: Lawrence Davis's Original 1985 Proposal (Symbolic Artificial Intelligence in Lisp)
 
 In 1985, Lawrence Davis published *Applying adaptive algorithms to epistatic domains* at IJCAI 1985[^davis1985].
+
 - **Did Davis use bitwise operations?** **NO, absolutely not.**
 - Davis was an AI researcher working in **Lisp**. In Lisp, individuals were represented as symbolic linked lists of symbols: `'(C D H B G A F E)`.
 - Davis defined Order Crossover purely as a **high-level symbolic permutation rule**:
@@ -487,12 +588,16 @@ In 1985, Lawrence Davis published *Applying adaptive algorithms to epistatic dom
   3. If an element is already a member of the child sublist (tested via Lisp's `member` predicate), skip it; otherwise, append it to the child in cyclic order.
 - The concept of bit manipulation, bit shifts, or binary masks was completely absent from Davis's formulation.
 
+[^davis1985]: Davis, L. (1985). *Applying adaptive algorithms to epistatic domains*. Proceedings of the 9th International Joint Conference on Artificial Intelligence (IJCAI-85), pp. 162–164.
+
 #### Phase 2: The C and TSPLIB95 Era (Late 1980s – 1990s)
 
 As Genetic Algorithms transitioned into C and Fortran (e.g. David Goldberg's Simple Genetic Algorithm in C, 1989; and Gerhard Reinelt's TSPLIB95 benchmark suite, 1995):
+
 - Tours were represented as 1D integer arrays: `int parent1[n], parent2[n], child[n]`.
 - Because C lacks high-level set types, developers implemented the membership test in one of two ways:
   1. **Nested Linear Scan ($\mathcal{O}(n^2)$)**:
+
      ```c
      // Classic naive C loop: O(n) scan inside an O(n) loop = O(n^2) work!
      for (int j = 0; j < n; j++) {
@@ -504,7 +609,9 @@ As Genetic Algorithms transitioned into C and Fortran (e.g. David Goldberg's Sim
          if (!found) child[write_pos++] = city;
      }
      ```
+
   2. **Direct-Address Byte Lookup ($\mathcal{O}(n)$)**:
+
      ```c
      // Optimized C implementation: O(1) table lookup
      char in_segment[MAX_CITIES] = {0};
@@ -514,10 +621,13 @@ As Genetic Algorithms transitioned into C and Fortran (e.g. David Goldberg's Sim
          if (!in_segment[city]) child[write_pos++] = city;
      }
      ```
+
 - Notice: Even in C, no bitwise operations were used. An ordinary array of `char` or `int` was standard.
 
 #### Phase 3: The Early GPGPU Era (2000s – 2010s: The 1-Thread Bottleneck)
+
 When CUDA was introduced in 2007, early GPU GA researchers (e.g., Wong & Wong, 2004; Tsutsui & Fujimoto, 2009; Jaros, 2012) attempted to parallelize Genetic Algorithms by assigning **1 single GPU thread per route**:
+
 - Thread $t$ ran the exact serial C `while` loop to construct Route $t$.
 - **Why this failed**: As we proved in `BUG-22` and [analysis-crossover-gpu-architecture-and-scaling.md](./analysis-crossover-gpu-architecture-and-scaling.md), assigning 1 thread per route causes:
   1. Massive cache thrashing and uncoalesced memory access.
@@ -525,7 +635,9 @@ When CUDA was introduced in 2007, early GPU GA researchers (e.g., Wong & Wong, 2
   3. Underutilization of the GPU: launching $N=256$ threads occupied only 2 out of 5 SMs on a GTX 1050, leaving the GPU 40% idle!
 
 #### Phase 4: Modern Warp-Level Stream Compaction (2010s – Present: `DP11-11`)
+
 The breakthrough that enabled true GPU acceleration of Order Crossover came from modern parallel prefix-sum and stream-compaction research (Billeter et al., 2009, *Efficient Stream Compaction on Many-Core Architectures*; Duane Merrill & Mark Harris, NVIDIA CUB):
+
 - **The Core Realization**:
   The task *"take an array, test a condition, and pack only the surviving elements contiguously"* is called **Stream Compaction**.
 - On a CPU, stream compaction is done with a sequential loop (`write_pos++`).

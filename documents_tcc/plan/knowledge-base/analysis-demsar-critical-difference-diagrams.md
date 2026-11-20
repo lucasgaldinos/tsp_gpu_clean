@@ -19,7 +19,15 @@ modifications:
           Authored formal guide on Demšar CD diagrams: Nemenyi formulation, Studentized range
           scaling caveats, clique clustering logic, publication-ready TikZ templates, and
           automated Python generation script for TCC thesis figures.
+  - date_modified: 2026-11-14
+    modifications:
+      - description: >
+          Linked the companion record analysis-demsar-test-selection-and-power.md, which covers
+          what this file deliberately does not: test selection (paired t versus Wilcoxon), the
+          normality pre-test trap, tie and rounding power loss, Iman-Davenport degeneracy, and
+          Nemenyi versus control procedures.
 related_files:
+  - "[analysis-demsar-test-selection-and-power.md](./analysis-demsar-test-selection-and-power.md)"
   - "[guide-statistical-demsar-post-hoc-tests.md](../../../documentation/knowledge-base/guide-statistical-demsar-post-hoc-tests.md)"
   - "[guide-statistical-multicomparison-tests.md](../../../documentation/knowledge-base/guide-statistical-multicomparison-tests.md)"
   - "[guide-statistical-testing-index.md](../../../documentation/knowledge-base/guide-statistical-testing-index.md)"

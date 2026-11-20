@@ -47,26 +47,26 @@ tags:
 # CUDA Intra- vs Inter-Block Synchronization and Routing Parallelization Regimes
 
 - [CUDA Intra- vs Inter-Block Synchronization and Routing Parallelization Regimes](#cuda-intra--vs-inter-block-synchronization-and-routing-parallelization-regimes)
-  - [1. CUDA Synchronization Fundamentals: Intra-Block vs Inter-Block](#1-cuda-synchronization-fundamentals-intra-block-vs-inter-block)
+  + [1. CUDA Synchronization Fundamentals: Intra-Block vs Inter-Block](#1-cuda-synchronization-fundamentals-intra-block-vs-inter-block)
     - [1.1 The Hardware Execution Model](#11-the-hardware-execution-model)
     - [1.2 Intra-Block Synchronization (`__syncthreads()`)](#12-intra-block-synchronization-__syncthreads)
     - [1.3 The Inter-Block Synchronization Barrier Dilemma](#13-the-inter-block-synchronization-barrier-dilemma)
-  - [2. The Four Routing Parallelization Regimes](#2-the-four-routing-parallelization-regimes)
+  + [2. The Four Routing Parallelization Regimes](#2-the-four-routing-parallelization-regimes)
     - [2.1 High-Level Architecture Overview](#21-high-level-architecture-overview)
     - [2.2 Regime 1: Population-Based Intra-Route TSP (Current Codebase)](#22-regime-1-population-based-intra-route-tsp-current-codebase)
-    - [2.3 Regime 2A: Population-Based Inter-Route CVRP $2\text{-opt}^*$](#23-regime-2a-population-based-inter-route-cvrp-2text-opt)
+    - [2.3 Regime 2A: Population-Based Inter-Route CVRP $2\\text{-opt}^\*$](#23-regime-2a-population-based-inter-route-cvrp-2text-opt)
     - [2.4 Regime 2B: Single-Solution Multi-Vehicle CVRP ($P = 1, m$ vehicles)](#24-regime-2b-single-solution-multi-vehicle-cvrp-p--1-m-vehicles)
-    - [2.5 Regime 3: Single Huge Tour ($P = 1, n > 50{,}000$)](#25-regime-3-single-huge-tour-p--1-n--50000)
-  - [3. CVRP Mathematical Formulations and Capacity Checks on GPU](#3-cvrp-mathematical-formulations-and-capacity-checks-on-gpu)
+    - [2.5 Regime 3: Single Huge Tour ($P = 1, n \> 50{,}000$)](#25-regime-3-single-huge-tour-p--1-n--50000)
+  + [3. CVRP Mathematical Formulations and Capacity Checks on GPU](#3-cvrp-mathematical-formulations-and-capacity-checks-on-gpu)
     - [3.1 Capacitated Vehicle Routing Problem (CVRP) Formulation](#31-capacitated-vehicle-routing-problem-cvrp-formulation)
-    - [3.2 The $2\text{-opt}^*$ Inter-Route Move](#32-the-2text-opt-inter-route-move)
+    - [3.2 The $2\\text{-opt}^\*$ Inter-Route Move](#32-the-2text-opt-inter-route-move)
     - [3.3 Shared-Memory Capacity and Delta Evaluation](#33-shared-memory-capacity-and-delta-evaluation)
-  - [4. Multi-Phase Conflict Resolution and Reduction Patterns](#4-multi-phase-conflict-resolution-and-reduction-patterns)
+  + [4. Multi-Phase Conflict Resolution and Reduction Patterns](#4-multi-phase-conflict-resolution-and-reduction-patterns)
     - [4.1 Why Independent Sets of Swaps Are Required in Regime 2B](#41-why-independent-sets-of-swaps-are-required-in-regime-2b)
     - [4.2 Phase 1 / Phase 2 Kernel Partitioning Pattern](#42-phase-1--phase-2-kernel-partitioning-pattern)
     - [4.3 Two-Phase Row-Stripe Reduction in Regime 3](#43-two-phase-row-stripe-reduction-in-regime-3)
-  - [5. Codebase Mapping and Extension Roadmap](#5-codebase-mapping-and-extension-roadmap)
-  - [6. Academic References](#6-academic-references)
+  + [5. Codebase Mapping and Extension Roadmap](#5-codebase-mapping-and-extension-roadmap)
+  + [6. Academic References](#6-academic-references)
 
 ---
 
@@ -83,6 +83,7 @@ $$\text{Grid} = \{ \text{Block}_0, \; \text{Block}_1, \; \dots, \; \text{Block}_
 $$\text{Block}_b = \{ \text{Thread}_0, \; \text{Thread}_1, \; \dots, \; \text{Thread}_{B-1} \}$$
 
 The physical execution rules governing this hierarchy are:
+
 1. **Thread Block Localization:** Every thread inside a single block $\text{Block}_b$ is guaranteed to execute on the **exact same Streaming Multiprocessor (SM)**. They share the SM's physical on-chip SRAM ($48\text{ KB}$ per block, up to $96\text{ KB}$ total per SM on Pascal CC 6.1).
 2. **Block Independence:** Thread blocks $\text{Block}_a$ and $\text{Block}_b$ ($a \ne b$) may execute on **different SMs**, or on the same SM at **different times**. The CUDA hardware scheduler dispatches blocks to SMs in arbitrary, non-deterministic order.
 3. **No Direct Inter-Block Hardware Channel:** An SM running Block 0 has no physical interconnect to read the shared memory of an SM running Block 1. Global GDDR5 DRAM is the only unified memory layer accessible by all blocks.
@@ -90,6 +91,7 @@ The physical execution rules governing this hierarchy are:
 ### 1.2 Intra-Block Synchronization (`__syncthreads()`)
 
 Within a single block, synchronization is handled by the CUDA primitive `__syncthreads()`:
+
 - **Hardware Implementation:** A dedicated barrier synchronization unit inside each SM sub-core.
 - **Latency:** $\approx 20\text{ clock cycles}$ ($\approx 14\text{ ns}$ on GP107).
 - **Semantics:** Execution halts for all warps within that block until every thread has reached the barrier instruction. Furthermore, all memory writes (shared and global) issued before the barrier are guaranteed to be visible to all threads in the block after the barrier.
@@ -102,12 +104,14 @@ Why can standard CUDA kernels not invoke a global barrier across blocks (e.g., `
 **The Hardware Deadlock Hazard:**
 Suppose a GPU has 5 SMs, each capable of hosting 4 concurrent blocks. The GPU can execute at most $5 \times 4 = 20\text{ blocks}$ simultaneously.
 If a kernel is launched with grid size $G = 100\text{ blocks}$:
+
 - Blocks $0 \dots 19$ are resident on the SMs.
 - Blocks $20 \dots 99$ are queued in the driver/hardware work distributor; they cannot even begin execution until resident blocks complete and retire their allocated registers and shared memory.
 
 If Block 0 executes a speculative global barrier waiting for Block 50 to reach the same barrier, Block 0 will wait indefinitely. Block 50 will never start because Block 0 refuses to release its SM resources. The GPU enters an unrecoverable **hardware deadlock**.
 
 To synchronize across all blocks in a grid, CUDA developers have two robust architectural options:
+
 1. **The Kernel Boundary Barrier (Implicit Host-Dispatched Barrier):**
    Split the algorithm into two kernel launches: Kernel 1 computes block-level partial results and writes them to global VRAM; the kernel launch terminates; the CPU driver/stream acts as a zero-cost hardware barrier; Kernel 2 launches and reads the committed results.
 2. **Cooperative Groups Grid Synchronization (`cg::this_grid().sync()`):**
@@ -186,12 +190,12 @@ When solving a single CVRP instance ($P = 1$) via single-solution metaheuristics
 - **CUDA Grid Decomposition:**
   $$\text{Grid Dimension} = \frac{m(m-1)}{2} \text{ blocks}, \quad \text{Block Dimension} = 256\text{ threads}$$
 - **Two-Phase Kernel Decomposition:**
-  - **Phase 1 Kernel (`cvrp_inter_route_eval`):**
+  + **Phase 1 Kernel (`cvrp_inter_route_eval`):**
     Block $b$ is assigned to route pair $(R_a, R_b)$. The block loads routes $R_a$ and $R_b$ into its shared memory, evaluates all valid capacity-respecting $2\text{-opt}^*$ moves between them, and writes the best improving move:
     $$\text{block\_best}[b] = \langle \Delta_{\text{best}}, \; i^*, \; j^*, \; a, \; b \rangle$$
     into global VRAM.
-  - **Implicit Global Barrier:** Kernel 1 finishes execution.
-  - **Phase 2 Kernel (`cvrp_conflict_resolution`, 1 block):**
+  + **Implicit Global Barrier:** Kernel 1 finishes execution.
+  + **Phase 2 Kernel (`cvrp_conflict_resolution`, 1 block):**
     Because multiple route pairs may involve the same route (e.g., $(R_1, R_2)$ and $(R_1, R_3)$ both proposing modifications to $R_1$), they cannot both be applied simultaneously without creating race conditions and invalid solutions. Phase 2 reads all candidate moves from $\text{block\_best}$, selects a conflict-free set of moves (or greedily applies the single global best move), and updates the master solution in VRAM.
 
 ### 2.5 Regime 3: Single Huge Tour ($P = 1, n > 50{,}000$)
@@ -202,11 +206,11 @@ When solving an enormous single TSP tour ($n > 50{,}000$ cities) on a GPU, the p
 - **Row Stripe Decomposition:** The 2-opt search space consists of $\frac{n(n-3)}{2}$ candidate edge pairs $(i, j)$. We partition the outer loop index $i \in \{0, \dots, n-3\}$ into $G$ contiguous row stripes:
   $$\text{Stripe}_b = [i_{\text{start}}^{(b)}, \; i_{\text{end}}^{(b)}), \quad \text{where } i_{\text{start}}^{(b)} = b \times \frac{n}{G}$$
 - **Two-Phase Kernel Decomposition:**
-  - **Phase 1 Kernel (`two_opt_stripe_scan`, $G$ blocks):**
+  + **Phase 1 Kernel (`two_opt_stripe_scan`, $G$ blocks):**
     Block $b$ scans candidate moves for all $i \in \text{Stripe}_b$ and all $j \in \{i+2, \dots, n-1\}$ using shared-memory sliding windows. Each block writes its local minimum delta to VRAM:
     $$\text{block\_best}[b] = \langle \Delta_{\text{best}}^{(b)}, \; i^{*(b)}, \; j^{*(b)} \rangle$$
-  - **Implicit Global Barrier:** Kernel 1 finishes.
-  - **Phase 2 Kernel (`two_opt_apply_best`, 1 block, 256 threads):**
+  + **Implicit Global Barrier:** Kernel 1 finishes.
+  + **Phase 2 Kernel (`two_opt_apply_best`, 1 block, 256 threads):**
     Loads the $G$ candidates from $\text{block\_best}$, performs a parallel tree reduction across threads to find the global optimum $(i^*, j^*)$ with $\Delta^* < 0$, and inverts the tour sub-segment $v[i^*+1 \dots j^*]$ in global memory.
 
 ---
@@ -216,12 +220,14 @@ When solving an enormous single TSP tour ($n > 50{,}000$ cities) on a GPU, the p
 ### 3.1 Capacitated Vehicle Routing Problem (CVRP) Formulation
 
 Let:
+
 - $V = \{0, 1, \dots, n\}$ be the set of nodes, where $0$ is the depot and $V_C = \{1, \dots, n\}$ are customers.
 - $q_i > 0$ be the non-negative delivery demand of customer $i$ ($q_0 = 0$).
 - $Q$ be the maximum vehicle capacity.
 - $m$ be the number of homogeneous vehicles.
 
 A feasible CVRP solution partitions customers into $m$ routes $R_1, \dots, R_m$ such that:
+
 1. Every customer $i \in V_C$ is visited exactly once by exactly one route.
 2. Every route begins and terminates at the depot ($0$).
 3. The total vehicle load does not exceed capacity $Q$:
@@ -292,6 +298,7 @@ $$\text{Feasible} \;\land\; (\Delta_{\text{cost}} < 0)$$
 
 In Regime 2B, the Phase 1 kernel evaluates $\frac{m(m-1)}{2}$ route pairs concurrently.
 Suppose:
+
 - Block 1 evaluates pair $(R_1, R_4)$ and finds an improving swap of $\Delta = -42.0$.
 - Block 8 evaluates pair $(R_1, R_9)$ and finds an improving swap of $\Delta = -38.5$.
 
@@ -345,7 +352,7 @@ __global__ void two_opt_stripe_scan_kernel(
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
-    
+
     // Each block owns a contiguous row slice of the tour
     int rows_per_block = (n - 2 + gridDim.x - 1) / gridDim.x;
     int i_start = bid * rows_per_block;
@@ -373,13 +380,13 @@ __global__ void two_opt_apply_best_kernel(
     int G)
 {
     int tid = threadIdx.x;
-    
+
     // Cooperatively load G candidates into shared memory
     CandidateMove best_move = {0.0f, -1, -1};
     if (tid < G) {
         best_move = block_best[tid];
     }
-    
+
     // Tree reduction across the G blocks to find global minimum
     best_move = block_reduce_min(best_move);
 

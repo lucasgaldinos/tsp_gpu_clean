@@ -30,17 +30,38 @@ tags:
   - benchmark/speedup
 ---
 
-# Clean Python Practices and Code Architecture for Routing Solvers
+# Clean python Practices and Code Architecture for Routing Solvers
 
-Improving the performance of your Python code can often be achieved by making smart choices about data structures and leveraging the power of built-in modules like `itertools`. Here are several tips to enhance performance when working with **tuples** and **functions from `itertools`**:
-
----
+- [Clean python Practices and Code Architecture for Routing Solvers](#clean-python-practices-and-code-architecture-for-routing-solvers)
+  + [1. Prefer Tuples Over Lists When Immutability Is Needed](#1-prefer-tuples-over-lists-when-immutability-is-needed)
+    - [Example](#example)
+  + [2. Use Tuple Unpacking for Faster Assignments](#2-use-tuple-unpacking-for-faster-assignments)
+    - [Example](#example-1)
+  + [3. Leverage `itertools` for Efficient Iterations](#3-leverage-itertools-for-efficient-iterations)
+    - [Common `itertools` Functions](#common-itertools-functions)
+    - [Example 1: Using `itertools.chain` Instead of Multiple Loops](#example-1-using-itertoolschain-instead-of-multiple-loops)
+    - [Example 2: Using `itertools.islice` for Efficient Slicing](#example-2-using-itertoolsislice-for-efficient-slicing)
+  + [4. Combine Tuples with `itertools` for Optimal Performance](#4-combine-tuples-with-itertools-for-optimal-performance)
+    - [Example: Using Tuples with `itertools.product`](#example-using-tuples-with-itertoolsproduct)
+  + [5. Use Generator Expressions for Lazy Evaluation](#5-use-generator-expressions-for-lazy-evaluation)
+    - [Example](#example-2)
+  + [6. Utilize `itertools` for Complex Iteration Patterns](#6-utilize-itertools-for-complex-iteration-patterns)
+    - [Example: Flattening a List of Lists with `itertools.chain.from_iterable`](#example-flattening-a-list-of-lists-with-itertoolschainfrom_iterable)
+  + [7. Minimize Tuple Creation in Tight Loops](#7-minimize-tuple-creation-in-tight-loops)
+    - [Example](#example-3)
+  + [8. Profile and Benchmark Your Code](#8-profile-and-benchmark-your-code)
+    - [Example: Using `cProfile`](#example-using-cprofile)
+  + [9. Use `namedtuple` for Readable and Efficient Data Structures](#9-use-namedtuple-for-readable-and-efficient-data-structures)
+    - [Example](#example-4)
+  + [10. Leverage Built-in Functions and Avoid Custom Implementations](#10-leverage-built-in-functions-and-avoid-custom-implementations)
+    - [Example](#example-5)
+  + [Conclusion](#conclusion)
 
 ## 1. Prefer Tuples Over Lists When Immutability Is Needed
 
 **Tuples** are generally faster than **lists** for several reasons:
 
-- **Immutability**: Tuples are immutable, meaning their size is fixed. This allows Python to optimize their storage and access.
+- **Immutability**: Tuples are immutable, meaning their size is fixed. This allows python to optimize their storage and access.
 - **Hashable**: Tuples can be used as keys in dictionaries if they contain only hashable elements.
 
 ### Example
@@ -322,7 +343,7 @@ print(p.x, p.y)
 
 ## 10. Leverage Built-in Functions and Avoid Custom Implementations
 
-Python's built-in functions and `itertools` are implemented in C and optimized for performance. Whenever possible, use these instead of writing custom loops or functions.
+python's built-in functions and `itertools` are implemented in C and optimized for performance. Whenever possible, use these instead of writing custom loops or functions.
 
 ### Example
 
@@ -348,12 +369,12 @@ result = map(transform, filter(condition, data))
 
 ## Conclusion
 
-By thoughtfully choosing tuples over lists when appropriate, leveraging the powerful tools provided by `itertools`, and adopting generator expressions for lazy evaluation, you can significantly improve the performance and efficiency of your Python code. Always remember to profile your code to ensure that optimizations provide the desired benefits without introducing unnecessary complexity.
+By thoughtfully choosing tuples over lists when appropriate, leveraging the powerful tools provided by `itertools`, and adopting generator expressions for lazy evaluation, you can significantly improve the performance and efficiency of your python code. Always remember to profile your code to ensure that optimizations provide the desired benefits without introducing unnecessary complexity.
 
 ---
 
 **Additional Resources:**
 
-- [Python `itertools` Documentation](https://docs.python.org/3/library/itertools.html)
-- [Python's `collections` Module](https://docs.python.org/3/library/collections.html#namedtuple-factory-function-for-tuples)
-- [Time Complexity of Python Built-in Data Structures](https://wiki.python.org/moin/TimeComplexity)
+- [python `itertools` Documentation](https://docs.python.org/3/library/itertools.html)
+- [python's `collections` Module](https://docs.python.org/3/library/collections.html#namedtuple-factory-function-for-tuples)
+- [Time Complexity of python Built-in Data Structures](https://wiki.python.org/moin/TimeComplexity)

@@ -94,6 +94,7 @@ tags:
     - [3.6 Why `TILE_SIZE = 2048` ($\\approx 8\\text{ KB}$) Instead of Near the $48\\text{ KB}$ Ceiling ($\\approx 11{,}000$)?](#36-why-tile_size--2048-approx-8text-kb-instead-of-near-the-48text-kb-ceiling-approx-11000)
       + [3.6.1 Per-Block Ceiling ($48\\text{ KB}$) vs Per-SM Budget ($96\\text{ KB}$)](#361-per-block-ceiling-48text-kb-vs-per-sm-budget-96text-kb)
       + [3.6.2 Must `TILE_SIZE` Be a Power of $2$ ($2^k$)?](#362-must-tile_size-be-a-power-of-2-2k)
+        - [Mathematical Derivation of Unique Optimum $T^\* = 2{,}048$](#mathematical-derivation-of-unique-optimum-t--2048)
     - [3.7 CUDA Block Decomposition When Data Must Be Shared: Intra-Route TSP vs Inter-Route CVRP ($2\\text{-opt}^\*$) vs Single Huge Tour](#37-cuda-block-decomposition-when-data-must-be-shared-intra-route-tsp-vs-inter-route-cvrp-2text-opt-vs-single-huge-tour)
       + [3.7.1 Why Standard CUDA Kernels Do Not Synchronize Across Blocks](#371-why-standard-cuda-kernels-do-not-synchronize-across-blocks)
       + [3.7.2 How to Partition Blocks \& Threads Across the 3 Routing Regimes](#372-how-to-partition-blocks--threads-across-the-3-routing-regimes)

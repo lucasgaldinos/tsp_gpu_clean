@@ -36,6 +36,41 @@ tags:
 
 # Postmortem Analysis: GPU 2-Opt Integration Bugs, VRAM Contention, and Multistart Scaling
 
+- [Postmortem Analysis: GPU 2-Opt Integration Bugs, VRAM Contention, and Multistart Scaling](#postmortem-analysis-gpu-2-opt-integration-bugs-vram-contention-and-multistart-scaling)
+  + [Table of Symbols](#table-of-symbols)
+  + [Executive Summary](#executive-summary)
+  + [Q2: Is GPU 2-opt Integrated?](#q2-is-gpu-2-opt-integrated)
+    - [Short Answer](#short-answer)
+    - [Detailed Analysis](#detailed-analysis)
+    - [Root Cause](#root-cause)
+    - [Impact Assessment](#impact-assessment)
+  + [Q3: VRAM Contention in GPU Parallel Multistart](#q3-vram-contention-in-gpu-parallel-multistart)
+    - [Short Answer](#short-answer-1)
+    - [Detailed Explanation](#detailed-explanation)
+    - [Diagram Comparison: Sequential vs Parallel Multistart](#diagram-comparison-sequential-vs-parallel-multistart)
+    - [VRAM Contention Prevention Strategies](#vram-contention-prevention-strategies)
+  + [Q4: Why Sequential Multistart Takes N × T\_single](#q4-why-sequential-multistart-takes-n--t_single)
+    - [Short Answer](#short-answer-2)
+    - [Detailed Explanation](#detailed-explanation-1)
+  + [Q5: Optimization Strategies to Mitigate Sequential Overhead](#q5-optimization-strategies-to-mitigate-sequential-overhead)
+    - [Short Answer](#short-answer-3)
+    - [Detailed Analysis](#detailed-analysis-1)
+      + [Strategy 1: Adaptive Cooling Schedules (SAFE)](#strategy-1-adaptive-cooling-schedules-safe)
+      + [Strategy 2: Persistent CUDA Kernels (ADVANCED)](#strategy-2-persistent-cuda-kernels-advanced)
+      + [Strategy 3: Batch Acceptance Decisions (INVALID)](#strategy-3-batch-acceptance-decisions-invalid)
+      + [Strategy 4: CPU-GPU Pipeline (MINIMAL BENEFIT)](#strategy-4-cpu-gpu-pipeline-minimal-benefit)
+    - [THE ACTUAL SOLUTION: Multistart (Level 3)](#the-actual-solution-multistart-level-3)
+  + [Q6: Why GA Gap Persists with Sequential 2-opt](#q6-why-ga-gap-persists-with-sequential-2-opt)
+    - [Short Answer](#short-answer-4)
+    - [Detailed Analysis](#detailed-analysis-2)
+    - [Additional Contributing Factors](#additional-contributing-factors)
+    - [Fix Implementation Plan](#fix-implementation-plan)
+  + [Summary and Action Plan](#summary-and-action-plan)
+    - [Critical Bugs Identified](#critical-bugs-identified)
+    - [Technical Insights Documented](#technical-insights-documented)
+    - [Implementation Tasks (Priority Order)](#implementation-tasks-priority-order)
+    - [References](#references)
+
 ## Table of Symbols
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning |
@@ -53,19 +88,20 @@ tags:
 | $VRAM_{\text{avail}}$ | Available GPU Video RAM | Physical memory capacity ($4{,}096\,\text{MB}$ on GTX 1050) |
 
 ---
+
 ## Executive Summary
 
 **Critical findings from codebase analysis reveal TWO major bugs blocking valid GPU benchmarking:**
 
 1. **Backend-Aware Strategy Selection NOT Implemented**
-   - Benchmark hardcodes `"two_opt_simple"` for ALL backends (CPU and GPU)
-   - GPU 2-opt strategy exists but is never used
-   - All "cupy" backend runs are actually using CPU 2-opt!
+   + Benchmark hardcodes `"two_opt_simple"` for ALL backends (CPU and GPU)
+   + GPU 2-opt strategy exists but is never used
+   + All "cupy" backend runs are actually using CPU 2-opt!
 
 2. **Insufficient 2-opt Iterations in GA Configuration**
-   - GA with 2-opt configured with `max_iterations=10`
-   - pr1002 requires ~200-500 iterations for convergence
-   - Current setting provides only 2-5% of needed improvement work
+   + GA with 2-opt configured with `max_iterations=10`
+   + pr1002 requires ~200-500 iterations for convergence
+   + Current setting provides only 2-5% of needed improvement work
 
 **Impact:** All GPU benchmark results are INVALID. GA quality results are INVALID.
 
@@ -171,7 +207,7 @@ def run_single_benchmark(algorithm: str, backend: str, ...):
 def run_single_benchmark(algorithm: str, backend: str, ...):
     # Backend-aware strategy selection
     improvement_name = "two_opt_gpu" if backend == "cupy" else "two_opt_simple"
-    
+
     if algorithm == "ga_2opt":
         algo_config = {
             "backend": backend,
@@ -186,6 +222,7 @@ def run_single_benchmark(algorithm: str, backend: str, ...):
 
 > [!NOTE] Architectural Insight: Heterogeneous Pipeline vs. Monolithic Backend
 > Algorithms exhibit heterogeneous parallelism profiles:
+>
 > 1. **Inherently Sequential Steps**: Construction heuristics (such as Nearest Neighbor) and Markov chain state transitions in Simulated Annealing involve serial step dependencies. Executing fine-grained scalar operations on GPU induces severe launch overhead ($5\text{--}10\,\mu\text{s}$ per step) and PCIe latency, yielding slower execution than CPU NumPy.
 > 2. **Embarrassingly Parallel Steps**: Move evaluation in 2-opt and population fitness evaluation evaluate large combinatorial neighborhoods ($O(n^2)$ deltas), where GPU massive parallelism achieves orders-of-magnitude speedups.
 > 3. **Separation of Concerns via ProblemContext**: The codebase resolves this by decoupling the algorithm orchestration (CPU NumPy) from heavy neighborhood evaluation (CuPy and CUDA C++ RawKernels via [ProblemContext](../../src/protocols/problem_context.py)).
@@ -238,35 +275,35 @@ VRAM contention occurs because **CUDA streams share a single 4GB memory pool** a
 graph TB
     subgraph GPU["GPU Memory (4GB Total)"]
         Pool["Shared VRAM Pool"]
-        
+
         subgraph Process1["Process 1"]
             DM1["Distance Matrix: 4MB"]
             Tour1["Tour Array: 4KB"]
             Kernel1["Kernel Workspace: 96MB"]
         end
-        
+
         subgraph Process2["Process 2"]
             DM2["Distance Matrix: 4MB"]
             Tour2["Tour Array: 4KB"]
             Kernel2["Kernel Workspace: 96MB"]
         end
-        
+
         subgraph ProcessN["Process 100"]
             DMN["Distance Matrix: 4MB"]
             TourN["Tour Array: 4KB"]
             KernelN["Kernel Workspace: 96MB"]
         end
-        
+
         Pool --> Process1
         Pool --> Process2
         Pool --> ProcessN
     end
-    
+
     Demand["Total Demand: 100 × 100MB = 10GB"]
     Capacity["GPU Capacity: 4GB"]
-    
+
     Demand -.->|"Exceeds"| Capacity
-    
+
     style Demand fill:#FF6B6B
     style Capacity fill:#4ECDC4
     style Pool fill:#FFE66D
@@ -275,7 +312,7 @@ graph TB
 **Memory breakdown for pr1002 (n=1002):**
 
 | Component | Size per Process | 100 Processes |
-|-----------|------------------|---------------|
+| ----------- | ------------------ | --------------- |
 | Distance matrix | 1002² × 4 bytes = 4MB | 400MB |
 | Tour array | 1002 × 4 bytes = 4KB | 400KB |
 | 2-opt kernel workspace | ~96MB | 9.6GB |
@@ -317,32 +354,32 @@ From web search ([NVIDIA CUDA documentation](https://docs.nvidia.com/cuda/cuda-c
 graph TB
     subgraph CPU["CPU System"]
         RAM["System RAM: 16GB"]
-        
+
         subgraph P1["Process 1 (4GB)"]
             DM1["Distance Matrix"]
             Calc1["Computation"]
         end
-        
+
         subgraph P2["Process 2 (4GB)"]
             DM2["Distance Matrix"]
             Calc2["Computation"]
         end
-        
+
         subgraph P8["Process 8 (4GB)"]
             DM8["Distance Matrix"]
             Calc8["Computation"]
         end
-        
+
         RAM --> P1
         RAM --> P2
         RAM --> P8
     end
-    
+
     Demand2["Total: 8 × 4GB = 32GB"]
     Cap2["Available: 16GB"]
-    
+
     Demand2 -.->|"Managed by OS"| Cap2
-    
+
     style RAM fill:#95E1D3
     style Demand2 fill:#F38181
     style Cap2 fill:#EAFFD0
@@ -366,31 +403,31 @@ Shows **MULTIPLE INDEPENDENT SA CHAINS** running in parallel:
 flowchart TB
     Start(["`**MULTISTART SA**
     Launch N chains`"])
-    
+
     subgraph Core1["`**GPU Core 1**`"]
         SA1["`SA(seed=42)
         200k iterations`"]
         Result1["`Result: 7,200`"]
         SA1 --> Result1
     end
-    
+
     subgraph Core2["`**GPU Core 2**`"]
         SA2["`SA(seed=123)
         200k iterations`"]
         Result2["`Result: 7,450`"]
         SA2 --> Result2
     end
-    
+
     subgraph CoreN["`**GPU Core N**`"]
         SAN["`SA(seed=777)
         200k iterations`"]
         ResultN["`Result: 6,980 ✓`"]
         SAN --> ResultN
     end
-    
+
     Select{"`Select Minimum`"}
     Best(["`**BEST: 6,980**`"])
-    
+
     Start --> Core1
     Start --> Core2
     Start --> CoreN
@@ -398,7 +435,7 @@ flowchart TB
     Result2 --> Select
     ResultN --> Select
     Select --> Best
-    
+
     style Best fill:#FFD700
 ```
 
@@ -412,26 +449,26 @@ Shows **PARALLEL MOVE EVALUATION** inside ONE SA iteration:
 flowchart TB
     Current["`**Current Tour**
     [0,1,2,...,149,0]`"]
-    
+
     subgraph GPU["`**GPU Parallel Evaluation**`"]
         Thread1["`Thread 1: Eval (0,2)`"]
         Thread2["`Thread 2: Eval (0,3)`"]
         ThreadN["`Thread 22,500: Eval (148,149)`"]
         Reduction["`Parallel Reduction
         Find best of 22,500`"]
-        
+
         Thread1 --> Reduction
         Thread2 --> Reduction
         ThreadN --> Reduction
     end
-    
+
     Best["`**Best Move**
     (i=45, j=102)
     ΔE = -350`"]
-    
+
     Current --> GPU
     Reduction --> Best
-    
+
     style Best fill:#FFD700
     style Reduction fill:#87CEEB
 ```
@@ -440,6 +477,7 @@ flowchart TB
 
 > [!NOTE] Architectural Insight: Dense $n \times n$ vs. Packed Symmetric $n^2/2$ Representation
 > While an undirected TSP distance matrix possesses symmetry ($d(u, v) = d(v, u)$), storing only the lower-triangular half ($n(n-1)/2$ elements) hurts GPU performance:
+>
 > 1. **Non-Coalesced Indexing**: Computing packed indices requires triangular mapping arithmetic ($\text{index} = i(i-1)/2 + j$), inducing register pressure and non-contiguous memory access strides.
 > 2. **Memory Coalescing**: A full $n \times n$ row-major layout ensures that consecutive threads in a warp access consecutive, aligned 32-bit words, achieving 100% memory bus transaction efficiency (coalesced 128-byte transactions).
 > 3. **Memory Scale**: For $n_{\text{cities}} \le 3{,}000$, a full single-precision float matrix requires only $36\,\text{MB}$, which easily fits within the $4\,\text{GB}$ VRAM of the GTX 1050 GP107.
@@ -452,26 +490,26 @@ Shows **HOW DIAGRAM 3 FITS** into the sequential SA temperature schedule:
 flowchart TD
     Start(["`**SA Start**
     T=10,000`"])
-    
+
     SALoop{"`**SA Iteration**
     (Sequential)`"}
-    
+
     subgraph GPUSearch["`**GPU 2-opt**
     (Diagram 3)`"]
         Launch["`Evaluate all n² moves`"]
         Parallel["`22,500 threads`"]
         Reduce["`Find best`"]
-        
+
         Launch --> Parallel --> Reduce
     end
-    
+
     Accept{"`Accept?
     P = e^(-ΔE/T)`"}
-    
+
     Cool["`Cool: T *= α`"]
     Check{"`T > T_min?`"}
     End(["`**DONE**`"])
-    
+
     Start --> SALoop
     SALoop --> GPUSearch
     Reduce --> Accept
@@ -479,7 +517,7 @@ flowchart TD
     Cool --> Check
     Check -->|Yes| SALoop
     Check -->|No| End
-    
+
     style GPUSearch fill:#E6F3FF
     style SALoop fill:#FFE4B5
 ```
@@ -511,26 +549,26 @@ if self.execution_mode == 'parallel' and self.backend == 'cupy':
 **Alternatives for future work:**
 
 1. **Batch execution:** Run N/M chains at a time (M = GPU capacity / process size)
-   - For pr1002: M = 4GB / 100MB = 40 chains at a time
-   - Total time: (N/40) × T_single (still speedup vs sequential)
+   + For pr1002: M = 4GB / 100MB = 40 chains at a time
+   + Total time: (N/40) × T_single (still speedup vs sequential)
 
 2. **CUDA MPS (Multi-Process Service):** Share single context across processes
-   - Requires root privileges and system configuration
-   - Better memory sharing but still limited by 4GB total
+   + Requires root privileges and system configuration
+   + Better memory sharing but still limited by 4GB total
 
 3. **Hybrid CPU-GPU:** GPU for 2-opt, CPU for multistart
-   - Each CPU process uses GPU for 2-opt evaluation
-   - Requires careful synchronization (queue GPU access)
+   + Each CPU process uses GPU for 2-opt evaluation
+   + Requires careful synchronization (queue GPU access)
 
 4. **Smaller problem instances:** Reduce VRAM footprint per process
-   - Use distance matrix compression (half-precision floats)
-   - Tile large problems (divide-and-conquer)
+   + Use distance matrix compression (half-precision floats)
+   + Tile large problems (divide-and-conquer)
 
 **References:**
 
 - NVIDIA CUDA Best Practices Guide (2024) - Memory management patterns
 - Sonuc et al. (2018) - "A Cooperative GPU-based Parallel Multistart Simulated Annealing Algorithm for QAP"
-  - Shows 29× speedup for n>500 with careful memory management
+  + Shows 29× speedup for n>500 with careful memory management
 
 ---
 
@@ -544,7 +582,7 @@ Because runs are **INDEPENDENT by design** for exploration diversity. No computa
 
 **Mathematical proof:**
 
-Let $T_{\text{single}}$ = time for one SA run (e.g., 120s for pr1002)  
+Let $T_{\text{single}}$ = time for one SA run (e.g., 120s for pr1002)
 Let $N$ = number of restarts (e.g., 100)
 
 **Sequential execution:**
@@ -598,7 +636,7 @@ for run_id in range(self.num_restarts):
     # Worker creation overhead: ~10-50ms
     seed = [run_id, self.seed] if self.seed else None
     context_run = ProblemContext(context.problem, context.xp, seed=seed)
-    
+
     # Algorithm execution: ~120s for pr1002
     result = self.base_algorithm.build_tour_with_stats(context_run, customers)
     results.append(result)
@@ -609,7 +647,7 @@ total_time = time.time() - start_time
 **Timing breakdown (pr1002, 100 runs):**
 
 | Component | Time per Run | 100 Runs | Percentage |
-|-----------|--------------|----------|------------|
+| ----------- | -------------- | ---------- | ------------ |
 | SA execution | 120s | 12,000s | 99.92% |
 | RNG setup | 50ms | 5s | 0.04% |
 | Result collection | 10ms | 1s | 0.008% |
@@ -620,7 +658,7 @@ total_time = time.time() - start_time
 **Comparison to parallel execution:**
 
 | Execution Mode | Time Formula | Example (100 runs, 8 cores) |
-|----------------|--------------|------------------------------|
+| ---------------- | -------------- | ------------------------------ |
 | Sequential | $N \cdot T$ | 100 × 120s = 12,000s (3.3h) |
 | CPU Parallel | $(N / M) \cdot T$ | (100/8) × 120s = 1,500s (25min) |
 | GPU Parallel (ideal) | $T$ | 120s (if no VRAM contention!) |
@@ -641,7 +679,7 @@ From Ferreiro et al. (2010) - "Convergence properties of multistart SA":
 **Empirical evidence needed:**
 
 | Configuration | Time | Expected Quality |
-|---------------|------|------------------|
+| --------------- | ------ | ------------------ |
 | 1 run × 20M iterations | 12,000s | Baseline cost $C_0$ |
 | 100 runs × 200k iterations | 12,000s | $C_0 - 20\%$ (better exploration) |
 
@@ -719,7 +757,7 @@ From Kirkpatrick et al. (1983) - Original SA paper:
 **Expected impact:**
 
 | Cooling Schedule | Iterations | Time (pr1002) | Quality Loss |
-|------------------|------------|---------------|--------------|
+| ------------------ | ------------ | --------------- | -------------- |
 | Standard ($\alpha=0.9999$) | 200,000 | 120s | Baseline |
 | Fast ($\alpha=0.999$) | 50,000 | 30s | <5% |
 | Very fast ($\alpha=0.99$) | 5,000 | 3s | ~15-20% |
@@ -747,7 +785,7 @@ __global__ void persistent_sa_kernel(
     int* control_flags     // Control: continue/terminate
 ) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    
+
     // Infinite loop - kernel stays alive
     while (control_flags[0] == CONTINUE) {
         // Wait for new tour from host
@@ -755,7 +793,7 @@ __global__ void persistent_sa_kernel(
             // Evaluate all 2-opt moves for this tour
             int best_i, best_j;
             float best_delta = evaluate_all_2opt(tour_stream, &best_i, &best_j);
-            
+
             // Write result
             if (tid == 0) {
                 best_move_stream[0] = best_i;
@@ -780,14 +818,14 @@ for iteration in range(200000):
     # Write new tour to stream
     tour_stream[:] = current_tour
     tour_stream[READY_FLAG] = 1
-    
+
     # Wait for result (NO kernel launch overhead!)
     while tour_stream[READY_FLAG] == 1:
         pass  # Spin-wait or use CUDA events
-    
+
     # Read best move
     i, j, delta = move_stream[:3]
-    
+
     # Accept/reject decision on CPU
     if accept(delta, T):
         current_tour = apply_2opt(current_tour, i, j)
@@ -826,11 +864,11 @@ control[0] = TERMINATE
 for iteration in range(0, 200000, K):  # Batch size K
     # Generate K candidate moves
     moves = gpu_evaluate_top_k_2opt_moves(tour, K=10)
-    
+
     # Pick one weighted by Boltzmann distribution
     weights = [exp(-delta / T) for delta in moves]
     selected = random.choice(moves, weights=weights)
-    
+
     # Apply selected move
     tour = apply_move(tour, selected)
 ```
@@ -1009,7 +1047,7 @@ elif algorithm == "ga_2opt":
 From PHASE_6_COMPLETE_AND_PHASE_7_PLAN.md:
 
 | Configuration | pr1002 Cost | Gap vs Optimal (32,182) |
-|---------------|-------------|-------------------------|
+| --------------- | ------------- | ------------------------- |
 | GA without 2-opt | 471,311 | **+1361%** |
 | GA with 2-opt (10 iter) | ~300,000 (estimated) | **~800%** |
 | GA with 2-opt (200 iter) | ~50,000 (expected) | **~50%** |
@@ -1055,12 +1093,12 @@ graph LR
     I50["Iter 50<br>Cost: 200k"]
     I200["Iter 200<br>Cost: 50k"]
     I450["Iter 450<br>Cost: 45k<br>(converged)"]
-    
+
     I0 -->|"-100k"| I10
     I10 -->|"-200k"| I50
     I50 -->|"-150k"| I200
     I200 -->|"-5k"| I450
-    
+
     style I10 fill:#FFB6C1,stroke:#FF0000,stroke-width:3px
     style I200 fill:#90EE90
 ```
@@ -1075,7 +1113,7 @@ child = self.improvement_strategy.improve_tour(context, child)
 class TwoOptSimpleStrategy:
     def __init__(self, max_iterations: int = 10):  # ← Default overridden by config
         self.max_iterations = max_iterations
-    
+
     def improve_tour(self, context, tour):
         for i in range(self.max_iterations):  # ← Runs exactly 10 times
             # ... 2-opt logic
@@ -1087,16 +1125,16 @@ class TwoOptSimpleStrategy:
 **Why this bug exists:**
 
 1. **Benchmark designed for smoke testing:**
-   - Fast runtime prioritized over quality
-   - `max_iterations=10` chosen for sub-second execution
+   + Fast runtime prioritized over quality
+   + `max_iterations=10` chosen for sub-second execution
 
 2. **Confusion between testing and validation:**
-   - Smoke test config leaked into quality benchmarks
-   - No one noticed because GPU 2-opt wasn't being used (Q2 bug!)
+   + Smoke test config leaked into quality benchmarks
+   + No one noticed because GPU 2-opt wasn't being used (Q2 bug!)
 
 3. **Default values not documented:**
-   - `genetic_algorithm.py` doesn't specify recommended values
-   - Benchmarker had to guess (guessed too low)
+   + `genetic_algorithm.py` doesn't specify recommended values
+   + Benchmarker had to guess (guessed too low)
 
 ### Additional Contributing Factors
 
@@ -1155,7 +1193,7 @@ From Vidal et al. (2013) - "Hybrid GA with adaptive diversity management":
 def maintain_diversity(population, new_individual):
     # Vidal et al. (2013) approach
     min_distance = min(hamming_distance(new_individual, p) for p in population)
-    
+
     if min_distance < DIVERSITY_THRESHOLD:
         # Too similar - apply extra mutation or reject
         return mutate(new_individual, strength=STRONG)
@@ -1240,7 +1278,7 @@ stats['population_diversity'].append(self._compute_diversity(population))
 **Expected improvement:**
 
 | Configuration | pr1002 Cost | Gap | Convergence |
-|---------------|-------------|-----|-------------|
+| --------------- | ------------- | ----- | ------------- |
 | Current (10 iter, random init) | ~300,000 | +800% | Poor |
 | Fixed (200 iter, random init) | ~50,000 | +50% | Good |
 | Optimal (200 iter, NN init, diversity) | ~35,000 | +8% | Excellent |
@@ -1258,32 +1296,32 @@ stats['population_diversity'].append(self._compute_diversity(population))
 ### Critical Bugs Identified
 
 1. **Backend-aware strategy selection NOT implemented** (Q2)
-   - Impact: All GPU benchmarks use CPU 2-opt
-   - Fix: Dynamic strategy selection based on `backend` parameter
-   - Priority: **BLOCKING** (invalidates all benchmark results)
+   + Impact: All GPU benchmarks use CPU 2-opt
+   + Fix: Dynamic strategy selection based on `backend` parameter
+   + Priority: **BLOCKING** (invalidates all benchmark results)
 
 2. **Insufficient 2-opt iterations in GA** (Q6)
-   - Impact: GA quality 800% worse than achievable
-   - Fix: Increase `max_iterations` from 10 to 200
-   - Priority: **CRITICAL** (invalidates GA quality claims)
+   + Impact: GA quality 800% worse than achievable
+   + Fix: Increase `max_iterations` from 10 to 200
+   + Priority: **CRITICAL** (invalidates GA quality claims)
 
 ### Technical Insights Documented
 
-3. **VRAM contention mechanism explained** (Q3)
-   - CUDA streams share 4GB pool → 100 processes × 100MB = thrashing
-   - Sequential multistart (safe) vs GPU parallel (risky)
-   - Diagrams 2, 3, 4 show different parallelization levels
+1. **VRAM contention mechanism explained** (Q3)
+   + CUDA streams share 4GB pool → 100 processes × 100MB = thrashing
+   + Sequential multistart (safe) vs GPU parallel (risky)
+   + Diagrams 2, 3, 4 show different parallelization levels
 
-4. **Sequential multistart time = $N × T_{single}$ proven** (Q4)
-   - Independent runs, no shared computation
-   - Overhead <1% (measured empirically)
-   - Comparison: Sequential vs CPU parallel vs GPU parallel
+2. **Sequential multistart time = $N × T_{single}$ proven** (Q4)
+   + Independent runs, no shared computation
+   + Overhead <1% (measured empirically)
+   + Comparison: Sequential vs CPU parallel vs GPU parallel
 
-5. **Optimization strategies evaluated** (Q5)
-   - Adaptive cooling: 2-5× speedup (safe, recommended)
-   - Persistent kernels: 6× speedup (complex, out of TCC scope)
-   - Batch acceptance: INVALID (breaks Markov chain)
-   - **Multistart parallelization: 8-30× speedup (BEST solution)**
+3. **Optimization strategies evaluated** (Q5)
+   + Adaptive cooling: 2-5× speedup (safe, recommended)
+   + Persistent kernels: 6× speedup (complex, out of TCC scope)
+   + Batch acceptance: INVALID (breaks Markov chain)
+   + **Multistart parallelization: 8-30× speedup (BEST solution)**
 
 ### Implementation Tasks (Priority Order)
 
@@ -1294,7 +1332,7 @@ stats['population_diversity'].append(self._compute_diversity(population))
 def run_single_benchmark(algorithm: str, backend: str, ...):
     # Backend-aware strategy selection
     improvement_name = "two_opt_gpu" if backend == "cupy" else "two_opt_simple"
-    
+
     # Apply to all *_2opt algorithms
     if algorithm in ["ga_2opt", "sa_2opt", "ga_multistart", "sa_multistart"]:
         algo_config["strategies"]["improvement"]["name"] = improvement_name
@@ -1374,6 +1412,6 @@ uv run python examples/benchmark_comprehensive.py \
 
 ---
 
-**Document Status:** Ready for review and implementation  
-**Next Actions:** Task 1 and Task 2 (fix backend selection and iteration count)  
+**Document Status:** Ready for review and implementation
+**Next Actions:** Task 1 and Task 2 (fix backend selection and iteration count)
 **Estimated Implementation Time:** 2-4 hours (simple config changes + validation)

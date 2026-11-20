@@ -45,30 +45,30 @@ tags:
 # GPU Memory Latency Tiers, SIMT Warp Scheduling, and SM Occupancy Derivations
 
 - [GPU Memory Latency Tiers, SIMT Warp Scheduling, and SM Occupancy Derivations](#gpu-memory-latency-tiers-simt-warp-scheduling-and-sm-occupancy-derivations)
-  - [1. Physical Clock Cycles and the Memory Hierarchy Gap](#1-physical-clock-cycles-and-the-memory-hierarchy-gap)
+  + [1. Physical Clock Cycles and the Memory Hierarchy Gap](#1-physical-clock-cycles-and-the-memory-hierarchy-gap)
     - [1.1 Physical Definition of a Hardware Clock Cycle ($\tau$)](#11-physical-definition-of-a-hardware-clock-cycle-tau)
     - [1.2 Physical Reasons for Memory Tier Discrepancies](#12-physical-reasons-for-memory-tier-discrepancies)
     - [1.3 Memory Hierarchy Comparison Table (GTX 1050 Mobile / GP107)](#13-memory-hierarchy-comparison-table-gtx-1050-mobile--gp107)
-  - [2. SIMT Execution, Little's Law, and Warp Scheduler Dynamics](#2-simt-execution-littles-law-and-warp-scheduler-dynamics)
+  + [2. SIMT Execution, Little's Law, and Warp Scheduler Dynamics](#2-simt-execution-littles-law-and-warp-scheduler-dynamics)
     - [2.1 Little's Law in Massively Parallel Computing](#21-littles-law-in-massively-parallel-computing)
     - [2.2 Pascal GP107 SM Architecture and Warp Schedulers](#22-pascal-gp107-sm-architecture-and-warp-schedulers)
     - [2.3 Mechanics of Latency Hiding and Scheduler Starvation at 25% Occupancy](#23-mechanics-of-latency-hiding-and-scheduler-starvation-at-25-occupancy)
-  - [3. Multi-Constraint SM Occupancy Formulas (Pascal CC 6.1)](#3-multi-constraint-sm-occupancy-formulas-pascal-cc-61)
+  + [3. Multi-Constraint SM Occupancy Formulas (Pascal CC 6.1)](#3-multi-constraint-sm-occupancy-formulas-pascal-cc-61)
     - [3.1 Hardware Allocation Granularities](#31-hardware-allocation-granularities)
     - [3.2 The General SM Occupancy Formulation](#32-the-general-sm-occupancy-formulation)
     - [3.3 Proof: Why $T = 4{,}096$ Achieves 50.0% Occupancy (Not 62.5%)](#33-proof-why-t--4096-achieves-500-occupancy-not-625)
     - [3.4 Proof: Why $T = 2{,}048$ Achieves 100.0% Occupancy](#34-proof-why-t--2048-achieves-1000-occupancy)
-  - [4. Global Tour Read Reduction ($B:1$) and Reuse Ratio](#4-global-tour-read-reduction-b1-and-reuse-ratio)
+  + [4. Global Tour Read Reduction ($B:1$) and Reuse Ratio](#4-global-tour-read-reduction-b1-and-reuse-ratio)
     - [4.1 Naive Per-Thread DRAM Access vs Cooperative SRAM Tiling](#41-naive-per-thread-dram-access-vs-cooperative-sram-tiling)
     - [4.2 Mathematical Derivation of the $99.61\%$ Reuse Ratio](#42-mathematical-derivation-of-the-9961-reuse-ratio)
-  - [5. Verification of the Three `__syncthreads()` Barriers per Window](#5-verification-of-the-three-__syncthreads-barriers-per-window)
+  + [5. Verification of the Three `__syncthreads()` Barriers per Window](#5-verification-of-the-three-__syncthreads-barriers-per-window)
     - [5.1 Code Anchor and Barrier Lifecycles in `two_opt_batch.cu`](#51-code-anchor-and-barrier-lifecycles-in-two_opt_batchcu)
     - [5.2 Race Condition Hazards Avoided by Each Barrier](#52-race-condition-hazards-avoided-by-each-barrier)
-  - [6. Mathematical Derivation of Unique Optimum $T^* = 2{,}048$](#6-mathematical-derivation-of-unique-optimum-t--2048)
+  + [6. Mathematical Derivation of Unique Optimum $T^* = 2{,}048$](#6-mathematical-derivation-of-unique-optimum-t--2048)
     - [6.1 The Constrained Multi-Objective Optimization Problem](#61-the-constrained-multi-objective-optimization-problem)
     - [6.2 Unrolled Coalescing and Zero Warp Divergence Constraint](#62-unrolled-coalescing-and-zero-warp-divergence-constraint)
     - [6.3 Global Optimum Identification](#63-global-optimum-identification)
-  - [7. Academic References](#7-academic-references)
+  + [7. Academic References](#7-academic-references)
 
 ---
 
@@ -83,6 +83,7 @@ The fundamental discrete unit of time on a digital synchronous processor is the 
 $$\tau = \frac{1}{f_{\text{core}}}$$
 
 For the target reference GPU used in this codebase (NVIDIA GeForce GTX 1050 Mobile, GP107 die, Pascal architecture, Compute Capability 6.1):
+
 - **Base Core Clock:** $f_{\text{base}} = 1{,}354\text{ MHz} \implies \tau_{\text{base}} = \frac{1}{1.354 \times 10^9\text{ s}^{-1}} \approx 0.738\text{ ns}$
 - **Boost Core Clock:** $f_{\text{boost}} = 1{,}493\text{ MHz} \implies \tau_{\text{boost}} = \frac{1}{1.493 \times 10^9\text{ s}^{-1}} \approx 0.670\text{ ns}$
 - **Nominal Reference Clock:** $f \approx 1.400\text{ GHz} \implies \tau \approx \mathbf{0.714\text{ ns}}$
@@ -117,25 +118,25 @@ The massive gap between register file speed and global memory (DRAM) speed is ro
 ```
 
 1. **Register File (1–2 cycles, $\approx 1.0\text{ ns}$):**
-   - **Structure:** Static RAM (SRAM) flip-flops fabricated from 6 to 8 CMOS transistors per bit.
-   - **Proximity:** Placed immediately adjacent to the Arithmetic Logic Units (ALUs) and Fused Multiply-Add (FMA) units within the SM sub-core datapath.
-   - **Wire RC Delay:** Interconnect traces are mere micrometers in length, minimizing resistance-capacitance (RC) propagation delay.
-   - **Bandwidth:** Dedicated multi-port read/write ports per execution lane yield aggregate internal bandwidth exceeding $5{,}000\text{ GB/s}$ across the GPU.
+   + **Structure:** Static RAM (SRAM) flip-flops fabricated from 6 to 8 CMOS transistors per bit.
+   + **Proximity:** Placed immediately adjacent to the Arithmetic Logic Units (ALUs) and Fused Multiply-Add (FMA) units within the SM sub-core datapath.
+   + **Wire RC Delay:** Interconnect traces are mere micrometers in length, minimizing resistance-capacitance (RC) propagation delay.
+   + **Bandwidth:** Dedicated multi-port read/write ports per execution lane yield aggregate internal bandwidth exceeding $5{,}000\text{ GB/s}$ across the GPU.
 
 2. **Shared Memory / L1 SRAM (20–30 cycles, $\approx 15\text{--}21\text{ ns}$):**
-   - **Structure:** On-chip multi-banked SRAM array (32 independent 4-byte banks).
-   - **Proximity:** Resides inside each SM, shared across all 4 sub-cores.
-   - **Latency mechanism:** Crossbar switch routing logic is required to arbitrate concurrent accesses from 32 thread lanes in a warp. If two threads request different addresses within the same bank, a bank conflict serializes the requests.
+   + **Structure:** On-chip multi-banked SRAM array (32 independent 4-byte banks).
+   + **Proximity:** Resides inside each SM, shared across all 4 sub-cores.
+   + **Latency mechanism:** Crossbar switch routing logic is required to arbitrate concurrent accesses from 32 thread lanes in a warp. If two threads request different addresses within the same bank, a bank conflict serializes the requests.
 
 3. **L2 Cache (Unified On-Chip SRAM, $\approx 200\text{ cycles}$, $\approx 143\text{ ns}$):**
-   - **Structure:** Centralized on-chip SRAM cache ($1{,}024\text{ KB}$ on GP107) serving all SMs and memory controllers.
-   - **Latency mechanism:** Signals must traverse the chip-wide interconnection crossbar network, pass through tag matching and address hashing logic, and cross clock domain boundaries between SMs and memory controllers.
+   + **Structure:** Centralized on-chip SRAM cache ($1{,}024\text{ KB}$ on GP107) serving all SMs and memory controllers.
+   + **Latency mechanism:** Signals must traverse the chip-wide interconnection crossbar network, pass through tag matching and address hashing logic, and cross clock domain boundaries between SMs and memory controllers.
 
 4. **GDDR5 DRAM / Global VRAM (400–800 cycles, $\approx 300\text{--}600\text{ ns}$):**
-   - **Structure:** 1T1C dynamic memory cells (1 pass transistor + 1 microscopic trench/stacked capacitor per bit) located on external discrete packages mounted on the graphics card PCB.
-   - **Capacitive discharge:** Reading a DRAM bit empties its microscopic capacitor onto a bitline; delicate sense amplifiers must detect millivolt fluctuations, convert them to CMOS logic levels, and write the value back to restore the charge (destructive read).
-   - **Row buffer activation:** Accessing a memory address requires issuing an `ACTIVATE` command to open an entire DRAM page ($2\text{ KB}$ row), paying $t_{\text{RCD}}$ (Row-to-Column Delay) and $t_{\text{RP}}$ (Row Precharge Delay).
-   - **Board-level transmission:** Signals must exit the silicon die through wire bonds/C4 solder bumps, travel over centimeters of high-speed PCB copper microstrips, interface with memory controllers, and return across the same off-chip path.
+   + **Structure:** 1T1C dynamic memory cells (1 pass transistor + 1 microscopic trench/stacked capacitor per bit) located on external discrete packages mounted on the graphics card PCB.
+   + **Capacitive discharge:** Reading a DRAM bit empties its microscopic capacitor onto a bitline; delicate sense amplifiers must detect millivolt fluctuations, convert them to CMOS logic levels, and write the value back to restore the charge (destructive read).
+   + **Row buffer activation:** Accessing a memory address requires issuing an `ACTIVATE` command to open an entire DRAM page ($2\text{ KB}$ row), paying $t_{\text{RCD}}$ (Row-to-Column Delay) and $t_{\text{RP}}$ (Row Precharge Delay).
+   + **Board-level transmission:** Signals must exit the silicon die through wire bonds/C4 solder bumps, travel over centimeters of high-speed PCB copper microstrips, interface with memory controllers, and return across the same off-chip path.
 
 ### 1.3 Memory Hierarchy Comparison Table (GTX 1050 Mobile / GP107)
 
@@ -172,6 +173,7 @@ to prevent the execution pipelines from stalling. Because instructions are issue
 ### 2.2 Pascal GP107 SM Architecture and Warp Schedulers
 
 On the Pascal GP107 chip, each Streaming Multiprocessor contains:
+
 - **4 independent processing blocks (sub-cores).**
 - **4 warp schedulers** (1 scheduler per sub-core), each equipped with a dual-instruction dispatch unit capable of issuing up to 2 independent instructions per cycle to distinct arithmetic pipelines.
 - **Maximum thread capacity per SM:** $2{,}048\text{ threads} = 64\text{ warps}$.
@@ -192,6 +194,7 @@ On the Pascal GP107 chip, each Streaming Multiprocessor contains:
 ```
 
 Every single clock cycle $\tau$, each of the 4 warp schedulers inspects its pool of resident warps. A warp is deemed **eligible** if:
+
 1. It is not currently waiting on an unresolved data dependency (e.g., waiting for register operands from a prior memory load);
 2. Its instruction pointer is not blocked at an execution barrier (`__syncthreads()`);
 3. The target execution dispatch unit (ALU, SFU, or Load/Store LD/ST) is free.
@@ -203,6 +206,7 @@ When an eligible warp is found, the scheduler dispatches its next instruction in
 Now consider the performance catastrophe that occurs when occupancy collapses.
 
 Suppose a developer sets tile width near the maximum per-block shared memory limit ($T = 11{,}000$), allocating $\approx 47\text{ KB}$ per block. As shown in Section 3, only **2 blocks** of $B = 256\text{ threads}$ can be simultaneously resident on an SM:
+
 - **Active threads:** $2 \times 256 = 512\text{ threads}$.
 - **Active warps:** $512 / 32 = 16\text{ warps}$ on the SM.
 - **Theoretical Occupancy:** $\frac{16\text{ warps}}{64\text{ max warps}} = \mathbf{25.0\%}$.
@@ -212,12 +216,14 @@ Distributing these 16 warps across the 4 warp schedulers gives:
 $$\frac{16\text{ warps}}{4\text{ schedulers}} = \mathbf{4\text{ warps per scheduler}}$$
 
 What happens during kernel execution in [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L235)?
+
 1. **Barrier Stall:** When the threads in Block 0 hit `__syncthreads()` at line 235 to prepare for loading the next tile, all 8 warps belonging to Block 0 become completely **ineligible**.
 2. **Instant Starvation:** Sub-cores 0 through 3 now each have only $2\text{ warps}$ remaining (from Block 1).
 3. If those remaining warps encounter even a brief L2 cache miss ($\approx 200\text{ cycles}$) or GDDR5 DRAM read stall ($\approx 500\text{ cycles}$) while fetching node coordinates, their registers are not ready.
 4. **All 4 warp schedulers find zero eligible warps.** The entire SM sits completely idle for hundreds of nanoseconds. The vast compute power of the 128 FP32 cores is squandered in silence.
 
 By contrast, at **100% occupancy** ($T = 2{,}048$, 8 resident blocks = 64 warps):
+
 - Each scheduler controls $\mathbf{16\text{ warps}}$.
 - Even if Block 0 hits a `__syncthreads()` barrier and Block 1 stalls on a DRAM read, there remain 48 warps from Blocks 2 through 7 ready to execute ALU operations on every single clock tick.
 - The pipeline remains saturated, achieving maximum throughput.
@@ -235,6 +241,7 @@ However, calculating $W_{\text{active}}$ is not a simple division; it is bounded
 ### 3.1 Hardware Allocation Granularities
 
 On NVIDIA GPUs of Compute Capability 6.1 (Pascal GP107 / GTX 1050):
+
 - **Maximum Active Threads per SM ($N_{\text{max\_threads}}$):** $2{,}048$ ($64\text{ warps}$).
 - **Maximum Active Blocks per SM ($B_{\text{max\_blocks}}$):** $32\text{ blocks}$.
 - **Maximum Shared Memory per SM ($S_{\text{SM}}$):** $96\text{ KB} = 98{,}304\text{ bytes}$.
@@ -247,8 +254,8 @@ On NVIDIA GPUs of Compute Capability 6.1 (Pascal GP107 / GTX 1050):
      $$S_{\text{alloc}} = \left\lceil \frac{S_{\text{requested}}}{256} \right\rceil \times 256$$
 
 - **Architectural Portability Across Compute Capabilities:**
-  - **Pascal (CC 6.1) & Volta/Turing (CC 7.x):** Hardware shared-memory allocation chunk size is fixed at **256 bytes**.
-  - **Ampere (CC 8.x) & Ada Lovelace (CC 8.9):** Allocation granularity is refined to **128 bytes**, and shared memory per SM expands to $100\text{ KB}\text{--}164\text{ KB}$. On Ampere, $S_{\text{alloc}}(4{,}096) = \lceil 19{,}460 / 128 \rceil \times 128 = 19{,}584\text{ B}$, where 5 blocks comfortably fit within 100 KB. The 256-byte overflow penalty and resulting 50.0% occupancy drop at $T = 4{,}096$ is therefore specific to the Pascal CC 6.1 hardware budget ($98{,}304\text{ B}$).
+  + **Pascal (CC 6.1) & Volta/Turing (CC 7.x):** Hardware shared-memory allocation chunk size is fixed at **256 bytes**.
+  + **Ampere (CC 8.x) & Ada Lovelace (CC 8.9):** Allocation granularity is refined to **128 bytes**, and shared memory per SM expands to $100\text{ KB}\text{--}164\text{ KB}$. On Ampere, $S_{\text{alloc}}(4{,}096) = \lceil 19{,}460 / 128 \rceil \times 128 = 19{,}584\text{ B}$, where 5 blocks comfortably fit within 100 KB. The 256-byte overflow penalty and resulting 50.0% occupancy drop at $T = 4{,}096$ is therefore specific to the Pascal CC 6.1 hardware budget ($98{,}304\text{ B}$).
 
 ### 3.2 The General SM Occupancy Formulation
 
@@ -358,21 +365,21 @@ In the 2-opt neighborhood, for each city $i$ assigned to thread $\text{tid}$, th
 
 - **Naive Implementation (No Shared Memory for Tour):**
   Each thread $t \in \{0, \dots, B-1\}$ reads its own $j$ values directly from global memory (`d_tours`). When $B = 256$ threads evaluate candidate edges in parallel, all 256 threads simultaneously read the tour indices:
-  
+
   $$\text{Global Reads}_{\text{naive}} = B \times T = 256 \times T\text{ global DRAM read transactions}$$
 
 - **Tiled Implementation (Cooperative Loading):**
   Before evaluating edges, all $B = 256$ threads cooperatively read the window of length $T$ from global memory into the shared memory array `s_tour`:
-  
+
   ```cpp
   // Cooperative load: 256 threads collaborate to read T integers
   for (int idx = window_start + tid; idx < window_end; idx += block_size) {
       s_tour[idx - window_start] = tour[idx];
   }
   ```
-  
+
   Total global memory read transactions required to load the tile:
-  
+
   $$\text{Global Reads}_{\text{tiled}} = 1 \times T = T\text{ global read transactions}$$
 
 ### 4.2 Mathematical Derivation of the $99.61\%$ Reuse Ratio
@@ -421,7 +428,7 @@ for (int window_start = i_base + 2; window_start < n; window_start += stride) {
         // on the last window (`tour[(idx) % n]`).
         s_tour[window_len] = tour[window_end % n];
     }
-    
+
     // BARRIER 2: Post-Load Barrier
     __syncthreads(); // Line 244
 
@@ -440,7 +447,7 @@ for (int window_start = i_base + 2; window_start < n; window_start += stride) {
             node_j = node_j1;
         }
     }
-    
+
     // BARRIER 3: Post-Compute Barrier
     __syncthreads(); // Line 261
 }
@@ -451,14 +458,14 @@ for (int window_start = i_base + 2; window_start < n; window_start += stride) {
 Each barrier protects against a specific memory race condition (WAR or RAW hazard):
 
 1. **Barrier 1 (`L235` — Pre-Load Barrier):**
-   - **Hazard Prevented:** Write-After-Read (WAR) hazard on `s_tour`.
-   - **Explanation:** In window iteration $w > 0$, fast threads could loop back to line 236 and begin overwriting `s_tour` with new data from window $w+1$ while slower threads in other warps are still finishing line 250 reading $j+1$ endpoints from window $w$. Barrier 1 ensures all reads from the previous window are complete before any thread writes new data.
+   + **Hazard Prevented:** Write-After-Read (WAR) hazard on `s_tour`.
+   + **Explanation:** In window iteration $w > 0$, fast threads could loop back to line 236 and begin overwriting `s_tour` with new data from window $w+1$ while slower threads in other warps are still finishing line 250 reading $j+1$ endpoints from window $w$. Barrier 1 ensures all reads from the previous window are complete before any thread writes new data.
 2. **Barrier 2 (`L244` — Post-Load Barrier):**
-   - **Hazard Prevented:** Read-After-Write (RAW) hazard on `s_tour`.
-   - **Explanation:** Ensures that all $B = 256$ threads have completed writing their cooperative slice of `s_tour` and thread 0 has written the wrap-around endpoint `s_tour[window_len]` before any thread enters lines 248–259 to evaluate 2-opt deltas. Without Barrier 2, a thread would read uninitialized SRAM garbage.
+   + **Hazard Prevented:** Read-After-Write (RAW) hazard on `s_tour`.
+   + **Explanation:** Ensures that all $B = 256$ threads have completed writing their cooperative slice of `s_tour` and thread 0 has written the wrap-around endpoint `s_tour[window_len]` before any thread enters lines 248–259 to evaluate 2-opt deltas. Without Barrier 2, a thread would read uninitialized SRAM garbage.
 3. **Barrier 3 (`L261` — Post-Compute Barrier):**
-   - **Hazard Prevented:** Write-After-Read (WAR) on reduction arrays and loop termination consistency.
-   - **Explanation:** Guarantees that all candidate moves for the current window have been committed to `s_deltas[tid]` before the next window begins. Furthermore, if this is the final window of the loop, it guarantees that no thread proceeds to the parallel tree reduction at line 276 until all threads have completed all window iterations.
+   + **Hazard Prevented:** Write-After-Read (WAR) on reduction arrays and loop termination consistency.
+   + **Explanation:** Guarantees that all candidate moves for the current window have been committed to `s_deltas[tid]` before the next window begins. Furthermore, if this is the final window of the loop, it guarantees that no thread proceeds to the parallel tree reduction at line 276 until all threads have completed all window iterations.
 
 **Barrier Overhead Quantification:**
 Each `__syncthreads()` costs $\approx 20\text{ cycles}$. Three barriers per window cost $3 \times 20 = 60\text{ cycles}$.
@@ -479,6 +486,7 @@ Why is $T = 2{,}048$ mathematically the single best parameter choice? We formula
 ### 6.1 The Constrained Multi-Objective Optimization Problem
 
 Let:
+
 - $S_{\text{SM}} = 98{,}304\text{ B}$ (Pascal SM shared memory budget).
 - $B = 256$ (thread block size, chosen to ensure full warp scheduling and tree reduction power-of-2 efficiency).
 - $S_{\text{overhead}} = 3 \times B \times 4 = 3{,}072\text{ B}$ (reduction arrays).

@@ -35,6 +35,57 @@ tags:
 
 # CUDA Reduction Patterns, Warp Shuffle Primitives, and Lessons for Routing Kernels
 
+- [CUDA Reduction Patterns, Warp Shuffle Primitives, and Lessons for Routing Kernels](#cuda-reduction-patterns-warp-shuffle-primitives-and-lessons-for-routing-kernels)
+  + [Table of Symbols](#table-of-symbols)
+  + [Status: ✅ **FIXED** (2025-01-28)](#status--fixed-2025-01-28)
+  + [Academic Context \& Literature Review](#academic-context--literature-review)
+    - [Parallel Reduction: Foundational Work](#parallel-reduction-foundational-work)
+    - [GPU Genetic Algorithms: Prior Art](#gpu-genetic-algorithms-prior-art)
+    - [Production Implementations](#production-implementations)
+    - [Non-Power-of-2 in Published Work](#non-power-of-2-in-published-work)
+    - [Warp Shuffle Instructions: Modern Primitive](#warp-shuffle-instructions-modern-primitive)
+    - [NVIDIA CUB Library: Production Alternative](#nvidia-cub-library-production-alternative)
+    - [Academic Gap We Address](#academic-gap-we-address)
+    - [Applicability to Vehicle Routing Problems (VRP)](#applicability-to-vehicle-routing-problems-vrp)
+  + [GPU Fundamentals (For Beginners)](#gpu-fundamentals-for-beginners)
+    - [What is a "Stride" in Parallel Reduction?](#what-is-a-stride-in-parallel-reduction)
+    - [GPU Thread Architecture](#gpu-thread-architecture)
+    - [Why Parallel Reduction?](#why-parallel-reduction)
+  + [CUDA Execution Model: Academic Deep Dive](#cuda-execution-model-academic-deep-dive)
+    - [Three-Level Parallelism Hierarchy](#three-level-parallelism-hierarchy)
+    - [Memory Hierarchy \& Performance](#memory-hierarchy--performance)
+    - [Our Implementation's Parallelization Strategy](#our-implementations-parallelization-strategy)
+    - [Why 98 Threads? (Problem-Driven Necessity)](#why-98-threads-problem-driven-necessity)
+  + [Executive Summary](#executive-summary)
+  + [Bug Evolution](#bug-evolution)
+    - [Stage 1: Original Bug (Hardcoded Strides)](#stage-1-original-bug-hardcoded-strides)
+    - [Problematic Code](#problematic-code)
+    - [Example Failure Case](#example-failure-case)
+  + [Evidence](#evidence)
+    - [Diagnostic Test Results](#diagnostic-test-results)
+    - [Full GA Run Results (10 individuals, 1 generation)](#full-ga-run-results-10-individuals-1-generation)
+  + [Root Cause Analysis](#root-cause-analysis)
+    - [Why the Bug Exists](#why-the-bug-exists)
+    - [Literature Review: Should Results Match?](#literature-review-should-results-match)
+  + [Proposed Fix](#proposed-fix)
+    - [Option 1: Proper Warp-Level Reduction (Recommended)](#option-1-proper-warp-level-reduction-recommended)
+    - [Option 2: Serial Reduction in Shared Memory (Simpler, Slower)](#option-2-serial-reduction-in-shared-memory-simpler-slower)
+    - [Option 3: Fix Existing Reduction (Quick Patch)](#option-3-fix-existing-reduction-quick-patch)
+  + [Testing Requirements](#testing-requirements)
+  + [Impact Assessment](#impact-assessment)
+  + [Fix Implementation](#fix-implementation)
+    - [Stage 2: First Fix Attempt (Loop-Based Reduction) ❌ INCOMPLETE](#stage-2-first-fix-attempt-loop-based-reduction--incomplete)
+    - [Visual Explanation: Why Loop-Based Reduction Fails](#visual-explanation-why-loop-based-reduction-fails)
+    - [Stage 3: Final Fix (Hybrid Parallel + Serial) ✅ CORRECT](#stage-3-final-fix-hybrid-parallel--serial--correct)
+  + [Block-Level vs Warp-Level Reduction: Academic Comparison](#block-level-vs-warp-level-reduction-academic-comparison)
+    - [What is "Warp-Level Reduction"?](#what-is-warp-level-reduction)
+    - [Our Current Implementation (Block-Level)](#our-current-implementation-block-level)
+    - [Warp-Level Optimization (Proposed Future Work)](#warp-level-optimization-proposed-future-work)
+      + [Understanding Warp Shuffle Primitives](#understanding-warp-shuffle-primitives)
+      + [Warp Shuffle: Step-by-Step Breakdown](#warp-shuffle-step-by-step-breakdown)
+      + [WARP vs BLOCK Level Boundary](#warp-vs-block-level-boundary)
+- [✅ RECOMMENDED: Use CUB for parallel primitives](#-recommended-use-cub-for-parallel-primitives)
+
 ## Table of Symbols
 
 | Symbol | Mathematical Definition | Physical / Algorithmic Meaning |
@@ -55,8 +106,8 @@ tags:
 
 ## Status: ✅ **FIXED** (2025-01-28)
 
-**Date:** 2025-01-28  
-**Severity:** CRITICAL - Correctness Bug (RESOLVED)  
+**Date:** 2025-01-28
+**Severity:** CRITICAL - Correctness Bug (RESOLVED)
 **Impact:** 1.79-1.88% solution quality degradation → **0.00% after fix**
 
 ---
@@ -68,48 +119,48 @@ tags:
 Parallel reduction is a fundamental primitive in GPU computing, extensively studied since the early days of CUDA:
 
 1. **Blelloch, Guy E. (1990).** "Prefix Sums and Their Applications."
-   - CMU-CS-90-190, Carnegie Mellon University
-   - Theoretical foundations of parallel scan/reduce operations
-   - Proves O(log n) time complexity for tree-based reduction
+   + CMU-CS-90-190, Carnegie Mellon University
+   + Theoretical foundations of parallel scan/reduce operations
+   + Proves O(log n) time complexity for tree-based reduction
 
 2. **Harris, Mark (2007).** "Optimizing Parallel Reduction in CUDA."
-   - NVIDIA Corporation, Technical Report
-   - **Canonical reference** for GPU reduction implementations
-   - Presents 7 optimization steps from naive to optimal
-   - **Critical limitation**: All examples assume **power-of-2 block sizes**
-   - Quote: "For simplicity, this document assumes the number of threads is a power of two."
+   + NVIDIA Corporation, Technical Report
+   + **Canonical reference** for GPU reduction implementations
+   + Presents 7 optimization steps from naive to optimal
+   + **Critical limitation**: All examples assume **power-of-2 block sizes**
+   + Quote: "For simplicity, this document assumes the number of threads is a power of two."
 
 3. **Sengupta, Shubhabrata, et al. (2007).** "Scan Primitives for GPU Computing."
-   - Graphics Hardware 2007, pp. 97-106
-   - Extends reduction to segmented and multi-block scenarios
-   - Addresses irregular problem sizes via padding strategies
+   + Graphics Hardware 2007, pp. 97-106
+   + Extends reduction to segmented and multi-block scenarios
+   + Addresses irregular problem sizes via padding strategies
 
 ### GPU Genetic Algorithms: Prior Art
 
-4. **Fujimoto, Noriyuki & Tsutsui, Shigeyoshi (2011).** "A Highly-Parallel TSP Solver for a GPU Computing Platform."
-   - Proc. International Conference on Genetic and Evolutionary Computation (GECCO)
-   - **First full-GPU genetic algorithm for TSP** (basis for our FullGPU variant)
-   - Uses 2-opt improvement on GPU with parallel reduction
-   - Reports ~0.1% variance due to non-deterministic tie-breaking in reduction
-   - **Does not explicitly discuss non-power-of-2 handling**
+1. **Fujimoto, Noriyuki & Tsutsui, Shigeyoshi (2011).** "A Highly-Parallel TSP Solver for a GPU Computing Platform."
+   + Proc. International Conference on Genetic and Evolutionary Computation (GECCO)
+   + **First full-GPU genetic algorithm for TSP** (basis for our FullGPU variant)
+   + Uses 2-opt improvement on GPU with parallel reduction
+   + Reports ~0.1% variance due to non-deterministic tie-breaking in reduction
+   + **Does not explicitly discuss non-power-of-2 handling**
 
-5. **Luong, Thé Van, et al. (2010).** "GPU-based Island Model for Evolutionary Algorithms."
-   - Proc. GECCO 2010, pp. 1089-1096
-   - Demonstrates multi-level parallelism: population + individual + operation
-   - Influenced our hybrid architecture design
+2. **Luong, Thé Van, et al. (2010).** "GPU-based Island Model for Evolutionary Algorithms."
+   + Proc. GECCO 2010, pp. 1089-1096
+   + Demonstrates multi-level parallelism: population + individual + operation
+   + Influenced our hybrid architecture design
 
 ### Production Implementations
 
-6. **NVIDIA CUB Library (2013-present).**
-   - URL: <https://nvlabs.github.io/cub/>
-   - Production-grade GPU primitives including BlockReduce
-   - **Uses hybrid strategy**: Parallel reduction followed by serial tail for non-power-of-2
-   - Validates our architectural choice (not a "hack", it's industry standard)
+1. **NVIDIA CUB Library (2013-present).**
+   + URL: <https://nvlabs.github.io/cub/>
+   + Production-grade GPU primitives including BlockReduce
+   + **Uses hybrid strategy**: Parallel reduction followed by serial tail for non-power-of-2
+   + Validates our architectural choice (not a "hack", it's industry standard)
 
-7. **Thrust Library (NVIDIA, 2009-present).**
-   - High-level C++ parallel algorithms for CUDA
-   - `thrust::reduce()` handles arbitrary input sizes via segmented reduction
-   - Internal implementation uses padding OR serial tails depending on size
+2. **Thrust Library (NVIDIA, 2009-present).**
+   + High-level C++ parallel algorithms for CUDA
+   + `thrust::reduce()` handles arbitrary input sizes via segmented reduction
+   + Internal implementation uses padding OR serial tails depending on size
 
 ### Non-Power-of-2 in Published Work
 
@@ -124,19 +175,19 @@ Searching literature for "CUDA reduction non-power-of-2" reveals:
 
 ### Warp Shuffle Instructions: Modern Primitive
 
-8. **NVIDIA Kepler Architecture (2012).** "Kepler GK110 Whitepaper."
-   - Introduced warp shuffle instructions: `__shfl_down_sync()`, `__shfl_xor_sync()`
-   - Enable direct register-to-register communication within a warp (32 threads)
-   - **No shared memory needed** → faster than traditional shared memory reduction
-   - Our GTX 1050 (Pascal 2016) fully supports these primitives
+1. **NVIDIA Kepler Architecture (2012).** "Kepler GK110 Whitepaper."
+   + Introduced warp shuffle instructions: `__shfl_down_sync()`, `__shfl_xor_sync()`
+   + Enable direct register-to-register communication within a warp (32 threads)
+   + **No shared memory needed** → faster than traditional shared memory reduction
+   + Our GTX 1050 (Pascal 2016) fully supports these primitives
 
-9. **Harris, Mark (2013).** "Using Shared Memory in CUDA C/C++" (NVIDIA Developer Blog)
-   - Discusses warp shuffle as optimization for intra-warp reductions
-   - Recommends for performance-critical kernels with small block sizes
+2. **Harris, Mark (2013).** "Using Shared Memory in CUDA C/C++" (NVIDIA Developer Blog)
+   + Discusses warp shuffle as optimization for intra-warp reductions
+   + Recommends for performance-critical kernels with small block sizes
 
 ### NVIDIA CUB Library: Production Alternative
 
-10. **Why We Should Have Used CUB Library From The Start**
+ 1. **Why We Should Have Used CUB Library From The Start**
 
 The **NVIDIA CUB (CUDA Unbound)** library provides production-tested primitives for exactly this use case:
 
@@ -151,6 +202,7 @@ double best_delta = BlockReduce(temp_storage).Reduce(my_delta, cub::Min());
 ```
 
 **Key Features**:
+
 - **Handles non-power-of-2 automatically** (uses same hybrid approach we manually implemented)
 - **Header-only library** (no linking required, ships with CUDA Toolkit)
 - **Extensively tested** (used in production by NVIDIA and industry)
@@ -172,14 +224,14 @@ extern "C" __global__ void two_opt_with_cub(
     const double* distances,
     int n,
     double* output_delta) {
-    
+
     // ... 2-opt delta calculation ...
-    
+
     // Replace our 50 lines with:
     typedef cub::BlockReduce<double, 128> BlockReduce;
     __shared__ typename BlockReduce::TempStorage temp_storage;
     double best = BlockReduce(temp_storage).Reduce(my_delta, cub::Min());
-    
+
     if (threadIdx.x == 0) {
         output_delta[blockIdx.x] = best;
     }
@@ -188,24 +240,27 @@ extern "C" __global__ void two_opt_with_cub(
 
 # CuPy compiles with CUDA headers accessible!
 kernel = RawKernel(
-    kernel_code, 
+    kernel_code,
     'two_opt_with_cub',
     options=('-std=c++14', f'-I{cuda_include}')  # ← Key: Include CUB headers
 )
 ```
 
 **Time Cost Analysis**:
+
 - Manual implementation + debugging: **~6-8 hours** (initial code + bug discovery + fix iterations)
 - CUB integration: **~30 minutes** (add include path, replace reduction code)
 - **Time saved: 5-7 hours** ❌
 
 **Why We Didn't Use CUB Initially**:
+
 1. **Lack of awareness**: Didn't know CUB existed or that CuPy could access it
 2. **Learning objective**: Wanted to understand reduction algorithms deeply (achieved, but costly)
 3. **Documentation gap**: CuPy docs don't prominently feature CUB integration examples
 4. **Prototyping mindset**: Started with "simple" manual implementation, didn't anticipate non-power-of-2 edge case
 
-**Recommendation for Future Work**: 
+**Recommendation for Future Work**:
+
 - ✅ **Use CUB for all new kernels** (parallel primitives: reduce, scan, sort, etc.)
 - ✅ **Migrate existing kernels** if time permits (low priority since current code works)
 - ✅ **Document CUB patterns** in project guidelines to prevent repetition of this mistake
@@ -242,7 +297,7 @@ kernel = RawKernel(
 ```text
 # VRP Example: 3 vehicles, 100 customers
 route_1 = [depot, 15, 23, 47, 89, depot]  # Vehicle 1: 4 customers
-route_2 = [depot, 3, 12, 56, 78, 91, depot]  # Vehicle 2: 5 customers  
+route_2 = [depot, 3, 12, 56, 78, 91, depot]  # Vehicle 2: 5 customers
 route_3 = [depot, 7, 34, 45, ..., depot]  # Vehicle 3: remaining
 
 # ✅ Our 2-opt can optimize each route independently:
@@ -256,7 +311,7 @@ improved_route_2 = two_opt_gpu.improve_tour(route_2, distances, xp=cp)
 VRP requires **inter-route operators** to move customers between vehicles:
 
 | Operator | Description | Current Support | Required For |
-|----------|-------------|-----------------|-------------|
+| ---------- | ------------- | ----------------- | ------------- |
 | **2-opt (intra)** | Reverse segment within route | ✅ Implemented | TSP, VRP |
 | **Relocate** | Move customer from route i to route j | ❌ Missing | CVRP, VRPTW |
 | **Exchange** | Swap customers between two routes | ❌ Missing | CVRP, VRPTW |
@@ -264,6 +319,7 @@ VRP requires **inter-route operators** to move customers between vehicles:
 | **Or-opt** | Move sequence of 1-3 customers | ❌ Missing | CVRP |
 
 **Why This Matters**:
+
 - **TSP**: Single route → 2-opt is sufficient (with other operators like 3-opt, LK)
 - **CVRP**: Multiple routes + capacity constraints → need relocate/exchange to balance loads
 - **VRPTW**: Time windows + multiple routes → need specialized feasibility checks
@@ -271,17 +327,20 @@ VRP requires **inter-route operators** to move customers between vehicles:
 **Research Scope Clarification**:
 
 Based on `first_draft.md` and dataset analysis:
+
 1. **Primary focus**: TSP benchmarks (kroA100, eil51, pcb442 from TSPLIB)
 2. **Secondary**: CVRP instances may be included (datasets/routing.duckdb contains VRP data)
 3. **Current implementation**: Sufficient for TSP, partial for VRP (intra-route only)
 
 **Roadmap for VRP Support** (if needed for thesis):
+
 1. **Phase 1** (current): 2-opt for TSP + VRP intra-route ✅
 2. **Phase 2** (future): Add relocate operator for basic CVRP
 3. **Phase 3** (future): Add exchange + 2-opt* for full CVRP
 4. **Phase 4** (out of scope): Time window checks for VRPTW
 
-**Recommendation**: 
+**Recommendation**:
+
 - If thesis focuses on **TSP + intra-route VRP improvement**, current implementation is **sufficient** ✅
 - If thesis requires **full CVRP inter-route optimization**, allocate 2-3 weeks to implement relocate/exchange operators
 - Clarify scope with advisor before expanding beyond TSP
@@ -309,12 +368,12 @@ flowchart TD
         T82["Thread 82"]:::orphan
         T96["Thread 96"]:::orphan
     end
-    
+
     subgraph "Problem"
         direction LR
         P["❌ Threads 82-96 have NO partners!<br/>(82+16=98, out of bounds)<br/>Their best swaps are LOST"]
     end
-    
+
     classDef orphan fill:#f99,stroke:#f00,stroke-width:3px
 ```
 
@@ -337,11 +396,11 @@ flowchart TB
                 T96_97["Threads 96-97"]
             end
         end
-        
+
         SM["Shared Memory<br/>(Fast, small ~48KB)<br/>All threads access same data"]
         Block --> SM
     end
-    
+
     style GPU fill:#e1f5ff
     style Block fill:#fff3cd
     style SM fill:#d4edda
@@ -377,7 +436,7 @@ flowchart TB
         direction LR
         Grid_Desc["Launches kernel across<br/>all streaming multiprocessors<br/>Example: Process 256 tours in parallel"]
     end
-    
+
     subgraph Blocks["Level 2: THREAD BLOCKS (Independent Units)"]
         direction TB
         Block1["Block 0<br/>Tour 0<br/>98 threads"]
@@ -387,7 +446,7 @@ flowchart TB
         Blocks_Desc["Each block: Independent execution<br/>Own shared memory (48 KB)<br/>Can synchronize threads within block"]
         Block1 -.-> Block2 -.-> Block3 -.-> Block256
     end
-    
+
     subgraph Warps["Level 3: WARPS (Hardware SIMD Units)"]
         direction LR
         Warp0["Warp 0<br/>Threads 0-31"]
@@ -397,16 +456,16 @@ flowchart TB
         Warps_Desc["Warps: 32-thread SIMD execution<br/>Schedule together, execute same instruction<br/>Can use warp shuffle (no memory!)"]
         Warp0 -.-> Warp1 -.-> Warp2 -.-> Warp3
     end
-    
+
     Grid --> Blocks
     Blocks --> Warps
-    
+
 ```
 
 ### Memory Hierarchy & Performance
 
 | Memory Type | Scope | Latency | Bandwidth | Size (GTX 1050) |
-|-------------|-------|---------|-----------|------------------|
+| ------------- | ------- | --------- | ----------- | ------------------ |
 | **Registers** | Per-thread | 1 cycle | ~10 TB/s | 64 KB/SM (fastest) |
 | **Shared Memory** | Per-block | ~30 cycles | ~1.5 TB/s | 48 KB/block |
 | **Global Memory** | Entire GPU | ~300 cycles | ~112 GB/s | 4 GB (slowest) |
@@ -450,7 +509,7 @@ For a tour of n cities, 2-opt considers swapping edges (i, i+1) and (j, j+1):
 **Example: kroA100 (n=100 cities)**
 
 | City Count (n) | Valid i Range | Threads Needed | Power-of-2? |
-|----------------|---------------|----------------|--------------|
+| ---------------- | --------------- | ---------------- | -------------- |
 | 52 (eil51) | 0-49 | 50 | ❌ |
 | 100 (kroA100) | 0-97 | **98** | ❌ |
 | 200 (kroA200) | 0-197 | 198 | ❌ |
@@ -499,8 +558,8 @@ The `two_opt_single.cu` and `two_opt_batch.cu` kernels contained a **critical bu
 
 ### Stage 1: Original Bug (Hardcoded Strides)
 
-**File:** `code/src/algorithms/kernels/two_opt_single.cu`  
-**Lines:** 94-122 (parallel reduction section)  
+**File:** `code/src/algorithms/kernels/two_opt_single.cu`
+**Lines:** 94-122 (parallel reduction section)
 **Function:** `two_opt_kernel`
 
 ### Problematic Code
@@ -522,13 +581,13 @@ For kroA100 (n=100):
 
 - `threads_per_block = min(256, n-2) = 98`
 - Reduction starts at tid=16:
-  - Thread 0: compares with thread 16 ✅
-  - Thread 15: compares with thread 31 ✅
-  - Thread 16: `16 + 16 < 98`? → `32 < 98` ✅
-  - ...
-  - Thread 81: `81 + 16 < 98`? → `97 < 98` ✅
-  - Thread 82: `82 + 16 < 98`? → `98 < 98` ❌ **SKIPPED!**
-  - Threads 82-97: **ALL SKIPPED** (16 threads ignored!)
+  + Thread 0: compares with thread 16 ✅
+  + Thread 15: compares with thread 31 ✅
+  + Thread 16: `16 + 16 < 98`? → `32 < 98` ✅
+  + ...
+  + Thread 81: `81 + 16 < 98`? → `97 < 98` ✅
+  + Thread 82: `82 + 16 < 98`? → `98 < 98` ❌ **SKIPPED!**
+  + Threads 82-97: **ALL SKIPPED** (16 threads ignored!)
 
 **Result:** If thread 85 found the best swap (delta = -6,663), but thread 50 found delta = -1,000, the reduction selects thread 50's **sub-optimal** solution.
 
@@ -541,7 +600,7 @@ For kroA100 (n=100):
 **Test:** Single 2-opt pass on initial tour `[0, 1, 2, ..., 99]`
 
 | Metric | CPU (Correct) | GPU (Buggy) | Difference |
-|--------|---------------|-------------|------------|
+| -------- | --------------- | ------------- | ------------ |
 | **Best swap found** | (51, 77) | Unknown (wrong!) | N/A |
 | **Delta** | -6,663.59 | ~-5,900 (estimated) | +760 worse |
 | **Final cost** | 184,730.15 | 185,490.28 | +760.14 (+0.41%) |
@@ -555,7 +614,7 @@ For kroA100 (n=100):
 ### Full GA Run Results (10 individuals, 1 generation)
 
 | Variant | Initial Cost | Final Cost | Δ vs CPU | Quality Gap |
-|---------|-------------|------------|----------|-------------|
+| --------- | ------------- | ------------ | ---------- | ------------- |
 | **CPU** | 154,653.00 | 102,793.00 | 0.00 | ✅ Baseline |
 | **HybridNaive** | 154,653.00 | 104,636.00 | +1,843.00 | ⚠️ +1.79% |
 | **HybridOptimized** | 154,653.00 | 104,636.00 | +1,843.00 | ⚠️ +1.79% |
@@ -623,7 +682,7 @@ for (int offset = warpSize/2; offset > 0; offset /= 2) {
     double other_delta = __shfl_down_sync(0xffffffff, s_deltas[tid], offset);
     int other_i = __shfl_down_sync(0xffffffff, s_swap_i[tid], offset);
     int other_j = __shfl_down_sync(0xffffffff, s_swap_j[tid], offset);
-    
+
     if (other_delta < s_deltas[tid]) {
         s_deltas[tid] = other_delta;
         s_swap_i[tid] = other_i;
@@ -662,7 +721,7 @@ if (tid == 0) {
     double best_delta = s_deltas[0];
     int best_i = s_swap_i[0];
     int best_j = s_swap_j[0];
-    
+
     for (int t = 1; t < block_size; t++) {
         if (s_deltas[t] < best_delta) {
             best_delta = s_deltas[t];
@@ -670,7 +729,7 @@ if (tid == 0) {
             best_j = s_swap_j[t];
         }
     }
-    
+
     s_deltas[0] = best_delta;
     s_swap_i[0] = best_i;
     s_swap_j[0] = best_j;
@@ -713,18 +772,21 @@ if (tid < 8) {
 After fix is applied:
 
 1. **Unit Test:** Single 2-opt pass must match CPU result exactly
+
 ```text
    python diagnostic_single_2opt.py
    # Expected: Cost difference < 1e-6
 ```
 
-2. **Integration Test:** Full GA run must match CPU quality
+1. **Integration Test:** Full GA run must match CPU quality
+
 ```text
    python diagnostic_all_variants.py
    # Expected: HybridNaive/HybridOptimized within 0.1% of CPU
 ```
 
-3. **Performance Test:** Ensure fix doesn't degrade speedup
+1. **Performance Test:** Ensure fix doesn't degrade speedup
+
 ```text
    python diagnostic_hybrid_naive.py
    # Expected: Speedup still 3-8x for n=100
@@ -781,9 +843,9 @@ for (unsigned int s = block_size / 2; s > 0; s >>= 1) {
 %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#e1f5ff','secondaryColor':'#fff3cd','tertiaryColor':'#fee'}}}%%
 flowchart TB
     Start["🎯 Start: 98 threads, each holds one value"]
-    
+
     Start --> R1
-    
+
     subgraph R1["Round 1: s = 49 (block_size / 2)"]
         direction TB
         R1_Active["✅ Threads 0-48 ACTIVE (tid < 49)"]
@@ -792,9 +854,9 @@ flowchart TB
         R1_Status["Result: 49 winning values stored in threads 0-48"]
         R1_Active --> R1_Compare --> R1_Result --> R1_Status
     end
-    
+
     R1 --> R2
-    
+
     subgraph R2["Round 2: s = 24 (49 / 2)"]
         direction TB
         R2_Active["❌ Threads 0-23 ACTIVE (tid < 24)"]
@@ -804,9 +866,9 @@ flowchart TB
         R2_Status["Result: Only 24 values compared, 25 values ignored"]
         R2_Active --> R2_Compare --> R2_Result --> R2_Problem --> R2_Status
     end
-    
+
     R2 --> Bug
-    
+
     subgraph Bug["🐛 The Bug Explained"]
         direction TB
         Bug1["Thread 35 held the BEST value from Round 1"]
@@ -816,7 +878,7 @@ flowchart TB
         Bug5["Suboptimal value from threads 0-23 becomes final result"]
         Bug1 --> Bug2 --> Bug3 --> Bug4 --> Bug5
     end
-    
+
     style R1 fill:#d4edda,stroke:#28a745,stroke-width:2px
     style R2 fill:#fee,stroke:#dc3545,stroke-width:2px
     style Bug fill:#fcc,stroke:#dc3545,stroke-width:3px
@@ -827,7 +889,7 @@ flowchart TB
 The loop-based reduction executes: `for (s = block_size/2; s > 0; s >>= 1)`
 
 | Round | Stride (s) | Active Check | Active Threads | Partners | Values Compared | Orphaned This Round | Why Orphaned? |
-|-------|------------|--------------|----------------|----------|-----------------|---------------------|---------------|
+| ------- | ------------ | -------------- | ---------------- | ---------- | ----------------- | --------------------- | --------------- |
 | **1** | 49 | `tid < 49` | 0-48 (49 threads) | 49-97 | 49 pairs | **0** | All 98 values participate ✅ |
 | **2** | 24 | `tid < 24` | 0-23 (24 threads) | 24-47 | 24 pairs | **24-48** (25 values) | Halving 49 → 24 excludes threads 24-48 ❌ |
 | **3** | 12 | `tid < 12` | 0-11 (12 threads) | 12-23 | 12 pairs | **12-23** (12 values) | Halving 24 → 12 excludes threads 12-23 ❌ |
@@ -904,21 +966,21 @@ flowchart TD
         P1_R1["Round 1: s=49<br/>49 values remain"]
         P1_R2["Round 2: s=24<br/>⚠️ Some orphaning occurs<br/>but we'll fix it in Phase 2"]
         P1_End["Stop at s=32<br/>~32-49 values remain"]
-        
+
         P1_Start --> P1_R1 --> P1_R2 --> P1_End
     end
-    
+
     subgraph Phase2["Phase 2: Serial Reduction (Correct)"]
         direction TB
         P2_Start["Thread 0 takes control"]
         P2_Loop["for i = 1 to block_size-1:<br/>if value[i] < value[0]:<br/>    value[0] = value[i]"]
         P2_End["✅ ALL 98 values checked<br/>No orphans possible!"]
-        
+
         P2_Start --> P2_Loop --> P2_End
     end
-    
+
     Phase1 --> Phase2
-    
+
     subgraph Result["Result"]
         direction LR
         R1["✅ Parallel: Fast for first 98→32"]
@@ -926,9 +988,9 @@ flowchart TD
         R3["✅ Overall: 5-13x speedup with 0.00% error"]
         R1 --> R2 --> R3
     end
-    
+
     Phase2 --> Result
-    
+
     style Phase1 fill:#d4edda
     style Phase2 fill:#cfe2ff
     style Result fill:#fff3cd
@@ -1040,6 +1102,7 @@ double value = __shfl_down(my_value, offset);  // ⚠️ Unsafe on modern GPUs
 ```
 
 **Special Masks** (for advanced use cases):
+
 - `0xffffffff`: All 32 threads (most common)
 - `0x0000ffff`: Only threads 0-15 (lower half-warp)
 - `0xffff0000`: Only threads 16-31 (upper half-warp)
@@ -1051,14 +1114,14 @@ double value = __shfl_down(my_value, offset);  // ⚠️ Unsafe on modern GPUs
 // WARP-LEVEL REDUCTION (within 32 threads)
 for (int offset = 16; offset > 0; offset /= 2) {
 //              ^^--- Start at 16 to pair threads 16 positions apart
-    
+
     // Each thread receives value from thread (tid + offset)
     double other_delta = __shfl_down_sync(0xffffffff, my_delta, offset);
     //                   ^^^^^^^^^^^^^^--- Shift values "down" by 'offset' positions
-    
+
     int other_i = __shfl_down_sync(0xffffffff, my_swap_i, offset);
-    int other_j = __shfl_down_sync(0xffffffff, my_swap_j, offset); 
-    
+    int other_j = __shfl_down_sync(0xffffffff, my_swap_j, offset);
+
     // Compare my value vs partner's value
     if (other_delta < my_delta) {
         my_delta = other_delta;   // Keep better value in my register
@@ -1076,21 +1139,21 @@ for (int offset = 16; offset > 0; offset /= 2) {
 flowchart TB
     subgraph Round1["Round 1: offset=16"]
         direction LR
-        T0_1["T0 ↔ T16"] 
+        T0_1["T0 ↔ T16"]
         T1_1["T1 ↔ T17"]
         T15_1["T15 ↔ T31"]
         T16_1["T16 (gets T32=invalid)"]
         T0_1 ~~~ T1_1 ~~~ T15_1 ~~~ T16_1
     end
-    
+
     subgraph Round2["Round 2: offset=8"]
         direction LR
         T0_2["T0 ↔ T8"]
-        T1_2["T1 ↔ T9"] 
+        T1_2["T1 ↔ T9"]
         T7_2["T7 ↔ T15"]
         T0_2 ~~~ T1_2 ~~~ T7_2
     end
-    
+
     subgraph Round3["Round 3: offset=4"]
         direction LR
         T0_3["T0 ↔ T4"]
@@ -1098,36 +1161,38 @@ flowchart TB
         T3_3["T3 ↔ T7"]
         T0_3 ~~~ T1_3 ~~~ T3_3
     end
-    
+
     subgraph Round4["Round 4: offset=2"]
         direction LR
         T0_4["T0 ↔ T2"]
         T1_4["T1 ↔ T3"]
         T0_4 ~~~ T1_4
     end
-    
+
     subgraph Round5["Round 5: offset=1"]
         direction LR
         T0_5["T0 ↔ T1"]
     end
-    
+
     subgraph Result["Final Result"]
         T0_final["✅ T0 holds min of all 32 threads"]
     end
-    
+
     Round1 --> Round2 --> Round3 --> Round4 --> Round5 --> Result
-    
+
     style T16_1 fill:#fcc,stroke:#dc3545
     style T0_final fill:#d4edda,stroke:#28a745,stroke-width:3px
 ```
 
 **Why offset starts at 16?**
+
 - Warp has 32 threads (0-31)
 - First round: Compare threads that are 16 apart (0↔16, 1↔17, ..., 15↔31)
 - This is a **binary tree reduction**: 32 → 16 → 8 → 4 → 2 → 1
 - After 5 rounds (log₂(32) = 5), thread 0 holds the final result
 
 **Thread 16-31 behavior**:
+
 - In round 1 (offset=16): Thread 16 tries to get value from thread 32 (out of bounds)
 - `__shfl_down_sync` returns **undefined value** for out-of-bounds access
 - **Doesn't matter!** Thread 0-15 have already compared with 16-31
@@ -1171,18 +1236,20 @@ __syncthreads();
 **Key Distinctions**:
 
 | Level | Threads Involved | Synchronization | Memory | Hardware Unit |
-|-------|------------------|-----------------|--------|---------------|
+| ------- | ------------------ | ----------------- | -------- | --------------- |
 | **Warp-Level** | 32 (hardware SIMT) | Implicit (lock-step) | Registers only | Warp Scheduler |
 | **Block-Level** | 98 (4 warps) | Explicit (`__syncthreads()`) | Shared memory | Thread Block |
 
 **Why `tid % 32 == 0` identifies warp leaders**:
+
 - Threads are numbered 0-97 in our block
 - Warp 0: threads 0-31 → leader is tid=0 (0 % 32 = 0) ✅
-- Warp 1: threads 32-63 → leader is tid=32 (32 % 32 = 0) ✅  
+- Warp 1: threads 32-63 → leader is tid=32 (32 % 32 = 0) ✅
 - Warp 2: threads 64-95 → leader is tid=64 (64 % 32 = 0) ✅
 - Warp 3: threads 96-97 → leader is tid=96 (96 % 32 = 0) ✅
 
 **What if block size is not multiple of 32?** (e.g., 98 threads)
+
 - Warp 3 has only 2 active threads (96-97), but GPU allocates full 32-thread warp
 - Threads 98-127 in warp 3 are **inactive** (don't execute code)
 - Warp shuffle still works correctly: inactive threads don't participate
@@ -1198,6 +1265,7 @@ if (tid == 0) {
         }
     }
 }
+
 ```text
 
 ### Performance Analysis: Cycle Counts
@@ -1224,6 +1292,7 @@ if (tid == 0) {
 ### Why We Don't Use Warp-Level (Academic Justification)
 
 ```
+
 flowchart TD
     subgraph CurrentApproach["Current: Block-Level Hybrid"]
         direction TB
@@ -1235,7 +1304,7 @@ flowchart TD
         C6["✅ Still achieves 5-13x overall speedup"]
         C1 --> C2 --> C3 --> C4 --> C5 --> C6
     end
-    
+
     subgraph WarpLevel["Proposed: Warp-Level"]
         direction TB
         W1["✅ 7.8x faster reduction (0.06 μs)"]
@@ -1246,7 +1315,7 @@ flowchart TD
         W6["❓ Benefit in overall GA runtime unclear"]
         W1 --> W2 --> W3 --> W4 --> W5 --> W6
     end
-    
+
     subgraph Decision["Academic Research Decision"]
         direction TB
         D1["Priority: Correctness > Performance"]
@@ -1255,10 +1324,11 @@ flowchart TD
         D4["Warp-level: 'Future work' optimization"]
         D1 --> D2 --> D3 --> D4
     end
-    
+
     CurrentApproach -."vs".-> WarpLevel
     CurrentApproach --> Decision
     WarpLevel --> Decision
+
 ```text
 
 ### Amdahl's Law Analysis: Is 0.5 μs Significant?
@@ -1281,6 +1351,7 @@ Optimizing from 0.5 μs → 0.06 μs saves 0.44 μs per kernel:
 **NVIDIA CUB Library** (`BlockReduce` primitive):
 
 ```
+
 // From cub/block/block_reduce.cuh (NVIDIA production code)
 template <int BLOCK_THREADS>
 struct BlockReduce {
@@ -1289,6 +1360,7 @@ struct BlockReduce {
     // 2. Serial reduction across warp results
     // This is EXACTLY our approach!
 };
+
 ```text
 
 **Academic validation**: Our solution matches **industry-standard practice** (CUB library), not a "quick hack".
@@ -1310,21 +1382,26 @@ struct BlockReduce {
 **Single 2-opt Pass** (`diagnostic_single_2opt.py`):
 
 ```
+
 CPU:  found swap (51, 77) δ=-6663.59, final cost 184730.15
 GPU:  found swap (51, 77) δ=-6663.59, final cost 184730.15
 ✅ Tours identical: True
 ✅ Cost difference: 0.0000 (0.0000%)
+
 ```text
 
 **Full GA Run** (`diagnostic_all_variants.py` - 1 generation):
 
 ```
+
 Variant              Initial      Final        Δ vs CPU     Speedup
 ---------------------------------------------------------------
+
 CPU                  154653.00    102793.00    0.00         1.00x    ✅
 HybridNaive          154653.00    102793.00    0.00         13.48x   ✅
 HybridOptimized      154653.00    102793.00    0.00         5.04x    ✅
 FullGPU              151201.00    22006.00     -80787.00    15.33x   ⬇️
+
 ```text
 
 **Note**: FullGPU appears "better" because it uses a **completely different algorithm architecture**, not a bug:
@@ -1332,6 +1409,7 @@ FullGPU              151201.00    22006.00     -80787.00    15.33x   ⬇️
 ### Why Different Algorithms?
 
 ```
+
 flowchart LR
     subgraph HybridApproach["HybridNaive/Optimized Architecture"]
         direction TB
@@ -1340,7 +1418,7 @@ flowchart LR
         H3["🔄 High data transfer overhead"]
         H1 --> H2 --> H3
     end
-    
+
     subgraph FullGPUApproach["FullGPU Architecture (Fujimoto 2011)"]
         direction TB
         F1["⚡ GPU: EVERYTHING on GPU<br/>Selection, crossover, mutation, 2-opt"]
@@ -1348,9 +1426,9 @@ flowchart LR
         F3["🎲 Different random number generator<br/>cuRAND vs NumPy"]
         F1 --> F2 --> F3
     end
-    
+
     HybridApproach -."vs".-> FullGPUApproach
-    
+
     subgraph Impact["Impact on Results"]
         direction TB
         I1["Different RNG → Different initial population"]
@@ -1359,12 +1437,13 @@ flowchart LR
         I4["✅ Both are CORRECT implementations"]
         I1 --> I2 --> I3 --> I4
     end
-    
+
     FullGPUApproach --> Impact
-    
+
     style HybridApproach fill:#fff3cd
     style FullGPUApproach fill:#d4edda
     style Impact fill:#cfe2ff
+
 ```text
 
 **Why This Matters for Research:**
@@ -1463,7 +1542,9 @@ Given $n$ threads (non-power-of-2):
 #### Use CUB Library by Default
 
 ```
+
 # ✅ RECOMMENDED: Use CUB for parallel primitives
+
 from cupy import RawKernel
 import os
 
@@ -1472,12 +1553,12 @@ cuda_include = os.path.join(os.environ.get('CUDA_PATH', '/usr/local/cuda'), 'inc
 code = r'''
 #include <cub/cub.cuh>
 
-extern "C" __global__ void my_kernel(...) {
+extern "C" **global** void my_kernel(...) {
     // Reduction: Use CUB
     typedef cub::BlockReduce<double, 128> BlockReduce;
-    __shared__ typename BlockReduce::TempStorage temp_storage;
+    **shared** typename BlockReduce::TempStorage temp_storage;
     double result = BlockReduce(temp_storage).Reduce(my_value, cub::Min());
-    
+
     // Scan: Use CUB
     typedef cub::BlockScan<int, 128> BlockScan;
     __shared__ typename BlockScan::TempStorage scan_storage;
@@ -1486,13 +1567,14 @@ extern "C" __global__ void my_kernel(...) {
 }
 '''
 
-kernel = RawKernel(code, 'my_kernel', 
+kernel = RawKernel(code, 'my_kernel',
                    options=('-std=c++14', f'-I{cuda_include}'))
+
 ```text
 
 **When to Use CUB**:
 - ✅ Reduction (min, max, sum, custom operators)
-- ✅ Scan (prefix sum, cumulative operations)  
+- ✅ Scan (prefix sum, cumulative operations)
 - ✅ Sorting (bitonic sort, radix sort)
 - ✅ Histogram (atomic-free counting)
 
@@ -1508,7 +1590,7 @@ Before deploying any GPU kernel:
 - [ ] **Unit test**: Kernel matches CPU for small input (n=10)
 - [ ] **Edge cases**: Test non-power-of-2 sizes (n=98, 100, 198, 200)
 - [ ] **Boundary conditions**: Test n=1, n=2, n=32, n=33
-- [ ] **Numerical stability**: Test with large/small/negative values  
+- [ ] **Numerical stability**: Test with large/small/negative values
 - [ ] **Stress test**: Run 1000 iterations, check for non-determinism
 - [ ] **Performance baseline**: Ensure GPU > 2x speedup vs CPU (or document why not)
 
@@ -1533,13 +1615,13 @@ Before deploying any GPU kernel:
 **Does using CUB diminish research value?** **NO.**
 
 - ✅ **Focus shift**: From "how to implement reduction" → "how to accelerate routing algorithms"
-- ✅ **Industry standard**: Production systems use libraries, not manual implementations  
+- ✅ **Industry standard**: Production systems use libraries, not manual implementations
 - ✅ **Reproducibility**: CUB is open-source, versioned, documented
 - ✅ **Rigor**: Using tested libraries reduces bugs, increases confidence in results
 
-**Analogy**: 
+**Analogy**:
 - Using NumPy for matrix operations doesn't diminish ML research
-- Using PyTorch for neural networks doesn't diminish DL research  
+- Using PyTorch for neural networks doesn't diminish DL research
 - Using CUB for GPU primitives doesn't diminish parallel algorithms research
 
 **What matters for thesis**:
@@ -1550,8 +1632,8 @@ Before deploying any GPU kernel:
 
 ### Final Recommendation
 
-**For this thesis**: Keep current implementation (it works, debugged, validated)  
-**For future projects**: Start with CUB, save 5-7 hours per kernel  
+**For this thesis**: Keep current implementation (it works, debugged, validated)
+**For future projects**: Start with CUB, save 5-7 hours per kernel
 **For academic community**: Document this journey to help others avoid same pitfall
 
 **Time better spent**:
@@ -1575,6 +1657,7 @@ Before deploying any GPU kernel:
 - **Real-world sizes** like 98 (kroA100 has 100 cities, n-2 = 98) don't divide evenly → **orphans appear**
 
 ```
+
 flowchart LR
     subgraph Ideal["Ideal: Power-of-2 (64 threads)"]
         direction TB
@@ -1582,13 +1665,14 @@ flowchart LR
         I2["✅ Perfect binary tree<br/>Every thread has partner<br/>No orphans"]
         I1 --> I2
     end
-    
+
     subgraph RealWorld["Real-world: Non-power-of-2 (98 threads)"]
         direction TB
         R1["98 → 49 → 24 → 12 → 6 → 3 → 1"]
         R2["❌ Uneven divisions<br/>Threads orphaned at each level<br/>48 threads lost!"]
         R1 --> R2
     end
+
 ```text
 
 **Lesson**: Always test with **real-world problem sizes**, not just convenient powers-of-2!
@@ -1600,6 +1684,7 @@ flowchart LR
 Bounds checking (`if (tid + s < block_size)`) prevents **crashes** (accessing invalid memory) but doesn't prevent **orphaning** (excluding threads from participation).
 
 ```
+
 flowchart TD
     subgraph WithoutBounds["Without Bounds Check"]
         W1["Thread 82: tid + 16 = 98"]
@@ -1607,7 +1692,7 @@ flowchart TD
         W3["💥 CRASH! (out of bounds)"]
         W1 --> W2 --> W3
     end
-    
+
     subgraph WithBounds["With Bounds Check (tid + 16 < 98)"]
         B1["Thread 82: tid + 16 = 98"]
         B2["Check: 98 < 98? FALSE"]
@@ -1615,6 +1700,7 @@ flowchart TD
         B4["⚠️ Thread 82's value LOST<br/>(no crash, but wrong result)"]
         B1 --> B2 --> B3 --> B4
     end
+
 ```text
 
 **Lesson**: Preventing crashes ≠ ensuring correctness. Need **algorithmic solution** (like serial reduction tail).
@@ -1640,16 +1726,17 @@ Yes! Even though it's "serial" (1 thread), it still runs on the GPU:
 - Still faster than transferring data to CPU and back
 
 ```
+
 flowchart TD
     subgraph GPUSharedMem["GPU Shared Memory"]
         direction LR
-        V0["v[0]"] 
+        V0["v[0]"]
         V1["v[1]"]
         V2["v[2]"]
         Vdots["..."]
         V97["v[97]"]
     end
-    
+
     subgraph SerialLoop["Thread 0's Serial Loop"]
         direction TB
         L1["best = v[0]"]
@@ -1658,12 +1745,13 @@ flowchart TD
         L4["    best = v[i]"]
         L1 --> L2 --> L3 --> L4
     end
-    
+
     GPUSharedMem --> SerialLoop
-    
+
     subgraph OtherThreads["Threads 1-97"]
         O1["💤 Idle (waiting)"]
     end
+
 ```text
 
 **Lesson**: "Serial" doesn't mean "slow on GPU" for small arrays (<100 values). It's ~3μs overhead for guaranteed correctness.
@@ -1685,6 +1773,7 @@ Instead of complex 2-opt deltas, we created a **dead-simple test**:
 **Impact if bug wasn't found:**
 
 ```
+
 flowchart TD
     subgraph Wrong["With Bug (1.79% error)"]
         direction TB
@@ -1694,7 +1783,7 @@ flowchart TD
         W4["❌ Thesis gets rejected or retracted"]
         W1 --> W2 --> W3 --> W4
     end
-    
+
     subgraph Right["Bug Fixed (0.00% error)"]
         direction TB
         R1["Claim: GPU maintains 100% correctness"]
@@ -1703,9 +1792,10 @@ flowchart TD
         R4["✅ Thesis accepted, publishable"]
         R1 --> R2 --> R3 --> R4
     end
-    
+
     style Wrong fill:#fcc
     style Right fill:#d4edda
+
 ```text
 
 **Lesson**: For academic work, **correctness > performance**. A fast wrong answer invalidates entire research.
@@ -1770,6 +1860,7 @@ Our hybrid solution (parallel + serial) works perfectly for research, but **prod
 **Analogy**: Tournament bracket with byes
 
 ```
+
 flowchart LR
     subgraph Before["Before: 98 Real Players"]
         direction TB
@@ -1777,7 +1868,7 @@ flowchart LR
         B2["❌ Uneven bracket<br/>Orphans occur"]
         B1 --> B2
     end
-    
+
     subgraph After["After: Pad to 128 Total"]
         direction TB
         A1["98 real players<br/>+ 30 dummy players"]
@@ -1785,16 +1876,18 @@ flowchart LR
         A3["✅ Perfect 128-player bracket<br/>Real players always win vs dummies"]
         A1 --> A2 --> A3
     end
-    
+
     Before --> After
-    
+
     style Before fill:#fee
     style After fill:#d4edda
+
 ```text
 
 **In Code:**
 
 ```
+
 // Pad block_size to next power-of-2
 int padded_size = 1 << (int)ceil(log2(block_size));  // 98 → 128
 
@@ -1806,9 +1899,10 @@ if (tid < block_size) {
 }
 
 // Now can use pure parallel reduction (no orphans!)
+
 ```text
 
-**Pros**: Fully parallel (fastest), no serial bottleneck  
+**Pros**: Fully parallel (fastest), no serial bottleneck
 **Cons**: Wastes memory (30 extra slots for 98 threads), must choose correct neutral value (∞ for min, -∞ for max)
 
 ---
@@ -1817,10 +1911,11 @@ if (tid < block_size) {
 
 **Analogy**: Telepathic score exchange
 
-Normal reduction: Threads write to shared memory, read back (slow memory access)  
+Normal reduction: Threads write to shared memory, read back (slow memory access)
 Shuffle: Threads directly exchange values via registers (no memory, super fast!)
 
 ```
+
 flowchart TD
     subgraph Traditional["Traditional Reduction"]
         direction LR
@@ -1830,7 +1925,7 @@ flowchart TD
         T4["Thread 0: Compare & store winner"]
         T1 --> T2 --> T3 --> T4
     end
-    
+
     subgraph Shuffle["Warp Shuffle (__shfl_down_sync)"]
         direction LR
         S1["Thread 0: delta = -100"]
@@ -1839,28 +1934,31 @@ flowchart TD
         S4["Thread 0: Compares -100 vs -50"]
         S1 --> S2 --> S3 --> S4
     end
-    
+
     Traditional -."Slower (memory access)".-> Shuffle
-    
+
     style Traditional fill:#fff3cd
     style Shuffle fill:#d4edda
+
 ```text
 
 **In Code:**
 
 ```
+
 // Warp shuffle reduction (within 32-thread warp)
 for (int offset = 16; offset > 0; offset /= 2) {
     double other = __shfl_down_sync(0xffffffff, my_delta, offset);
     if (other < my_delta) {
         my_delta = other;
-        my_swap_i = __shfl_down_sync(0xffffffff, my_swap_i, offset);
+        my_swap_i =__shfl_down_sync(0xffffffff, my_swap_i, offset);
         my_swap_j = __shfl_down_sync(0xffffffff, my_swap_j, offset);
     }
 }
+
 ```text
 
-**Pros**: Fastest (no memory), works well for ≤32 threads (1 warp)  
+**Pros**: Fastest (no memory), works well for ≤32 threads (1 warp)
 **Cons**: Complex programming model, need separate code for cross-warp reduction
 
 ---
@@ -1872,6 +1970,7 @@ for (int offset = 16; offset > 0; offset /= 2) {
 Instead of checking `if (is_power_of_2)` at runtime, have **two separate implementations** compiled:
 
 ```
+
 flowchart TD
     subgraph CompileTime["At Compile Time"]
         direction TB
@@ -1880,7 +1979,7 @@ flowchart TD
         C3["No runtime checks needed!"]
         C1 --> C2 --> C3
     end
-    
+
     subgraph Runtime["At Runtime (Fast)"]
         direction TB
         R1["Execute pre-compiled<br/>power-of-2 version"]
@@ -1888,33 +1987,36 @@ flowchart TD
         R3["Execute pre-compiled<br/>non-power-of-2 version"]
         R1 --> R2 --> R3
     end
-    
+
     CompileTime --> Runtime
-    
+
     style CompileTime fill:#cfe2ff
     style Runtime fill:#d4edda
+
 ```text
 
 **In Code:**
 
 ```
+
 // Template for power-of-2
 template<int BlockSize>
-__global__ void reduction_kernel_pow2() {
+**global** void reduction_kernel_pow2() {
     // Optimized parallel-only code
 }
 
-// Template for non-power-of-2  
+// Template for non-power-of-2
 template<int BlockSize>
-__global__ void reduction_kernel_general() {
+**global** void reduction_kernel_general() {
     // Hybrid parallel + serial code
 }
 
 // Compiler generates both at compile-time
 // Runtime picks correct one via if constexpr or template dispatch
+
 ```text
 
-**Pros**: Optimal code for each case, no runtime overhead  
+**Pros**: Optimal code for each case, no runtime overhead
 **Cons**: Code duplication, longer compile time, harder maintenance
 
 ---
@@ -1924,6 +2026,7 @@ __global__ void reduction_kernel_general() {
 **Why this is perfect for academic research:**
 
 ```
+
 flowchart LR
     subgraph Priorities["Research Priorities"]
         direction TB
@@ -1932,7 +2035,7 @@ flowchart LR
         P3["3️⃣ Performance (still 5-13x speedup)"]
         P1 --> P2 --> P3
     end
-    
+
     subgraph OurSolution["Hybrid Solution"]
         direction TB
         S1["✅ 100% correct (0.00% error)"]
@@ -1941,8 +2044,9 @@ flowchart LR
         S4["✅ Works for ANY block size"]
         S1 --> S2 --> S3 --> S4
     end
-    
+
     Priorities --> OurSolution
+
 ```text
 
 **For production at scale (e.g., routing millions of vehicles daily):**
@@ -1961,7 +2065,7 @@ flowchart LR
 
 ---
 
-**Reported by:** AI Agent (Actor-Critic Debugging Session)  
-**Validated:** 2025-01-28  
+**Reported by:** AI Agent (Actor-Critic Debugging Session)
+**Validated:** 2025-01-28
 **Status:** CONFIRMED - Awaiting Fix
 ```

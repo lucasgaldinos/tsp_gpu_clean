@@ -42,36 +42,37 @@ tags:
 # Effect Sizes, Statistical Power, and Sample Size Determination
 
 - [Effect Sizes, Statistical Power, and Sample Size Determination](#effect-sizes-statistical-power-and-sample-size-determination)
-  - [1. Beyond $p$-Values: Why Effect Sizes Are Essential in Benchmarking](#1-beyond-p-values-why-effect-sizes-are-essential-in-benchmarking)
+  + [1. Beyond $p$-Values: Why Effect Sizes Are Essential in Benchmarking](#1-beyond-p-values-why-effect-sizes-are-essential-in-benchmarking)
     - [1.1 The Sample Size Confounder in Null Hypothesis Testing](#11-the-sample-size-confounder-in-null-hypothesis-testing)
     - [1.2 Dual Reporting Standard (Significance + Practical Magnitude)](#12-dual-reporting-standard-significance--practical-magnitude)
-  - [2. Parametric Standardized Mean Differences: Cohen's $d$](#2-parametric-standardized-mean-differences-cohens-d)
+  + [2. Parametric Standardized Mean Differences: Cohen's $d$](#2-parametric-standardized-mean-differences-cohens-d)
     - [2.1 Independent Samples Formulation and Pooled Variance Derivation](#21-independent-samples-formulation-and-pooled-variance-derivation)
-    - [2.2 Simplification for Equal Sample Sizes ($n_1 = n_2 = n$)](#22-simplification-for-equal-sample-sizes-n_1--n_2--n)
-    - [2.3 Paired Samples Formulation: Cohen's $d_z$](#23-paired-samples-formulation-cohens-d_z)
+      + [Derivation of $s\_{\\text{pooled}}$:](#derivation-of-s_textpooled)
+    - [2.2 Simplification for Equal Sample Sizes ($n\_1 = n\_2 = n$)](#22-simplification-for-equal-sample-sizes-n_1--n_2--n)
+    - [2.3 Paired Samples Formulation: Cohen's $d\_z$](#23-paired-samples-formulation-cohens-d_z)
     - [2.4 Hedges' $g$ Unbiased Correction for Small Samples ($n = 15$)](#24-hedges-g-unbiased-correction-for-small-samples-n--15)
-  - [3. Distribution Overlap, Percentile Shifts, and Cohen's $U_3$](#3-distribution-overlap-percentile-shifts-and-cohens-u_3)
-    - [3.1 Cohen's $U_3$ Index of Non-Overlap](#31-cohens-u_3-index-of-non-overlap)
-    - [3.2 Percentile Standing: $\Phi(d)$](#32-percentile-standing-phid)
+  + [3. Distribution Overlap, Percentile Shifts, and Cohen's $U\_3$](#3-distribution-overlap-percentile-shifts-and-cohens-u_3)
+    - [3.1 Cohen's $U\_3$ Index of Non-Overlap](#31-cohens-u_3-index-of-non-overlap)
+    - [3.2 Percentile Standing: $\\Phi(d)$](#32-percentile-standing-phid)
     - [3.3 Derivation of Common Distribution Overlap Area](#33-derivation-of-common-distribution-overlap-area)
     - [3.4 Contextual Benchmark Interpretation Table](#34-contextual-benchmark-interpretation-table)
-  - [4. Non-Parametric Effect Sizes: When Normality Fails](#4-non-parametric-effect-sizes-when-normality-fails)
+  + [4. Non-Parametric Effect Sizes: When Normality Fails](#4-non-parametric-effect-sizes-when-normality-fails)
     - [4.1 Why Cohen's $d$ Fails on Skewed Data](#41-why-cohens-d-fails-on-skewed-data)
-    - [4.2 Matched Pairs: Rank-Biserial Correlation ($r_{\text{rb}}$)](#42-matched-pairs-rank-biserial-correlation-r_textrb)
-    - [4.3 Independent Samples: Cliff's Delta ($\delta$)](#43-independent-samples-cliffs-delta-delta)
-    - [4.4 Vargha-Delaney $A_{12}$ Measure of Stochastic Superiority](#44-vargha-delaney-a_12-measure-of-stochastic-superiority)
-  - [5. Statistical Power Analysis and Sample Size Planning](#5-statistical-power-analysis-and-sample-size-planning)
+    - [4.2 Matched Pairs: Rank-Biserial Correlation ($r\_{\\text{rb}}$)](#42-matched-pairs-rank-biserial-correlation-r_textrb)
+    - [4.3 Independent Samples: Cliff's Delta ($\\delta$)](#43-independent-samples-cliffs-delta-delta)
+    - [4.4 Vargha-Delaney $A\_{12}$ Measure of Stochastic Superiority](#44-vargha-delaney-a_12-measure-of-stochastic-superiority)
+  + [5. Statistical Power Analysis and Sample Size Planning](#5-statistical-power-analysis-and-sample-size-planning)
     - [5.1 The Four Interlocking Parameters of Hypothesis Testing](#51-the-four-interlocking-parameters-of-hypothesis-testing)
     - [5.2 Mathematical Derivation of Sample Size for Paired Designs](#52-mathematical-derivation-of-sample-size-for-paired-designs)
     - [5.3 Non-Central $t$-Distribution Mechanics](#53-non-central-t-distribution-mechanics)
     - [5.4 Asymptotic Relative Efficiency ($ARE$) and Wilcoxon Power](#54-asymptotic-relative-efficiency-are-and-wilcoxon-power)
-  - [6. Empirical Benchmark Case Studies from TSPLIB](#6-empirical-benchmark-case-studies-from-tsplib)
+  + [6. Empirical Benchmark Case Studies from TSPLIB](#6-empirical-benchmark-case-studies-from-tsplib)
     - [6.1 Small-Scale Regime: `eil51` and `berlin52`](#61-small-scale-regime-eil51-and-berlin52)
     - [6.2 Medium-Scale Regime: `ch130` and `kroA100`](#62-medium-scale-regime-ch130-and-kroa100)
     - [6.3 Large-Scale Regime: `pr1002`](#63-large-scale-regime-pr1002)
     - [6.4 Meta-Analysis Synthesis Across Problem Sizes](#64-meta-analysis-synthesis-across-problem-sizes)
-  - [7. Python Implementation Script](#7-python-implementation-script)
-  - [8. Academic References](#8-academic-references)
+  + [7. python Implementation Script](#7-python-implementation-script)
+  + [8. Academic References](#8-academic-references)
 
 ---
 
@@ -80,6 +81,7 @@ tags:
 ### 1.1 The Sample Size Confounder in Null Hypothesis Testing
 
 A fundamental limitation of null hypothesis significance testing (NHST) is that the $p$-value conflates two entirely distinct quantities:
+
 1. The **magnitude of the true performance difference** (the effect size).
 2. The **sample size** ($n$) of the experiment.
 
@@ -513,16 +515,16 @@ def compute_comprehensive_effect_sizes(
     n1, n2 = len(group1), len(group2)
     m1, m2 = float(np.mean(group1)), float(np.mean(group2))
     s1, s2 = float(np.std(group1, ddof=1)), float(np.std(group2, ddof=1))
-    
+
     # 1. Independent Pooled Cohen's d
     df_indep = n1 + n2 - 2
     s_pooled = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / df_indep)
     d_independent = (m1 - m2) / s_pooled if s_pooled != 0 else 0.0
-    
+
     # Hedges' g correction factor
     j_factor = 1.0 - (3.0 / (4.0 * df_indep - 1.0))
     hedges_g = j_factor * d_independent
-    
+
     # 2. Paired Cohen's d_z
     if paired:
         assert n1 == n2, "Paired groups must have equal size."
@@ -530,7 +532,7 @@ def compute_comprehensive_effect_sizes(
         m_diff = float(np.mean(diffs))
         s_diff = float(np.std(diffs, ddof=1))
         d_z = m_diff / s_diff if s_diff != 0 else 0.0
-        
+
         # Rank-Biserial Correlation (Kerby, 2014)
         w_stat, _ = stats.wilcoxon(group1, group2)
         total_ranks = n1 * (n1 + 1) / 2
@@ -538,18 +540,18 @@ def compute_comprehensive_effect_sizes(
     else:
         d_z = None
         rank_biserial = None
-        
+
     # 3. Distribution Overlap & Percentiles (using absolute Cohen's d)
     d_abs = abs(d_independent)
     percentile_shift = float(stats.norm.cdf(d_abs))
     overlap_area = float(2.0 * stats.norm.cdf(-d_abs / 2.0))
     u3_index = percentile_shift
-    
+
     # 4. Cliff's Delta (Non-parametric independent)
     greater = sum(x > y for x in group1 for y in group2)
     lesser = sum(x < y for x in group1 for y in group2)
     cliffs_delta = float(greater - lesser) / (n1 * n2)
-    
+
     # 5. Exact Power Calculation for Paired t-test
     if paired:
         df = n1 - 1
