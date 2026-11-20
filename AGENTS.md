@@ -30,8 +30,13 @@ modifications:
           anchors) and rule 12 (English for agent-facing files, pt-BR for `documents_tcc/`
           and walkthroughs), pointing at the new prose-language reference and the
           `check_docs` symbol-anchor gate.
+  - date_modified: 2026-11-17
+    modifications:
+      - description: >
+          Added rule 13 (decoupling heavy empirical benchmarks from reflexive subagent
+          review loops), preventing multi-layer agent review from wrapping long physical
+          compute runs.
 related_files:
-  - [copilot-instructions.md](./.github/copilot-instructions.md)
   - [markdown.instructions.md](./.agents/rules/markdown.instructions.md)
   - [exploration.instructions.md](./.agents/rules/exploration.instructions.md)
   - [prose-language.instructions.md](./.agents/rules/prose-language.instructions.md)
@@ -131,6 +136,14 @@ Applies to every task in this repository.
     Portuguese is mandatory for `documents_tcc/**` and `documentation/walkthroughs/**`.
     Translation follows [prose-language.instructions.md](./.agents/rules/prose-language.instructions.md):
     pt-BR register, no calqued headings, technical terms kept verbatim.
+13. **Decouple physical hardware benchmarks from reflexive subagent review loops.**
+    Distinguish software engineering and analytical tasks (refactoring, typing, statistical tests,
+    TeX writing) from long-running empirical hardware benchmarks (>5 min of GPU/CPU compute):
+    - Code, stats, and TeX tasks use `/boost` or subagents for deep reflection, verification, and regression prevention.
+    - Tasks that perform large-scale empirical collection (re-running checkpoint suites, parameter sweeps)
+      must be executed directly or in an isolated stage with explicit progress logging, rather than wrapping
+      physical hardware time inside multi-pass recursive subagent review loops (avoiding redundant post-run
+      audits and 40+ minute opaque wait times).
 
 ## Repository rules that still apply
 
