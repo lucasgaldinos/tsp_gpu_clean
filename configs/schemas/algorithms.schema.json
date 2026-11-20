@@ -2,9 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json",
   "title": "Algorithm variants configuration",
-  "description": "Declarative GA composition (Design B, DP11-1) or monolithic class loading. Every strategy class named here must exist in algorithms.strategies.STRATEGY_REGISTRY, and every parameter key must be accepted by the class constructor (DP11-5).",
+  "description": "Declarative GA composition (Design B, DP11-1) or monolithic class loading. Every strategy class named here must exist in algorithms.strategies.STRATEGY_REGISTRY, and every parameter key must be accepted by the class constructor (DP11-5, BUG-85).",
   "type": "object",
-  "required": ["default_params", "algorithm_configs"],
+  "required": [
+    "default_params",
+    "algorithm_configs"
+  ],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -14,7 +17,11 @@
     "default_params": {
       "type": "object",
       "description": "Genetic Algorithm defaults applied to every variant unless overridden.",
-      "required": ["population_size", "mutation_rate", "seed"],
+      "required": [
+        "population_size",
+        "mutation_rate",
+        "seed"
+      ],
       "additionalProperties": false,
       "properties": {
         "population_size": {
@@ -46,13 +53,20 @@
   "$defs": {
     "algorithm_config": {
       "type": "object",
-      "required": ["metaheuristic", "use_gpu", "description"],
+      "required": [
+        "metaheuristic",
+        "use_gpu",
+        "description"
+      ],
       "additionalProperties": false,
       "properties": {
         "metaheuristic": {
           "type": "string",
           "description": "Metaheuristic identifier; `GeneticAlgorithm` selects the modular pipeline, any other value requires `class_module`/`class_name`.",
-          "examples": ["GeneticAlgorithm", "GeneticAlgorithmFullGPUMonolithic"]
+          "examples": [
+            "GeneticAlgorithm",
+            "GeneticAlgorithmFullGPUMonolithic"
+          ]
         },
         "use_gpu": {
           "type": "boolean",
@@ -65,16 +79,20 @@
         "class_module": {
           "type": "string",
           "description": "Dotted module path for monolithic variants resolved by `AlgorithmConfig.get_class()`.",
-          "examples": ["algorithms.archive.full_gpu_monolithic"]
+          "examples": [
+            "algorithms.archive.full_gpu_monolithic"
+          ]
         },
         "class_name": {
           "type": "string",
           "description": "Class name inside `class_module`.",
-          "examples": ["GeneticAlgorithmFullGPUMonolithic"]
+          "examples": [
+            "GeneticAlgorithmFullGPUMonolithic"
+          ]
         },
         "params": {
           "type": "object",
-          "description": "Algorithm-level parameters. Modular pipelines accept `local_search_stage`, `population_size`, `mutation_rate` and `seed`.",
+          "description": "Algorithm-level parameters. Modular pipelines accept `pipeline`, `local_search_stage`, `population_size`, `mutation_rate` and `seed`.",
           "properties": {
             "pipeline": {
               "type": "array",
@@ -149,141 +167,888 @@
             }
           },
           "then": {
-            "required": ["class_module", "class_name"]
+            "required": [
+              "class_module",
+              "class_name"
+            ]
           }
         }
       ]
     },
     "local_search_stage": {
       "type": "string",
-      "enum": ["post_crossover", "post_mutation", "post_evaluation", "post_evolution", "none"],
+      "enum": [
+        "post_crossover",
+        "post_mutation",
+        "post_evaluation",
+        "post_evolution",
+        "none"
+      ],
       "description": "Where the local-search strategy runs inside the generation pipeline (`LocalSearchStage`)."
     },
     "strategy_slot": {
       "type": "object",
-      "required": ["class"],
+      "required": [
+        "class"
+      ],
       "additionalProperties": false,
       "properties": {
         "class": {
           "type": "string",
           "description": "Key of `STRATEGY_REGISTRY`; the slot prefix identifies the stage.",
           "enum": [
-            "InitializationRandom",
-            "InitializationNearestNeighbor",
-            "SelectionTournament",
-            "SelectionRouletteWheel",
-            "SelectionGPUTournament",
+            "CrossoverGPUOrder",
             "CrossoverOrder",
             "CrossoverPartiallyMapped",
-            "CrossoverGPUOrder",
-            "MutationSwap",
-            "MutationInversion",
-            "MutationGPUSwap",
-            "MutationGPUInversion",
+            "EvaluationCPUCost",
+            "EvaluationGPUCost",
+            "InitializationNearestNeighbor",
+            "InitializationRandom",
             "LocalSearchCPUTwoOpt",
             "LocalSearchGPUTwoOpt",
             "LocalSearchNoOp",
-            "EvaluationCPUCost",
-            "EvaluationGPUCost"
+            "MutationGPUInversion",
+            "MutationGPUSwap",
+            "MutationInversion",
+            "MutationSwap",
+            "SelectionGPUTournament",
+            "SelectionRouletteWheel",
+            "SelectionTournament"
           ]
         },
         "params": {
           "type": "object",
-          "description": "Constructor keyword arguments for the strategy class. Shared keys: `seed`, `candidate_k`, `return_gpu`, `max_matrix_dimension`, `max_shared_tour_cities`, `mode`.",
-          "properties": {
-            "seed": {
-              "type": ["integer", "array", "null"],
-              "description": "Explicit seed override; the loader injects the run seed when omitted."
-            },
-            "return_gpu": {
-              "type": "boolean",
-              "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
-            },
-            "candidate_k": {
-              "type": ["integer", "null"],
-              "minimum": 1,
-              "description": "Nearest-neighbour list width; `null` keeps the exhaustive scan (DP10-20)."
-            },
-            "k": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Tournament size (selection) or candidate-list width (initialization)."
-            },
-            "max_iterations": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "2-opt pass cap for the local-search strategies."
-            },
-            "mode": {
-              "type": "string",
-              "enum": ["best", "first", "multi_move", "batch", "naive"],
-              "description": "Acceptance rule: `best`/`first`/`multi_move` on CPU; `batch`/`multi_move`/`naive` on GPU."
-            },
-            "threads_per_block": {
-              "type": "integer",
-              "minimum": 32,
-              "description": "CUDA threads per block for the GPU strategies."
-            },
-            "max_matrix_dimension": {
-              "type": ["integer", "null"],
-              "minimum": 0,
-              "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
-            },
-            "max_shared_tour_cities": {
-              "type": "integer",
-              "minimum": 2,
-              "description": "`n` above which the GPU 2-opt scans the tour tile by tile instead of caching it in shared memory (default 11 520)."
+          "description": "Constructor keyword arguments validated per selected strategy class via `allOf`."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "CrossoverGPUOrder"
+              }
             }
           },
-          "additionalProperties": false
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_crossover_gpu_order"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "CrossoverOrder"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_crossover_order"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "CrossoverPartiallyMapped"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_crossover_partially_mapped"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "EvaluationCPUCost"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_evaluation_cpu_cost"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "EvaluationGPUCost"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_evaluation_gpu_cost"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "InitializationNearestNeighbor"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_initialization_nearest_neighbor"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "InitializationRandom"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_initialization_random"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "LocalSearchCPUTwoOpt"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_local_search_cpu_two_opt"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "LocalSearchGPUTwoOpt"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_local_search_gpu_two_opt"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "LocalSearchNoOp"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_local_search_no_op"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "MutationGPUInversion"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_mutation_gpu_inversion"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "MutationGPUSwap"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_mutation_gpu_swap"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "MutationInversion"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_mutation_inversion"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "MutationSwap"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_mutation_swap"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "SelectionGPUTournament"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_selection_gpu_tournament"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "SelectionRouletteWheel"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_selection_roulette_wheel"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "SelectionTournament"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_selection_tournament"
+              }
+            }
+          }
         }
-      }
+      ]
     },
     "pipeline_step": {
       "type": "object",
-      "required": ["class"],
+      "required": [
+        "class"
+      ],
       "additionalProperties": false,
       "properties": {
         "class": {
           "type": "string",
-          "description": "Key of PIPELINE_STEP_REGISTRY.",
+          "description": "Key of `PIPELINE_STEP_REGISTRY`.",
           "enum": [
-            "PostInitLocalSearchStep",
             "EliteOnlyLocalSearchStep",
-            "PeriodicLocalSearchStep"
+            "PeriodicLocalSearchStep",
+            "PostInitLocalSearchStep"
           ]
         },
         "params": {
           "type": "object",
-          "description": "Constructor keyword arguments for the pipeline step.",
-          "properties": {
-            "local_search": {
-              "$ref": "#/$defs/strategy_slot"
-            },
-            "evaluation": {
-              "$ref": "#/$defs/strategy_slot"
-            },
-            "re_evaluate": {
-              "$ref": "#/$defs/strategy_slot",
-              "description": "Evaluation strategy slot required when target='population' to recompute fitness after local search."
-            },
-            "elite_count": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Number of top-fitness routes to refine (EliteOnlyLocalSearchStep)."
-            },
-            "interval": {
-              "type": "integer",
-              "minimum": 1,
-              "description": "Generation interval between local search passes (PeriodicLocalSearchStep)."
-            },
-            "target": {
-              "type": "string",
-              "enum": ["offspring", "population"],
-              "description": "Target array to refine ('offspring' or 'population')."
+          "description": "Constructor keyword arguments validated per selected pipeline step class via `allOf`."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "EliteOnlyLocalSearchStep"
+              }
             }
           },
-          "additionalProperties": false
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_elite_only_local_search_step"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "PeriodicLocalSearchStep"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_periodic_local_search_step"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "class"
+            ],
+            "properties": {
+              "class": {
+                "const": "PostInitLocalSearchStep"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params_post_init_local_search_step"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "params_crossover_gpu_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_partially_mapped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_evaluation_cpu_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "params_evaluation_gpu_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "threads_per_block": {
+          "type": "integer",
+          "minimum": 32,
+          "$comment": "Advisory bound: GPU strategies clamp or derive block dimensions at runtime.",
+          "description": "CUDA threads per block for the GPU strategies (advisory lower bound)."
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        }
+      }
+    },
+    "params_initialization_nearest_neighbor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_initialization_random": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        }
+      }
+    },
+    "params_local_search_cpu_two_opt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "best",
+            "first",
+            "multi_move"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_local_search_gpu_two_opt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "batch",
+            "multi_move",
+            "naive"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "threads_per_block": {
+          "type": "integer",
+          "minimum": 32,
+          "$comment": "Advisory bound: GPU strategies clamp or derive block dimensions at runtime.",
+          "description": "CUDA threads per block for the GPU strategies (advisory lower bound)."
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "max_shared_tour_cities": {
+          "type": "integer",
+          "minimum": 2,
+          "$comment": "Advisory bound: minimum tour size for shared-memory caching.",
+          "description": "`n` above which the GPU 2-opt scans the tour tile by tile instead of caching it in shared memory (default 11 520)."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_local_search_no_op": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        }
+      }
+    },
+    "params_mutation_gpu_inversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_gpu_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_inversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_selection_gpu_tournament": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_selection_roulette_wheel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_selection_tournament": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_elite_only_local_search_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_search": {
+          "$ref": "#/$defs/strategy_slot",
+          "description": "Local search strategy slot override; omitted inherits the variant's local_search strategy."
+        },
+        "evaluation": {
+          "$ref": "#/$defs/strategy_slot",
+          "description": "Evaluation strategy slot override; omitted inherits the variant's evaluation strategy."
+        },
+        "elite_count": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: constructor enforces elite_count > 0.",
+          "description": "Number of top-fitness routes to refine (EliteOnlyLocalSearchStep)."
+        }
+      }
+    },
+    "params_periodic_local_search_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_search": {
+          "$ref": "#/$defs/strategy_slot",
+          "description": "Local search strategy slot override; omitted inherits the variant's local_search strategy."
+        },
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: constructor enforces interval > 0.",
+          "description": "Generation interval between local search passes (PeriodicLocalSearchStep)."
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "offspring",
+            "population"
+          ],
+          "description": "Target array to refine ('offspring' or 'population')."
+        },
+        "re_evaluate": {
+          "$ref": "#/$defs/strategy_slot",
+          "description": "Evaluation strategy slot required when target='population' to recompute fitness after local search."
+        }
+      }
+    },
+    "params_post_init_local_search_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_search": {
+          "$ref": "#/$defs/strategy_slot",
+          "description": "Local search strategy slot override; omitted inherits the variant's local_search strategy."
+        },
+        "evaluation": {
+          "$ref": "#/$defs/strategy_slot",
+          "description": "Evaluation strategy slot override; omitted inherits the variant's evaluation strategy."
         }
       }
     }

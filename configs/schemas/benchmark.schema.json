@@ -4,7 +4,7 @@
   "title": "Benchmark execution configuration",
   "description": "Execution parameters consumed by `load_benchmark_config` (`BenchmarkConfig`): repetitions, early-stopping patience, CPU/GPU split threshold and console layout (DP11-5).",
   "type": "object",
-  "required": ["repetitions", "patience", "cpu_size_threshold", "skip_cpu_default"],
+  "required": ["repetitions", "patience"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -22,13 +22,9 @@
       "description": "Generations without improvement before early stopping; `null` uses the adaptive formula `2 * sqrt(n)`."
     },
     "cpu_size_threshold": {
-      "type": "integer",
+      "type": ["integer", "null"],
       "minimum": 1,
-      "description": "Instances up to this dimension may run the pure CPU baseline."
-    },
-    "skip_cpu_default": {
-      "type": "boolean",
-      "description": "Skip the CPU baseline by default when the instance exceeds `cpu_size_threshold`."
+      "description": "Instances up to this dimension may run the pure CPU baseline; null or omitted runs CPU on all instances."
     },
     "incremental_runs": {
       "type": "boolean",

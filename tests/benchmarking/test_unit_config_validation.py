@@ -298,6 +298,10 @@ def test_build_problem_configs_unknown_optimal_raises(fixture_tsp_dir: Path, tmp
     pytest.param(49, 686, id="perfect_square_7"),
     pytest.param(52, 749, id="truncates_750"),
     pytest.param(100, 2000, id="hundred"),
+    pytest.param(318, int(2 * 318 * math.sqrt(318)), id="lin318"),
+    pytest.param(532, int(2 * 532 * math.sqrt(532)), id="att532"),
+    pytest.param(783, int(2 * 783 * math.sqrt(783)), id="rat783"),
+    pytest.param(1002, int(2 * 1002 * math.sqrt(1002)), id="pr1002"),
   ],
 )
 def test_adaptive_generations_formula(n: int, expected: int) -> None:
@@ -378,6 +382,7 @@ def test_all_json_configs_validate_against_their_schemas(
     (lambda d: d.update({"patience": 0}), "0 is less than the minimum of 1"),
     (lambda d: d.update({"cpu_size_threshold": 0}), "0 is less than the minimum of 1"),
     (lambda d: d.update({"spurious_field": 123}), "Additional properties are not allowed"),
+    (lambda d: d.update({"skip_cpu_default": False}), "Additional properties are not allowed"),
     (lambda d: d.pop("repetitions"), "'repetitions' is a required property"),
   ],
 )
@@ -396,6 +401,24 @@ def test_benchmark_schema_rejects_invalid_payloads(
 
   with pytest.raises(jsonschema.ValidationError, match=error_match):
     jsonschema.validate(instance=base, schema=schema)
+
+
+def test_benchmark_schema_accepts_null_and_omitted_cpu_size_threshold() -> None:
+  """WHAT: benchmark.schema.json accepts null or omitted cpu_size_threshold (BUG-81 / Task 13.26)."""
+  base = json.loads((CONFIGS_DIR / "benchmark.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "benchmark.schema.json").read_text(encoding="utf-8"))
+
+  # Case 1: null
+  base["cpu_size_threshold"] = None
+  jsonschema.validate(instance=base, schema=schema)
+
+  # Case 2: omitted
+  base.pop("cpu_size_threshold", None)
+  jsonschema.validate(instance=base, schema=schema)
+
+  # Case 3: positive int
+  base["cpu_size_threshold"] = 250
+  jsonschema.validate(instance=base, schema=schema)
 
 
 
@@ -555,31 +578,38 @@ def test_periodic_local_search_step_schema_rejects_malformed_params(
     jsonschema.validate(instance=base, schema=schema)
 
 
-def test_problems_schema_accepts_standard_metadata() -> None:
-  """WHAT: problems.schema.json accepts standard TSPLIB metadata attributes.
+@pytest.mark.parametrize(
+  "metadata_update",
+  [
+    pytest.param({"edge_weight_type": "EUC_2D"}, id="edge_weight_type"),
+    pytest.param({"comment": "17-city problem from Groetschel"}, id="comment"),
+    pytest.param({"source": "TSPLIB95"}, id="source"),
+    pytest.param({"problem_type": "TSP"}, id="problem_type"),
+  ],
+)
+def test_problems_schema_rejects_tsplib_metadata(metadata_update: dict[str, Any]) -> None:
+  """WHAT: problems.schema.json rejects duplicate TSPLIB metadata fields (BUG-83).
 
-  WHY: Task 12.17 (DP12-10) — TSPLIB instance records contain edge_weight_type,
-  comment, source, and problem_type. The schema must permit them while rejecting unknown keys.
-  EXPECTED: jsonschema.validate completes without raising ValidationError.
+  WHY: Task 13.27(ii) — `routing_data` (`Problem`) is the single source of truth for
+  `edge_type`, `problem_type`, `comment`, and `source`; `ProblemConfig` stores strictly
+  `(name, optimal, size)` and `additionalProperties: false` must reject extra keys.
+  EXPECTED: jsonschema.ValidationError raised for Additional properties.
   """
   base = json.loads((CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
   schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
 
-  base["problems"][0]["edge_weight_type"] = "EUC_2D"
-  base["problems"][0]["comment"] = "17-city problem from Groetschel"
-  base["problems"][0]["source"] = "TSPLIB95"
-  base["problems"][0]["problem_type"] = "TSP"
+  base["problems"][0].update(metadata_update)
 
-  jsonschema.validate(instance=base, schema=schema)
+  with pytest.raises(jsonschema.ValidationError, match="Additional properties are not allowed"):
+    jsonschema.validate(instance=base, schema=schema)
 
 
 @pytest.mark.parametrize(
   ("metadata_update", "error_match"),
   [
-    ({"edge_weight_type": 123}, "123 is not of type 'string'"),
-    ({"comment": ["not", "a", "string"]}, "is not of type 'string'"),
-    ({"source": {"not": "string"}}, "is not of type 'string'"),
-    ({"problem_type": True}, "True is not of type 'string'"),
+    ({"name": 123}, "123 is not of type 'string'"),
+    ({"optimal": "not_a_number"}, "is not of type 'number'"),
+    ({"size": "17"}, "is not of type 'integer'"),
     ({"unknown_custom_field": "disallowed"}, "Additional properties are not allowed"),
   ],
 )
@@ -587,9 +617,9 @@ def test_problems_schema_rejects_invalid_metadata(
   metadata_update: dict[str, Any],
   error_match: str,
 ) -> None:
-  """WHAT: problems.schema.json rejects invalid types and unknown metadata fields.
+  """WHAT: problems.schema.json rejects invalid field types and unknown fields.
 
-  WHY: Task 12.17 (DP12-10) — Metadata fields must be strings and additionalProperties remains false.
+  WHY: Task 12.17 / Task 13.27(ii) — Strict types on `(name, optimal, size)` and `additionalProperties: false`.
   EXPECTED: jsonschema.ValidationError raised with matching diagnostic error message.
   """
   base = json.loads((CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
@@ -599,4 +629,34 @@ def test_problems_schema_rejects_invalid_metadata(
 
   with pytest.raises(jsonschema.ValidationError, match=error_match):
     jsonschema.validate(instance=base, schema=schema)
+
+
+def test_validate_gpu_backend_for_algorithms_only_checks_when_gpu_selected(
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: GPU backend preflight runs only when at least one selected algorithm has `use_gpu=True`.
+
+  WHY: Task 13.25 (`BUG-79`) — CPU-only runs must pass on GPU-less hosts, while GPU runs
+  must fail fast in preflight before writing any checkpoints.
+  """
+  from benchmarking.runner import orchestration
+
+  algo_configs = {
+    "CPU": AlgorithmConfig(name="CPU", use_gpu=False, description="CPU"),
+    "HybridNaive": AlgorithmConfig(name="HybridNaive", use_gpu=True, description="GPU"),
+  }
+
+  monkeypatch.setattr(orchestration, "gpu_available", lambda: False)
+  monkeypatch.setattr(orchestration, "cupy_backend", lambda: None)
+
+  assert orchestration.validate_gpu_backend_for_algorithms(["CPU"], algo_configs) == []
+
+  gpu_errors = orchestration.validate_gpu_backend_for_algorithms(["CPU", "HybridNaive"], algo_configs)
+  assert len(gpu_errors) == 2
+  assert any("gpu_available" in err for err in gpu_errors)
+  assert any("cupy_backend" in err for err in gpu_errors)
+
+  monkeypatch.setattr(orchestration, "gpu_available", lambda: True)
+  monkeypatch.setattr(orchestration, "cupy_backend", object)
+  assert orchestration.validate_gpu_backend_for_algorithms(["HybridNaive"], algo_configs) == []
 

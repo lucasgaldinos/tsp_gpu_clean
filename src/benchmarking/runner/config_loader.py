@@ -284,8 +284,7 @@ class BenchmarkConfig:
 
   repetitions: int
   patience: int | None
-  cpu_size_threshold: int
-  skip_cpu_default: bool
+  cpu_size_threshold: int | None = None
   incremental_runs: bool = False
   line_width: int = 80
 
@@ -385,20 +384,20 @@ def load_benchmark_config(config_dir: Path) -> BenchmarkConfig:
   required_fields: list[str] = [
     "repetitions",
     "patience",
-    "cpu_size_threshold",
-    "skip_cpu_default",
   ]
   for field in required_fields:
     if field not in data:
       raise ValueError(f"benchmark.json missing required field: {field}")
+
+  raw_threshold = data.get("cpu_size_threshold")
+  cpu_size_threshold = int(raw_threshold) if raw_threshold is not None else None
 
   line_width = data.get("display", {}).get("line_width", 80)
 
   return BenchmarkConfig(
     repetitions=data["repetitions"],
     patience=data["patience"],
-    cpu_size_threshold=data["cpu_size_threshold"],
-    skip_cpu_default=data["skip_cpu_default"],
+    cpu_size_threshold=cpu_size_threshold,
     incremental_runs=bool(data.get("incremental_runs", False)),
     line_width=line_width,
   )
@@ -525,7 +524,7 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   if benchmark.patience is not None and benchmark.patience <= 0:
     warnings.append(f"Invalid patience: {benchmark.patience} (must be > 0 or None)")
 
-  if benchmark.cpu_size_threshold <= 0:
+  if benchmark.cpu_size_threshold is not None and benchmark.cpu_size_threshold <= 0:
     warnings.append(f"Invalid cpu_size_threshold: {benchmark.cpu_size_threshold} (must be > 0)")
 
   if not problems:

@@ -8,11 +8,25 @@ validates the `$schema` documents plus the complete example configuration (`DP11
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 from pathlib import Path
+from typing import Any, Literal, get_args
 
+import jsonschema  # type: ignore[import-untyped]
+import pytest
+
+from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
 from algorithms.strategies import STRATEGY_REGISTRY
+from algorithms.strategies.local_search import TwoOptCPUMode, TwoOptGPUMode
 from benchmarking.runner.config_loader import load_algorithms_config
+from benchmarking.runner.schema_generator import (
+  generate_algorithms_schema,
+  render_algorithms_schema,
+  resolve_init_hints,
+  unwrap_type_annotation,
+)
+from protocols.types import LocalSearchStage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = PROJECT_ROOT / "configs"
@@ -168,3 +182,184 @@ def test_example_config_instantiates_every_variant() -> None:
     assert cfg.instantiate(ga_params) is not None, f"variant {name} failed to instantiate"
 
   assert modes == {"best", "first", "multi_move", "batch", "naive"}
+
+
+def _extract_allof_branch_map(slot_schema: dict[str, Any]) -> dict[str, str]:
+  """Map each `allOf` branch's `class.const` value to its referenced `$defs` key."""
+  branch_map: dict[str, str] = {}
+  for branch in slot_schema["allOf"]:
+    assert branch["if"]["required"] == ["class"]
+    class_name = branch["if"]["properties"]["class"]["const"]
+    ref = branch["then"]["properties"]["params"]["$ref"]
+    assert ref.startswith("#/$defs/")
+    branch_map[class_name] = ref.removeprefix("#/$defs/")
+  return branch_map
+
+
+def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> None:
+  """WHAT: Reflective drift contract between registries and `algorithms.schema.json` (BUG-85).
+
+  WHY: Hand-maintained schemas drift silently when new strategies or `Literal` modes are added,
+  leaving unregistered or invalid params unconstrained (`Task 13.27(iv)`).
+  EXPECTED:
+    (a) `len(allOf)` in `strategy_slot` == `len(STRATEGY_REGISTRY)` (17) and in
+        `pipeline_step` == `len(PIPELINE_STEP_REGISTRY)` (3);
+    (b) every `$defs/params_*` key set equals the constructor signature parameters;
+    (c) every `Literal`-derived `enum` matches `typing.get_args`;
+    (d) committed `configs/schemas/algorithms.schema.json` equals generator output.
+  """
+  committed_text = (SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8")
+  committed_schema = json.loads(committed_text)
+  generated_schema = generate_algorithms_schema()
+
+  # (d) Committed schema is byte-for-byte identical to generator output.
+  assert committed_schema == generated_schema
+  assert committed_text == render_algorithms_schema()
+
+  defs = committed_schema["$defs"]
+
+  # (a) Branch coverage across both registries.
+  strategy_slot = defs["strategy_slot"]
+  pipeline_step = defs["pipeline_step"]
+  assert len(strategy_slot["allOf"]) == len(STRATEGY_REGISTRY) == 17
+  assert len(pipeline_step["allOf"]) == len(PIPELINE_STEP_REGISTRY) == 3
+
+  strategy_branches = _extract_allof_branch_map(strategy_slot)
+  pipeline_branches = _extract_allof_branch_map(pipeline_step)
+  assert set(strategy_branches.keys()) == set(STRATEGY_REGISTRY.keys())
+  assert set(pipeline_branches.keys()) == set(PIPELINE_STEP_REGISTRY.keys())
+  assert set(strategy_slot["properties"]["class"]["enum"]) == set(STRATEGY_REGISTRY.keys())
+  assert set(pipeline_step["properties"]["class"]["enum"]) == set(PIPELINE_STEP_REGISTRY.keys())
+
+  # (b) & (c) Constructor parameter fidelity and Literal enum parity across all 20 classes.
+  for registry, branch_map in (
+    (STRATEGY_REGISTRY, strategy_branches),
+    (PIPELINE_STEP_REGISTRY, pipeline_branches),
+  ):
+    for class_name, cls in registry.items():
+      def_key = branch_map[class_name]
+      param_def = defs[def_key]
+      assert param_def["additionalProperties"] is False
+
+      sig = inspect.signature(cls)
+      expected_params = {
+        name
+        for name, param in sig.parameters.items()
+        if param.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+      }
+      assert set(param_def["properties"].keys()) == expected_params, (
+        f"Schema keys mismatch for {class_name}: {set(param_def['properties'].keys())} != {expected_params}"
+      )
+
+      hints = resolve_init_hints(cls)
+      for param_name in expected_params:
+        ann = unwrap_type_annotation(hints.get(param_name, sig.parameters[param_name].annotation))
+        if getattr(ann, "__origin__", None) is Literal:
+          assert param_def["properties"][param_name]["enum"] == list(get_args(ann))
+
+  assert defs["params_local_search_cpu_two_opt"]["properties"]["mode"]["enum"] == list(
+    get_args(unwrap_type_annotation(TwoOptCPUMode))
+  )
+  assert defs["params_local_search_gpu_two_opt"]["properties"]["mode"]["enum"] == list(
+    get_args(unwrap_type_annotation(TwoOptGPUMode))
+  )
+  assert defs["local_search_stage"]["enum"] == list(get_args(unwrap_type_annotation(LocalSearchStage)))
+
+
+def test_schema_generator_reflects_synthetic_strategy_without_manual_table_edits(
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: Reflexivity check with a temporary synthetic strategy in `STRATEGY_REGISTRY`.
+
+  WHY: Proves `schema_generator` inspects registries dynamically rather than reading
+  a hardcoded class-to-params lookup table (`Task 13.27(iv)`).
+  EXPECTED: Registering a synthetic class emits a new `allOf` branch and `$defs`
+  schema matching its `__init__` parameters and `Literal` enum.
+  """
+
+  class SyntheticThreeOptPreview:
+    def __init__(
+      self,
+      acceptance: Literal["greedy", "tabu"] = "greedy",
+      max_passes: int = 3,
+      tolerance: float | None = None,
+      dry_run: bool = False,
+    ) -> None:
+      self.acceptance = acceptance
+      self.max_passes = max_passes
+      self.tolerance = tolerance
+      self.dry_run = dry_run
+
+  monkeypatch.setitem(STRATEGY_REGISTRY, "SyntheticThreeOptPreview", SyntheticThreeOptPreview)
+
+  schema = generate_algorithms_schema()
+  strategy_slot = schema["$defs"]["strategy_slot"]
+  assert len(strategy_slot["allOf"]) == len(STRATEGY_REGISTRY)
+  branch_map = _extract_allof_branch_map(strategy_slot)
+  assert "SyntheticThreeOptPreview" in branch_map
+
+  def_key = branch_map["SyntheticThreeOptPreview"]
+  param_def = schema["$defs"][def_key]
+  assert param_def["additionalProperties"] is False
+  assert set(param_def["properties"].keys()) == {"acceptance", "max_passes", "tolerance", "dry_run"}
+  assert param_def["properties"]["acceptance"] == {"type": "string", "enum": ["greedy", "tabu"]}
+  assert param_def["properties"]["max_passes"] == {"type": "integer"}
+  assert param_def["properties"]["tolerance"] == {"type": ["number", "null"]}
+  assert param_def["properties"]["dry_run"] == {"type": "boolean"}
+
+  base_cfg = json.loads((CONFIG_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  base_cfg["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
+    "class": "SyntheticThreeOptPreview",
+    "params": {"acceptance": "greedy", "max_passes": 4, "tolerance": 0.01, "dry_run": True},
+  }
+  jsonschema.validate(instance=base_cfg, schema=schema)
+
+  base_cfg["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"]["acceptance"] = "invalid"
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=base_cfg, schema=schema)
+
+
+def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_candidate_k() -> None:
+  """WHAT: Per-class `mode` enum separation and `candidate_k: 0` acceptance (`BUG-85`).
+
+  WHY: Before `Task 13.27(iv)`, `algorithms.schema.json` shared one `mode` enum across
+  CPU and GPU 2-opt and forbade `candidate_k: 0`, inverting runtime acceptance.
+  EXPECTED:
+    - `LocalSearchCPUTwoOpt` with `mode: "batch"` fails `jsonschema.validate`;
+    - `LocalSearchGPUTwoOpt` with `mode: "best"` fails `jsonschema.validate`;
+    - `LocalSearchCPUTwoOpt` with `mode: "best"` and `candidate_k: 0` passes `jsonschema.validate`;
+    - `PostInitLocalSearchStep` with `interval: 5` fails `jsonschema.validate`.
+  """
+  schema = json.loads((SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
+  base = json.loads((CONFIG_DIR / "algorithms.json").read_text(encoding="utf-8"))
+
+  bad_cpu = json.loads(json.dumps(base))
+  bad_cpu["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"] = {
+    "max_iterations": 10,
+    "mode": "batch",
+  }
+  with pytest.raises(jsonschema.ValidationError, match="is not one of"):
+    jsonschema.validate(instance=bad_cpu, schema=schema)
+
+  bad_gpu = json.loads(json.dumps(base))
+  bad_gpu["algorithm_configs"]["HybridOptimized"]["strategies"]["local_search"]["params"] = {
+    "max_iterations": 10,
+    "mode": "best",
+  }
+  with pytest.raises(jsonschema.ValidationError, match="is not one of"):
+    jsonschema.validate(instance=bad_gpu, schema=schema)
+
+  valid_cpu = json.loads(json.dumps(base))
+  valid_cpu["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"] = {
+    "max_iterations": 10,
+    "mode": "best",
+    "candidate_k": 0,
+  }
+  jsonschema.validate(instance=valid_cpu, schema=schema)
+
+  bad_step = json.loads(json.dumps(base))
+  bad_step["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {"class": "PostInitLocalSearchStep", "params": {"interval": 5}},
+  ]
+  with pytest.raises(jsonschema.ValidationError, match="Additional properties are not allowed"):
+    jsonschema.validate(instance=bad_step, schema=schema)

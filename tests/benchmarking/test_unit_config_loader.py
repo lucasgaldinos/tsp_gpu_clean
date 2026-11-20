@@ -91,7 +91,7 @@ def test_load_all_configs_parses_benchmark_and_problem_values(fixture_configs: d
   assert benchmark.repetitions == 2
   assert benchmark.patience == 5
   assert benchmark.cpu_size_threshold == 100
-  assert benchmark.skip_cpu_default is False
+  assert not hasattr(benchmark, "skip_cpu_default")
   assert benchmark.incremental_runs is False
   assert benchmark.line_width == 80
   assert [problem.name for problem in problems] == ["burma14", "gr17", "bayg29", "att48", "berlin52"]
@@ -106,7 +106,7 @@ def test_benchmark_config_separators_match_line_width() -> None:
   EXPECTED: `=`/`-` repeated `line_width` times.
   """
   # Arrange
-  benchmark = BenchmarkConfig(repetitions=3, patience=None, cpu_size_threshold=50, skip_cpu_default=True, line_width=40)
+  benchmark = BenchmarkConfig(repetitions=3, patience=None, cpu_size_threshold=50, line_width=40)
 
   # Act / Assert
   assert benchmark.separator == "=" * 40
@@ -160,7 +160,7 @@ def test_load_all_configs_requires_each_file(tmp_path: Path, missing_name: str) 
   config_dir.mkdir()
   complete_configs = {
     "algorithms.json": {"algorithm_configs": {}},
-    "benchmark.json": {"repetitions": 2, "patience": 5, "cpu_size_threshold": 100, "skip_cpu_default": False},
+    "benchmark.json": {"repetitions": 2, "patience": 5, "cpu_size_threshold": 100},
     "problems.json": {"problems": []},
   }
   for name, payload in complete_configs.items():
@@ -196,12 +196,58 @@ def test_load_benchmark_config_requires_each_field(tmp_path: Path) -> None:
   # Arrange
   _write_json(
     tmp_path / "benchmark.json",
-    {"patience": 5, "cpu_size_threshold": 100, "skip_cpu_default": False},
+    {"patience": 5, "cpu_size_threshold": 100},
   )
 
   # Act / Assert
   with pytest.raises(ValueError, match="missing required field: repetitions"):
     load_benchmark_config(tmp_path)
+
+
+def test_load_benchmark_config_allows_optional_or_null_cpu_size_threshold(tmp_path: Path) -> None:
+  """WHAT: benchmark.json with cpu_size_threshold null or omitted parses as None (BUG-81 / Task 13.26)."""
+  # Case 1: explicitly null
+  _write_json(
+    tmp_path / "benchmark.json",
+    {"repetitions": 10, "patience": 5, "cpu_size_threshold": None},
+  )
+  cfg = load_benchmark_config(tmp_path)
+  assert cfg.cpu_size_threshold is None
+
+  # Case 2: omitted
+  _write_json(
+    tmp_path / "benchmark.json",
+    {"repetitions": 10, "patience": 5},
+  )
+  cfg_omitted = load_benchmark_config(tmp_path)
+  assert cfg_omitted.cpu_size_threshold is None
+
+
+def test_determine_problem_algorithms_threshold_none_vs_integer() -> None:
+  """WHAT: _determine_problem_algorithms includes all algorithms when cpu_threshold is None,
+  and skips CPU algorithms when problem_size > cpu_threshold.
+
+  WHY: Task 13.26 (BUG-81 / DP13-1) — DoD requirement for None vs integer threshold behavior.
+  """
+  from benchmarking.runner.config_loader import AlgorithmConfig
+  from benchmarking.runner.orchestration import _determine_problem_algorithms
+
+  algo_configs = {
+    "CPU": AlgorithmConfig(name="CPU", use_gpu=False, description="CPU"),
+    "HybridNaive": AlgorithmConfig(name="HybridNaive", use_gpu=True, description="GPU 1"),
+    "HybridOptimized": AlgorithmConfig(name="HybridOptimized", use_gpu=True, description="GPU 2"),
+    "FullGPUModular": AlgorithmConfig(name="FullGPUModular", use_gpu=True, description="GPU 3"),
+  }
+  selected = list(algo_configs.keys())
+
+  # Case 1: cpu_threshold=None (no cutoff) -> all 4 algorithms on size 50 and size 1002
+  assert _determine_problem_algorithms(50, selected, algo_configs, None) == selected
+  assert _determine_problem_algorithms(1002, selected, algo_configs, None) == selected
+
+  # Case 2: cpu_threshold=400 -> all 4 algorithms on size 50, but size 1002 skips CPU
+  assert _determine_problem_algorithms(50, selected, algo_configs, 400) == selected
+  gpu_only = ["HybridNaive", "HybridOptimized", "FullGPUModular"]
+  assert _determine_problem_algorithms(1002, selected, algo_configs, 400) == gpu_only
 
 
 @pytest.mark.parametrize(
