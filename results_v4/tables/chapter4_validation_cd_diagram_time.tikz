@@ -1,5 +1,5 @@
 % Auto-generated Demšar Critical Difference Diagram in TikZ
-% Metric: Execution Time
+% Metric: Tempo de Execução
 % Generated for k = 4 algorithms across N = 15 instances (CD = 1.211, alpha = 0.05, F_F = inf, p = 0)
 \begin{tikzpicture}[
     scale=2.2,
@@ -13,10 +13,10 @@
 ]
 
     % 1. CD Reference Bar at the Top
-    \draw[cdbar] (1.0, 1.10) -- node[above=2pt, font=\footnotesize\bfseries] {CD = 1.211 ($\alpha = 0.05$)} (2.211, 1.10);
+    \draw[cdbar] (1.0, 1.10) -- node[above=2pt, font=\footnotesize\bfseries] {CD = 1,211 ($\alpha = 0{,}05$)} (2.211, 1.10);
 
     % 2. Main Horizontal Rank Axis (1.0 to k.0)
-    \draw[axis] (0.8, 0.0) -- (4.3, 0.0) node[right, font=\footnotesize\bfseries] {Rank};
+    \draw[axis] (0.8, 0.0) -- (4.3, 0.0) node[right, font=\footnotesize\bfseries] {Posto médio};
 
     % Major Ticks
     \draw[tick] (1.0, 0.08) -- (1.0, -0.08);
@@ -33,25 +33,25 @@
     \coordinate (A_FullGPUModular) at (1.000, 0.0);
     \node[algomarker] at (A_FullGPUModular) {};
     \draw[thick] (A_FullGPUModular) -- (1.000, -0.48) -- (0.72, -0.48);
-    \node[labelnode, anchor=east] at (0.68, -0.48) {FullGPUModular\\(1.00)};
+    \node[labelnode, anchor=east] at (0.68, -0.48) {Totalmente em GPU\\(1,00)};
     \coordinate (A_HybridOptimized) at (2.000, 0.0);
     \node[algomarker] at (A_HybridOptimized) {};
     \draw[thick] (A_HybridOptimized) -- (2.000, -0.98) -- (0.72, -0.98);
-    \node[labelnode, anchor=east] at (0.68, -0.98) {HybridOptimized\\(2.00)};
+    \node[labelnode, anchor=east] at (0.68, -0.98) {Híbrida Otimizada\\(2,00)};
     \coordinate (A_HybridNaive) at (3.000, 0.0);
     \node[algomarker] at (A_HybridNaive) {};
     \draw[thick] (A_HybridNaive) -- (3.000, -0.98) -- (4.28, -0.98);
-    \node[labelnode, anchor=west] at (4.32, -0.98) {HybridNaive\\(3.00)};
+    \node[labelnode, anchor=west] at (4.32, -0.98) {Híbrida Ingênua\\(3,00)};
     \coordinate (A_CPU) at (4.000, 0.0);
     \node[algomarker] at (A_CPU) {};
     \draw[thick] (A_CPU) -- (4.000, -0.48) -- (4.28, -0.48);
-    \node[labelnode, anchor=west] at (4.32, -0.48) {CPU\\(4.00)};
+    \node[labelnode, anchor=west] at (4.32, -0.48) {CPU\\(4,00)};
 
     % Major Tick Labels (drawn after drop lines so white fill masks crossings)
-    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (1.0, -0.08) {1.0};
-    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (2.0, -0.08) {2.0};
-    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (3.0, -0.08) {3.0};
-    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (4.0, -0.08) {4.0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (1.0, -0.08) {1,0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (2.0, -0.08) {2,0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (3.0, -0.08) {3,0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (4.0, -0.08) {4,0};
 
     % 4. Non-Significant Cliques (|R_i - R_j| <= CD)
     \draw[clique] (1.000, 0.35) -- (2.000, 0.35);
