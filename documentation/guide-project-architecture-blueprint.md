@@ -138,10 +138,12 @@ flowchart TD
     subgraph BENCH["Benchmarking Layer (src/benchmarking/)"]
         direction TB
         ORCH["runner/ (orchestration, algorithm_runner,<br/>config_loader, checkpoint_io, schema_generator)"]:::bench
-        ANAL["analysis/ (statistics, stats_utils,<br/>problem/aggregate, cd_diagram, scaling_plots, report_generator)"]:::bench
+        ANAL["analysis/ (statistics, stats_utils,<br/>cohort, problem_statistics, cohort_analysis)"]:::bench
+        REPT["reporting/ (style, console, table_reports,<br/>latex_macros, cd_diagram, scaling_plots, generator)"]:::bench
         DB["database/ (schema.sql, db_operations,<br/>import_checkpoints, validate_consistency)"]:::bench
         ORCH --> ANAL
-        ANAL -. "lazy cycle: report_generator <-> cd_diagram/scaling_plots" .-> ANAL
+        ORCH --> REPT
+        REPT --> ANAL
     end
 
     CLI --> ORCH
@@ -458,7 +460,7 @@ Dependencies are structured to flow downward from orchestration/CLI into domain 
 ### Verified Coupling Anomalies & Package Surface Gaps
 
 1. **Layering Anomaly in `data_models/records.py`:** [`records.py`](../src/data_models/records.py) defines [`BenchmarkRunInput`](../src/data_models/records.py) (matching `schema.sql`) and [`NemenyiResult`](../src/data_models/records.py) inside Layer 2 `data_models/` rather than `src/benchmarking/`. This prevents circular imports inside `benchmarking/` but leaks persistence schemas into the core domain layer.
-2. **Resolved — Acyclic Reporting DAG in `benchmarking/analysis/`:** Previously `cd_diagram.py` and `scaling_plots.py` imported formatting/threshold constants from `report_generator.py`. Extracting [`report_style.py`](../src/benchmarking/analysis/report_style.py), [`table_reports.py`](../src/benchmarking/analysis/table_reports.py), and [`latex_macros.py`](../src/benchmarking/analysis/latex_macros.py) made the analysis reporting graph strictly acyclic, leaving [`report_generator.py`](../src/benchmarking/analysis/report_generator.py) as a thin composable facade.
+2. **Resolved — Separated Pure `benchmarking/analysis/` from `benchmarking/reporting/`:** Pure statistical computation ([`statistics.py`](../src/benchmarking/analysis/statistics.py), [`stats_utils.py`](../src/benchmarking/analysis/stats_utils.py), [`cohort.py`](../src/benchmarking/analysis/cohort.py), [`problem_statistics.py`](../src/benchmarking/analysis/problem_statistics.py), [`cohort_analysis.py`](../src/benchmarking/analysis/cohort_analysis.py)) now emits single-pass immutable snapshots (`OmnibusTestResult`, `ProblemAnalysis`, `CohortAnalysis`) with zero console-logging or file-I/O side effects. All renderers live in `benchmarking/reporting/` ([`style.py`](../src/benchmarking/reporting/style.py), [`console.py`](../src/benchmarking/reporting/console.py), [`table_reports.py`](../src/benchmarking/reporting/table_reports.py), [`latex_macros.py`](../src/benchmarking/reporting/latex_macros.py), [`cd_diagram.py`](../src/benchmarking/reporting/cd_diagram.py), [`scaling_plots.py`](../src/benchmarking/reporting/scaling_plots.py), and [`generator.py`](../src/benchmarking/reporting/generator.py)) in a strictly acyclic DAG consuming the precomputed snapshot once.
 3. **Private Symbol Coupling in `algorithm_runner.py`:** [`algorithm_runner.py`](../src/benchmarking/runner/algorithm_runner.py) imports the private function [`gpu_helpers.py::_compile_kernel_cached`](../src/utils/gpu_helpers.py) solely to check `.cache_info().currsize` around the repetition loop (`DP11-21`).
 4. **Runner-to-Solver & Loader Top-Level Coupling:** [`config_loader.py`](../src/benchmarking/runner/config_loader.py) and [`schema_generator.py`](../src/benchmarking/runner/schema_generator.py) import `algorithms.strategies.STRATEGY_REGISTRY`, `PIPELINE_STEP_REGISTRY`, and `tsplib_loader` directly at import time to instantiate pipelines and reflectively generate JSON Schemas (`BUG-85`).
 5. **Incomplete Barrel `__init__.py` Exports:**

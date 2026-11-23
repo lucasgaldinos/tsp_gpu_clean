@@ -373,8 +373,8 @@ Este plano detalha as adições e modificações necessárias diretamente no doc
       - [config_loader.py](../../src/benchmarking/runner/config_loader.py)
       - [orchestration.py](../../src/benchmarking/runner/orchestration.py)
       - [statistics.py](../../src/benchmarking/analysis/statistics.py)
-      - [report_generator.py](../../src/benchmarking/analysis/report_generator.py)
-      - [aggregate_statistics.py](../../src/benchmarking/analysis/aggregate_statistics.py)
+      - [generator.py](../../src/benchmarking/reporting/generator.py)
+      - [cohort_analysis.py](../../src/benchmarking/analysis/cohort_analysis.py)
       - [matrix.py](../../src/distances/matrix.py#L179-L209) e [pairwise.py](../../src/distances/pairwise.py#L254-L258)
       - `test_benchmark_selected_problems.py` *(removido na TASK 8.7)*
     - **Resumo:** A API `benchmarking_v2` foi completada com suporte direto a arquivos `.tsp` via `tsplib95` (`build_problem_configs_from_tsp_files`), correção da conversão de graus/minutos em distâncias `GEO` (`xp.trunc` em vez de `xp.floor`, fazendo `gr96.tsp` bater exatamente com o ótimo canônico `55209`), proteção estatística para variância zero/amostras reduzidas e fallback Nemenyi em SciPy puro, além de pré-cálculo do tempo de *baseline* na Tabela 2. O script `run_selected_problems.py` foi criado e executado nas 10 instâncias solicitadas (`att48`, `bayg29`, `bays29`, `berlin52`, `brg180`, `gr17`, `gr21`, `gr24`, `gr48`, `gr96`).

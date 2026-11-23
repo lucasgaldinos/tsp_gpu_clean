@@ -423,7 +423,7 @@ uv run tsp-report \
   --report-style configs/report-style.example.json
 ```
 
-All presentation parameters live in [`ReportStyle`](../src/benchmarking/analysis/report_style.py) (loadable from JSON via [`load_report_style`](../src/benchmarking/analysis/report_style.py)):
+All presentation parameters live in [`ReportStyle`](../src/benchmarking/reporting/style.py) (loadable from JSON via [`load_report_style`](../src/benchmarking/reporting/style.py)):
 
 - `display_names`: map canonical JSON variant keys to human-readable table/figure labels
 - `algorithm_order`: explicit display order across tables, CD diagrams, and plots
@@ -435,7 +435,7 @@ All presentation parameters live in [`ReportStyle`](../src/benchmarking/analysis
 You can also invoke each generator independently in Python without the facade:
 
 ```python
-from benchmarking.analysis import (
+from benchmarking.reporting import (
   ReportStyle,
   generate_latex_macros,
   generate_markdown_tables,
