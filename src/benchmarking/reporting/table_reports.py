@@ -18,16 +18,17 @@ from typing import TYPE_CHECKING, Any, LiteralString
 import numpy as np
 
 from benchmarking.analysis.cohort import BenchmarkCohort, resolve_algorithm_names
-from benchmarking.analysis.report_style import (
+from benchmarking.analysis.stats_utils import finite_metric
+from benchmarking.reporting.style import (
   ReportStyle,
   categorize_by_size,
   escape_latex_identifier,
 )
-from benchmarking.analysis.stats_utils import finite_metric
 
 if TYPE_CHECKING:
   from collections.abc import Mapping, Sequence
 
+  from benchmarking.analysis.cohort_analysis import CohortAnalysis
   from benchmarking.runner.config_loader import ProblemConfig
 
 _PHASE_NAMES: tuple[str, ...] = (
@@ -271,17 +272,31 @@ def _compute_table2_stats(
   baseline_algorithm: str,
   *,
   cohort: BenchmarkCohort | None = None,
+  analysis: CohortAnalysis | None = None,
 ) -> list[dict[str, Any]]:
   """Compute aggregated statistics across all problems for each algorithm (Table 2)."""
-  active_cohort = cohort or BenchmarkCohort.from_results(
-    all_results,
-    algorithm_order=algorithm_names,
-    sort_problems=False,
+  active_cohort = cohort or (
+    analysis.cohort
+    if analysis is not None
+    else BenchmarkCohort.from_results(
+      all_results,
+      algorithm_order=algorithm_names,
+      sort_problems=False,
+    )
+  )
+  can_reuse_analysis = (
+    analysis is not None
+    and analysis.baseline_algorithm == baseline_algorithm
+    and list(analysis.cohort.problems) == problem_names
   )
   stats: list[dict[str, Any]] = []
 
   for alg in algorithm_names:
-    agg = active_cohort.summarize_algorithm(alg, problems=problem_names)
+    agg = (
+      analysis.per_algorithm.get(alg)
+      if can_reuse_analysis and analysis is not None
+      else active_cohort.summarize_algorithm(alg, problems=problem_names)
+    )
     if agg is None or (agg.mean_gap is None and agg.mean_time is None):
       continue
 
@@ -289,7 +304,11 @@ def _compute_table2_stats(
       avg_speedup: float | None = 1.0
       sample_size: int | None = None
     else:
-      sp = active_cohort.paired_geometric_speedup(alg, baseline_algorithm, problems=problem_names)
+      sp = (
+        analysis.baseline_speedups[alg]
+        if can_reuse_analysis and analysis is not None and alg in analysis.baseline_speedups
+        else active_cohort.paired_geometric_speedup(alg, baseline_algorithm, problems=problem_names)
+      )
       avg_speedup = sp.geomean
       sample_size = sp.sample_size
 
@@ -696,21 +715,30 @@ def generate_markdown_tables(
   include_size_category_table: bool = False,
   style: ReportStyle | None = None,
   cohort: BenchmarkCohort | None = None,
+  analysis: CohortAnalysis | None = None,
 ) -> Path:
   """Generate standalone Markdown benchmark summary tables (``<benchmark_name>.md``)."""
-  if not all_results:
+  if analysis is None and not all_results:
     raise ValueError("all_results dictionary is empty")
 
   effective_style = style or ReportStyle()
   out_dir = Path(output_dir)
   out_dir.mkdir(parents=True, exist_ok=True)
 
-  active_cohort = cohort or BenchmarkCohort.from_results(
-    all_results,
-    problem_configs,
-    algorithm_order=effective_style.algorithm_order,
+  active_cohort = cohort or (
+    analysis.cohort
+    if analysis is not None
+    else BenchmarkCohort.from_results(
+      all_results,
+      problem_configs,
+      algorithm_order=effective_style.algorithm_order,
+    )
   )
-  effective_baseline = active_cohort.baseline(baseline_algorithm)
+  effective_baseline = (
+    analysis.baseline_algorithm
+    if analysis is not None and baseline_algorithm is None
+    else active_cohort.baseline(baseline_algorithm)
+  )
   baseline_times = _compute_baseline_times(active_cohort, effective_baseline)
   t1_rows, has_fallback = _compute_table1_rows(active_cohort, effective_baseline, baseline_times)
   t2_stats = _compute_table2_stats(
@@ -719,6 +747,7 @@ def generate_markdown_tables(
     list(active_cohort.algorithms),
     effective_baseline,
     cohort=active_cohort,
+    analysis=analysis,
   )
 
   md_lines: list[str] = []
@@ -753,21 +782,30 @@ def generate_latex_tables(
   include_size_category_table: bool = False,
   style: ReportStyle | None = None,
   cohort: BenchmarkCohort | None = None,
+  analysis: CohortAnalysis | None = None,
 ) -> Path:
   """Generate standalone LaTeX benchmark summary tables (``<benchmark_name>.tex``)."""
-  if not all_results:
+  if analysis is None and not all_results:
     raise ValueError("all_results dictionary is empty")
 
   effective_style = style or ReportStyle()
   out_dir = Path(output_dir)
   out_dir.mkdir(parents=True, exist_ok=True)
 
-  active_cohort = cohort or BenchmarkCohort.from_results(
-    all_results,
-    problem_configs,
-    algorithm_order=effective_style.algorithm_order,
+  active_cohort = cohort or (
+    analysis.cohort
+    if analysis is not None
+    else BenchmarkCohort.from_results(
+      all_results,
+      problem_configs,
+      algorithm_order=effective_style.algorithm_order,
+    )
   )
-  effective_baseline = active_cohort.baseline(baseline_algorithm)
+  effective_baseline = (
+    analysis.baseline_algorithm
+    if analysis is not None and baseline_algorithm is None
+    else active_cohort.baseline(baseline_algorithm)
+  )
   baseline_times = _compute_baseline_times(active_cohort, effective_baseline)
   t1_rows, has_fallback = _compute_table1_rows(active_cohort, effective_baseline, baseline_times)
   t2_stats = _compute_table2_stats(
@@ -776,6 +814,7 @@ def generate_latex_tables(
     list(active_cohort.algorithms),
     effective_baseline,
     cohort=active_cohort,
+    analysis=analysis,
   )
 
   tex_lines: list[str] = []

@@ -14,17 +14,18 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from benchmarking.analysis.aggregate_statistics import perform_cross_problem_analysis_stratified
 from benchmarking.analysis.cohort import derive_problem_configs
-from benchmarking.analysis.problem_statistics import perform_statistical_analysis
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.report_style import (
+from benchmarking.analysis.cohort_analysis import analyze_cohort
+from benchmarking.analysis.problem_statistics import analyze_problem
+from benchmarking.analysis.statistics import StatisticalAnalyzer
+from benchmarking.reporting.console import log_cohort_analysis, log_problem_analysis
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.style import (
   ALL_REPORT_ARTIFACTS,
   ReportStyle,
   load_report_style,
   parse_report_artifacts,
 )
-from benchmarking.analysis.statistics import StatisticalAnalyzer
 from benchmarking.runner.checkpoint_io import CheckpointManager, load_checkpoints_dir, save_problem_statistics
 from benchmarking.runner.config_loader import ProblemConfig, load_problems_config
 
@@ -192,30 +193,35 @@ def main(argv: Sequence[str] | None = None) -> int:
       cfg = cfg_by_name[problem_name]
       first_entry = next(iter(alg_results.values()))
       meta = first_entry.get("problem_metadata") if isinstance(first_entry.get("problem_metadata"), dict) else None
-      stat_tests = perform_statistical_analysis(
+      problem_analysis = analyze_problem(
         problem_name=problem_name,
         optimal_cost=cfg.optimal,
         results=alg_results,
         analyzer=analyzer,
         baseline_algorithm=args.baseline_algorithm,
       )
+      log_problem_analysis(problem_analysis)
       save_problem_statistics(
         problem_name=problem_name,
         problem_size=cfg.size,
         optimal_cost=cfg.optimal,
         problem_results=alg_results,
-        statistical_test_results=stat_tests,
+        statistical_test_results=problem_analysis.to_dict(),
         checkpoint_manager=checkpoint_manager,
         problem_metadata=meta,
       )
 
-  if len(all_results) > 1:
-    perform_cross_problem_analysis_stratified(
-      all_results=all_results,
-      problem_configs=problem_configs,
-      analyzer=analyzer,
+  cohort_analysis = None
+  if len(all_results) > 1 or selected_reports:
+    cohort_analysis = analyze_cohort(
+      all_results,
+      problem_configs,
       baseline_algorithm=args.baseline_algorithm,
+      alpha=analyzer.alpha,
+      algorithm_order=report_style.algorithm_order if report_style is not None else None,
     )
+    if len(all_results) > 1:
+      log_cohort_analysis(cohort_analysis)
 
   if selected_reports:
     tables_dir = output_root / "tables"
@@ -229,6 +235,7 @@ def main(argv: Sequence[str] | None = None) -> int:
       include_size_category_table=args.include_size_category_table,
       style=report_style,
       artifacts=selected_reports,
+      analysis=cohort_analysis,
     )
 
   artifacts_desc = ",".join(selected_reports) if selected_reports else "none"

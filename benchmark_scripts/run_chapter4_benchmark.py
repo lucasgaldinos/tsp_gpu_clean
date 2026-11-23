@@ -48,16 +48,13 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
-
-from benchmarking.analysis.aggregate_statistics import compare_algorithms
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.report_style import load_report_style
-from benchmarking.analysis.scaling_plots import (
+from benchmarking.analysis.cohort_analysis import analyze_cohort
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.scaling_plots import (
   generate_scaling_plots,
   generate_scaling_plots_from_checkpoints,
 )
-from benchmarking.analysis.statistics import StatisticalAnalyzer
+from benchmarking.reporting.style import load_report_style
 from benchmarking.runner.algorithm_runner import adaptive_generations
 from benchmarking.runner.config_loader import load_problems_config
 from cli import benchmark as benchmark_cli
@@ -445,28 +442,10 @@ def log_comparison(
   # Multi-metric cross-problem summary & joint interpretive synthesis (Task 14.2)
   present_variants = [v for v in ALGORITHMS if any(v in prob_res for prob_res in results.values())]
   all_results_dict: dict[str, dict[str, dict[str, Any]]] = {prob: dict(alg_map) for prob, alg_map in results.items()}
-  problem_list = list(all_results_dict.keys())
-  analyzer = StatisticalAnalyzer()
-
-  gap_comp = compare_algorithms(
-    all_results=all_results_dict,
-    problems=problem_list,
-    algorithms=present_variants,
-    analyzer=analyzer,
-    baseline_algorithm=None,
-    label="CHAPTER 4 SYNTHESIS — QUALITY (mean_gap)",
-    metric_key="mean_gap",
-    higher_is_better=False,
-  )
-  time_comp = compare_algorithms(
-    all_results=all_results_dict,
-    problems=problem_list,
-    algorithms=present_variants,
-    analyzer=analyzer,
+  cohort_analysis = analyze_cohort(
+    all_results_dict,
     baseline_algorithm=baseline_algorithm if baseline_algorithm in present_variants else None,
-    label="CHAPTER 4 SYNTHESIS — RUNTIME & SPEEDUP (mean_time)",
-    metric_key="mean_time",
-    higher_is_better=False,
+    algorithm_order=present_variants,
   )
 
   logging.info("=" * 80)
@@ -475,31 +454,24 @@ def log_comparison(
 
   if baseline_algorithm in present_variants:
     for variant in present_variants:
-      paired_ratios: list[float] = []
-      for prob_res in all_results_dict.values():
-        if baseline_algorithm in prob_res and variant in prob_res:
-          base_t = float(prob_res[baseline_algorithm].get("mean_time", 0.0))
-          cand_t = float(prob_res[variant].get("mean_time", 0.0))
-          if base_t > 0.0 and cand_t > 0.0:
-            paired_ratios.append(base_t / cand_t)
-      if paired_ratios:
-        geomean = float(np.exp(np.mean(np.log(paired_ratios))))
+      sp = cohort_analysis.baseline_speedups.get(variant)
+      if sp is not None and sp.geomean is not None:
         logging.info(
           "  %-18s geomean speedup vs %-4s: %6.2fx (n=%d)",
           variant,
           baseline_algorithm,
-          geomean,
-          len(paired_ratios),
+          sp.geomean,
+          sp.sample_size,
         )
 
-  if gap_comp is not None and time_comp is not None:
-    gap_f = gap_comp["friedman_test"]
-    time_f = time_comp["friedman_test"]
-    gap_p = float(gap_f["p_value_f"])
-    time_p = float(time_f["p_value_f"])
-    speedups = time_comp.get("speedups", {})
-    time_ranks = time_comp.get("mean_ranks", {})
-    if speedups:
+  gap_omnibus = cohort_analysis.quality_omnibus
+  time_omnibus = cohort_analysis.time_omnibus
+  if gap_omnibus is not None and time_omnibus is not None:
+    gap_p = gap_omnibus.friedman_pvalue
+    time_p = time_omnibus.friedman_pvalue
+    speedups = {alg: sp.geomean for alg, sp in cohort_analysis.baseline_speedups.items() if sp.geomean is not None}
+    time_ranks = time_omnibus.ranks
+    if baseline_algorithm in present_variants and speedups:
       fastest_variant = max(speedups.items(), key=lambda kv: kv[1])[0]
       fastest_gain: float | None = float(speedups[fastest_variant])
     elif time_ranks:
@@ -510,22 +482,27 @@ def log_comparison(
       fastest_gain = None
 
     logging.info(
-      "  Quality (mean_gap):   Friedman F_F(%d, %d) = %.4f, p = %.6f (%s)",
-      gap_f["df1"],
-      gap_f["df2"],
-      gap_f["statistic_f"],
+      "  Quality (%s):   Friedman F_F(%d, %d) = %.4f, p = %.6f (%s)",
+      cohort_analysis.quality_metric_key,
+      gap_omnibus.df1,
+      gap_omnibus.df2,
+      gap_omnibus.friedman_f,
       gap_p,
-      "statistically equivalent across variants" if not gap_f["significant"] else "significant quality divergence",
+      "statistically equivalent across variants"
+      if not gap_omnibus.omnibus_significant
+      else "significant quality divergence",
     )
     logging.info(
       "  Runtime (mean_time):  Friedman F_F(%d, %d) = %.4f, p = %.6f (%s)",
-      time_f["df1"],
-      time_f["df2"],
-      time_f["statistic_f"],
+      time_omnibus.df1,
+      time_omnibus.df2,
+      time_omnibus.friedman_f,
       time_p,
-      "significant acceleration across variants" if time_f["significant"] else "no significant runtime divergence",
+      "significant acceleration across variants"
+      if time_omnibus.omnibus_significant
+      else "no significant runtime divergence",
     )
-    if time_f["significant"] and not gap_f["significant"]:
+    if time_omnibus.omnibus_significant and not gap_omnibus.omnibus_significant:
       if fastest_gain is not None:
         logging.info(
           "  Joint verdict: %s achieves %.2fx geometric speedup over %s with statistically "

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/report_style.schema.json",
   "title": "Benchmark report presentation style configuration",
-  "description": "External presentation settings injected via --report-style or load_report_style(). Generated reflectively from benchmarking.analysis.report_style.ReportStyle so schema and runtime validation stay locked to a single source of truth.",
+  "description": "External presentation settings injected via --report-style or load_report_style(). Generated reflectively from benchmarking.reporting.style.ReportStyle so schema and runtime validation stay locked to a single source of truth.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

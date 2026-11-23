@@ -1,15 +1,10 @@
-"""Statistical analysis, aggregation, and report generation (`src.benchmarking.analysis`)."""
+"""Pure statistical analysis package for benchmark evaluation (`src.benchmarking.analysis`).
 
-from benchmarking.analysis.aggregate_statistics import (
-  compare_algorithms,
-  compare_algorithms_by_group,
-  perform_cross_problem_analysis_stratified,
-)
-from benchmarking.analysis.cd_diagram import (
-  CDResults,
-  compute_cd_diagram_data,
-  export_cd_diagram_tikz,
-)
+Contains strictly statistical computation and immutable analytical snapshots with zero
+rendering or console-formatting side effects. Presentation, console formatting, tables,
+LaTeX macros, TikZ CD diagrams, and Matplotlib plots live in ``benchmarking.reporting``.
+"""
+
 from benchmarking.analysis.cohort import (
   AlgorithmAggregate,
   BenchmarkCohort,
@@ -17,76 +12,61 @@ from benchmarking.analysis.cohort import (
   derive_problem_configs,
   resolve_algorithm_names,
 )
-from benchmarking.analysis.latex_macros import generate_latex_macros
+from benchmarking.analysis.cohort_analysis import (
+  BaselineWilcoxonComparison,
+  CohortAnalysis,
+  StratumAnalysis,
+  analyze_cohort,
+  compare_algorithms,
+)
 from benchmarking.analysis.problem_statistics import (
-  perform_statistical_analysis,
+  AlgorithmProblemRow,
+  PairwiseComparisonRecord,
+  ProblemAnalysis,
+  analyze_problem,
 )
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.report_style import (
-  ALL_REPORT_ARTIFACTS,
-  DEFAULT_SIZE_THRESHOLDS,
-  ReportArtifact,
-  ReportStyle,
-  categorize_by_size,
-  escape_latex_identifier,
-  load_report_style,
-  parse_report_artifacts,
-  size_category_labels,
+from benchmarking.analysis.statistics import (
+  OmnibusTestResult,
+  StatisticalAnalyzer,
+  StatisticalSummary,
+  compute_iman_davenport_f,
+  compute_mean_ranks,
+  interpret_rank_biserial,
+  run_friedman_nemenyi_analysis,
 )
-from benchmarking.analysis.statistics import StatisticalAnalyzer, StatisticalSummary
 from benchmarking.analysis.stats_utils import (
-  adjusted_r2,
-  calculate_aic_bic,
-  calculate_r2,
+  compute_nemenyi_critical_distance,
   finite_metric,
   geometric_mean_ratios,
   holm_bonferroni_correction,
-  loocv_regression,
-  mean_absolute_error,
-  mean_absolute_percentage_error,
-  root_mean_squared_error,
-)
-from benchmarking.analysis.table_reports import (
-  generate_latex_tables,
-  generate_markdown_tables,
+  resolve_baseline_algorithm,
 )
 
 __all__ = [
-  "ALL_REPORT_ARTIFACTS",
-  "DEFAULT_SIZE_THRESHOLDS",
   "AlgorithmAggregate",
+  "AlgorithmProblemRow",
+  "BaselineWilcoxonComparison",
   "BenchmarkCohort",
-  "CDResults",
-  "ReportArtifact",
-  "ReportStyle",
+  "CohortAnalysis",
+  "OmnibusTestResult",
+  "PairwiseComparisonRecord",
+  "ProblemAnalysis",
   "SpeedupSummary",
   "StatisticalAnalyzer",
   "StatisticalSummary",
-  "adjusted_r2",
-  "calculate_aic_bic",
-  "calculate_r2",
-  "categorize_by_size",
+  "StratumAnalysis",
+  "analyze_cohort",
+  "analyze_problem",
   "compare_algorithms",
-  "compare_algorithms_by_group",
-  "compute_cd_diagram_data",
+  "compute_iman_davenport_f",
+  "compute_mean_ranks",
+  "compute_nemenyi_critical_distance",
   "derive_problem_configs",
-  "escape_latex_identifier",
-  "export_cd_diagram_tikz",
   "finite_metric",
-  "generate_latex_macros",
-  "generate_latex_tables",
-  "generate_markdown_tables",
-  "generate_result_tables",
   "geometric_mean_ratios",
   "holm_bonferroni_correction",
-  "load_report_style",
-  "loocv_regression",
-  "mean_absolute_error",
-  "mean_absolute_percentage_error",
-  "parse_report_artifacts",
-  "perform_cross_problem_analysis_stratified",
-  "perform_statistical_analysis",
+  "interpret_rank_biserial",
   "resolve_algorithm_names",
-  "root_mean_squared_error",
-  "size_category_labels",
+  "resolve_baseline_algorithm",
+  "run_friedman_nemenyi_analysis",
 ]

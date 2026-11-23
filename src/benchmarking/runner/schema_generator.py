@@ -31,7 +31,7 @@ import protocols.types as _protocol_types
 from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
 from algorithms.strategies import STRATEGY_REGISTRY
 from algorithms.strategies.base import StrategyBase
-from benchmarking.analysis.report_style import ReportStyle
+from benchmarking.reporting.style import ReportStyle
 
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 SCHEMA_ID = "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json"
@@ -681,7 +681,7 @@ def generate_report_style_schema() -> dict[str, Any]:
     "title": "Benchmark report presentation style configuration",
     "description": (
       "External presentation settings injected via --report-style or load_report_style(). "
-      "Generated reflectively from benchmarking.analysis.report_style.ReportStyle so schema "
+      "Generated reflectively from benchmarking.reporting.style.ReportStyle so schema "
       "and runtime validation stay locked to a single source of truth."
     ),
     "type": "object",

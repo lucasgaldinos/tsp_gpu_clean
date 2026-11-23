@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_args
 
-from benchmarking.analysis.report_style import ReportStyle, load_report_style, parse_report_artifacts
 from benchmarking.logging_config import setup_benchmark_logging
+from benchmarking.reporting.style import ReportStyle, load_report_style, parse_report_artifacts
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 from protocols.types import LocalSearchStage
 

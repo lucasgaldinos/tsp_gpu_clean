@@ -22,13 +22,13 @@ import pytest
 from benchmarking.analysis.problem_statistics import (
   _resolve_gap_mean,
   _resolve_metric_mean,
-  perform_statistical_analysis,
+  analyze_problem,
 )
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.report_style import escape_latex_identifier
 from benchmarking.analysis.statistics import StatisticalAnalyzer
 from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
-from benchmarking.analysis.table_reports import _compute_table2_stats
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.style import escape_latex_identifier
+from benchmarking.reporting.table_reports import _compute_table2_stats
 from benchmarking.runner.algorithm_runner import compute_series_stats
 from benchmarking.runner.config_loader import ProblemConfig
 
@@ -218,7 +218,7 @@ def test_behavioral_case3_friedman_absolute_ranking_ties_zero_variance() -> None
   with pytest.raises(ValueError, match="non-finite"):
     analyzer.friedman_test([np.array([np.inf, 1.0]), np.array([1.0, 2.0]), np.array([2.0, 3.0])])
 
-  # 4. Verify perform_statistical_analysis with real runner keys (raw_costs, raw_times)
+  # 4. Verify analyze_problem with real runner keys (raw_costs, raw_times)
   single_prob_results = {
     "Alg1": {"raw_costs": [100.0, 100.0, 100.0], "raw_times": [1.0, 1.0, 1.0]},
     "Alg2": {"raw_costs": [100.0, 100.0, 100.0], "raw_times": [1.0, 1.0, 1.0]},
@@ -226,12 +226,12 @@ def test_behavioral_case3_friedman_absolute_ranking_ties_zero_variance() -> None
   }
   with warnings.catch_warnings():
     warnings.simplefilter("error")
-    stat_summary = perform_statistical_analysis(
+    stat_summary = analyze_problem(
       problem_name="tied_problem",
       optimal_cost=100.0,
       results=single_prob_results,
       analyzer=analyzer,
-    )
+    ).to_dict()
 
   assert "friedman_test" in stat_summary
   assert stat_summary["friedman_test"]["statistic"] == 0.0
@@ -256,7 +256,7 @@ def test_behavioral_case4_single_repetition_cohorts(tmp_path: Path) -> None:
   assert min_val == 42.5
   assert max_val == 42.5
 
-  # 2. Test perform_statistical_analysis and paired_comparison with N=1
+  # 2. Test analyze_problem and paired_comparison with N=1
   analyzer = StatisticalAnalyzer()
   with warnings.catch_warnings():
     warnings.simplefilter("error")
@@ -278,17 +278,16 @@ def test_behavioral_case4_single_repetition_cohorts(tmp_path: Path) -> None:
   }
   with warnings.catch_warnings():
     warnings.simplefilter("error")
-    analysis = perform_statistical_analysis(
+    analysis = analyze_problem(
       problem_name="single_rep_prob",
       optimal_cost=80.0,
       results=single_rep_results,
       analyzer=analyzer,
     )
 
-  pairwise_comp = analysis["pairwise_comparisons"][0]
-  assert pairwise_comp["test_used"] == "no_test_needed"
-  assert pairwise_comp["p_value"] == 1.0
-  assert pairwise_comp["mean_difference"] == pytest.approx(10.0)
+  assert analysis.cost_pairwise == ()
+  assert analysis.rows[0].mean_cost == pytest.approx(100.0)
+  assert analysis.rows[1].mean_cost == pytest.approx(90.0)
 
   # 3. Test generate_result_tables with N=1 summary data
   all_results: dict[str, dict[str, dict[str, Any]]] = {

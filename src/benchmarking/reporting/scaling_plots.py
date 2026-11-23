@@ -24,7 +24,7 @@ from matplotlib.ticker import FuncFormatter
 from scipy import stats
 
 from benchmarking.analysis.cohort import resolve_algorithm_names
-from benchmarking.analysis.report_style import DEFAULT_SIZE_THRESHOLDS, ReportStyle, validate_size_thresholds
+from benchmarking.reporting.style import DEFAULT_SIZE_THRESHOLDS, ReportStyle, validate_size_thresholds
 from benchmarking.runner.checkpoint_io import load_checkpoints_dir
 
 if TYPE_CHECKING:

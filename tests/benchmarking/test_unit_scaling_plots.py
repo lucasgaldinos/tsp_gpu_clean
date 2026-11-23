@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.scaling_plots import (
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.scaling_plots import (
   TEXT_WIDTH_INCHES,
   _collect_algorithm_series,
   _summarize_metric,
@@ -272,7 +272,7 @@ def test_scaling_plot_title_and_legend_never_overlap_and_libertinus_path(
   """WHAT: Multi-row pt-BR legend and long figure title never overlap vertically, and Libertinus path maps mathtext."""
   from matplotlib.figure import Figure
 
-  import benchmarking.analysis.scaling_plots as sp
+  import benchmarking.reporting.scaling_plots as sp
 
   # 1. Verify Libertinus Serif branch when font is reported as installed
   monkeypatch.setattr(sp, "_is_font_installed", lambda name: name == "Libertinus Serif")
@@ -515,7 +515,7 @@ def test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties(
   import numpy as np
   from matplotlib.figure import Figure
 
-  import benchmarking.analysis.scaling_plots as sp
+  import benchmarking.reporting.scaling_plots as sp
 
   orig_savefig = Figure.savefig
 

@@ -20,12 +20,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from benchmarking.analysis.cd_diagram import compute_cd_diagram_data, export_cd_diagram_tikz
 from benchmarking.analysis.cohort import BenchmarkCohort, derive_problem_configs
 from benchmarking.analysis.problem_statistics import _resolve_gap_mean, _resolve_metric_mean
-from benchmarking.analysis.report_style import ReportStyle
-from benchmarking.analysis.scaling_plots import generate_scaling_plots
+from benchmarking.analysis.statistics import run_friedman_nemenyi_analysis
 from benchmarking.analysis.stats_utils import finite_metric, geometric_mean_ratios
+from benchmarking.reporting.cd_diagram import export_cd_diagram_tikz
+from benchmarking.reporting.scaling_plots import generate_scaling_plots
+from benchmarking.reporting.style import ReportStyle
 from benchmarking.runner.config_loader import (
   AlgorithmConfig,
   BenchmarkConfig,
@@ -160,7 +161,7 @@ def test_cd_diagram_and_scaling_plots_accept_report_style_uniformly(tmp_path: Pa
     show_size_guides=False,
   )
 
-  cd = compute_cd_diagram_data(np.array([[3.0, 2.0, 1.0], [3.5, 2.1, 0.9]]), ["A", "B", "C"])
+  cd = run_friedman_nemenyi_analysis(np.array([[3.0, 2.0, 1.0], [3.5, 2.1, 0.9]]), ["A", "B", "C"])
   tikz = export_cd_diagram_tikz(cd, style=style)
   assert "Alpha Variant" in tikz
   assert "Mean Rank" in tikz

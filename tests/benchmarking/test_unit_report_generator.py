@@ -15,9 +15,10 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from benchmarking.analysis.latex_macros import generate_latex_macros
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.report_style import (
+from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.latex_macros import generate_latex_macros
+from benchmarking.reporting.style import (
   DEFAULT_SIZE_THRESHOLDS,
   ReportStyle,
   categorize_by_size,
@@ -25,8 +26,7 @@ from benchmarking.analysis.report_style import (
   parse_report_artifacts,
   size_category_labels,
 )
-from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
-from benchmarking.analysis.table_reports import (
+from benchmarking.reporting.table_reports import (
   _PHASE_NAMES,
   _compute_table2_stats,
   _compute_table3_size_category_winners,
@@ -824,3 +824,99 @@ def test_composable_report_artifacts_and_external_style(tmp_path: Path) -> None:
   bad_bool_style.write_text('{"plot_decimal_comma": "false"}', encoding="utf-8")
   with pytest.raises(ValueError, match="must be a boolean"):
     load_report_style(bad_bool_style)
+
+
+def test_generate_result_tables_computes_omnibus_once_per_metric(
+  tmp_path: Path,
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: Emitting all 5 report artifacts computes Friedman/Nemenyi at most once per metric (2 total).
+
+  WHY: Regression test eliminating the prior 3x-4x recomputation across aggregate_statistics,
+  latex_macros, and cd_diagram, and proving precomputed `analysis=` incurs zero extra calls.
+  """
+  import benchmarking.analysis.cohort_analysis as cohort_analysis_mod
+  from benchmarking.analysis.statistics import run_friedman_nemenyi_analysis as real_fn
+
+  call_count = 0
+
+  def spy_omnibus(*args: Any, **kwargs: Any) -> Any:
+    nonlocal call_count
+    call_count += 1
+    return real_fn(*args, **kwargs)
+
+  monkeypatch.setattr(cohort_analysis_mod, "run_friedman_nemenyi_analysis", spy_omnibus)
+
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    "p1": {
+      "AlgA": {
+        "mean_gap": 1.0,
+        "std_gap": 0.1,
+        "mean_cost": 101.0,
+        "std_cost": 1.0,
+        "mean_time": 10.0,
+        "std_time": 0.2,
+      },
+      "AlgB": {"mean_gap": 1.5, "std_gap": 0.1, "mean_cost": 101.5, "std_cost": 1.0, "mean_time": 4.0, "std_time": 0.1},
+      "AlgC": {
+        "mean_gap": 2.0,
+        "std_gap": 0.1,
+        "mean_cost": 102.0,
+        "std_cost": 1.0,
+        "mean_time": 1.0,
+        "std_time": 0.05,
+      },
+    },
+    "p2": {
+      "AlgA": {
+        "mean_gap": 1.2,
+        "std_gap": 0.1,
+        "mean_cost": 202.4,
+        "std_cost": 1.0,
+        "mean_time": 20.0,
+        "std_time": 0.4,
+      },
+      "AlgB": {"mean_gap": 1.4, "std_gap": 0.1, "mean_cost": 202.8, "std_cost": 1.0, "mean_time": 6.0, "std_time": 0.2},
+      "AlgC": {"mean_gap": 2.1, "std_gap": 0.1, "mean_cost": 204.2, "std_cost": 1.0, "mean_time": 2.0, "std_time": 0.1},
+    },
+    "p3": {
+      "AlgA": {
+        "mean_gap": 0.9,
+        "std_gap": 0.1,
+        "mean_cost": 302.7,
+        "std_cost": 1.0,
+        "mean_time": 30.0,
+        "std_time": 0.5,
+      },
+      "AlgB": {"mean_gap": 1.6, "std_gap": 0.1, "mean_cost": 304.8, "std_cost": 1.0, "mean_time": 9.0, "std_time": 0.3},
+      "AlgC": {"mean_gap": 2.2, "std_gap": 0.1, "mean_cost": 306.6, "std_cost": 1.0, "mean_time": 3.0, "std_time": 0.1},
+    },
+  }
+  problem_configs = [
+    ProblemConfig(name="p1", optimal=100.0, size=50),
+    ProblemConfig(name="p2", optimal=200.0, size=100),
+    ProblemConfig(name="p3", optimal=300.0, size=300),
+  ]
+
+  generated = generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "all" / "tables",
+    benchmark_name="single_pass",
+    baseline_algorithm="AlgA",
+  )
+  assert set(generated.keys()) == {"markdown", "latex", "macros", "cd", "plots"}
+  assert call_count == 2  # Exactly once for quality + once for time
+
+  # Passing a precomputed CohortAnalysis incurs zero additional omnibus runs across all renderers
+  precomputed = cohort_analysis_mod.analyze_cohort(all_results, problem_configs, baseline_algorithm="AlgA")
+  assert call_count == 4
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "precomputed" / "tables",
+    benchmark_name="precomputed",
+    baseline_algorithm="AlgA",
+    analysis=precomputed,
+  )
+  assert call_count == 4

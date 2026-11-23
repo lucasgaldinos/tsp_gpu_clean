@@ -43,14 +43,13 @@ if TYPE_CHECKING:
 if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"), os.W_OK):
   os.environ["CUPY_CACHE_DIR"] = os.path.join(tempfile.gettempdir(), "cupy_cache")
 
-from benchmarking.analysis.aggregate_statistics import (
-  perform_cross_problem_analysis_stratified,
-)
-from benchmarking.analysis.problem_statistics import perform_statistical_analysis
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.report_style import ReportArtifact, ReportStyle
+from benchmarking.analysis.cohort_analysis import analyze_cohort
+from benchmarking.analysis.problem_statistics import analyze_problem
 from benchmarking.analysis.statistics import StatisticalAnalyzer
 from benchmarking.logging_config import setup_benchmark_logging
+from benchmarking.reporting.console import log_cohort_analysis, log_problem_analysis
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.style import ReportArtifact, ReportStyle
 from benchmarking.runner.algorithm_runner import (
   adaptive_generations,
   run_single_algorithm,
@@ -746,20 +745,21 @@ def run_comprehensive_benchmark(
     logging.info(f"STATISTICS FOR {problem_name}")
     logging.info(f"{'─' * 80}")
 
-    statistical_test_results: dict[str, Any] = perform_statistical_analysis(
+    problem_analysis = analyze_problem(
       problem_name=problem_name,
       optimal_cost=optimal_cost,
       results=problem_results[problem_name],
       analyzer=analyzer,
       baseline_algorithm=baseline_algorithm,
     )
+    log_problem_analysis(problem_analysis)
 
     save_problem_statistics(
       problem_name,
       problem_size,
       optimal_cost,
       problem_results[problem_name],
-      statistical_test_results,
+      problem_analysis.to_dict(),
       checkpoint_manager,
       problem_metadata=problem.to_metadata_dict(optimal_cost),
     )
@@ -771,14 +771,18 @@ def run_comprehensive_benchmark(
   logging.info("CROSS-PROBLEM ANALYSIS")
   logging.info("=" * 80)
 
-  if len(problem_results) > 1:
-    perform_cross_problem_analysis_stratified(
-      all_results=problem_results,
-      problem_configs=problem_configs,
-      analyzer=analyzer,
-      cpu_threshold=effective_benchmark_config.cpu_size_threshold,
+  cohort_analysis = None
+  if len(problem_results) > 1 or (problem_results and reports):
+    cohort_analysis = analyze_cohort(
+      problem_results,
+      problem_configs,
       baseline_algorithm=baseline_algorithm,
+      alpha=analyzer.alpha,
+      cpu_threshold=effective_benchmark_config.cpu_size_threshold,
+      algorithm_order=report_style.algorithm_order if report_style is not None else None,
     )
+    if len(problem_results) > 1:
+      log_cohort_analysis(cohort_analysis)
 
   if problem_results and reports:
     tables_dir = resolved_output_dir / "tables"
@@ -792,6 +796,7 @@ def run_comprehensive_benchmark(
       include_size_category_table=include_size_category_table,
       style=report_style,
       artifacts=reports,
+      analysis=cohort_analysis,
     )
   elif problem_results:
     logging.info(
