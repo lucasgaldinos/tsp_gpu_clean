@@ -21,7 +21,7 @@ related_files:
   - "[analysis-phase-7-residency-rng-walkthrough.md](./analysis-phase-7-residency-rng-walkthrough.md)"
   - "[analysis-test-suite-walkthrough.md](./analysis-test-suite-walkthrough.md)"
   - "[guide-local-search-pipeline-stages.md](../guide-local-search-pipeline-stages.md)"
-  - "[algorithms.json](../../configs/algorithms.json)"
+  - "[algorithms.json](../../benchmark_scripts/configs/chapter4/algorithms.json)"
   - "[types.py](../../src/protocols/types.py)"
   - "[route_helpers.py](../../src/utils/route_helpers.py)"
   - "[benchmark_scripts/](../../benchmark_scripts/)"
@@ -77,7 +77,7 @@ Session `4f72da0b-6375-4cc1-ac90-dd8390461096` runs from `2026-10-28T17:47:24Z` 
 ### Phase 1 — the plan exists and imports resolve (Task 1.1, Task 1.2)
 
 - **Task 1.1** (plan line 75) registered `documents_tcc/plan/plan-reorganization-and-typing.plan.md` and linked it from `plan-roteiro.md`. Mechanism: a 5W2H registry, one block per task, with the Solution written back into the same block after execution.
-- **Task 1.2** (plan line 90) removed the `src.` prefix from every `class_module` in [algorithms.json](../../configs/algorithms.json) (plan cites lines 11–29) and aligned `pyproject.toml` (plan cites lines 70–105) with `pythonpath = ["src"]`. Mechanism: the registry is loaded through `importlib.import_module`, so `"src.algorithms...."` raised `ModuleNotFoundError: No module named 'src'` once `src/` itself was the import root.
+- **Task 1.2** (plan line 90) removed the `src.` prefix from every `class_module` in [algorithms.json](../../benchmark_scripts/configs/chapter4/algorithms.json) (plan cites lines 11–29) and aligned `pyproject.toml` (plan cites lines 70–105) with `pythonpath = ["src"]`. Mechanism: the registry is loaded through `importlib.import_module`, so `"src.algorithms...."` raised `ModuleNotFoundError: No module named 'src'` once `src/` itself was the import root.
 
 ### Phase 2 — typing and checkpoint payload (Task 2.1, Task 2.2)
 

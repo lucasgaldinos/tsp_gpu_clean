@@ -819,7 +819,7 @@ Two distinct overhead sources affect hybrid GPU algorithms differently:
 | 2-opt batch kernel | [`src/algorithms/strategies/local_search/kernels/two_opt_batch.cu`](../../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) |
 | Cost calculator kernel | [`src/algorithms/strategies/evaluation/kernels/cost_calculator.cu`](../../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) |
 | Fujimoto GA kernel | [`src/algorithms/archive/kernels/ga_fujimoto_early_stop.cu`](../../../src/algorithms/archive/kernels/ga_fujimoto_early_stop.cu) |
-| Benchmark configs | [`configs/benchmark.json`](../../../configs/benchmark.json) |
+| Benchmark configs | [`benchmark_scripts/configs/chapter4/benchmark.json`](../../../benchmark_scripts/configs/chapter4/benchmark.json) |
 
 ## Appendix B: Glossary
 

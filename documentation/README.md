@@ -27,9 +27,18 @@ modifications:
           architecture guides under `analysis/` (`guide-architecture-*.md`), updating
           directory counts, adding symmetric `related_files` links, and fixing two
           dead `useful_notes/` links to `useful-notes/`.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Split user-facing documentation into dedicated Getting Started
+          (`guide-getting-started.md`) and Thesis Chapter 4 Reproduction
+          (`guide-thesis-reproduction.md`) guides, updating root guide count
+          to 4 and adding symmetric `related_files` links.
 related_files:
   - "[AGENTS.md](../AGENTS.md)"
   - "[markdown.instructions.md](../.agents/rules/markdown.instructions.md)"
+  - "[guide-getting-started.md](./guide-getting-started.md)"
+  - "[guide-thesis-reproduction.md](./guide-thesis-reproduction.md)"
   - "[guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md)"
   - "[guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md)"
   - "[knowledge-base/README.md](./knowledge-base/README.md)"
@@ -56,7 +65,7 @@ Central navigation hub for `documentation/`. All Markdown documents follow [mark
 
 | Directory / File | Purpose | Count |
 | --- | --- | --- |
-| Root guides (`./`) | Master project architecture blueprint (`guide-project-architecture-blueprint.md`) and `LocalSearchStage` composition guide (`guide-local-search-pipeline-stages.md`) | 2 |
+| Root guides (`./`) | Generic getting-started guide (`guide-getting-started.md`), isolated thesis reproduction guide (`guide-thesis-reproduction.md`), master architecture blueprint (`guide-project-architecture-blueprint.md`), and `LocalSearchStage` composition guide (`guide-local-search-pipeline-stages.md`) | 4 |
 | [knowledge-base/](./knowledge-base/README.md) | Modular technical guides on GPU hardware, CUDA 2-opt, Simulated Annealing, Memetic GAs, statistics, and LaTeX tooling | 46 |
 | `analysis/` | Architecture subsystem guides (`guide-architecture-*.md`), implementation analyses of the four GA solver variants, benchmarking pipeline, thesis slides, and scaling trade-offs | 16 |
 | `critical_analysis/` | Academic literature synthesis, prior-art comparison, and critical appraisal checklists | 4 |
@@ -65,6 +74,8 @@ Central navigation hub for `documentation/`. All Markdown documents follow [mark
 
 ## 1. Root architecture & pipeline guides
 
+- [guide-getting-started.md](./guide-getting-started.md) — Practical framework guide: installing via `uv sync`, loading `.tsp` files directly without DuckDB, composing built-in strategies and custom pipelines, adding external strategies/steps without modifying `src/`, running `tsp-benchmark`, and generating styled reports via `tsp-report` / `ReportStyle`.
+- [guide-thesis-reproduction.md](./guide-thesis-reproduction.md) — Isolated reproduction guide for the Master's dissertation Chapter 4 iso-algorithmic study using `benchmark_scripts/configs/chapter4/` and `run_chapter4_benchmark.py`.
 - [guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md) — Master `Implementation-Ready` architectural blueprint consolidating all eight `src/` packages, layer boundaries, CUDA kernel contracts, GoF patterns, DuckDB schemas, and ADRs.
 - [guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md) — Integrating optional post-mutation and post-generation `LocalSearchStage` passes in the modular Genetic Algorithm pipeline.
 

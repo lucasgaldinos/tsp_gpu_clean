@@ -257,7 +257,7 @@ Key contracts:
 
 [`exceptions.py`](../../src/data_models/exceptions.py) separates **8 loader exceptions** rooted at [`ProblemLoaderError`](../../src/data_models/exceptions.py) ([`InstanceNotFoundError`](../../src/data_models/exceptions.py), [`InvalidEdgeTypeError`](../../src/data_models/exceptions.py), [`MissingCoordinatesError`](../../src/data_models/exceptions.py), [`DatabaseConnectionError`](../../src/data_models/exceptions.py), [`InvalidProblemDataError`](../../src/data_models/exceptions.py), [`DatabaseNotEmptyError`](../../src/data_models/exceptions.py), [`UnsupportedProblemTypeError`](../../src/data_models/exceptions.py)) from **2 hardware/runtime exceptions** deriving from `RuntimeError` ([`GPUUnavailableError`](../../src/data_models/exceptions.py), [`VRAMInsufficientError`](../../src/data_models/exceptions.py) storing `required_bytes` and `available_bytes`).
 
-[`records.py`](../../src/data_models/records.py) defines [`NemenyiResult`](../../src/data_models/records.py), [`JsonPayload`](../../src/data_models/records.py), and [`BenchmarkRunInput`](../../src/data_models/records.py) (`27` required keys matching `NOT NULL` columns of `schema.sql` plus `16` `NotRequired` nullable fields, `BUG-31`).
+[`records.py`](../../src/data_models/records.py) defines [`NemenyiResult`](../../src/data_models/records.py), [`JsonPayload`](../../src/data_models/records.py), and [`BenchmarkRunInput`](../../src/data_models/records.py) (`22` required keys matching `NOT NULL` columns of `schema.sql` plus `21` `NotRequired` nullable fields — including `optimal_cost` and gap fields for unknown-optimum instances, `BUG-31`).
 
 ---
 

@@ -30,7 +30,7 @@ related_files:
   - "[types.py](../src/protocols/types.py)"
   - "[algorithm_strategies.py](../src/protocols/algorithm_strategies.py)"
   - "[two_opt.py](../src/algorithms/strategies/local_search/two_opt.py)"
-  - "[algorithms.json](../configs/algorithms.json)"
+  - "[local-search-pipelines.example.json](../configs/local-search-pipelines.example.json)"
 tags:
   - guide/architecture
   - guide/local-search

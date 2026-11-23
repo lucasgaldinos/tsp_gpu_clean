@@ -62,11 +62,11 @@ This guide documents the operational infrastructure, experimental harness, persi
 | Subsystem | Package / Path | Primary Responsibility | Boundary Rule |
 | --- | --- | --- | --- |
 | Utilities | [`src/utils/`](../../src/utils/__init__.py) | CUDA kernel JIT loading, host/device timing, deterministic `np.random.Generator` resolution, route batch normalization, and host RNG sampling | May depend only on `protocols/` (`backend`, `problem_context`, `types`); never imports `algorithms/`, `loaders/`, or `benchmarking/` |
-| CLI | [`src/cli/`](../../src/cli/__init__.py) | Console entrypoints (`tsp-benchmark`, `tsp-ingest`, `tsp-import-checkpoints`, `tsp-validate-db`) registered in `[project.scripts]` of [pyproject.toml](../../pyproject.toml) | Parses arguments, configures logging after parsing (`BUG-74`), and delegates immediately to `benchmarking` or `loaders` |
+| CLI | [`src/cli/`](../../src/cli/__init__.py) | Console entrypoints (`tsp-benchmark`, `tsp-report`, `tsp-ingest`, `tsp-import-checkpoints`, `tsp-validate-db`) registered in `[project.scripts]` of [pyproject.toml](../../pyproject.toml) | Parses arguments, configures logging after parsing (`BUG-74`), and delegates immediately to `benchmarking` or `loaders` |
 | Benchmark Runner | [`src/benchmarking/runner/`](../../src/benchmarking/runner/__init__.py) | Configuration loading, reflective JSON Schema generation, atomic checkpoint I/O, isolated AOT GPU warmup, repetition loop, and end-to-end orchestration | Owns experimental budget, seed offsets, and checkpoint resume; isolates thesis-specific constants in `benchmark_scripts/` (`DP13-8`) |
 | Benchmark Database | [`src/benchmarking/database/`](../../src/benchmarking/database/__init__.py) | Single-table DuckDB results store (`benchmark_runs`), checkpoint ingestion with natural-key upsert, and database-vs-JSON consistency checks | Strictly distinct from the TSPLIB input corpus DuckDB managed by `routing_data` (`DP10-14`) |
 | Statistical Analysis & Reporting | [`src/benchmarking/analysis/`](../../src/benchmarking/analysis/__init__.py) | Demšar (2006) non-parametric inference (Friedman + Iman–Davenport, Nemenyi CD, Wilcoxon + Holm–Bonferroni), Markdown/LaTeX tables, TikZ CD plots, LaTeX macros, and Matplotlib scaling figures | Kept domain- and thesis-agnostic; receives `baseline_algorithm` and labels from callers (`DP12-9`, `DP14-2`, `DP14-3`) |
-| Configs & Schemas | [`configs/`](../../configs/benchmark.json), [`configs/schemas/`](../../configs/schemas/benchmark.schema.json) | Declarative GA variant composition, problem catalog, execution knobs, and Draft 2020-12 JSON Schemas | Single source of truth for optimal costs (`DP11-4`) and constructor-validated strategy parameters (`BUG-85`) |
+| Configs & Schemas | [`configs/`](../../configs/cpu-operators.example.json), [`configs/schemas/`](../../configs/schemas/benchmark.schema.json) | Generic declarative GA examples, optional `ReportStyle` templates, and Draft 2020-12 JSON Schemas | Constructor-validated strategy parameters (`BUG-85`) plus external `"module"` loading; thesis configs isolated under `benchmark_scripts/configs/chapter4/` |
 | External Scripts | [`benchmark_scripts/`](../../benchmark_scripts/run_chapter4_benchmark.py) | Thesis-specific cohort runner, documentation gates (`check_docs`, `check_thesis`), and one-off sweeps | Lives outside `src/`; `run_chapter4_benchmark.py` delegates CLI parsing and execution to [benchmark.py::main](../../src/cli/benchmark.py) (`DP13-8`) |
 
 > [!NOTE]
@@ -140,12 +140,18 @@ flowchart TD
     AnalysisAgg --> AnalysisUtil
     AnalysisStat --> AnalysisUtil
     AnalysisStat --> DataModels
-    AnalysisRep --> AnalysisStat
-    AnalysisRep --> AnalysisUtil
+    AnalysisRep --> AnalysisTables["benchmarking/analysis/table_reports.py"]
+    AnalysisRep --> AnalysisMacros["benchmarking/analysis/latex_macros.py"]
+    AnalysisRep --> AnalysisStyle["benchmarking/analysis/report_style.py"]
     AnalysisRep -.->|"lazy import"| AnalysisCD["benchmarking/analysis/cd_diagram.py"]
     AnalysisRep -.->|"lazy import"| AnalysisPlot["benchmarking/analysis/scaling_plots.py"]
-    AnalysisCD -->|"top-level: escape_latex_identifier"| AnalysisRep
-    AnalysisPlot -->|"top-level: SMALL_SIZE_MAX, MEDIUM_SIZE_MAX"| AnalysisRep
+    AnalysisTables --> AnalysisStyle
+    AnalysisTables --> AnalysisUtil
+    AnalysisMacros --> AnalysisStyle
+    AnalysisMacros --> AnalysisStat
+    AnalysisMacros --> AnalysisUtil
+    AnalysisCD -->|"top-level: escape_latex_identifier"| AnalysisStyle
+    AnalysisPlot -->|"top-level: DEFAULT_SIZE_THRESHOLDS"| AnalysisStyle
 
     DbImport --> DbOps["benchmarking/database/db_operations.py"]
     DbImport --> DbSchema["benchmarking/database/schema.py + schema.sql"]
@@ -167,7 +173,7 @@ flowchart TD
 
     class CliBench,CliCkpt,CliTsp cli;
     class RunnerOrch,RunnerAlgo,RunnerCkpt,RunnerCfg,RunnerSchema,LogCfg runner;
-    class AnalysisProb,AnalysisAgg,AnalysisStat,AnalysisUtil,AnalysisRep,AnalysisCD,AnalysisPlot analysis;
+    class AnalysisProb,AnalysisAgg,AnalysisStat,AnalysisUtil,AnalysisRep,AnalysisTables,AnalysisMacros,AnalysisStyle,AnalysisCD,AnalysisPlot analysis;
     class DbImport,DbOps,DbSchema,DbVal db;
     class UtilsGpu,UtilsTimer,UtilsRng,UtilsRoute utils;
     class Scripts,Loaders,Algos,Protos,DataModels ext;
@@ -177,7 +183,7 @@ flowchart TD
 
 ### Observed coupling & architectural anomalies
 
-1. **Bidirectional lazy cycle inside `benchmarking/analysis/`**: [cd_diagram.py](../../src/benchmarking/analysis/cd_diagram.py) imports [report_generator.py::escape_latex_identifier](../../src/benchmarking/analysis/report_generator.py) at module top level, and [scaling_plots.py](../../src/benchmarking/analysis/scaling_plots.py) imports [report_generator.py::SMALL_SIZE_MAX, MEDIUM_SIZE_MAX](../../src/benchmarking/analysis/report_generator.py) at module top level. Conversely, [report_generator.py::generate_latex_macros](../../src/benchmarking/analysis/report_generator.py) and [report_generator.py::generate_result_tables](../../src/benchmarking/analysis/report_generator.py) import `compute_cd_diagram_data`, `export_cd_diagram_tikz`, and `generate_scaling_plots` lazily inside function bodies. Moving `escape_latex_identifier`, `SMALL_SIZE_MAX`, and `MEDIUM_SIZE_MAX` into a leaf formatting/constants module would make the analysis DAG strictly acyclic.
+1. **Resolved — Acyclic reporting topology inside `benchmarking/analysis/`**: [report_style.py](../../src/benchmarking/analysis/report_style.py) now serves as the leaf module exporting `ReportStyle`, `load_report_style`, `escape_latex_identifier`, and `DEFAULT_SIZE_THRESHOLDS`, while [table_reports.py](../../src/benchmarking/analysis/table_reports.py) and [latex_macros.py](../../src/benchmarking/analysis/latex_macros.py) implement independent generators wired by the thin [report_generator.py](../../src/benchmarking/analysis/report_generator.py) facade. [cd_diagram.py](../../src/benchmarking/analysis/cd_diagram.py) and [scaling_plots.py](../../src/benchmarking/analysis/scaling_plots.py) depend only on `report_style.py`, eliminating the prior upward imports into `report_generator.py`.
 2. **Private symbol coupling & incomplete `utils/__init__.py` barrel**: [utils/__init__.py](../../src/utils/__init__.py) exports only **9** symbols (`PhaseTimer`, `ensure_routes_batch`, `is_gpu_array`, `load_kernel`, `make_rng`, `resolve_rng`, `restore_routes_shape`, `time_strategy`, `to_cpu_batch`), omitting `prev_power_of_2`, `_compile_kernel_cached` (`gpu_helpers.py`), `resolve_route_bounds`, `sample_distinct_pairs`, `inverse_positions`, `select_proximity_index`, and `sample_mutation_positions` (`route_helpers.py`), forcing callers to import submodules directly. In particular, [algorithm_runner.py::run_single_algorithm](../../src/benchmarking/runner/algorithm_runner.py) imports the module-private `_compile_kernel_cached` from [gpu_helpers.py::_compile_kernel_cached](../../src/utils/gpu_helpers.py) solely to read `.cache_info().currsize` before and after the repetition loop (`DP11-21`, `BUG-25`). Exposing a public `get_kernel_cache_size() -> int` helper in `src/utils/gpu_helpers.py` would restore encapsulation.
 3. **Top-level coupling from `runner` to `algorithms` and `loaders`, plus import-time environment mutation**: [config_loader.py](../../src/benchmarking/runner/config_loader.py) imports `PIPELINE_STEP_REGISTRY` and `tsplib_loader` at module import time, and [schema_generator.py](../../src/benchmarking/runner/schema_generator.py) inspects `STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY` directly. While intentional for reflective schema validation (`BUG-85`), it places `benchmarking.runner` above `algorithms` and `loaders` in the dependency hierarchy. Additionally, both [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py) and [orchestration.py](../../src/benchmarking/runner/orchestration.py) mutate `os.environ["CUPY_CACHE_DIR"]` to `tempfile.gettempdir() / "cupy_cache"` at import time if `~` is non-writable.
 4. **Inconsistent I/O logging discipline**: `runner/` and `analysis/` emit structured records via `logging` (managed by [logging_config.py::setup_benchmark_logging](../../src/benchmarking/logging_config.py)), whereas `database/` ([import_checkpoints.py](../../src/benchmarking/database/import_checkpoints.py), [validate_consistency.py](../../src/benchmarking/database/validate_consistency.py)) and `cli/` ([checkpoints.py](../../src/cli/checkpoints.py), [tsplib.py](../../src/cli/tsplib.py)) still write directly to `stdout`/`stderr` via `print()`.
@@ -227,9 +233,10 @@ summary = timer.summary()  # {"local_search": {"total_ms": ..., "calls": 1, "mea
 
 | Script Entrypoint | Module & Function | Key Responsibilities & Flags |
 | --- | --- | --- |
-| `tsp-benchmark` | [benchmark.py::main](../../src/cli/benchmark.py) | Builds canonical parser via [benchmark.py::build_parser](../../src/cli/benchmark.py), parses repeatable `--strategy-param SLOT.KEY=VALUE` overrides via [benchmark.py::parse_strategy_param](../../src/cli/benchmark.py), initializes logging **after** `parse_args` (`BUG-74`), and supports extension hooks (`preflight_validator`, `on_complete`, `parser_epilog`) used by [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py) (`DP13-8`) |
+| `tsp-benchmark` | [benchmark.py::main](../../src/cli/benchmark.py) | Builds canonical parser via [benchmark.py::build_parser](../../src/cli/benchmark.py) (`--algorithms-config`, optional `--config-dir`/`--benchmark-config`/`--problems-config`, `--tsp-dir`, `--tsp-files`, `--max-generations`, collection-only default with opt-in `--reports` and `--report-style`, optional `--db-path`), parses repeatable `--strategy-param SLOT.KEY=VALUE` overrides via [benchmark.py::parse_strategy_param](../../src/cli/benchmark.py), initializes logging **after** `parse_args` (`BUG-74`), and supports extension hooks (`preflight_validator`, `on_complete`, `parser_epilog`) used by [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py) (`DP13-8`) |
+| `tsp-report` | [report.py::main](../../src/cli/report.py) | Loads `checkpoints/*.json` read-only via [checkpoint_io.py::load_checkpoints_dir](../../src/benchmarking/runner/checkpoint_io.py) and regenerates selectable reports (`--reports`), Markdown/LaTeX tables, `benchmark_macros.tex`, Demšar CD `.tikz` diagrams, and scaling figures styled via optional `--report-style <file.json>` with zero DuckDB dependency |
 | `tsp-import-checkpoints` | [checkpoints.py::import_main](../../src/cli/checkpoints.py) | Validates `--input` (directory or file) and `--output-dir`, then invokes [import_checkpoints.py::import_checkpoints](../../src/benchmarking/database/import_checkpoints.py) |
-| `tsp-validate-db` | [checkpoints.py::validate_main](../../src/cli/checkpoints.py) | Runs [validate_consistency.py::compare_databases](../../src/benchmarking/database/validate_consistency.py) and [validate_consistency.py::validate_against_checkpoints](../../src/benchmarking/database/validate_consistency.py) |
+| `tsp-validate-db` | [checkpoints.py::validate_main](../../src/cli/checkpoints.py) | Optionally runs [validate_consistency.py::compare_databases](../../src/benchmarking/database/validate_consistency.py) when `--db2` is provided, then validates `--db1` against `--checkpoints` via [validate_consistency.py::validate_against_checkpoints](../../src/benchmarking/database/validate_consistency.py) |
 | `tsp-ingest` | [tsplib.py::main](../../src/cli/tsplib.py) | Inspects single `.tsp` instances (`--instance`), validates directories with `parse_tsplib_file` / `bundle_to_problem`, or ingests `.tsp` corpora into DuckDB (`--to-duckdb`) |
 
 ### 3.3 Runner, Configs, and Checkpoints (`src/benchmarking/runner/`)
@@ -252,12 +259,13 @@ summary = timer.summary()  # {"local_search": {"total_ms": ..., "calls": 1, "mea
   - [db_operations.py::validate_benchmark_data](../../src/benchmarking/database/db_operations.py) validates records against `BenchmarkRunInput.__required_keys__` ([records.py](../../src/data_models/records.py)), rejects `NaN`s, and checks array lengths against `successful_runs` (`BUG-36`).
   - [import_checkpoints.py::check_duplicate](../../src/benchmarking/database/import_checkpoints.py) enforces natural-key idempotency on `(problem_name, algorithm)` (keeping higher `repetitions`, or newer UTC `timestamp` on tie), replacing existing rows inside an explicit `begin/commit/rollback` transaction (`BUG-49`).
   - [db_operations.py::compute_speedup_matrix](../../src/benchmarking/database/db_operations.py) aggregates cross-algorithm speedups in a single SQL query without N+1 round-trips (`BUG-39`).
-- **Statistical Engine & Reporting** ([statistics.py](../../src/benchmarking/analysis/statistics.py), [stats_utils.py](../../src/benchmarking/analysis/stats_utils.py), [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py), [aggregate_statistics.py](../../src/benchmarking/analysis/aggregate_statistics.py), [cd_diagram.py](../../src/benchmarking/analysis/cd_diagram.py), [report_generator.py](../../src/benchmarking/analysis/report_generator.py), [scaling_plots.py](../../src/benchmarking/analysis/scaling_plots.py)):
+- **Statistical Engine & Reporting** ([cohort.py](../../src/benchmarking/analysis/cohort.py), [statistics.py](../../src/benchmarking/analysis/statistics.py), [stats_utils.py](../../src/benchmarking/analysis/stats_utils.py), [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py), [aggregate_statistics.py](../../src/benchmarking/analysis/aggregate_statistics.py), [cd_diagram.py](../../src/benchmarking/analysis/cd_diagram.py), [report_generator.py](../../src/benchmarking/analysis/report_generator.py), [scaling_plots.py](../../src/benchmarking/analysis/scaling_plots.py)):
+  - [cohort.py::BenchmarkCohort](../../src/benchmarking/analysis/cohort.py) parses raw nested result dictionaries once at the boundary, centralizing finite-metric extraction ([stats_utils.py::finite_metric](../../src/benchmarking/analysis/stats_utils.py)), complete-case matrices, gap-vs-cost fallback, paired Fleming & Wallace geometric speedups, and checkpoint-derived `ProblemConfig` fallback ([cohort.py::derive_problem_configs](../../src/benchmarking/analysis/cohort.py)).
   - [statistics.py::StatisticalAnalyzer](../../src/benchmarking/analysis/statistics.py) executes unconditional Wilcoxon signed-rank paired tests (`DP13-4`, `BUG-60`), Hodges–Lehmann distribution-free CIs, Kerby rank-biserial correlations, descriptive Shapiro–Wilk diagnostics, Friedman + Iman–Davenport $F_F$ omnibus tests (`DP13-3`, `BUG-61`), and Nemenyi post-hoc tests (`DP12-24`, `BUG-47`).
-  - [problem_statistics.py::perform_statistical_analysis](../../src/benchmarking/analysis/problem_statistics.py) evaluates both `cost` and `time` metrics with step-down [problem_statistics.py::holm_bonferroni_correction](../../src/benchmarking/analysis/problem_statistics.py) (`BUG-46`) and baseline resolution via [stats_utils.py::resolve_baseline_algorithm](../../src/benchmarking/analysis/stats_utils.py) (`DP12-9`, `BUG-56`).
+  - [problem_statistics.py::perform_statistical_analysis](../../src/benchmarking/analysis/problem_statistics.py) evaluates both `cost` and `time` metrics with step-down [stats_utils.py::holm_bonferroni_correction](../../src/benchmarking/analysis/stats_utils.py) (`BUG-46`) and baseline resolution via [stats_utils.py::resolve_baseline_algorithm](../../src/benchmarking/analysis/stats_utils.py) (`DP12-9`, `BUG-56`).
   - [aggregate_statistics.py::compare_algorithms](../../src/benchmarking/analysis/aggregate_statistics.py) and [aggregate_statistics.py::perform_cross_problem_analysis_stratified](../../src/benchmarking/analysis/aggregate_statistics.py) compute unified (or threshold-stratified fallback) Friedman/Nemenyi comparisons for `mean_gap` and `mean_time`, plus geometric mean speedups (`DP14-2`, `BUG-92`).
   - [cd_diagram.py::compute_cd_diagram_data](../../src/benchmarking/analysis/cd_diagram.py) and [cd_diagram.py::export_cd_diagram_tikz](../../src/benchmarking/analysis/cd_diagram.py) verify rank-sum conservation and export TikZ Critical Difference diagrams.
-  - [report_generator.py::generate_result_tables](../../src/benchmarking/analysis/report_generator.py) and [report_generator.py::generate_latex_macros](../../src/benchmarking/analysis/report_generator.py) emit Markdown/LaTeX tables (Tables 1–3 + 8-phase timings Table 4), quantitative `\newcommand` macros (`DP14-5`), dual TikZ CD diagrams, and vector scaling plots via [scaling_plots.py::generate_scaling_plots](../../src/benchmarking/analysis/scaling_plots.py) (`DP13-9`, `DP14-3`).
+  - [report_generator.py::generate_result_tables](../../src/benchmarking/analysis/report_generator.py) composes [table_reports.py::generate_markdown_tables](../../src/benchmarking/analysis/table_reports.py), [table_reports.py::generate_latex_tables](../../src/benchmarking/analysis/table_reports.py), [latex_macros.py::generate_latex_macros](../../src/benchmarking/analysis/latex_macros.py), dual TikZ CD diagrams, and vector scaling plots via [scaling_plots.py::generate_scaling_plots](../../src/benchmarking/analysis/scaling_plots.py) (`DP13-9`, `DP14-3`, `DP14-5`), parameterized uniformly by [report_style.py::ReportStyle](../../src/benchmarking/analysis/report_style.py).
 
 ---
 
@@ -471,7 +479,7 @@ erDiagram
    Phase-time shares normalize each phase's cumulative duration $T_{\text{phase}, r}$ against the repetition's wall-clock time $T_{\text{wall}, r}$:
    $$\text{Share}_{r}(\text{phase}) = 100 \cdot \frac{T_{\text{phase}, r}}{T_{\text{wall}, r}}, \qquad \text{CV}(\text{phase}) = 100 \cdot \frac{s_{\text{share}}}{\overline{\text{Share}}}$$
 
-3. **Geometric Mean Speedup** ([aggregate_statistics.py::compare_algorithms](../../src/benchmarking/analysis/aggregate_statistics.py), [report_generator.py::_compute_table2_stats](../../src/benchmarking/analysis/report_generator.py), Fleming & Wallace 1986, `BUG-34`):
+3. **Geometric Mean Speedup** ([cohort.py::BenchmarkCohort.paired_geometric_speedup](../../src/benchmarking/analysis/cohort.py), [table_reports.py::_compute_table2_stats](../../src/benchmarking/analysis/table_reports.py), Fleming & Wallace 1986, `BUG-34`):
    Over $N$ paired instances comparing candidate runtime $t_i^{\text{cand}}$ against baseline runtime $t_i^{\text{base}}$:
    $$\bar{S}_{\text{geom}} = \exp\!\left(\frac{1}{N} \sum_{i=1}^{N} \ln \frac{t_i^{\text{base}}}{t_i^{\text{cand}}}\right)$$
 
@@ -483,7 +491,7 @@ erDiagram
    Scaling the Studentized range quantile $Q_{\alpha, k, \infty}$ by $1/\sqrt{2}$ prevents a $+41.4\%$ inflation:
    $$\text{CD} = q_\alpha \sqrt{\frac{k(k+1)}{6N}}, \qquad q_\alpha = \frac{Q_{1-\alpha,\,k,\,\infty}}{\sqrt{2}}$$
 
-6. **Unconditional Paired Wilcoxon, Hodges–Lehmann CI, Rank-Biserial Effect Size, & Step-Down Holm–Bonferroni** ([statistics.py::StatisticalAnalyzer.paired_comparison, StatisticalAnalyzer.compute_hodges_lehmann, StatisticalAnalyzer.rank_biserial_correlation](../../src/benchmarking/analysis/statistics.py), [problem_statistics.py::holm_bonferroni_correction](../../src/benchmarking/analysis/problem_statistics.py), Kerby 2014; Demšar 2006 §3.1.2, `DP13-4`, `BUG-46`, `BUG-60`):
+6. **Unconditional Paired Wilcoxon, Hodges–Lehmann CI, Rank-Biserial Effect Size, & Step-Down Holm–Bonferroni** ([statistics.py::StatisticalAnalyzer.paired_comparison, StatisticalAnalyzer.compute_hodges_lehmann, StatisticalAnalyzer.rank_biserial_correlation](../../src/benchmarking/analysis/statistics.py), [stats_utils.py::holm_bonferroni_correction](../../src/benchmarking/analysis/stats_utils.py), Kerby 2014; Demšar 2006 §3.1.2, `DP13-4`, `BUG-46`, `BUG-60`):
    - **Location estimator**: median of Walsh averages $W_{ij} = (d_i + d_j)/2$ for $1 \le i \le j \le n$.
    - **Effect size**: matched-pairs rank-biserial correlation $r = \frac{W_+ - W_-}{W_+ + W_-} \in [-1, 1]$.
    - **FWER control**: ordered $p_{(1)} \le \dots \le p_{(m)}$ yield adjusted $p$-values $\tilde{p}_{(i)} = \max_{u \le i}\min\!\big(1, (m - u + 1)\,p_{(u)}\big)$ with monotonic step-down rejection $\tilde{p}_{(i)} \le \alpha$.
@@ -528,13 +536,13 @@ rtk .venv/bin/python -m benchmarking.runner.schema_generator --check
 
 1. Implement the pure statistical computation in [statistics.py::StatisticalAnalyzer](../../src/benchmarking/analysis/statistics.py) (or [stats_utils.py](../../src/benchmarking/analysis/stats_utils.py)), adding any new summary fields to `StatisticalSummary` or `NemenyiResult` in [records.py](../../src/data_models/records.py).
 2. Wire per-problem orchestration in [problem_statistics.py::perform_statistical_analysis](../../src/benchmarking/analysis/problem_statistics.py) and cross-problem aggregation in [aggregate_statistics.py::compare_algorithms](../../src/benchmarking/analysis/aggregate_statistics.py) using `metric_key` and `higher_is_better`.
-3. Export LaTeX macros in [report_generator.py::generate_latex_macros](../../src/benchmarking/analysis/report_generator.py) using [report_generator.py::escape_latex_identifier](../../src/benchmarking/analysis/report_generator.py) and `_format_decimal_latex` (`BUG-45`, `DP14-5`).
+3. Export LaTeX macros in [latex_macros.py::generate_latex_macros](../../src/benchmarking/analysis/latex_macros.py) using [report_style.py::escape_latex_identifier](../../src/benchmarking/analysis/report_style.py) and `_format_decimal_latex` (`BUG-45`, `DP14-5`).
 
 ### 7.4 Adding a custom `PhaseTimer` instrumentation hook
 
 1. Wrap the phase call inside `GeneticAlgorithm` with `timer.measure("my_phase", fn, *args)` or decorate a strategy method with `@time_strategy`.
 2. If device-exact timing is required for a microbenchmark, set `use_gpu_events = True` on the strategy instance or instantiate `PhaseTimer(use_cuda_events=True)` — never insert `cp.cuda.Stream.null.synchronize()` into production hot paths (`DP10-18`, `DP11-22`).
-3. To include the new phase in Markdown/LaTeX Table 4, append its name to `_PHASE_NAMES` in [report_generator.py](../../src/benchmarking/analysis/report_generator.py).
+3. To include the new phase in Markdown/LaTeX Table 4, append its name to `_PHASE_NAMES` in [table_reports.py](../../src/benchmarking/analysis/table_reports.py).
 
 ---
 

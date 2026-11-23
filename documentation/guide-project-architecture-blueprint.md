@@ -19,9 +19,20 @@ modifications:
       - description: >
           Created the 17-section Master Project Architecture Blueprint integrating
           all four subsystem guides across the 8-package `src/` architecture.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Synchronized runtime stack (removed unused `numba`/`tabulate`), updated
+          `BenchmarkRunInput` nullability counts (`22` required + `21` nullable for
+          optional optimal cost), documented acyclic composable reporting (`report_style.py`,
+          `table_reports.py`, `latex_macros.py`), relocated Chapter 4 configs under
+          `benchmark_scripts/configs/chapter4/`, added external custom strategy/step
+          loading, and linked `guide-getting-started.md` and `guide-thesis-reproduction.md`.
 related_files:
   - "[design-patterns-links.md](../design-patterns-links.md)"
   - "[README.md](./README.md)"
+  - "[guide-getting-started.md](./guide-getting-started.md)"
+  - "[guide-thesis-reproduction.md](./guide-thesis-reproduction.md)"
   - "[guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md)"
   - "[guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md)"
   - "[guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md)"
@@ -57,9 +68,9 @@ Inspection of [pyproject.toml](../pyproject.toml), `src/`, `configs/`, and `benc
 | Technology / Layer | Concrete Components & Versions | Architectural Role |
 | :--- | :--- | :--- |
 | **Core Runtime & Typing** | Python `>=3.12`, PEP 544 `Protocol`, PEP 695 `type` aliases & generic syntax | Structural operator contracts, strict `mypy` (`strict = true`), `ruff` linting |
-| **Array & GPU Compute** | `numpy>=2.2.6`, `cupy-cuda12x>=13.6.0` (NVRTC JIT `RawKernel`), `numba>=0.65.1` | Host/device array interchange (`BackendModule`), custom CUDA C++ `.cu`/`.cuh` kernels |
-| **TSPLIB95 ETL & Storage** | `routing-data` (`v0.2.0` Git tag), `duckdb>=1.4.1`, `pandas>=2.3.2` | Corpus parsing (`FormatParser`, `ProblemNormalizer`), `tsp.duckdb` & `results.duckdb` |
-| **Inference & Reporting** | `scipy>=1.15.3`, `scikit-posthocs>=0.11.4`, `matplotlib>=3.10.6`, `tabulate` | Demšar (2006) non-parametric tests, TikZ CD plots, ABNT vector figures, LaTeX tables/macros |
+| **Array & GPU Compute** | `numpy>=2.2.6`, `cupy-cuda12x>=13.6.0` (NVRTC JIT `RawKernel`) | Host/device array interchange (`BackendModule`), custom CUDA C++ `.cu`/`.cuh` kernels |
+| **TSPLIB95 ETL & Storage** | `routing-data` (`v0.2.0` Git tag), `duckdb>=1.4.1`, `pandas>=2.3.2` | Corpus parsing (`FormatParser`, `ProblemNormalizer`), direct `.tsp` loading, optional `tsp.duckdb` & `results.duckdb` |
+| **Inference & Reporting** | `scipy>=1.15.3`, `scikit-posthocs>=0.11.4`, `matplotlib>=3.10.6` | Demšar (2006) non-parametric tests, TikZ CD plots, ABNT vector figures, LaTeX tables/macros |
 | **Configuration Contracts** | `configs/*.json`, `configs/schemas/*.schema.json` (Draft 2020-12) | Declarative GA composition, problem catalog, and reflective schema validation |
 | **Quality & Gates** | `pytest>=8.4.2`, `mypy>=2.4.0`, `ruff>=0.17.3`, [check_docs.py](../benchmark_scripts/check_docs.py) | Unit/integration/GPU-gated tests, AST symbol & heading drift checks |
 
@@ -434,9 +445,9 @@ flowchart LR
 | `src/algorithms/` | `GeneticAlgorithm`, `STAGE_SPECS`, `pipeline_steps.py`, 17 `Design B` strategies, 8 `.cu` kernels, `archive/` | [guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md) |
 | `src/utils/` | `load_kernel` (`-I` + SHA-256), `PhaseTimer` / `@time_strategy`, `make_rng` / `resolve_rng`, `route_helpers` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 | `src/benchmarking/` | `runner/` (`orchestration`, `algorithm_runner`, `checkpoint_io`, `config_loader`, `schema_generator`), `database/`, `analysis/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
-| `src/cli/` | 4 entry points (`benchmark.py`, `checkpoints.py`, `tsplib.py`) invoked directly or via `benchmark_scripts/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
+| `src/cli/` | 5 entry points (`benchmark.py`, `report.py`, `checkpoints.py`, `tsplib.py`) invoked directly or via `benchmark_scripts/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 
-Outside `src/`, [`configs/`](../configs/benchmark.json) stores runtime configurations and Draft 2020-12 JSON Schemas (`configs/schemas/`), while `benchmark_scripts/` hosts thesis drivers ([run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py)) and verification gates ([check_docs.py](../benchmark_scripts/check_docs.py), [check_thesis.py](../benchmark_scripts/check_thesis.py)).
+Outside `src/`, [`configs/`](../configs/cpu-operators.example.json) stores generic example configurations and Draft 2020-12 JSON Schemas (`configs/schemas/`), while `benchmark_scripts/` isolates thesis Chapter 4 configs (`benchmark_scripts/configs/chapter4/`), thesis drivers ([run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py)), and verification gates ([check_docs.py](../benchmark_scripts/check_docs.py), [check_thesis.py](../benchmark_scripts/check_thesis.py)).
 
 ---
 
@@ -447,7 +458,7 @@ Dependencies are structured to flow downward from orchestration/CLI into domain 
 ### Verified Coupling Anomalies & Package Surface Gaps
 
 1. **Layering Anomaly in `data_models/records.py`:** [`records.py`](../src/data_models/records.py) defines [`BenchmarkRunInput`](../src/data_models/records.py) (matching `schema.sql`) and [`NemenyiResult`](../src/data_models/records.py) inside Layer 2 `data_models/` rather than `src/benchmarking/`. This prevents circular imports inside `benchmarking/` but leaks persistence schemas into the core domain layer.
-2. **Lazy Bidirectional Cycle in `benchmarking/analysis/`:** `cd_diagram.py` and `scaling_plots.py` import `escape_latex_identifier`, `SMALL_SIZE_MAX`, and `MEDIUM_SIZE_MAX` from `report_generator.py` at top level, while `report_generator.py` lazily imports `compute_cd_diagram_data`, `export_cd_diagram_tikz`, and `generate_scaling_plots` inside function bodies.
+2. **Resolved — Acyclic Reporting DAG in `benchmarking/analysis/`:** Previously `cd_diagram.py` and `scaling_plots.py` imported formatting/threshold constants from `report_generator.py`. Extracting [`report_style.py`](../src/benchmarking/analysis/report_style.py), [`table_reports.py`](../src/benchmarking/analysis/table_reports.py), and [`latex_macros.py`](../src/benchmarking/analysis/latex_macros.py) made the analysis reporting graph strictly acyclic, leaving [`report_generator.py`](../src/benchmarking/analysis/report_generator.py) as a thin composable facade.
 3. **Private Symbol Coupling in `algorithm_runner.py`:** [`algorithm_runner.py`](../src/benchmarking/runner/algorithm_runner.py) imports the private function [`gpu_helpers.py::_compile_kernel_cached`](../src/utils/gpu_helpers.py) solely to check `.cache_info().currsize` around the repetition loop (`DP11-21`).
 4. **Runner-to-Solver & Loader Top-Level Coupling:** [`config_loader.py`](../src/benchmarking/runner/config_loader.py) and [`schema_generator.py`](../src/benchmarking/runner/schema_generator.py) import `algorithms.strategies.STRATEGY_REGISTRY`, `PIPELINE_STEP_REGISTRY`, and `tsplib_loader` directly at import time to instantiate pipelines and reflectively generate JSON Schemas (`BUG-85`).
 5. **Incomplete Barrel `__init__.py` Exports:**
@@ -455,7 +466,7 @@ Dependencies are structured to flow downward from orchestration/CLI into domain 
    - `src/distances/factory.py` and `src/loaders/problem_adapter.py` do **not** exist in the codebase (`pairwise.py` owns distance factories; `tsplib_loader.py` adapts `routing_data`).
    - [`InvalidEdgeTypeError`](../src/data_models/exceptions.py) omits `EUC_3D` and `CEIL_2D` in its error text despite [`VALID_EDGE_TYPES`](../src/data_models/problem.py) supporting 6 types (`DP14-6`).
    - [`metaheuristics/__init__.py`](../src/algorithms/metaheuristics/__init__.py) retains `GeneticAlgorithmBase = GeneticAlgorithm` (re-exported by `algorithms/__init__.py`).
-   - `src/algorithms/archive/` is quarantined from `algorithms.__all__`, `mypy`, and `ruff`, loaded solely via `configs/algorithms.archive.json` (`DP10-2`).
+   - `src/algorithms/archive/` is quarantined from `algorithms.__all__`, `mypy`, and `ruff`, loaded solely via `benchmark_scripts/configs/chapter4/algorithms.archive.json` (`DP10-2`).
 
 ---
 
@@ -464,7 +475,7 @@ Dependencies are structured to flow downward from orchestration/CLI into domain 
 - **Immutable Domain Value Object:** [`Problem`](../src/data_models/problem.py) validates positive `dimension`, `problem_type in {"TSP", "ATSP", "CVRP"}`, `edge_type in {"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"}`, strict `(n, 2)` vs `(n, 3)` coordinate shapes (`DP14-6`), C-contiguous finite `float64` coordinates, `CVRP` demands/capacity, and content-based `__eq__`/`__hash__` (`BUG-1`).
 - **Dual DuckDB Schemas:**
   - **Input Corpus (`tsp.duckdb`):** Owned by `routing_data` `DatabaseManager` (`DP10-14`), separating normalized hub tables (`problems`, `tsp_problems`, `atsp_problems`, `cvrp_problems`, `edge_weight_matrices`, `file_tracking`, `solutions`), read via [`DatabaseLoader`](../src/loaders/database_loader.py) and [`PROBLEM_TYPE_HANDLERS`](../src/loaders/problem_type_handlers.py).
-  - **Results Store (`results.duckdb`):** Defined in [`schema.sql`](../src/benchmarking/database/schema.sql) as a single denormalized `benchmark_runs` table (`43` keys matching [`BenchmarkRunInput`](../src/data_models/records.py): `27` required + `16` nullable) with `LIST` (`raw_*`), `JSON` (`mean_phase_timings`, `algorithm_config`), `VIRTUAL` `is_test`, and 6 indexes, imported idempotently via `(problem_name, algorithm)` natural-key upsert (`BUG-49`).
+  - **Results Store (`results.duckdb`, optional):** Defined in [`schema.sql`](../src/benchmarking/database/schema.sql) as a single denormalized `benchmark_runs` table (`43` keys matching [`BenchmarkRunInput`](../src/data_models/records.py): `22` required + `21` nullable, allowing `NULL` `optimal_cost`/gap columns on custom `.tsp` instances) with `LIST` (`raw_*`), `JSON` (`mean_phase_timings`, `algorithm_config`), `VIRTUAL` `is_test`, and 6 indexes, imported idempotently via `(problem_name, algorithm)` natural-key upsert (`BUG-49`).
 - **GPU Memory & VRAM Capacity Model:** [`ProblemContext.estimate_vram_bytes`](../src/protocols/problem_context.py) predicts VRAM needs for population $P$, cities $n$, and coordinate dimension $d$:
 
 $$
@@ -535,18 +546,19 @@ The `tests/` tree mirrors every package in `src/` (`algorithms/`, `benchmarking/
 
 ## 12. Execution & Runtime Topology
 
-[`pyproject.toml`](../pyproject.toml) exposes four installed console scripts:
-- `tsp-benchmark` (`cli.benchmark:main`) $\to$ orchestrates configs, pre-flight validation, AOT warm-up, per-repetition atomic JSON checkpoints, statistical tests, and report generation.
-- `tsp-import-checkpoints` (`cli.checkpoints:import_main`) & `tsp-validate-db` (`cli.checkpoints:validate_main`) $\to$ idempotent checkpoint ingestion into `results.duckdb` and cross-validation.
-- `tsp-ingest` (`cli.tsplib:main`) $\to$ validates `.tsp` corpora and ingests them via `routing_data` into `tsp.duckdb`.
+[`pyproject.toml`](../pyproject.toml) exposes five installed console scripts:
+- `tsp-benchmark` (`cli.benchmark:main`) $\to$ orchestrates configs (`--algorithms-config` or `--config-dir`, optional `--benchmark-config`/`--problems-config`), pre-flight validation, AOT warm-up, per-repetition atomic JSON checkpoints, and per-problem stats (`--tsp-dir`, `--tsp-files`, or optional `--db-path`); collection-only by default, with opt-in `--reports` and external `--report-style`.
+- `tsp-report` (`cli.report:main`) $\to$ regenerates selectable Markdown/LaTeX tables, `benchmark_macros.tex`, Demšar CD `.tikz` diagrams, and scaling figures directly from `checkpoints/*.json` with optional `--report-style <file.json>` and zero DuckDB dependency.
+- `tsp-import-checkpoints` (`cli.checkpoints:import_main`) & `tsp-validate-db` (`cli.checkpoints:validate_main`) $\to$ optional idempotent checkpoint ingestion into `results.duckdb` and cross-validation (optional `--db2`).
+- `tsp-ingest` (`cli.tsplib:main`) $\to$ validates `.tsp` corpora and optionally ingests them via `routing_data` into `tsp.duckdb`.
 
-Configuration follows three validated JSON files under `configs/` ([`algorithms.json`](../configs/algorithms.json) defining `CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`; [`benchmark.json`](../configs/benchmark.json) setting `repetitions: 30`, `cpu_size_threshold: null`, `incremental_runs: false`; [`problems.json`](../configs/problems.json) holding optimal costs and sizes validated against loaded `Problem.dimension` per `BUG-84`), plus [`algorithms.archive.json`](../configs/algorithms.archive.json) for `FullGPUMonolithic`. Thesis runs invoke [run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py), which delegates directly to `cli.benchmark.main` (`DP13-8`).
+Generic ready-to-run examples live directly in `configs/` ([`cpu-operators.example.json`](../configs/cpu-operators.example.json), [`local-search-pipelines.example.json`](../configs/local-search-pipelines.example.json), [`gpu-backends.example.json`](../configs/gpu-backends.example.json), [`algorithms.full.example.json`](../configs/algorithms.full.example.json), [`report-style.example.json`](../configs/report-style.example.json)), validated against `configs/schemas/`. Chapter 4 thesis configs and pt-BR presentation live isolated under `benchmark_scripts/configs/chapter4/` ([`algorithms.json`](../benchmark_scripts/configs/chapter4/algorithms.json), [`benchmark.json`](../benchmark_scripts/configs/chapter4/benchmark.json), [`problems.json`](../benchmark_scripts/configs/chapter4/problems.json), [`report_style.json`](../benchmark_scripts/configs/chapter4/report_style.json), [`algorithms.archive.json`](../benchmark_scripts/configs/chapter4/algorithms.archive.json)), consumed by [run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py) (`DP13-8`).
 
 ---
 
 ## 13. Extension & Evolution Patterns
 
-1. **Adding a New Evolutionary Strategy (`src/algorithms/strategies/`):** Implement `StrategyBase` + target `Protocol`, name `<SlotPrefix><Family>`, honor `resolve_rng` & `require_gpu()`, register in [`STRATEGY_REGISTRY`](../src/algorithms/strategies/__init__.py), add advisory bounds if needed to `ADVISORY_PARAM_METADATA`, and regenerate `configs/schemas/algorithms.schema.json` via `python -m benchmarking.runner.schema_generator` (`BUG-85`).
+1. **Adding a New Evolutionary Strategy (external or built-in):** External users never need to modify `src/` — implement the target PEP 544 `Protocol` (optionally subclassing `StrategyBase`) and inject directly into `GeneticAlgorithm(...)`, call [`register_strategy`](../src/algorithms/strategies/__init__.py), or reference `{"module": "...", "class": "..."}` in JSON. For built-in strategies under `src/algorithms/strategies/`, name `<SlotPrefix><Family>`, honor `resolve_rng` & `require_gpu()`, register in [`STRATEGY_REGISTRY`](../src/algorithms/strategies/__init__.py), and regenerate `configs/schemas/algorithms.schema.json` via `python -m benchmarking.runner.schema_generator` (`BUG-85`).
 2. **Adding a New TSPLIB95 Edge Weight Type (`data_models` + `distances`):** Register in [`VALID_EDGE_TYPES`](../src/data_models/problem.py) (and [`THREE_DIMENSIONAL_EDGE_TYPES`](../src/data_models/problem.py) if 3D), implement Tier 3 scalar + [`EDGE_TYPE_TO_CODE`](../src/distances/pairwise.py) in `pairwise.py`, Tier 2 broadcast in [`_distance_block`](../src/distances/matrix.py), and Tier 1 device function in [`pairwise_device.cuh::gpu_pairwise_distance`](../src/distances/kernels/pairwise_device.cuh).
 3. **Adding a Custom Pipeline Step (`src/algorithms/pipeline_steps.py`):** Declare `stage_anchor: StageAnchor`, `strategies()`, `public_params()`, `warmup(context)`, and `run(state, timer)`, and register in [`PIPELINE_STEP_REGISTRY`](../src/algorithms/pipeline_steps.py).
 4. **Adding Statistical Outputs (`src/benchmarking/analysis/`):** Extend [`StatisticalAnalyzer`](../src/benchmarking/analysis/statistics.py) and wire multi-metric dispatch (`metric_key`, `higher_is_better`) through `problem_statistics.py`, `aggregate_statistics.py`, and `report_generator.py`.

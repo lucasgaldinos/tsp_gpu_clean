@@ -47,26 +47,28 @@ O total das etapas é comparado ao tempo total de execução de cada configuraç
 \section{Roteiro de reprodução}\label{apendice-reproducao}
 
 O código-fonte completo do \emph{framework}, os \emph{kernels} CUDA e os \emph{scripts} de coleta e análise estão disponíveis no repositório público do projeto em \url{https://github.com/lucasgaldinos/tsp_gpu_clean}.
-Para preparar o ambiente de execução, exigem-se \texttt{Python} \(\ge 3{,}12\) e, para as variantes aceleradas, uma GPU com suporte a CUDA de \emph{Compute Capability} \(\ge 5{,}0\) acompanhada de \emph{driver} compatível com o CUDA Toolkit 12.x.
-Todas as dependências declaradas em \path{pyproject.toml} e fixadas em \path{uv.lock} --- incluindo os pacotes numéricos e de GPU da \tabref{tbl:software-specs}, os pacotes auxiliares de análise e visualização (\texttt{pandas}, \texttt{matplotlib}, \texttt{tabulate}), a biblioteca auxiliar de conversão de instâncias (\texttt{routing-data} v0.2.0) e o grupo de validação (\texttt{pytest}, \texttt{mypy}, \texttt{ruff}) --- são instaladas de forma reproduzível com o comando \texttt{uv sync} na raiz do repositório.
+Para preparar o ambiente de execução, exigem-se \texttt{Python} \(\ge 3{,}12\), as ferramentas \texttt{uv} e \texttt{git} e, para as variantes aceleradas em GPU, uma placa NVIDIA com suporte a CUDA de \emph{Compute Capability} \(\ge 5{,}0\) acompanhada de \emph{driver} compatível com o CUDA Toolkit 12.x (a variante \texttt{CPU} executa sem GPU).
+Todas as dependências declaradas em \path{pyproject.toml} e fixadas em \path{uv.lock} --- incluindo os pacotes numéricos e de GPU da \tabref{tbl:software-specs}, os pacotes auxiliares de análise e visualização (\texttt{pandas}, \texttt{matplotlib}), a biblioteca pública de leitura de instâncias TSPLIB95 (\texttt{routing-data} v0.2.0, obtida automaticamente pelo \texttt{uv} via Git) e o grupo de validação (\texttt{pytest}, \texttt{mypy}, \texttt{ruff}, \texttt{jsonschema}) --- são instaladas de forma reproduzível com o comando \texttt{uv sync} na raiz do repositório.
 
-Após a instalação, a reprodução de um experimento segue cinco passos:
+Após a instalação, a reprodução de um experimento não exige a criação prévia de banco de dados e segue cinco passos:
 
 \begin{enumerate}
   \item
-        obter as instâncias da TSPLIB e carregá-las no banco de instâncias, que valida o formato de distância na entrada;
+        obter os arquivos \texttt{.tsp} da TSPLIB95 e posicioná-los em um diretório local (como \path{datasets/tsp/}) --- o \emph{framework} lê o formato TSPLIB diretamente via \texttt{--tsp-dir} ou \texttt{--tsp-files}, validando o tipo de distância na entrada e mantendo a pré-ingestão em DuckDB (\texttt{tsp-ingest}) como etapa opcional;
   \item
-        escolher o conjunto de instâncias, as variantes e o número de repetições;
+        escolher o conjunto de instâncias, as variantes e o número de repetições, a partir dos exemplos genéricos em \path{configs/} ou da configuração dedicada do Capítulo~4 em \path{benchmark_scripts/configs/chapter4/};
   \item
-        executar o orquestrador, que grava um arquivo por par algoritmo--instância e retoma do último ponto em caso de interrupção;
+        executar o orquestrador, que realiza por padrão apenas a coleta de dados e grava um \emph{checkpoint} JSON atômico por par algoritmo--instância após cada repetição, retomando do último ponto consistente em caso de interrupção;
   \item
-        consolidar os resultados no banco de resultados;
+        gerar --- ou regenerar posteriormente sem reexecutar os algoritmos --- as estatísticas por instância, tabelas, macros quantitativas, diagramas de diferença crítica e gráficos vetoriais diretamente a partir dos \emph{checkpoints} JSON, injetando o estilo de apresentação desejado via arquivo \texttt{--report-style};
   \item
-        gerar as tabelas e os diagramas a partir do banco consolidado.
+        opcionalmente, consolidar os \emph{checkpoints} no banco DuckDB de resultados e verificar a consistência entre o banco e os arquivos JSON de origem.
 \end{enumerate}
 
 As sementes são determinísticas: cada repetição usa a semente base somada ao índice da repetição, de modo que a repetição \(r\) de um par pode ser reproduzida isoladamente.
-No diretório \path{benchmark_scripts/} do repositório, essas etapas são acionadas por três pontos de entrada principais: \path{run_chapter4_benchmark.py} (orquestração da coleta e geração das tabelas e gráficos), \path{import_checkpoints.py} (consolidação no DuckDB) e \path{validate_consistency.py} (verificação de consistência entre os arquivos de saída e o banco).
+O pacote instalado registra cinco comandos de linha de comando em \path{pyproject.toml}: \texttt{tsp-benchmark} (coleta configurável a partir de arquivos \texttt{.tsp} ou banco opcional, aceitando arquivos individuais via \texttt{--algorithms-config} ou um diretório via \texttt{--config-dir}, com geração opcional de relatórios via \texttt{--reports}), \texttt{tsp-report} (regeneração autônoma e seletiva de tabelas, macros, diagramas e gráficos a partir de \emph{checkpoints} JSON com estilo externo via \texttt{--report-style}), \texttt{tsp-ingest} (validação e ingestão opcional de diretórios TSPLIB em DuckDB), \texttt{tsp-import-checkpoints} (consolidação idempotente em \path{results.duckdb}) e \texttt{tsp-validate-db} (auditoria de consistência entre o banco e os \emph{checkpoints}).
+Para reproduzir integralmente a coorte do \capref{cap4-resultados}, o diretório \path{benchmark_scripts/} isola fora de \path{src/} o ponto de entrada \path{run_chapter4_benchmark.py} e as configurações em \path{benchmark_scripts/configs/chapter4/} (incluindo \path{report_style.json} com rótulos em português e separador decimal em vírgula).
+Exemplos executáveis de composição de estratégias (inclusive externas ao pacote \path{src/}), uso em Python e linha de comando constam em \path{README.md} e em \path{documentation/guide-getting-started.md}; o roteiro isolado de reprodução do Capítulo~4 consta em \path{documentation/guide-thesis-reproduction.md}.
 Como os tempos absolutos dependem do ambiente de execução, as versões de sistema operacional, biblioteca de GPU, compilador e placa utilizadas na coleta estão documentadas na \secref{sec-31-ambiente-framework}.
 
 \section{Tabelas integrais de resultados nas \totalinstancias\ instâncias}\label{apendice-resultados}

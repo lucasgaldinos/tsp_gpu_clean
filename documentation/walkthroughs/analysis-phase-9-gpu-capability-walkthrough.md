@@ -25,7 +25,7 @@ related_files:
   - "[benchmark_scripts/check_archive_baseline.py](../../benchmark_scripts/check_archive_baseline.py)"
   - "[tests/protocols/test_unit_gpu_capability.py](../../tests/protocols/test_unit_gpu_capability.py)"
   - "[tests/benchmarking/test_unit_algorithms_config_contract.py](../../tests/benchmarking/test_unit_algorithms_config_contract.py)"
-  - "[configs/algorithms.json](../../configs/algorithms.json)"
+  - "[configs/algorithms.json](../../benchmark_scripts/configs/chapter4/algorithms.json)"
 tags:
   - analysis/architecture
   - analysis/decisions
@@ -138,7 +138,7 @@ The user had asked for `/code-review-and-quality` **without subagents**, and the
 
 **Task 9.6 — archive migration.** `git mv` of `full_gpu_monolithic.py` and `kernels/` into `src/algorithms/archive/`; the five legacy modules deleted; `archive/__init__.py` exposes only `GeneticAlgorithmFullGPUMonolithic`; [README.md](../../src/algorithms/archive/README.md) gets repository frontmatter; the statistics key is corrected from `best_cost_history` to `convergence_history` at [full_gpu_monolithic.py:248](../../src/algorithms/archive/full_gpu_monolithic.py#L248), which resolves BUG-7; exports leave `algorithms.__all__`.
 
-**Task 9.7 — class paths.** `class_module` becomes `"algorithms.archive.full_gpu_monolithic"` for both variants in [configs/algorithms.json](../../configs/algorithms.json#L164) and in the fixture ([L175](../../configs/algorithms.json#L175) is the second variant in both files).
+**Task 9.7 — class paths.** `class_module` becomes `"algorithms.archive.full_gpu_monolithic"` for both variants in [configs/algorithms.json](../../benchmark_scripts/configs/chapter4/algorithms.json#L164) and in the fixture ([L175](../../benchmark_scripts/configs/chapter4/algorithms.json#L175) is the second variant in both files).
 
 **Task 9.8 — config contract.** [tests/benchmarking/test_unit_algorithms_config_contract.py](../../tests/benchmarking/test_unit_algorithms_config_contract.py) loads both JSON files and asserts equal sections, variant sets, `class_module`/`class_name`, strategy slots and parameter keys, and that every production variant imports (`test_production_variants_importable`, line 83).
 
