@@ -52,6 +52,7 @@ datasets/
 
 # Bibliography auxiliary files
 *.bbl
+*.bbl-SAVE-ERROR
 *.blg
 *.run.xml
 
