@@ -24,7 +24,7 @@ Usage Example:
     # Insert benchmark data
     data = {
         'problem_name': 'berlin52',
-        'algorithm': 'HybridOptimized',
+        'algorithm': 'MemeticGA',
         'repetitions': 15,
         'mean_time': 1.234,
         'raw_times': [1.2, 1.3, 1.1, ...],
@@ -131,9 +131,6 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
     "std_cost",
     "best_cost",
     "worst_cost",
-    "mean_gap",
-    "std_gap",
-    "best_gap",
     "mean_generations",
     "std_generations",
   ]
@@ -145,6 +142,10 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
 
   # Optional numeric fields (check if present)
   optional_numeric = [
+    "optimal_cost",
+    "mean_gap",
+    "std_gap",
+    "best_gap",
     "mean_initial_cost",
     "std_initial_cost",
     "mean_improvement",
@@ -166,7 +167,7 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
     raise ValueError(f"successful_runs ({successful_runs}) cannot be negative or exceed repetitions ({repetitions})")
 
   expected_len = successful_runs
-  array_fields = ["raw_times", "raw_costs", "raw_gaps"]
+  array_fields = ["raw_times", "raw_costs"]
 
   for field in array_fields:
     arr = data.get(field)
@@ -174,7 +175,7 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
       raise ValueError(f"Array length mismatch for '{field}': expected {expected_len}, got {len(arr)}")
 
   # Check optional arrays if present
-  optional_arrays = ["raw_initial_costs", "raw_generations", "raw_stop_reasons"]
+  optional_arrays = ["raw_gaps", "raw_initial_costs", "raw_generations", "raw_stop_reasons"]
   for field in optional_arrays:
     arr = data.get(field)
     if arr is not None and len(arr) != expected_len:
@@ -186,8 +187,8 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
 def compute_run_aggregates(
   raw_times: list[float],
   raw_costs: list[float],
-  raw_gaps: list[float],
-  optimal_cost: float,
+  raw_gaps: list[float] | None,
+  optimal_cost: float | None,
   repetitions: int,
   raw_initial_costs: list[float] | None = None,
   raw_generations: list[int] | None = None,
@@ -203,8 +204,8 @@ def compute_run_aggregates(
   Args:
       raw_times: Execution times for successful runs.
       raw_costs: Best tour costs for successful runs.
-      raw_gaps: Percentage gaps above optimal for successful runs.
-      optimal_cost: Known optimal solution cost.
+      raw_gaps: Percentage gaps above optimal for successful runs (or None when unknown).
+      optimal_cost: Known optimal solution cost (or None when unknown).
       repetitions: Total attempted repetitions.
       raw_initial_costs: Optional initial random tour costs.
       raw_generations: Optional generations completed.
@@ -214,6 +215,7 @@ def compute_run_aggregates(
       Dictionary of aggregate metrics conforming to BenchmarkRunInput.
   """
   n_successful = len(raw_times)
+  has_gaps = raw_gaps is not None and optimal_cost is not None
   if n_successful == 0:
     return {
       "repetitions": repetitions,
@@ -226,9 +228,9 @@ def compute_run_aggregates(
       "std_cost": 0.0,
       "best_cost": 0.0,
       "worst_cost": 0.0,
-      "mean_gap": 0.0,
-      "std_gap": 0.0,
-      "best_gap": 0.0,
+      "mean_gap": 0.0 if has_gaps else None,
+      "std_gap": 0.0 if has_gaps else None,
+      "best_gap": 0.0 if has_gaps else None,
       "mean_generations": 0.0,
       "std_generations": 0.0,
       "mean_initial_cost": None,
@@ -236,12 +238,11 @@ def compute_run_aggregates(
       "mean_improvement": None,
       "raw_times": [],
       "raw_costs": [],
-      "raw_gaps": [],
+      "raw_gaps": [] if has_gaps else None,
     }
 
   times_arr = np.array(raw_times, dtype=np.float64)
   costs_arr = np.array(raw_costs, dtype=np.float64)
-  gaps_arr = np.array(raw_gaps, dtype=np.float64)
 
   # Sample std uses ddof=1 when n_successful > 1, else 0.0
   std_ddof = 1 if n_successful > 1 else 0
@@ -257,13 +258,21 @@ def compute_run_aggregates(
     "std_cost": float(np.std(costs_arr, ddof=std_ddof)) if n_successful > 1 else 0.0,
     "best_cost": float(np.min(costs_arr)),
     "worst_cost": float(np.max(costs_arr)),
-    "mean_gap": float(np.sum(gaps_arr) / n_successful),
-    "std_gap": float(np.std(gaps_arr, ddof=std_ddof)) if n_successful > 1 else 0.0,
-    "best_gap": float(np.min(gaps_arr)),
     "raw_times": raw_times,
     "raw_costs": raw_costs,
-    "raw_gaps": raw_gaps,
   }
+
+  if has_gaps and raw_gaps is not None and len(raw_gaps) > 0:
+    gaps_arr = np.array(raw_gaps, dtype=np.float64)
+    res["mean_gap"] = float(np.sum(gaps_arr) / n_successful)
+    res["std_gap"] = float(np.std(gaps_arr, ddof=std_ddof)) if n_successful > 1 else 0.0
+    res["best_gap"] = float(np.min(gaps_arr))
+    res["raw_gaps"] = raw_gaps
+  else:
+    res["mean_gap"] = None
+    res["std_gap"] = None
+    res["best_gap"] = None
+    res["raw_gaps"] = None
 
   if raw_generations is not None and len(raw_generations) > 0:
     gen_arr = np.array(raw_generations, dtype=np.float64)
@@ -413,7 +422,7 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
     [
       data["problem_name"],
       data["problem_size"],
-      data["optimal_cost"],
+      data.get("optimal_cost"),
       data["algorithm"],
       data["backend"],
       data["repetitions"],
@@ -430,9 +439,9 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
       data["worst_cost"],
       data.get("mean_initial_cost"),
       data.get("std_initial_cost"),
-      data["mean_gap"],
-      data["std_gap"],
-      data["best_gap"],
+      data.get("mean_gap"),
+      data.get("std_gap"),
+      data.get("best_gap"),
       data.get("mean_improvement"),
       data["mean_generations"],
       data["std_generations"],
@@ -447,7 +456,7 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
       _json_or_none(data.get("phase_share_cv_pct")),
       data["raw_times"],
       data["raw_costs"],
-      data["raw_gaps"],
+      data.get("raw_gaps"),
       data.get("raw_initial_costs"),
       data.get("raw_generations"),
       data.get("raw_stop_reasons"),
@@ -502,7 +511,7 @@ def get_algorithm_summary(conn: duckdb.DuckDBPyConnection, problem_name: str, al
       Dictionary with summary stats or None if not found
 
   Example:
-      >>> stats = get_algorithm_summary(conn, "berlin52", "HybridOptimized")
+      >>> stats = get_algorithm_summary(conn, "berlin52", "MemeticGA")
       >>> print(f"Mean time: {stats['mean_time']:.2f}s")
   """
   result = conn.execute(
@@ -548,12 +557,12 @@ def compute_speedup_matrix(
   Compute speedup of each algorithm vs baseline across all problems.
 
   Executes a single aggregated analytical SQL query with GROUP BY problem_name, algorithm
-  and calculates speedup ratios in memory, formally including FullGPUModular.
+  and calculates speedup ratios in memory across all comparison algorithms.
 
   Args:
       conn: DuckDB connection
       baseline: Baseline algorithm (default 'CPU')
-      comparisons: List of algorithms to compare (default includes FullGPUModular)
+      comparisons: Optional list of algorithms to compare (defaults to all non-baseline algorithms)
       include_missing: If True, include problems where candidate algorithm data is missing
           or invalid with `fill_missing` (default False).
       fill_missing: Value to fill for missing or invalid speedups when include_missing is True.
@@ -562,7 +571,7 @@ def compute_speedup_matrix(
       List of (problem_name, algorithm, speedup, baseline_time) tuples
 
   Example:
-      >>> speedups = compute_speedup_matrix(conn, "CPU", ["HybridOptimized", "FullGPUMonolithic", "FullGPUModular"])
+      >>> speedups = compute_speedup_matrix(conn, "CPU", ["MemeticGPU", "FullGPU"])
       >>> for prob, alg, speedup, base_time in speedups:
       ...   print(f"{prob}: {alg} is {speedup:.2f}x faster than CPU")
   """

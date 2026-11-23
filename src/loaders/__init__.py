@@ -25,7 +25,9 @@ from .tsplib_loader import (
   TsplibLoader,
   bundle_to_problem,
   ingest_tsplib_directory_to_duckdb,
+  load_tsplib_file,
   parse_tsplib_file,
+  resolve_opt_tour_cost,
 )
 
 __all__ = [
@@ -43,6 +45,8 @@ __all__ = [
   "TsplibLoader",
   "bundle_to_problem",
   "ingest_tsplib_directory_to_duckdb",
+  "load_tsplib_file",
   "parse_tsplib_file",
   "register_problem_type_handler",
+  "resolve_opt_tour_cost",
 ]

@@ -119,7 +119,9 @@ def compare_databases(db1_path: str, db2_path: str) -> tuple[bool, list[str]]:
       val1 = row1[field]
       val2 = row2[field]
 
-      if val1 != val2:
+      if pd.isna(val1) and pd.isna(val2):
+        print(f"    ✓ {field}: NULL")
+      elif val1 != val2:
         differences.append(f"Row {idx}, field {field}: {val1} vs {val2}")
         print(f"    ❌ {field}: {val1} != {val2}")
       else:
@@ -211,6 +213,8 @@ def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[boo
       db_value = row[field]
       json_value = json_data[field]
 
+      if json_value is None and pd.isna(db_value):
+        continue
       if isinstance(db_value, float) and isinstance(json_value, (int, float)):
         if abs(db_value - json_value) > 1e-6:
           record_valid = False
@@ -252,4 +256,3 @@ def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[boo
   else:
     print("✅ All records match source JSON files!")
     return True, pd.DataFrame()
-

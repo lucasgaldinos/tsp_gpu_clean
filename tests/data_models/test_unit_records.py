@@ -17,12 +17,11 @@ from numpy.typing import NDArray
 
 from data_models.records import BenchmarkRunInput, JsonPayload, NemenyiResult
 
-#: The 27 columns `NOT NULL` without a default in `schema.sql`.
+#: The 22 columns `NOT NULL` without a default in `schema.sql`.
 REQUIRED_FIELDS: frozenset[str] = frozenset(
   {
     "problem_name",
     "problem_size",
-    "optimal_cost",
     "algorithm",
     "backend",
     "repetitions",
@@ -37,22 +36,23 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(
     "std_cost",
     "best_cost",
     "worst_cost",
-    "mean_gap",
-    "std_gap",
-    "best_gap",
     "mean_generations",
     "std_generations",
     "raw_times",
     "raw_costs",
-    "raw_gaps",
     "algorithm_config",
     "strategies",
   }
 )
 
-#: The nullable columns that older checkpoints may omit.
+#: The 21 nullable columns (including optimal/gap columns for unknown-optimum instances).
 OPTIONAL_FIELDS: frozenset[str] = frozenset(
   {
+    "optimal_cost",
+    "mean_gap",
+    "std_gap",
+    "best_gap",
+    "raw_gaps",
     "mean_initial_cost",
     "std_initial_cost",
     "mean_improvement",
@@ -75,7 +75,6 @@ OPTIONAL_FIELDS: frozenset[str] = frozenset(
 MINIMAL_PAYLOAD: dict[str, object] = {
   "problem_name": "burma14",
   "problem_size": 14,
-  "optimal_cost": 3323.0,
   "algorithm": "GeneticAlgorithm",
   "backend": "numpy",
   "repetitions": 5,
@@ -90,20 +89,21 @@ MINIMAL_PAYLOAD: dict[str, object] = {
   "std_cost": 12.5,
   "best_cost": 3350.0,
   "worst_cost": 3450.0,
-  "mean_gap": 0.023,
-  "std_gap": 0.004,
-  "best_gap": 0.008,
   "mean_generations": 80.0,
   "std_generations": 5.0,
   "raw_times": [1.2, 1.5, 1.9],
   "raw_costs": [3350.0, 3400.0, 3450.0],
-  "raw_gaps": [0.008, 0.023, 0.038],
   "algorithm_config": '{"population_size": 32}',
   "strategies": {"local_search": {"class": "CPUTwoOpt"}},
 }
 
 FULL_PAYLOAD: dict[str, object] = {
   **MINIMAL_PAYLOAD,
+  "optimal_cost": 3323.0,
+  "mean_gap": 0.023,
+  "std_gap": 0.004,
+  "best_gap": 0.008,
+  "raw_gaps": [0.008, 0.023, 0.038],
   "mean_initial_cost": 4000.0,
   "std_initial_cost": 20.0,
   "mean_improvement": 600.0,
@@ -131,20 +131,20 @@ def test_benchmark_run_input_required_keys_match_the_not_null_columns() -> None:
   """
   WHAT: `BenchmarkRunInput.__required_keys__`.
   WHY: the runtime validator derives its required-field list from this set, so an edit here changes validation.
-  EXPECTED: exactly the 27 documented required columns.
+  EXPECTED: exactly the 22 documented required columns.
   """
   assert set(BenchmarkRunInput.__required_keys__) == REQUIRED_FIELDS
-  assert len(BenchmarkRunInput.__required_keys__) == 27
+  assert len(BenchmarkRunInput.__required_keys__) == 22
 
 
 def test_benchmark_run_input_optional_keys_match_the_nullable_columns() -> None:
   """
   WHAT: `BenchmarkRunInput.__optional_keys__`.
-  WHY: these are the keys the writer reads with `dict.get`; a missing one must stay legal for old checkpoints.
-  EXPECTED: exactly the 16 documented `NotRequired` columns (13 base + 3 phase telemetry, BUG-31).
+  WHY: these are the keys the writer reads with `dict.get`; a missing one stays legal for old or unknown-optimum runs.
+  EXPECTED: exactly the 21 documented `NotRequired` columns (16 prior + 5 optimal/gap nullable columns).
   """
   assert set(BenchmarkRunInput.__optional_keys__) == OPTIONAL_FIELDS
-  assert len(BenchmarkRunInput.__optional_keys__) == 16
+  assert len(BenchmarkRunInput.__optional_keys__) == 21
 
 
 def test_benchmark_run_input_key_sets_partition_the_annotations() -> None:

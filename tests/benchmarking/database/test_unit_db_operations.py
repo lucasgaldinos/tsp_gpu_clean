@@ -55,15 +55,16 @@ NAN_CHECKED_REQUIRED_FIELDS: list[str] = [
   "std_cost",
   "best_cost",
   "worst_cost",
-  "mean_gap",
-  "std_gap",
-  "best_gap",
   "mean_generations",
   "std_generations",
 ]
 
 #: Nullable numeric fields that are NaN-checked only when present.
 NAN_CHECKED_OPTIONAL_FIELDS: list[str] = [
+  "optimal_cost",
+  "mean_gap",
+  "std_gap",
+  "best_gap",
   "mean_initial_cost",
   "std_initial_cost",
   "mean_improvement",
@@ -74,10 +75,10 @@ NAN_CHECKED_OPTIONAL_FIELDS: list[str] = [
 ]
 
 #: Required raw arrays whose length must equal `repetitions`.
-REQUIRED_RAW_ARRAYS: list[str] = ["raw_times", "raw_costs", "raw_gaps"]
+REQUIRED_RAW_ARRAYS: list[str] = ["raw_times", "raw_costs"]
 
 #: Nullable raw arrays whose length must equal `repetitions` when present.
-OPTIONAL_RAW_ARRAYS: list[str] = ["raw_initial_costs", "raw_generations", "raw_stop_reasons"]
+OPTIONAL_RAW_ARRAYS: list[str] = ["raw_gaps", "raw_initial_costs", "raw_generations", "raw_stop_reasons"]
 
 #: Either a mapping or a pre-serialised JSON string is accepted for these columns.
 JSON_PAYLOAD: dict[str, int | float] = {"population_size": 256, "mutation_rate": 0.02}
@@ -364,7 +365,7 @@ RAW_ARRAY_VALUES: dict[str, list[Any]] = {
   [
     pytest.param("raw_times", False, id="raw_times"),
     pytest.param("raw_costs", False, id="raw_costs"),
-    pytest.param("raw_gaps", False, id="raw_gaps"),
+    pytest.param("raw_gaps", True, id="optional-raw_gaps"),
     pytest.param("raw_initial_costs", True, id="optional-raw_initial_costs"),
     pytest.param("raw_generations", True, id="optional-raw_generations"),
     pytest.param("raw_stop_reasons", True, id="optional-raw_stop_reasons"),
@@ -470,6 +471,26 @@ def test_insert_benchmark_run_persists_every_required_value(db_conn: duckdb.Duck
   )
   for field in omitted_nullables:
     assert stored[field] is None, f"{field} must be NULL when the payload omits it"
+
+
+def test_insert_benchmark_run_allows_null_optimal_and_gap_fields(db_conn: duckdb.DuckDBPyConnection) -> None:
+  """WHAT: inserting a run for an arbitrary `.tsp` instance whose optimal cost is unknown.
+
+  WHY: Custom `.tsp` files without a known optimal cost emit `None` for `optimal_cost`
+  and gap fields; DuckDB must persist them as SQL NULL without failing validation.
+  EXPECTED: insert succeeds and all five optimal/gap columns read back as `None`.
+  """
+  payload = run_payload(
+    optimal_cost=None,
+    mean_gap=None,
+    std_gap=None,
+    best_gap=None,
+    raw_gaps=None,
+  )
+  run_id = insert_benchmark_run(db_conn, validate_benchmark_data(payload))
+  stored = fetch_run(db_conn, run_id)
+  for field in ("optimal_cost", "mean_gap", "std_gap", "best_gap", "raw_gaps"):
+    assert stored[field] is None, f"{field} must round-trip as NULL"
 
 
 def test_insert_benchmark_run_persists_optional_fields(db_conn: duckdb.DuckDBPyConnection) -> None:
@@ -1268,5 +1289,3 @@ def test_check_duplicate_equal_repetitions_timestamp_rules(db_conn: duckdb.DuckD
   # 4. Timezone-aware UTC timestamp (13:00:00Z > 12:00:00 naive): replace -> False
   tz_newer = production_payload(mean_time=1.9, algorithm="CPU", timestamp="2025-11-23T13:00:00+00:00")
   assert check_duplicate(db_conn, tz_newer) is False
-
-
