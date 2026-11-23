@@ -9,74 +9,74 @@
 
 % Ficha catalográfica (substituir pelo PDF emitido pela BU/UFSC antes da entrega final)
 \begin{fichacatalografica}
-  \vspace*{\fill}
-  \begin{center}
-    \fbox{%
-      \begin{minipage}{12.5cm}
-        \vspace{0.6cm}
-        \centering
-        \textbf{Ficha Catalográfica}\\[0.5cm]
-        Espaço reservado para a ficha catalográfica gerada pelo sistema da
-        Biblioteca Universitária da UFSC (\url{https://portal.bu.ufsc.br/}).\\
-        Quando disponível, substitua este bloco por \texttt{\textbackslash includepdf\{ficha\_catalografica.pdf\}}.
-        \vspace{0.6cm}
-      \end{minipage}%
-    }
-  \end{center}
+      \vspace*{\fill}
+      \begin{center}
+            \fbox{%
+                  \begin{minipage}{12.5cm}
+                        \vspace{0.6cm}
+                        \centering
+                        \textbf{Ficha Catalográfica}\\[0.5cm]
+                        Espaço reservado para a ficha catalográfica gerada pelo sistema da
+                        Biblioteca Universitária da UFSC (\url{https://portal.bu.ufsc.br/}).\\
+                        Quando disponível, substitua este bloco por \texttt{\textbackslash includepdf\{ficha\_catalografica.pdf\}}.
+                        \vspace{0.6cm}
+                  \end{minipage}%
+            }
+      \end{center}
 \end{fichacatalografica}
 \clearpage
 
 % Folha de aprovação (preencher data e membros da banca antes da versão definitiva)
 \begin{folhadeaprovacao}
-  \begin{center}
-    {\ABNTEXchapterfont\large\imprimirautor}
+      \begin{center}
+            {\ABNTEXchapterfont\large\imprimirautor}
 
-    \vspace*{\fill}
-    {\ABNTEXchapterfont\bfseries\Large\imprimirtitulo}
-    \vspace*{\fill}
-  \end{center}
+            \vspace*{\fill}
+            {\ABNTEXchapterfont\bfseries\Large\imprimirtitulo}
+            \vspace*{\fill}
+      \end{center}
 
-  \hspace{.45\textwidth}
-  \begin{minipage}{.5\textwidth}
-    Este Trabalho de Conclusão de Curso foi avaliado e aprovado como requisito
-    parcial para a obtenção do título de Bacharel em Engenharia Mecânica pela
-    Universidade Federal de Santa Catarina.
-  \end{minipage}
+      \hspace{.45\textwidth}
+      \begin{minipage}{.5\textwidth}
+            Este Trabalho de Conclusão de Curso foi avaliado e aprovado como requisito
+            parcial para a obtenção do título de Bacharel em Engenharia Mecânica pela
+            Universidade Federal de Santa Catarina.
+      \end{minipage}
 
-  \vspace{\onelineskip}
-  \begin{center}
-    \imprimirlocal, [dia] de [mês] de \imprimirdata.
-  \end{center}
+      \vspace{\onelineskip}
+      \begin{center}
+            \imprimirlocal, [dia] de [mês] de \imprimirdata.
+      \end{center}
 
-  \vspace*{\fill}
-  \assinatura{\textbf{\imprimirorientador} \\ Orientador \\ Universidade Federal de Santa Catarina}
-  \assinatura{\textbf{Prof.~[Membro da Banca 1]} \\ Avaliador \\ Universidade Federal de Santa Catarina}
-  \assinatura{\textbf{Prof.~[Membro da Banca 2]} \\ Avaliador \\ Universidade Federal de Santa Catarina}
-  \vspace*{\fill}
+      \vspace*{\fill}
+      \assinatura{\textbf{\imprimirorientador} \\ Orientador \\ Universidade Federal de Santa Catarina}
+      \assinatura{\textbf{Prof.~[Membro da Banca 1]} \\ Avaliador \\ Universidade Federal de Santa Catarina}
+      \assinatura{\textbf{Prof.~[Membro da Banca 2]} \\ Avaliador \\ Universidade Federal de Santa Catarina}
+      \vspace*{\fill}
 \end{folhadeaprovacao}
 
 \begin{resumo}\label{resumo}
-Algoritmos meméticos que combinam Algoritmos Genéticos com busca local \(2\)-opt produzem soluções competitivas para o Problema do Caixeiro Viajante (TSP), mas impõem elevado custo computacional conforme o número de cidades cresce.
-Este trabalho investiga o impacto de diferentes estratégias de paralelização em Unidade de Processamento Gráfico (GPU) sobre o desempenho desse método, avaliando como a divisão de tarefas entre CPU e GPU e o tráfego de dados pelo barramento PCIe afetam o tempo de execução e a qualidade das soluções.
-Para isso, foram implementadas e comparadas quatro variantes sobre o mesmo algoritmo base e os mesmos critérios de parada: execução integral em CPU, arquitetura híbrida com envio individual de rotas para a GPU, arquitetura híbrida com envio conjunto da população e execução totalmente residente em GPU.
-Os experimentos foram conduzidos em \totalinstancias\ instâncias da biblioteca TSPLIB, de \menorinstancia\ a \maiorinstancia\ cidades, com \totalrepeticoes\ repetições independentes e avaliação estatística não paramétrica.
-Os resultados mostram que todas as variantes atingem qualidade de solução estatisticamente equivalente e próxima do ótimo conhecido, enquanto a variante totalmente residente em GPU obtém os menores tempos de execução em todas as instâncias avaliadas, superando com folga a versão em CPU e as arquiteturas híbridas.
-Conclui-se que reduzir transferências entre CPU e GPU e estruturar adequadamente os \emph{kernels} na memória do dispositivo é determinante para transformar o paralelismo da GPU em ganho efetivo de velocidade sem perda de qualidade.
+      Algoritmos meméticos que combinam Algoritmos Genéticos com busca local \(2\)-opt produzem soluções competitivas para o Problema do Caixeiro Viajante (TSP), mas impõem elevado custo computacional conforme o número de cidades cresce.
+      Este trabalho investiga o impacto de diferentes estratégias de paralelização em Unidade de Processamento Gráfico (GPU) sobre o desempenho desse método, avaliando como a divisão de tarefas entre CPU e GPU e o tráfego de dados pelo barramento PCIe afetam o tempo de execução e a qualidade das soluções.
+      Para isso, foram implementadas e comparadas quatro variantes sobre o mesmo algoritmo base e os mesmos critérios de parada: execução integral em CPU, arquitetura híbrida com envio individual de rotas para a GPU, arquitetura híbrida com envio conjunto da população e execução totalmente residente em GPU.
+      Os experimentos foram conduzidos em \totalinstancias\ instâncias da biblioteca TSPLIB, de \menorinstancia\ a \maiorinstancia\ cidades, com \totalrepeticoes\ repetições independentes e avaliação estatística não paramétrica.
+      Os resultados mostram que todas as quatro variantes escolhidas para a comparação atingem soluções próximas do ótimo conhecido sem diferença estatisticamente significativa entre si (\emph{gaps} médios entre \(0{,}90\%\) e \(0{,}91\%\); teste de Friedman, \(p = 0{,}4543\)), enquanto a variante totalmente residente em GPU obtém os menores tempos de execução em todas as instâncias avaliadas, alcançando ganho médio geométrico de \(71{,}03\times\) frente à CPU, contra \(23{,}86\times\) da híbrida otimizada e \(4{,}57\times\) da híbrida ingênua.
+      Conclui-se que reduzir transferências entre CPU e GPU e estruturar adequadamente os \emph{kernels} na memória do dispositivo é determinante para transformar o paralelismo da GPU em ganho efetivo de velocidade sem perda de qualidade.
 
-\vspace{\onelineskip}
-\noindent\textbf{Palavras-chave:} Problema do Caixeiro Viajante; Algoritmos Genéticos; Computação em GPU; CUDA; Otimização Combinatória.
+      \vspace{\onelineskip}
+      \noindent\textbf{Palavras-chave:} Problema do Caixeiro Viajante; Algoritmos Genéticos; Computação em GPU; CUDA; Otimização Combinatória.
 \end{resumo}
 
 \begin{resumo}[Abstract]\label{abstract}
-Memetic algorithms combining Genetic Algorithms with \(2\)-opt local search produce competitive solutions for the Traveling Salesman Problem (TSP), but incur high computational cost as the number of cities grows.
-This work investigates the impact of different Graphics Processing Unit (GPU) parallelization strategies on the performance of this method, examining how workload partitioning between CPU and GPU and data traffic across the PCIe bus affect execution time and solution quality.
-Four variants were implemented and compared using the same base algorithm and stopping criteria: a CPU-only reference, a hybrid variant transferring routes individually to the GPU, a hybrid variant transferring the entire population jointly, and a fully GPU-resident variant.
-Experiments were carried out on \totalinstancias\ TSPLIB instances ranging from \menorinstancia\ to \maiorinstancia\ cities, with \totalrepeticoes\ independent runs and non-parametric statistical evaluation.
-The results show that all variants achieve statistically equivalent solution quality close to the known optimum, whereas the fully GPU-resident variant delivers the lowest runtimes across all evaluated instances, outperforming both the CPU reference and the hybrid architectures by a wide margin.
-These findings confirm that minimizing CPU--GPU data transfers and designing kernels suited to the device memory hierarchy are decisive for turning GPU parallelism into practical speedup without sacrificing solution quality.
+      Memetic algorithms combining Genetic Algorithms with \(2\)-opt local search produce competitive solutions for the Traveling Salesman Problem (TSP), but incur high computational cost as the number of cities grows.
+      This work investigates the impact of different Graphics Processing Unit (GPU) parallelization strategies on the performance of this method, examining how workload partitioning between CPU and GPU and data traffic across the PCIe bus affect execution time and solution quality.
+      Four variants were implemented and compared using the same base algorithm and stopping criteria: a CPU-only reference, a hybrid variant transferring routes individually to the GPU, a hybrid variant transferring the entire population jointly, and a fully GPU-resident variant.
+      Experiments were carried out on \totalinstancias\ TSPLIB instances ranging from \menorinstancia\ to \maiorinstancia\ cities, with \totalrepeticoes\ independent runs and non-parametric statistical evaluation.
+      The results show that all four chosen variants achieve solutions close to the known optimum with no statistically significant difference among them (mean gaps between \(0.90\%\) and \(0.91\%\); Friedman test, \(p = 0.4543\)), whereas the fully GPU-resident variant delivers the lowest runtimes across all evaluated instances, achieving a geometric mean speedup of \(71.03\times\) over the CPU baseline, compared to \(23.86\times\) for the optimized hybrid and \(4.57\times\) for the naive hybrid.
+      These findings confirm that minimizing CPU--GPU data transfers and designing kernels suited to the device memory hierarchy are decisive for turning GPU parallelism into practical speedup without sacrificing solution quality.
 
-\vspace{\onelineskip}
-\noindent\textbf{Keywords:} Traveling Salesman Problem; Genetic Algorithms; GPU Computing; CUDA; Combinatorial Optimization.
+      \vspace{\onelineskip}
+      \noindent\textbf{Keywords:} Traveling Salesman Problem; Genetic Algorithms; GPU Computing; CUDA; Combinatorial Optimization.
 \end{resumo}
 
 \pdfbookmark[0]{\listfigurename}{lof}
@@ -87,95 +87,92 @@ These findings confirm that minimizing CPU--GPU data transfers and designing ker
 \listoftables*
 \clearpage
 
-\pretextualchapter{Glossário de termos}\label{glossario}
+\pretextualchapter{\listadesiglasname}\label{lista-de-siglas}
 
 \begin{longtable}[]{@{}
-    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
-    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
-    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
-  \toprule\noalign{}
-  \begin{minipage}[b]{\linewidth}\raggedright
-    Termo em inglês
-  \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-                     Forma adotada no texto
-                   \end{minipage}                   & \begin{minipage}[b]{\linewidth}\raggedright
-                                                        Observação
-                                                      \end{minipage}                                                                 \\
-  \midrule\noalign{}
-  \endhead
-  \bottomrule\noalign{}
-  \endlastfoot
-  AVX (\emph{Advanced Vector Extensions})     & extensões vetoriais AVX                                       & Instruções de CPU que executam a mesma operação sobre múltiplos dados por ciclo (\emph{SIMD}). \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{baseline}                             & referência / base comparativa                                 & Variante tomada como base para o cálculo de ganho de performance.                                                                                                \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{batch}                                & envio conjunto (matriz de rotas)                              & Agrupamento de todos os vetores de rota da população em uma única matriz (\(n_{pop} \times n_{coords}\)) para transferência e processamento conjunto em uma única chamada de \emph{kernel}. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{benchmark}                            & benchmark / avaliação experimental                            & Mantém-se
-  ``benchmark'' quando o foco é o protocolo comparativo.                                                                                                         \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{bitmap}                               & mapa de bits                                                  & Tabela de pertinência que representa cada cidade por um
-  bit, em vez de um byte.                                                                                                                                        \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{crossover}                            & cruzamento                                                    & Preferência por ``cruzamento'', mantendo
-  a sigla OX quando necessário.                                                                                                                                  \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  CUDA (\emph{Compute Unified Device Architecture}) & plataforma CUDA                                         & Plataforma e modelo de programação paralela da NVIDIA para computação em GPUs. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{fitness}                              & aptidão                                                       & Quando útil, escreve-se ``aptidão
-  (\emph{fitness})'' na primeira ocorrência.                                                                                                                     \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  FLOPs (\emph{Floating-Point Operations per Second}) & operações de ponto flutuante por segundo              & Medida da taxa de cálculos aritméticos realizados por segundo em CPU ou GPU. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{full GPU} / \emph{GPU-resident}       & totalmente em GPU / residente na
-  GPU                                         & Expressões usadas para a variante com dados mantidos em VRAM.                                                    \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  GA (\emph{Genetic Algorithm})               & AG (Algoritmo Genético)                                       & Sigla em inglês para Algoritmo Genético; neste texto adota-se a forma em português ``AG'' (``AGs'' no plural), mantendo ``GA'' apenas na definição inicial e no resumo em inglês. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{gap}                                  & gap / desvio percentual em relação ao ótimo                   & O termo
-  ``gap'' é preservado por ser consagrado na literatura.                                                                                                         \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{host}                                 & CPU, quando comanda a GPU                                     & Contraposto a \emph{device} (GPU).               \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  HPC (\emph{High Performance Computing})     & computação de alto desempenho                                 & Área e conjunto de técnicas voltadas ao processamento paralelo de problemas computacionalmente intensivos. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{kernel launch}                        & lançamento de \emph{kernel}                                   & O termo
-  \emph{kernel} é mantido por ser técnico e específico de CUDA.                                                                                                  \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(k\)-NN (\emph{k-Nearest Neighbors})       & lista de \(k_{\text{viz}}\) vizinhos mais próximos            & Técnica que pré-computa os \(k_{\text{viz}}\) vértices mais próximos de cada cidade para restringir a busca local (neste trabalho, \(k_{\text{viz}} = \kviz\)), reduzindo o custo por varredura de \(\Theta(n^2)\) para \(\Theta(n\,k_{\text{viz}})\). \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(k\)-opt                                   & heurística \(k\)-opt (ex.: \(2\)-opt, \(3\)-opt)              & Família de heurísticas de melhoria local que substituem \(k\) arestas de um circuito por \(k\) novas arestas formando um ciclo válido de menor custo; no \(2\)-opt, duas arestas são removidas e o segmento intermediário é invertido. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  MIMD (\emph{Multiple Instruction, Multiple Data}) & arquitetura MIMD                                        & Modelo paralelo (como múltiplos núcleos de CPU) com fluxos independentes de instruções sobre dados distintos. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  NumPy                                       & biblioteca NumPy                                              & Biblioteca Python para computação científica com arranjos multidimensionais e operações vetorizadas compiladas em CPU. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{offspring}                            & descendentes                                                  & Refere-se aos indivíduos gerados após
-  cruzamento e mutação.                                                                                                                                          \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{overhead}                             & sobrecarga                                                    & Usado para custos adicionais de
-  comunicação, sincronização ou inicialização.                                                                                                                   \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  SIMD (\emph{Single Instruction, Multiple Data}) & modelo SIMD                                               & Modelo de execução vetorial em que uma mesma instrução processa vários dados simultaneamente. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  SIMT (\emph{Single Instruction, Multiple Threads}) & modelo SIMT                                            & Paradigma de GPUs CUDA em que grupos de \emph{threads} (\emph{warps}) avançam em instrução compartilhada sobre dados próprios. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{speedup}                              & ganho de performance                                          & Preferência por esta expressão
-  no texto analítico.                                                                                                                                            \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  SSE (\emph{Streaming SIMD Extensions})      & extensões vetoriais SSE                                       & Conjunto de instruções vetoriais (\emph{SIMD}) presente em processadores x86 para acelerar operações vetoriais simultâneas na CPU. \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{swap mutation}                        & mutação por troca                                             & Operador que troca a posição
-  de duas cidades na permutação.                                                                                                                                 \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{thread}                               & \emph{thread} (unidade de execução)                             & O termo inglês é mantido, como na literatura
-  da área.                                                                                                                                                       \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{throughput}                           & vazão                                                         & Preferência por ``vazão'', mantendo o inglês
-  quando a literatura exigir.                                                                                                                                    \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \emph{warp}                                 & \emph{warp} (grupo de 32 \emph{threads})                      & O termo inglês
-  é mantido, com explicação curta na primeira ocorrência.                                                                                                        \\
+            >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.20}}
+            >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.80}}@{}}
+      \toprule\noalign{}
+      Sigla / Abreviatura & Significado                                                                                             \\
+      \midrule\noalign{}
+      \endhead
+      \bottomrule\noalign{}
+      \endlastfoot
+      ACO                 & Otimização por Colônia de Formigas (\emph{Ant Colony Optimization})                                     \\
+      \sepitem
+      AG                  & Algoritmo Genético (em inglês, \emph{Genetic Algorithm} --- GA)                                         \\
+      \sepitem
+      ALU                 & Unidade Lógica e Aritmética (\emph{Arithmetic Logic Unit})                                              \\
+      \sepitem
+      ANOVA               & Análise de Variância (\emph{Analysis of Variance})                                                      \\
+      \sepitem
+      API                 & Interface de Programação de Aplicações (\emph{Application Programming Interface})                       \\
+      \sepitem
+      ATSP                & Problema do Caixeiro Viajante Assimétrico (\emph{Asymmetric Traveling Salesman Problem})                \\
+      \sepitem
+      AVX                 & Extensões Vetoriais Avançadas (\emph{Advanced Vector Extensions})                                       \\
+      \sepitem
+      CD                  & Diferença Crítica (\emph{Critical Difference})                                                          \\
+      \sepitem
+      CNC                 & Controle Numérico Computadorizado (\emph{Computer Numerical Control})                                   \\
+      \sepitem
+      CPU                 & Unidade Central de Processamento (\emph{Central Processing Unit})                                       \\
+      \sepitem
+      CUDA                & Arquitetura Unificada de Dispositivos de Computação (\emph{Compute Unified Device Architecture})        \\
+      \sepitem
+      CVRP                & Problema de Roteamento de Veículos Capacitado (\emph{Capacitated Vehicle Routing Problem})              \\
+      \sepitem
+      D2H                 & Transferência do dispositivo para o hospedeiro (\emph{Device-to-Host}, GPU \(\to\) CPU)                 \\
+      \sepitem
+      DRAM                & Memória Dinâmica de Acesso Aleatório (\emph{Dynamic Random-Access Memory})                              \\
+      \sepitem
+      EAX                 & Cruzamento por Montagem de Arestas (\emph{Edge Assembly Crossover})                                     \\
+      \sepitem
+      FLS                 & Busca Local Rápida (\emph{Fast Local Search})                                                           \\
+      \sepitem
+      GCC                 & Coleção de Compiladores GNU (\emph{GNU Compiler Collection})                                            \\
+      \sepitem
+      GLS                 & Busca Local Guiada (\emph{Guided Local Search})                                                         \\
+      \sepitem
+      GPGPU               & Computação de Propósito Geral em GPUs (\emph{General-Purpose Computing on GPUs})                        \\
+      \sepitem
+      GPU                 & Unidade de Processamento Gráfico (\emph{Graphics Processing Unit})                                      \\
+      \sepitem
+      H2D                 & Transferência do hospedeiro para o dispositivo (\emph{Host-to-Device}, CPU \(\to\) GPU)                 \\
+      \sepitem
+      HPC                 & Computação de Alto Desempenho (\emph{High Performance Computing})                                       \\
+      \sepitem
+      IIQ                 & Intervalo Interquartil (\(Q_{25}\text{--}Q_{75}\))                                                      \\
+      \sepitem
+      JSON                & Notação de Objetos JavaScript (\emph{JavaScript Object Notation})                                       \\
+      \sepitem
+      LKH                 & Heurística de Lin--Kernighan--Helsgaun (\emph{Lin--Kernighan--Helsgaun})                                \\
+      \sepitem
+      MDVRP               & Problema de Roteamento de Veículos com Múltiplos Depósitos (\emph{Multi-Depot Vehicle Routing Problem}) \\
+      \sepitem
+      MIMD                & Múltiplas Instruções, Múltiplos Dados (\emph{Multiple Instruction, Multiple Data})                      \\
+      \sepitem
+      MST                 & Árvore Geradora Mínima (\emph{Minimum Spanning Tree})                                                   \\
+      \sepitem
+      NN                  & Heurística do Vizinho Mais Próximo (\emph{Nearest Neighbor})                                            \\
+      \sepitem
+      OX                  & Cruzamento por Ordem (\emph{Order Crossover})                                                           \\
+      \sepitem
+      PCIe                & Interconexão de Componentes Periféricos Expressa (\emph{Peripheral Component Interconnect Express})     \\
+      \sepitem
+      SIMD                & Instrução Única, Múltiplos Dados (\emph{Single Instruction, Multiple Data})                             \\
+      \sepitem
+      SIMT                & Instrução Única, Múltiplas \emph{Threads} (\emph{Single Instruction, Multiple Threads})                 \\
+      \sepitem
+      SM                  & Multiprocessador de Fluxo (\emph{Streaming Multiprocessor})                                             \\
+      \sepitem
+      SSE                 & Extensões SIMD de Fluxo (\emph{Streaming SIMD Extensions})                                              \\
+      \sepitem
+      TSP                 & Problema do Caixeiro Viajante (\emph{Traveling Salesman Problem})                                       \\
+      \sepitem
+      TSPLIB              & Biblioteca de Instâncias de Referência para o TSP (\emph{Traveling Salesman Problem Library})           \\
+      \sepitem
+      VRAM                & Memória de Vídeo de Acesso Aleatório da GPU (\emph{Video Random-Access Memory})                         \\
 \end{longtable}
 
 \clearpage
@@ -183,142 +180,142 @@ These findings confirm that minimizing CPU--GPU data transfers and designing ker
 \pretextualchapter{Lista de Símbolos}\label{lista-de-simbolos}
 
 \begin{longtable}[]{@{}
-    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
-    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
-    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
-  \toprule\noalign{}
-  \begin{minipage}[b]{\linewidth}\raggedright
-    Símbolo
-  \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-                     Descrição
-                   \end{minipage}             & \begin{minipage}[b]{\linewidth}\raggedright
-                                                  Ver seção
-                                                \end{minipage}                \\
-  \midrule\noalign{}
-  \endhead
-  \bottomrule\noalign{}
-  \endlastfoot
-  \(G = (V, E)\)                              & Grafo completo não direcionado composto por vértices \(V\) e arestas \(E\) &
-  \ref{sec-21-otimizacao-tsp}                                                                             \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(V\)                                       & Conjunto de vértices (cidades) do grafo                 &
-  \ref{sec-21-otimizacao-tsp}                                                                             \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(E\)                                       & Conjunto de arestas entre pares de cidades              &
-  \ref{sec-21-otimizacao-tsp}                                                                             \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(c_{ij}\)                                  & Custo (distância) entre as cidades \(i\) e \(j\)        &
-  \ref{sec-21-otimizacao-tsp} e \ref{sec-221-2opt}                                                        \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(n_{coords}\) (ou \(n\))                   & Número de cidades (coordenadas) da instância            &
-  \ref{sec-21-otimizacao-tsp}, \ref{sec-221-2opt}, \ref{sec-311-hardware-software} e \ref{sec-33-selecao-instancias} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(n_{\text{inst}}\)                         & Número de instâncias da TSPLIB avaliadas (\(n_{\text{inst}} = \totalinstancias\)) &
-  \ref{sec-33-selecao-instancias} e \ref{sec-34-protocolo-estatistico}                                    \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(m_{\text{alg}}\)                          & Número de variantes algorítmicas comparadas (\(m_{\text{alg}} = \totalvariantes\)) &
-  \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                      \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(n_{pop}\)                                 & Tamanho da população do Algoritmo Genético (\(n_{pop} = 256\)) &
-  \ref{sec-23-algoritmos-geneticos} e \ref{sec-321-ga-base}                                               \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(n_{reps}\)                                & Número de repetições independentes por experimento (\(n_{reps} = \totalrepeticoes\)) &
-  \ref{sec-14-objetivos-especificos}, \ref{sec-311-hardware-software}, \ref{sec-33-selecao-instancias} e \ref{sec-34-protocolo-estatistico} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(p_c\)                                     & Taxa de cruzamento                                      &
-  \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt} e \ref{apendice-pseudocodigos}             \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(p_{\text{mut}}\)                          & Taxa de mutação                                         &
-  \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt} e \ref{apendice-pseudocodigos}             \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\tau_{\text{trnmt}}\)                     & Tamanho do torneio na seleção de progenitores (\(\tau_{\text{trnmt}} = 5\)) &
-  \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt} e \ref{apendice-pseudocodigos}             \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\kappa\)                                  & Limite máximo de varreduras (iterações) da busca local \(2\)-opt (\(\kappa = \maxpassadas\)) &
-  \ref{sec-221-2opt}, \ref{sec-25-algoritmos-memeticos}, \ref{sec-251-ga-2opt} e \ref{sec-321-ga-base}    \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(k_{\text{viz}}\)                          & Número de vizinhos na lista estática de candidatos da busca local (\(k_{\text{viz}} = \kviz\)) &
-  \ref{sec-221-2opt}, \ref{sec-251-ga-2opt}, \ref{sec-321-ga-base} e \ref{sec-5311-semantica-operadores}  \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\mathcal{L}(x, \kappa)\)                  & Busca local truncada aplicada à solução \(x\) com limite de \(\kappa\) varreduras &
-  \ref{sec-251-ga-2opt}                                                                                   \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(C\)                                       & Circuito hamiltoniano (vetor de rota candidata)         &
-  \ref{sec-221-2opt}, \ref{sec-322-variantes} e \ref{apendice-pseudocodigos}                              \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(B, B^*\)                                  & Custo de uma solução heurística \(B\) e custo ótimo \(B^*\) &
-  \ref{sec-22-heuristicas-tsp}, \ref{sec-321-ga-base}, \ref{sec-33-selecao-instancias} e \ref{sec-34-protocolo-estatistico} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(D\)                                       & Matriz simétrica de distâncias inteiras (\(n_{coords} \times n_{coords}\)) &
-  \ref{sec-311-hardware-software} e \ref{sec-312-ambiente-software}                                       \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\Delta C\)                                & Variação de custo em um movimento local \(2\)-opt       &
-  \ref{sec-221-2opt}, \ref{sec-312-ambiente-software} e \ref{apendice-pseudocodigos}                      \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(f(x)\)                                    & Função de aptidão (\emph{fitness}) de uma solução \(x\) &
-  \ref{sec-23-algoritmos-geneticos}, \ref{sec-231-operadores-substituicao} e \ref{sec-251-ga-2opt}        \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(P(t)\)                                    & População de soluções na geração \(t\) (matriz \(n_{pop} \times n_{coords}\) de rotas) &
-  \ref{sec-23-algoritmos-geneticos}, \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt} e \ref{sec-322-variantes} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(t\)                                       & Índice da geração evolutiva                             &
-  \ref{sec-23-algoritmos-geneticos} e \ref{sec-251-ga-2opt}                                               \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(h(s), g(s), \lambda, M, p_i, I_i(s)\)     & Função aumentada, custo original, fator de escala, número de arestas, penalidade e função indicadora na formulação de GLS &
-  \ref{sec-221-2opt}                                                                                      \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(T\) (\(T_{total}, T_{cpu}, T_{gpu}, T_{transf}\)) & Tempo de execução (total, em CPU, em GPU e de transferência PCIe) &
-  \ref{sec-311-hardware-software} e \ref{sec-41-resultados-experimentais}                                 \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(Mem_{total}\)                             & Consumo total estimado de VRAM na variante residente    &
-  \ref{sec-311-hardware-software}                                                                         \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\mathit{H2D}\)                            & Fluxo de transferência \emph{Host-to-Device} (CPU \(\to\) GPU) &
-  \ref{sec-14-objetivos-especificos} e \ref{sec-322-variantes}                                            \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\mathit{D2H}\)                            & Fluxo de transferência \emph{Device-to-Host} (GPU \(\to\) CPU) &
-  \ref{sec-14-objetivos-especificos} e \ref{sec-322-variantes}                                            \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(B_{\mathrm{H2D}}\)                        & Volume de dados transferidos \emph{Host-to-Device}      &
-  \hyperref[cap3-materiais-metodos]{Cap.~\ref*{cap3-materiais-metodos}}                                   \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(B_{\mathrm{D2H}}\)                        & Volume de dados transferidos \emph{Device-to-Host}      &
-  \hyperref[cap3-materiais-metodos]{Cap.~\ref*{cap3-materiais-metodos}}                                   \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(H_0\)                                     & Hipótese nula de equivalência de desempenho entre os algoritmos comparados &
-  \ref{sec-27-comparacao-estatistica}, \ref{sec-272-comparacoes-multiplas} e \ref{sec-34-protocolo-estatistico} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\alpha\)                                  & Nível nominal de significância estatística (\(\alpha = 0{,}05\)) &
-  \ref{sec-27-comparacao-estatistica}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(p\) (\(p_F, p_{\text{Holm}}\))            & Valor-\(p\) de teste estatístico, da estatística \(F_F\) e ajustado por Holm--Bonferroni &
-  \ref{sec-27-comparacao-estatistica}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\chi^2_F\)                                & Estatística qui-quadrado do teste de Friedman           &
-  \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(F_F\)                                     & Estatística \(F\) corrigida de Iman--Davenport          &
-  \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(CD\)                                      & Diferença crítica (\emph{Critical Difference}) do pós-teste de Nemenyi &
-  \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada} \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(R_j, \Delta R\)                           & Posto médio da \(j\)-ésima variante no teste de Friedman e diferença entre postos médios no pós-teste de Nemenyi &
-  \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                      \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(q_\alpha\)                                & Valor crítico da amplitude studentizada dividida por \(\sqrt{2}\) &
-  \ref{sec-34-protocolo-estatistico}                                                                      \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(W\)                                       & Estatística do teste de postos sinalizados de Wilcoxon  &
-  \ref{sec-271-comparacoes-pareadas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}  \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(\sigma\)                                  & Desvio padrão amostral dos resultados                   &
-  \ref{sec-42-analise-por-instancia}, \ref{sec-43-analise-agregada} e \ref{apendice-resultados}           \\
-  \specialrule{0.25pt}{2.5pt}{2.5pt}
-  \(Q_{25}, Q_{75}\)                          & Primeiro e terceiro quartis (faixa interquartil \(Q_{25}\text{--}Q_{75}\)) &
-  \ref{sec-43-analise-agregada}                                                                           \\
+            >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+            >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+            >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+      \toprule\noalign{}
+      Símbolo                                             & Descrição                                                                                                                                     & Ver seção \\
+      \midrule\noalign{}
+      \endhead
+      \bottomrule\noalign{}
+      \endlastfoot
+      \(G = (V, E)\)                                      & Grafo completo não direcionado composto por vértices \(V\) e arestas \(E\)                                                                    &
+      \ref{sec-21-otimizacao-tsp}                                                                                                                                                                                     \\
+      \sepitem
+      \(V\)                                               & Conjunto de vértices (cidades) do grafo                                                                                                       &
+      \ref{sec-21-otimizacao-tsp}                                                                                                                                                                                     \\
+      \sepitem
+      \(E\)                                               & Conjunto de arestas entre pares de cidades                                                                                                    &
+      \ref{sec-21-otimizacao-tsp}                                                                                                                                                                                     \\
+      \sepitem
+      \(c_{ij}\)                                          & Custo (distância) entre as cidades \(i\) e \(j\)                                                                                              &
+      \ref{sec-21-otimizacao-tsp} e \ref{sec-221-2opt}                                                                                                                                                                \\
+      \sepitem
+      \(n_{coords}\) (ou \(n\))                           & Número de cidades (coordenadas) da instância                                                                                                  &
+      \ref{sec-21-otimizacao-tsp}, \ref{sec-221-2opt}, \ref{sec-311-hardware-software} e \ref{sec-33-selecao-instancias}                                                                                              \\
+      \sepitem
+      \(n_{\text{inst}}\)                                 & Número de instâncias da TSPLIB avaliadas (\(n_{\text{inst}} = \totalinstancias\))                                                             &
+      \ref{sec-33-selecao-instancias} e \ref{sec-34-protocolo-estatistico}                                                                                                                                            \\
+      \sepitem
+      \(m_{\text{alg}}\)                                  & Número de variantes algorítmicas comparadas (\(m_{\text{alg}} = \totalvariantes\))                                                            &
+      \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                                                              \\
+      \sepitem
+      \(n_{pop}\)                                         & Tamanho da população do Algoritmo Genético (\(n_{pop} = 256\))                                                                                &
+      \ref{sec-23-algoritmos-geneticos} e \ref{sec-321-ga-base}                                                                                                                                                       \\
+      \sepitem
+      \(\mu, \lambda\)                                    & Tamanhos da população de pais (\(\mu\)) e de descendentes (\(\lambda\)) na seleção elitista \((\mu + \lambda)\) (\(\mu = \lambda = n_{pop}\)) &
+      \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt}, \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                              \\
+      \sepitem
+      \(n_{reps}\)                                        & Número de repetições independentes por experimento (\(n_{reps} = \totalrepeticoes\))                                                          &
+      \ref{sec-14-objetivos-especificos}, \ref{sec-311-hardware-software}, \ref{sec-33-selecao-instancias} e \ref{sec-34-protocolo-estatistico}                                                                       \\
+      \sepitem
+      \(p_c\)                                             & Taxa de cruzamento (\(p_c = 1{,}0\))                                                                                                          &
+      \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt}, \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                              \\
+      \sepitem
+      \(p_{\text{mut}}\)                                  & Taxa de mutação por rota (\(p_{\text{mut}} = {,}02\))                                                                                         &
+      \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt}, \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                              \\
+      \sepitem
+      \(\varepsilon_{\text{alvo}}\)                       & Tolerância alvo de \emph{gap} para critério de parada antecipada (\(\varepsilon_{\text{alvo}} = 1\%\))                                        &
+      \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                                                                                            \\
+      \sepitem
+      \(G_{\text{estag}}\)                                & Limite de gerações consecutivas sem melhoria (\(G_{\text{estag}} = \lceil 2\sqrt{n_{coords}} \rceil\))                                        &
+      \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                                                                                            \\
+      \sepitem
+      \(G_{\max}\)                                        & Teto máximo de gerações do ciclo evolutivo (\(G_{\max} = \lceil 2\,n_{coords}\sqrt{n_{coords}} \rceil\))                                      &
+      \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                                                                                            \\
+      \sepitem
+      \(\tau_{\text{trnmt}}\)                             & Tamanho do torneio na seleção de progenitores (\(\tau_{\text{trnmt}} = 5\))                                                                   &
+      \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt}, \ref{sec-321-ga-base} e \ref{apendice-pseudocodigos}                                                                                              \\
+      \sepitem
+      \(\kappa\)                                          & Limite máximo de varreduras (iterações) da busca local \(2\)-opt (\(\kappa = \maxpassadas\))                                                  &
+      \ref{sec-221-2opt}, \ref{sec-24-metaheuristicas-hibridas}, \ref{sec-251-ga-2opt} e \ref{sec-321-ga-base}                                                                                                        \\
+      \sepitem
+      \(k_{\text{viz}}\)                                  & Número de vizinhos na lista estática de candidatos da busca local (\(k_{\text{viz}} = \kviz\))                                                &
+      \ref{sec-221-2opt}, \ref{sec-251-ga-2opt}, \ref{sec-321-ga-base} e \ref{sec-5311-semantica-operadores}                                                                                                          \\
+      \sepitem
+      \(N_k\)                                             & Matriz estática dos \(k_{\text{viz}}\) vizinhos mais próximos por cidade (\(n_{coords} \times k_{\text{viz}}\))                               &
+      \ref{sec-322-variantes} e \ref{sec-44-decomposicao-fases}                                                                                                                                                       \\
+      \sepitem
+      \(\mathcal{L}(x, \kappa)\)                          & Busca local truncada aplicada à solução \(x\) com limite de \(\kappa\) varreduras                                                             &
+      \ref{sec-251-ga-2opt}                                                                                                                                                                                           \\
+      \sepitem
+      \(C\)                                               & Circuito hamiltoniano (vetor de rota candidata)                                                                                               &
+      \ref{sec-221-2opt}, \ref{sec-322-variantes} e \ref{apendice-pseudocodigos}                                                                                                                                      \\
+      \sepitem
+      \(B, B^*\)                                          & Custo de uma solução heurística \(B\) e custo ótimo \(B^*\)                                                                                   &
+      \ref{sec-22-heuristicas-tsp}, \ref{sec-321-ga-base}, \ref{sec-33-selecao-instancias} e \ref{sec-34-protocolo-estatistico}                                                                                       \\
+      \sepitem
+      \(D\)                                               & Matriz simétrica de distâncias inteiras (\(n_{coords} \times n_{coords}\))                                                                    &
+      \ref{sec-311-hardware-software} e \ref{sec-312-ambiente-software}                                                                                                                                               \\
+      \sepitem
+      \(\Delta C\)                                        & Variação de custo em um movimento local \(2\)-opt                                                                                             &
+      \ref{sec-221-2opt}, \ref{sec-312-ambiente-software} e \ref{apendice-pseudocodigos}                                                                                                                              \\
+      \sepitem
+      \(f(x)\)                                            & Função de aptidão (\emph{fitness}) de uma solução \(x\)                                                                                       &
+      \ref{sec-23-algoritmos-geneticos}, \ref{sec-231-operadores-substituicao} e \ref{sec-251-ga-2opt}                                                                                                                \\
+      \sepitem
+      \(P(t), P_{\mathrm{desc}}\)                         & População na geração \(t\) e conjunto de descendentes gerados (matrizes \(n_{pop} \times n_{coords}\))                                        &
+      \ref{sec-23-algoritmos-geneticos}, \ref{sec-231-operadores-substituicao}, \ref{sec-251-ga-2opt}, \ref{sec-322-variantes} e \ref{apendice-pseudocodigos}                                                         \\
+      \sepitem
+      \(t\)                                               & Índice da geração evolutiva                                                                                                                   &
+      \ref{sec-23-algoritmos-geneticos} e \ref{sec-251-ga-2opt}                                                                                                                                                       \\
+      \sepitem
+      \(T\) (\(T_{total}, T_{cpu}, T_{gpu}, T_{transf}\)) & Tempo de execução (total, em CPU, em GPU e de transferência PCIe)                                                                             &
+      \ref{sec-311-hardware-software}, \ref{sec-34-protocolo-estatistico} e \ref{sec-44-decomposicao-fases}                                                                                                           \\
+      \sepitem
+      \(Mem_{total}\)                                     & Consumo total estimado de VRAM na variante residente                                                                                          &
+      \ref{sec-311-hardware-software}                                                                                                                                                                                 \\
+      \sepitem
+      \(\mathit{H2D}\)                                    & Fluxo de transferência \emph{Host-to-Device} (CPU \(\to\) GPU)                                                                                &
+      \ref{sec-14-objetivos-especificos}, \ref{sec-322-variantes} e \ref{sec-44-decomposicao-fases}                                                                                                                   \\
+      \sepitem
+      \(\mathit{D2H}\)                                    & Fluxo de transferência \emph{Device-to-Host} (GPU \(\to\) CPU)                                                                                &
+      \ref{sec-14-objetivos-especificos}, \ref{sec-322-variantes} e \ref{sec-44-decomposicao-fases}                                                                                                                   \\
+      \sepitem
+      \(H_0\)                                             & Hipótese nula de equivalência de desempenho entre os algoritmos comparados                                                                    &
+      \ref{sec-27-comparacao-estatistica}, \ref{sec-272-comparacoes-multiplas} e \ref{sec-34-protocolo-estatistico}                                                                                                   \\
+      \sepitem
+      \(\alpha\)                                          & Nível nominal de significância estatística (\(\alpha = 0{,}05\))                                                                              &
+      \ref{sec-27-comparacao-estatistica}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                         \\
+      \sepitem
+      \(p\) (\(p_F, p_{\text{Holm}}\))                    & Valor-\(p\) de teste estatístico, da estatística \(F_F\) e ajustado por Holm--Bonferroni                                                      &
+      \ref{sec-27-comparacao-estatistica}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                         \\
+      \sepitem
+      \(\chi^2_F\)                                        & Estatística qui-quadrado do teste de Friedman                                                                                                 &
+      \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                         \\
+      \sepitem
+      \(F_F\)                                             & Estatística \(F\) corrigida de Iman--Davenport                                                                                                &
+      \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                         \\
+      \sepitem
+      \(CD\)                                              & Diferença crítica (\emph{Critical Difference}) do pós-teste de Nemenyi                                                                        &
+      \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                         \\
+      \sepitem
+      \(R_j, \Delta R\)                                   & Posto médio da \(j\)-ésima variante no teste de Friedman e diferença entre postos médios no pós-teste de Nemenyi                              &
+      \ref{sec-272-comparacoes-multiplas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                         \\
+      \sepitem
+      \(q_\alpha\)                                        & Valor crítico da amplitude studentizada dividida por \(\sqrt{2}\)                                                                             &
+      \ref{sec-272-comparacoes-multiplas} e \ref{sec-34-protocolo-estatistico}                                                                                                                                        \\
+      \sepitem
+      \(W\)                                               & Estatística do teste de postos sinalizados de Wilcoxon                                                                                        &
+      \ref{sec-271-comparacoes-pareadas}, \ref{sec-34-protocolo-estatistico} e \ref{sec-43-analise-agregada}                                                                                                          \\
+      \sepitem
+      \(\sigma\)                                          & Desvio padrão amostral dos resultados                                                                                                         &
+      \ref{sec-42-analise-por-instancia}, \ref{sec-43-analise-agregada} e \ref{apendice-resultados}                                                                                                                   \\
+      \sepitem
+      \(Q_{25}, Q_{75}\)                                  & Primeiro e terceiro quartis (faixa interquartil \(Q_{25}\text{--}Q_{75}\))                                                                    &
+      \ref{sec-43-analise-agregada}                                                                                                                                                                                   \\
 \end{longtable}
-% Zera o contador de tabelas incrementado pelos longtables pré-textuais (Glossário e Lista de Símbolos)
+% Zera o contador de tabelas incrementado pelos longtables pré-textuais (Lista de Abreviaturas e Siglas e Lista de Símbolos)
 \setcounter{table}{0}
 
 \clearpage

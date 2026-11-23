@@ -1,0 +1,63 @@
+\chapter*[Glossário]{Glossário}
+\phantomsection\label{glossario}
+\addcontentsline{toc}{chapter}{Glossário}
+
+\begin{longtable}[]{@{}
+    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.28}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.26}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.46}}@{}}
+  \toprule\noalign{}
+  Termo & Forma adotada no texto & Definição / observação \\
+  \midrule\noalign{}
+  \endhead
+  \bottomrule\noalign{}
+  \endlastfoot
+  \hypertarget{term:baseline}{\emph{baseline}} & referência / linha de base & Variante tomada como base (CPU) para o cálculo do ganho de velocidade. \\
+  \sepitem
+  \hypertarget{term:batch}{\emph{batch}} & envio conjunto (matriz de rotas) & Agrupamento de todos os vetores de rota da população em uma única matriz (\(n_{pop} \times n_{coords}\)) para transferência e processamento conjunto em uma única chamada de \emph{kernel}. \\
+  \sepitem
+  \hypertarget{term:benchmark}{\emph{benchmark}} & \emph{benchmark} / avaliação experimental & Protocolo padronizado de avaliação comparativa sobre instâncias de referência (TSPLIB). \\
+  \sepitem
+  \hypertarget{term:best-improvement}{\emph{best-improvement}} & melhor melhoria & Estratégia de busca local que avalia todos os movimentos candidatos de uma varredura e aplica apenas o de maior redução de custo (\(\Delta C < 0\)). \\
+  \sepitem
+  \hypertarget{term:bitmap}{\emph{bitmap}} & mapa de bits & Tabela de pertinência que representa cada cidade por um bit, em vez de um byte inteiro, para reduzir consumo de memória rápida. \\
+  \sepitem
+  \hypertarget{term:crossover}{\emph{crossover}} & cruzamento & Operador evolutivo que recombina dois progenitores para gerar descendentes (neste trabalho, o operador OX). \\
+  \sepitem
+  \hypertarget{term:cupy}{CuPy} & biblioteca CuPy & Biblioteca Python com API compatível com NumPy para execução em GPUs com suporte a CUDA e compilação de \emph{kernels} CUDA customizados (\texttt{RawKernel}). \\
+  \sepitem
+  \hypertarget{term:first-improvement}{\emph{first-improvement}} & primeira melhoria & Estratégia de busca local que aplica imediatamente o primeiro movimento encontrado que reduza o custo (\(\Delta C < 0\)), sem percorrer o restante da vizinhança. \\
+  \sepitem
+  \hypertarget{term:fitness}{\emph{fitness}} & aptidão & Medida de qualidade de uma solução candidata (no TSP, associada inversamente ao custo total da rota). \\
+  \sepitem
+  \hypertarget{term:full-gpu}{\emph{full GPU} / \emph{GPU-resident}} & totalmente em GPU / residente na GPU & Arquitetura em que população, matriz de distâncias e operadores permanecem residentes na VRAM durante todo o ciclo evolutivo. \\
+  \sepitem
+  \hypertarget{term:gap}{\emph{gap}} & \emph{gap} percentual & Desvio percentual do custo de uma solução heurística em relação ao ótimo conhecido \(B^*\). \\
+  \sepitem
+  \hypertarget{term:host-device}{\emph{host} / \emph{device}} & CPU / GPU & Terminologia CUDA em que o hospedeiro (\emph{host}) designa a CPU e o dispositivo (\emph{device}) designa a GPU. \\
+  \sepitem
+  \hypertarget{term:kernel}{\emph{kernel} / \emph{kernel launch}} & \emph{kernel} / lançamento de \emph{kernel} & Função executada em paralelo por múltiplas \emph{threads} na GPU e sua respectiva chamada de despacho pela CPU. \\
+  \sepitem
+  \hypertarget{term:k-opt}{\(k\)-opt} & heurística \(k\)-opt (ex.: \(2\)-opt, \(3\)-opt) & Família de heurísticas de melhoria local que substituem \(k\) arestas de um circuito por \(k\) novas arestas formando um ciclo válido de menor custo; no \(2\)-opt, duas arestas são removidas e o segmento intermediário é invertido. \\
+  \sepitem
+  \hypertarget{term:numpy}{NumPy} & biblioteca NumPy & Biblioteca Python para computação científica com arranjos multidimensionais e operações vetorizadas compiladas em CPU. \\
+  \sepitem
+  \hypertarget{term:offspring}{\emph{offspring}} & descendentes & Indivíduos gerados após as etapas de cruzamento e mutação em uma geração. \\
+  \sepitem
+  \hypertarget{term:overhead}{\emph{overhead}} & sobrecarga & Custo adicional de comunicação PCIe, sincronização, despacho de \emph{kernels} ou gerenciamento que não contribui diretamente para a busca. \\
+  \sepitem
+  \hypertarget{term:speedup}{\emph{speedup}} & ganho de velocidade & Razão entre o tempo de execução da variante de referência (CPU) e o tempo da variante acelerada. \\
+  \sepitem
+  \hypertarget{term:swap-mutation}{\emph{swap mutation}} & mutação por troca & Operador que sorteia duas posições de uma permutação e troca suas cidades entre si. \\
+  \sepitem
+  \hypertarget{term:thread}{\emph{thread}} & \emph{thread} (unidade de execução) & Fluxo elementar de execução de instruções em CPU ou em blocos de \emph{threads} de uma GPU. \\
+  \sepitem
+  \hypertarget{term:throughput}{\emph{throughput}} & vazão & Volume de trabalho computacional concluído por unidade de tempo. \\
+  \sepitem
+  \hypertarget{term:time-to-target}{\emph{time-to-target}} & tempo até o alvo & Protocolo experimental que mede o tempo necessário para um algoritmo atingir um patamar predefinido de qualidade (neste estudo, \(\text{gap} \le 1\%\)). \\
+  \sepitem
+  \hypertarget{term:warmup}{\emph{warmup}} & etapa de aquecimento & Execução prévia não cronometrada utilizada para inicializar o contexto CUDA e compilar os \emph{kernels} antes das medições. \\
+  \sepitem
+  \hypertarget{term:warp}{\emph{warp}} & \emph{warp} (grupo de 32 \emph{threads}) & Unidade básica de escalonamento e emissão coordenada de instruções (SIMT) composta por \(32\) \emph{threads} na arquitetura CUDA. \\
+\end{longtable}
+\addtocounter{table}{-1}

@@ -3,7 +3,7 @@
 % Engine guard: this draft now targets LuaLaTeX only.
 \usepackage{iftex}
 \ifLuaTeX\else
-      \PackageError{second_draft}{This document must be compiled with LuaLaTeX}{Use latexmk -lualatex -shell-escape second_draft.tex}
+  \PackageError{second_draft}{This document must be compiled with LuaLaTeX}{Use latexmk -lualatex -shell-escape second_draft.tex}
 \fi
 
 % Typography and math.
@@ -27,85 +27,85 @@
 % Estilos compartilhados para os diagramas em TikZ Nativo
 \tikzset{
   fc_base/.style={
-    font=\small\selectfont,
-    text=black!92,
-    draw=black!85,
-    line width=0.75pt,
-    align=center,
-    inner sep=5pt
-  },
+      font=\small\selectfont,
+      text=black!92,
+      draw=black!85,
+      line width=0.75pt,
+      align=center,
+      inner sep=5pt
+    },
   fc_term/.style={
-    fc_base,
-    rectangle,
-    rounded corners=8pt,
-    fill=gray!10,
-    minimum height=7mm
-  },
+      fc_base,
+      rectangle,
+      rounded corners=8pt,
+      fill=gray!10,
+      minimum height=7mm
+    },
   fc_proc/.style={
-    fc_base,
-    rectangle,
-    rounded corners=2pt,
-    fill=white,
-    minimum height=7mm
-  },
+      fc_base,
+      rectangle,
+      rounded corners=2pt,
+      fill=white,
+      minimum height=7mm
+    },
   fc_memetic/.style={
-    fc_base,
-    rectangle,
-    rounded corners=2pt,
-    dashed,
-    line width=1.1pt,
-    fill=gray!14,
-    minimum height=7mm
-  },
+      fc_base,
+      rectangle,
+      rounded corners=2pt,
+      dashed,
+      line width=1.1pt,
+      fill=gray!14,
+      minimum height=7mm
+    },
   fc_dec/.style={
-    fc_base,
-    diamond,
-    aspect=2.2,
-    fill=white,
-    inner sep=2.5pt
-  },
+      fc_base,
+      diamond,
+      aspect=2.2,
+      fill=white,
+      inner sep=2.5pt
+    },
   fc_group/.style={
-    draw=black!50,
-    rectangle,
-    rounded corners=3pt,
-    fill=gray!4,
-    line width=0.6pt,
-    inner sep=8pt
-  },
+      draw=black!50,
+      rectangle,
+      rounded corners=3pt,
+      fill=gray!4,
+      line width=0.6pt,
+      inner sep=8pt
+    },
   fc_subgroup/.style={
-    draw=black!40,
-    rectangle,
-    rounded corners=2pt,
-    fill=white!80!gray!3,
-    line width=0.5pt,
-    inner sep=7pt
-  },
+      draw=black!40,
+      rectangle,
+      rounded corners=2pt,
+      fill=white!80!gray!3,
+      line width=0.5pt,
+      inner sep=7pt
+    },
   fc_grouptitle/.style={
-    font=\footnotesize\bfseries,
-    text=black!82,
-    fill=gray!4,
-    inner xsep=4pt,
-    inner ysep=1.5pt
-  },
+      font=\footnotesize\bfseries,
+      text=black!82,
+      fill=gray!4,
+      inner xsep=4pt,
+      inner ysep=1.5pt
+    },
   fc_subgrouptitle/.style={
-    font=\footnotesize\bfseries,
-    text=black!78,
-    fill=white,
-    inner xsep=3pt,
-    inner ysep=1pt
-  },
+      font=\footnotesize\bfseries,
+      text=black!78,
+      fill=white,
+      inner xsep=3pt,
+      inner ysep=1pt
+    },
   fc_arr/.style={
-    ->,
-    >=Stealth,
-    line width=0.75pt,
-    draw=black!88
-  },
+      ->,
+      >=Stealth,
+      line width=0.75pt,
+      draw=black!88
+    },
   fc_lbl/.style={
-    font=\footnotesize,
-    text=black!90,
-    fill=white,
-    inner sep=1.5pt
-  }
+      font=\footnotesize,
+      text=black!90,
+      fill=white,
+      inner sep=1.5pt
+    }
 }
 \usepackage[portuguese,onelanguage,ruled,vlined,linesnumbered]{algorithm2e}
 \SetKwInput{KwEntrada}{Entrada}
@@ -126,33 +126,79 @@
 
 % Bibliography and local ABNT customizations.
 \usepackage{csquotes}
-\usepackage[backend=biber,style=abnt]{biblatex}
+\usepackage[backend=biber,style=abnt,extradate]{biblatex}
+% Suprime campos `note` e `annote` no Biber para que notas não vazem na bibliografia ABNT/BU-UFSC.
+\DeclareSourcemap{
+  \maps[datatype=bibtex]{
+    \map{
+      \step[fieldset=note, null]
+      \step[fieldset=annote, null]
+    }
+  }
+}
+% Garante que entradas @techreport/@report imprimam a instituição emissora (ABNT NBR 6023).
+\renewbibmacro*{location+date}{%
+  \usebibmacro{location}%
+  \ifentrytype{report}{%
+    \iflistundef{institution}{}{%
+      \setunit*{\addcolon\addspace}%
+      \printlist{institution}%
+    }%
+  }{}%
+  \setunit*{\addcomma\addspace}%
+  \usebibmacro{date}%
+  \newunit%
+}
 \addbibresource{refs.bib}
 \providecommand{\backrefpagesname}{}
 \providecommand{\backref}{}
 \providecommand*{\backrefalt}[4]{}
 \usepackage{./abntex2/my_changes}
 
-% Padronização global de listas após my_changes (sobrescreve before=\small/recuo de enumerate)
-\setlist[itemize]{
-  leftmargin=1.5em,
-  itemsep=3pt,
+% ABNT NBR 14724 (§5.3) / BU-UFSC: apenas numeração de página no canto superior direito,
+% sem cabeçalho corrente com nome de capítulo/seção e sem linha horizontal.
+\makeevenhead{abntheadings}{}{}{\ABNTEXfontereduzida\thepage}
+\makeoddhead{abntheadings}{}{}{\ABNTEXfontereduzida\thepage}
+\makeheadrule{abntheadings}{\textwidth}{0pt}
+
+% Padronização global de listas após my_changes (ABNT NBR 6024 §4.2 / BU-UFSC:
+% recuo alinhado ao \parindent, mesma fonte de 12 pt do corpo e espaçamento uniforme)
+\setlist[itemize,1]{
+  label=\textbullet,
+  left=\parindent,
+  itemsep=2pt,
   parsep=0pt,
   topsep=4pt,
-  partopsep=0pt
+  partopsep=0pt,
+  before=\normalsize
 }
-\setlist[itemize,1]{label=\textbullet}
-\setlist[itemize,2]{label=--}
-\setlist[enumerate]{
+\setlist[itemize,2]{
+  label=--,
+  left=1.5em,
+  itemsep=2pt,
+  parsep=0pt,
+  topsep=2pt,
+  partopsep=0pt,
+  before=\normalsize
+}
+\setlist[enumerate,1]{
   align=left,
-  leftmargin=1.8em,
-  labelindent=0pt,
-  labelwidth=*,
-  itemsep=3pt,
+  left=\parindent,
+  itemsep=2pt,
   parsep=0pt,
   topsep=4pt,
   partopsep=0pt,
   label=\arabic*.,
+  before=\normalsize
+}
+\setlist[enumerate,2]{
+  align=left,
+  left=1.5em,
+  itemsep=2pt,
+  parsep=0pt,
+  topsep=2pt,
+  partopsep=0pt,
+  label=\alph*),
   before=\normalsize
 }
 
@@ -160,14 +206,41 @@
 \AtBeginEnvironment{table}{\SingleSpacing}
 \AtBeginEnvironment{longtable}{\SingleSpacing}
 \AtBeginBibliography{\SingleSpacing}
+% Respiro entre título (acima) e conteúdo de figuras e tabelas (ABNT NBR 14724 §5.8)
+\setlength{\belowcaptionskip}{6pt}
+
+% Padronização centralizada de listas, tabelas e notas (evita repetição de \specialrule e tamanhos locais)
+\newcommand{\sepitem}{\specialrule{0.25pt}{1.5pt}{1.5pt}}
+\makeatletter
+\newcommand{\notatabela}[1]{%
+  \begingroup
+  \setlength{\parskip}{0pt}%
+  \par
+  \ifx\@captype\@undefined
+    \vspace{-\LTpost}\vspace{4pt}%
+  \else
+    \vspace{4pt}%
+  \fi
+  \noindent
+  \begin{minipage}{\linewidth}
+    \SingleSpacing\footnotesize\raggedright\textit{Nota:} #1%
+  \end{minipage}\par
+  \endgroup
+  \ifx\@captype\@undefined
+    \vspace{8pt}%
+  \fi
+}
+\makeatother
+\newenvironment{tabelapadrao}{\small\setlength{\tabcolsep}{4pt}}{}
+\newenvironment{tabeladensa}{\footnotesize\setlength{\tabcolsep}{3pt}}{}
 
 % PDF metadata.
 \hypersetup{
-      pdftitle={Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante},
-      pdfauthor={Lucas Eduardo Galdino Silva},
-      pdflang={pt-BR},
-      hidelinks,
-      pdfcreator={LuaLaTeX via latexmk}}
+  pdftitle={Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante},
+  pdfauthor={Lucas Eduardo Galdino Silva},
+  pdflang={pt-BR},
+  hidelinks,
+  pdfcreator={LuaLaTeX via latexmk}}
 
 % Metadados institucionais UFSC (ABNT NBR 14724 / BU-UFSC).
 \titulo{Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante}
@@ -175,11 +248,11 @@
 \local{Florianópolis}
 \data{2026}
 \instituicao{%
-      Universidade Federal de Santa Catarina
-      \par
-      Centro Tecnológico
-      \par
-      Curso de Graduação em Engenharia Mecânica
+  Universidade Federal de Santa Catarina
+  \par
+  Centro Tecnológico
+  \par
+  Curso de Graduação em Engenharia Mecânica
 }
 \tipotrabalho{Trabalho de Conclusão de Curso}
 \orientador{Prof.~Dr.~Sérgio Fernando Mayerle}
@@ -223,6 +296,10 @@
 
 \postextual
 \printbibliography
+
+% ABNT NBR 14724 (§4.2.2) / BU-UFSC: Glossário é elemento pós-textual, posicionado
+% entre as Referências e o(s) Apêndice(s).
+\input{parts/08-glossario.tex}
 
 \appendix
 \input{parts/07-apendices.tex}

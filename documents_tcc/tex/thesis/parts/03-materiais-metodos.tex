@@ -3,38 +3,40 @@
 Este capítulo descreve o ambiente computacional, o \emph{framework} experimental e o protocolo de execução utilizados para comparar as quatro variantes do algoritmo memético AG+\(2\)-opt apresentadas na \secref{sec-14-objetivos-especificos}.
 O objetivo é permitir que outros pesquisadores reproduzam, com o máximo de precisão possível, os experimentos discutidos no \capref{cap4-resultados}, respeitando as limitações de hardware disponíveis.
 
-\section{Ambiente computacional e framework experimental}\label{sec-31-ambiente-framework}
+\section{Ambiente computacional e \emph{framework} experimental}\label{sec-31-ambiente-framework}
 
-Esta seção detalha as características do hardware e do software utilizados, bem como a arquitetura do framework experimental desenvolvido para garantir a integridade e a reprodutibilidade das comparações.
+Esta seção detalha as características do hardware e do software utilizados, bem como a arquitetura do \emph{framework} experimental desenvolvido para garantir a integridade e a reprodutibilidade das comparações.
 
 \subsection{Hardware e restrições físicas}\label{sec-311-hardware-software}
 
 Os experimentos foram conduzidos em um \emph{notebook} equipado com processador \textbf{Intel Core i7-7700HQ} e uma GPU \textbf{NVIDIA GeForce GTX 1050 Mobile}.
-Trata-se de uma GPU dedicada de entrada para \emph{notebooks}, baseada na arquitetura \textbf{Pascal} (geração lançada em 2016).
+Trata-se de uma GPU dedicada de entrada para \emph{notebooks}, baseada na arquitetura \textbf{Pascal}.
 
 Embora o uso deste equipamento tenha sido motivado inicialmente pela disponibilidade, o conjunto experimental oferece uma vantagem metodológica: a combinação de uma CPU \emph{quad-core} relativamente mais capaz com uma GPU de porte modesto acentua o custo de comunicação e os limites de memória, tornando as diferenças entre estratégias mais nítidas.
-Por outro lado, a seleção experimental foi limitada a instâncias de até \(n_{coords} = \maiorinstancia\) cidades (\texttt{pr1002}) devido ao tempo de execução da linha de base sequencial.
+Por outro lado, a seleção experimental foi limitada a instâncias de até \(n_{coords} = \maiorinstancia\) cidades (\texttt{pr1002}) devido ao tempo de execução da variante de referência em CPU.
 Como o protocolo estatístico exige \(n_{reps} = \totalrepeticoes\) execuções independentes de cada variante por problema, instâncias acima desse porte tornariam proibitivo o tempo de coleta da implementação puramente em CPU, cujo processamento sequencial dos indivíduos na busca local \(2\)-opt --- somado ao crescimento do número de gerações até a convergência --- eleva acentuadamente o custo computacional total.
 
-As especificações relevantes do ambiente computacional utilizado nos experimentos estão sintetizadas na \tabref{tbl:hardware-specs}, destacando o contraste entre os \(4\) núcleos (\(8\) \emph{threads}) da CPU e os \(640\) núcleos CUDA da GPU distribuídos em \(5\) multiprocessadores de fluxo (\emph{Streaming Multiprocessors} --- SMs).
+As especificações relevantes do ambiente computacional utilizado nos experimentos estão sintetizadas na \tabref{tbl:hardware-specs}, destacando o contraste entre os \(4\) núcleos (\(8\) \emph{threads}) da CPU e os \(640\) núcleos CUDA da GPU distribuídos em \(5\) SMs (\emph{Streaming Multiprocessors}).
 
 \begin{table}[htb]
       \centering
-      \caption{Especificações do ambiente computacional utilizado nos experimentos.}\label{tbl:hardware-specs}
-      \begin{tabular}{@{}
-                  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2700}}
-                  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3400}}
-                  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3900}}@{}}
-            \toprule
-            Característica        & CPU (Intel Core i7-7700HQ)                                              & GPU (NVIDIA GeForce GTX 1050 Mobile)                     \\
-            \midrule
-            Arquitetura / Geração & Kaby Lake (2017)                                                        & Pascal GP107 (2016)                                      \\
-            Núcleos / Unidades    & \(4\) núcleos / \(8\) \emph{threads}                                    & \(640\) núcleos CUDA em \(5\) SMs                        \\
-            Frequência            & \(2{,}80\)--\(3{,}80\text{ GHz}\)                                       & \(1354\)--\(1493\text{ MHz}\)                            \\
-            Memória               & \(16\text{ GB}\) RAM DDR4                                               & \(4\text{ GB}\) VRAM GDDR5 (\(\approx 112\text{ GB/s}\)) \\
-            Interface CPU--GPU    & \multicolumn{2}{c@{}}{Barramento PCIe 3.0 (\(\approx 16\text{ GB/s}\))}                                                            \\
-            \bottomrule
-      \end{tabular}
+      \caption{Especificações do ambiente computacional utilizado nos experimentos}\label{tbl:hardware-specs}
+      \begin{tabelapadrao}
+            \begin{tabular}{@{}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2600}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3400}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4000}}@{}}
+                  \toprule
+                  Característica        & CPU (Intel Core i7-7700HQ)                                              & GPU (NVIDIA GeForce GTX 1050 Mobile)                     \\
+                  \midrule
+                  Arquitetura / Geração & Kaby Lake (2017)                                                        & Pascal GP107 (2016, Compute Capability 6.1)              \\
+                  Núcleos / Unidades    & \(4\) núcleos / \(8\) \emph{threads}                                    & \(640\) núcleos CUDA em \(5\) SMs                        \\
+                  Frequência            & \(2{,}80\)--\(3{,}80\text{ GHz}\)                                       & \(1354\)--\(1493\text{ MHz}\)                            \\
+                  Memória               & \(16\text{ GB}\) RAM DDR4                                               & \(4\text{ GB}\) VRAM GDDR5 (\(\approx 112\text{ GB/s}\)) \\
+                  Interface CPU--GPU    & \multicolumn{2}{c@{}}{Barramento PCIe 3.0 (\(\approx 16\text{ GB/s}\))}                                                            \\
+                  \bottomrule
+            \end{tabular}
+      \end{tabelapadrao}
 \end{table}
 
 O desempenho computacional é estritamente limitado pelas fronteiras físicas da GPU.
@@ -42,14 +44,14 @@ Detalha-se a seguir o impacto dessas restrições no processamento:
 
 \begin{enumerate}
       \item
-            \textbf{Memória de vídeo (VRAM) e memória rápida local:} A GPU dispõe de \(4\text{ GB}\) de memória global pré-alocada.
-            Seguindo a especificação da TSPLIB \autocite{reinelt1991tsplib}, as distâncias da matriz completa \(D\) (\(n_{coords}^2\) entradas) e as permutações dos dois \emph{buffers} de população (\(2 \times n_{pop} \times n_{coords}\) entradas, com \(n_{pop} = 256\)) são armazenadas como inteiros de \(32\) bits (\texttt{int32}, \(4\) bytes por elemento).
-            Assim, na variante Totalmente em GPU, que mantém todo o estado residente na placa, a VRAM ocupada compreende a matriz de distâncias (\(4\,n_{coords}^2\) bytes), os dois \emph{buffers} de população (\(2 \times 256 \times n_{coords} \times 4 = 2048\,n_{coords}\) bytes) e o vetor de custos (\(256 \times 8 = 2048\) bytes):
+            \textbf{Memória de vídeo (VRAM) e memória compartilhada:} A GPU dispõe de \(4\text{ GB}\) de VRAM.
+            Seguindo a convenção da TSPLIB \autocite{reinelt1991tsplib}, tanto a matriz completa de distâncias \(D\) (\(n_{coords}^2\) elementos) quanto os dois \emph{buffers} de população (\(2 \times n_{pop} \times n_{coords}\) elementos, com \(n_{pop} = 256\)) são armazenados como inteiros de \(32\) bits (\texttt{int32}, \(4\) bytes cada), enquanto o vetor de custos usa inteiros de \(64\) bits (\(256 \times 8 = 2048\) bytes).
+            Na variante Totalmente em GPU, que mantém todo o estado residente na placa, o consumo de VRAM é dado por:
             \begin{equation}\label{eq:vram-total}
                   Mem_{total}(n_{coords}) \approx 4\,n_{coords}^2 + 2048\,n_{coords} + 2048 \text{ bytes.}
             \end{equation}
-            Para a maior instância testada (\(n_{coords} = \maiorinstancia\), \texttt{pr1002}), a matriz de distâncias \(D\) (\(\approx 4{,}02\text{ MB}\)) e uma população (\(\approx 1{,}03\text{ MB}\)) somam cerca de \(5{,}04\text{ MB}\) (\(\approx 4{,}81\text{ MiB}\)); mesmo somando o segundo \emph{buffer} de população e os custos pela Equação~\eqref{eq:vram-total}, o consumo total permanece em torno de \(6{,}07\text{ MB}\) (\(\approx 5{,}79\text{ MiB}\)), cabendo com ampla folga nos \(4\text{ GB}\) de VRAM da placa.
-            Além disso, a implementação dimensiona a janela da memória rápida local dos multiprocessadores para até \(2048\) cidades por bloco, de modo que todas as \totalinstancias\ instâncias deste estudo (\(n_{coords} \le \maiorinstancia\)) são processadas diretamente nessa memória rápida sem necessidade de particionar rotas.
+            Mesmo na maior instância testada (\(n_{coords} = \maiorinstancia\), \texttt{pr1002}), a Equação~\eqref{eq:vram-total} resulta em cerca de \(6{,}07\text{ MB}\) --- uma fração mínima dos \(4\text{ GB}\) disponíveis.
+            Além disso, a janela de memória compartilhada dos blocos comporta rotas de até \(2048\) cidades, de modo que todas as \totalinstancias\ instâncias deste estudo cabem inteiramente na memória rápida local sem necessidade de particionamento.
       \item
             \textbf{Comunicação CPU--GPU via barramento PCIe:} A troca de dados entre CPU e GPU ocorre pelo barramento PCIe, cuja largura de banda (\(\approx 16\text{ GB/s}\)) é cerca de sete vezes menor que a largura de banda interna da VRAM (\(\approx 112\text{ GB/s}\)).
             Transferências frequentes penalizam diretamente o tempo total de execução conforme a decomposição:
@@ -59,26 +61,52 @@ Detalha-se a seguir o impacto dessas restrições no processamento:
             podendo anular o ganho obtido nos núcleos gráficos.
             Esse contraste motiva reduzir o número de transferências por geração (\textbf{Híbrida Otimizada}) ou manter todo o ciclo evolutivo na GPU (\textbf{Totalmente em GPU}), conforme detalhado na \secref{sec-322-variantes}.
       \item
-            \textbf{Ocupação dos \(640\) núcleos CUDA (\(5\) SMs):} Manter centenas de \emph{threads} ativas simultaneamente nos \(5\) \emph{SMs}\footnote{\textbf{Restrição Matemática:} Cada SM suporta um máximo de 2048 \emph{threads}.
-                  Algoritmos com alta complexidade de registradores reduzem a capacidade de manter \emph{threads} em espera, resultando em subutilização dos núcleos e perda de eficiência computacional, desperdiçando o potencial de processamento massivo da placa.} (\emph{Streaming Multiprocessors}) --- cada um com 128 cores, totalizando 640 núcleos de execução --- permite que os multiprocessadores alternem a execução entre grupos de \emph{threads} prontos enquanto outros aguardam leituras de memória, ocultando a latência de acesso (\emph{latency hiding}) e sustentando alta taxa de ocupação dos \(640\) núcleos \autocite{kirk2010programming}.
+            \textbf{Ocupação dos \(640\) núcleos CUDA (\(5\) SMs):} Manter centenas de \emph{threads} ativas simultaneamente nos \(5\) \emph{SMs}\footnote{\textbf{Limite arquitetural da GPU utilizada:} Na microarquitetura Pascal (Compute Capability 6.1) da GTX~1050 Mobile, cada SM suporta no máximo \(2048\) \emph{threads} residentes (\(64\) \emph{warps}); em outras gerações de GPU esse teto difere.
+            O uso elevado de registradores ou de memória compartilhada por bloco reduz a ocupação efetiva abaixo desse limite.}
+            (\emph{Streaming Multiprocessors}) --- cada um com 128 cores, totalizando 640 núcleos de execução --- permite que os multiprocessadores alternem a execução entre grupos de \emph{threads} prontos enquanto outros aguardam leituras de memória, ocultando a latência de acesso (\emph{latency hiding}) e sustentando alta taxa de ocupação dos \(640\) núcleos \autocite{kirk2010programming}.
 \end{enumerate}
 
 \subsection{Ambiente de software}\label{sec-312-ambiente-software}
 
-O framework foi desenvolvido em \texttt{Python 3.12}, utilizando um conjunto de bibliotecas selecionadas para garantir a equivalência funcional entre as implementações em CPU e GPU:
+O \emph{framework} experimental foi desenvolvido em \texttt{Python 3.12.13} sobre \texttt{Debian GNU/Linux 13}, utilizando um conjunto de bibliotecas e compiladores selecionados para assegurar consistência funcional entre as execuções em CPU e GPU.
+As versões exatas, os requisitos mínimos de arquitetura CUDA e o papel de cada componente central constam na \tabref{tbl:software-specs}.
 
-\begin{itemize}
-      \item
-            \textbf{NumPy:} Utilizado para a implementação de referência em CPU.
-      \item
-            \textbf{CuPy}: Utilizado para as implementações aceleradas (híbridas e totalmente em GPU).
-            \textbf{CuPy:} Utilizado para as implementações aceleradas (híbridas e totalmente em GPU).
-            A compatibilidade de API entre CuPy e NumPy foi fundamental para assegurar que a lógica dos algoritmos permanecesse idêntica, alterando apenas o \emph{backend} de execução.
-            \textbf{SciPy e scikit-posthocs:} Adotados por fornecerem implementações consolidadas dos testes não paramétricos do protocolo de \textcite{demsar2006statistical} (Friedman, pós-teste de Nemenyi e Wilcoxon).
-\end{itemize}
+\begin{table}[htb]
+      \centering
+      \caption{Especificações, requisitos mínimos e papel dos componentes do ambiente de software}\label{tbl:software-specs}
+      \begin{tabelapadrao}
+            \begin{tabular}{@{}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2600}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3400}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4000}}@{}}
+                  \toprule
+                  Componente                     & Versão / Requisito                                             & Papel no ambiente                                                     \\
+                  \midrule
+                  Sistema operacional            & Debian GNU/Linux 13 (\emph{trixie}), kernel 6.12.43 (\texttt{x86\_64}) & Plataforma de execução do \emph{benchmark}                            \\
+                  \sepitem
+                  \emph{Driver} gráfico NVIDIA   & 580.196.07                                                     & Interface com a GPU e suporte ao CUDA Runtime 12.9                    \\
+                  \sepitem
+                  CUDA Toolkit / compilador      & CUDA 12.9 (\texttt{nvcc} V12.9.86)                             & Compilação e execução dos \emph{kernels} CUDA customizados            \\
+                  \sepitem
+                  Compute Capability CUDA        & Mínimo \(\ge 5{,}0\) (testado: \(6{,}1\), Pascal)              & Requisito mínimo do CUDA 12.9 e do \texttt{cupy-cuda12x}              \\
+                  \sepitem
+                  Compilador C/C++ (\emph{host}) & GCC 12.4.0                                                     & Compilador auxiliar de \emph{host} exigido pelo \texttt{nvcc}         \\
+                  \sepitem
+                  Interpretador Python           & Python 3.12.13 (mínimo \(\ge 3{,}12\))                         & Orquestração dos experimentos e interface com CPU/GPU                 \\
+                  \sepitem
+                  Computação numérica            & NumPy 2.5.4; \hyperlink{term:cupy}{CuPy} 14.2.0                & \emph{Backend} de CPU (NumPy) e GPU (CuPy sobre CUDA 12.9)            \\
+                  \sepitem
+                  Estatística e banco de dados   & SciPy 1.18.1; scikit-posthocs 0.17.1; DuckDB 2.0.0             & Protocolo de \textcite{demsar2006statistical} e consolidação (\apref{apendice-banco}) \\
+                  \bottomrule
+            \end{tabular}
+      \end{tabelapadrao}
+\end{table}
 
-Embora a API de alto nível do CuPy seja adequada para operações matriciais regulares, na variante \textbf{Totalmente em GPU} (\texttt{FullGPUModular}) tanto a busca local \(2\)-opt quanto os operadores genéticos (seleção por torneio, cruzamento OX com \(1\) \emph{warp} de \(32\) \emph{threads} cooperando por rota, mutação por troca e avaliação de custo) são executados por \textbf{kernels CUDA customizados} escritos em C++ (\texttt{RawKernel}).
-O desenvolvimento direto desses \emph{kernels} evita sobrecargas repetidas de lançamento da API de alto nível e viabiliza três ganhos estruturais:
+A compatibilidade de API entre NumPy e CuPy foi determinante para manter a lógica algorítmica idêntica entre as variantes de CPU e GPU, alterando apenas o \emph{backend} de execução.
+Os demais pacotes auxiliares de análise, visualização e validação declarados no projeto, bem como o procedimento reproduzível de instalação do ambiente via \texttt{uv}, estão documentados no \apref{apendice-reproducao}.
+
+Embora a API de alto nível do CuPy seja adequada para operações matriciais regulares, na variante \textbf{Totalmente em GPU} (\texttt{FullGPUModular}) tanto a busca local \(2\)-opt quanto os operadores genéticos (seleção por torneio, cruzamento OX, mutação por troca e avaliação de custo) são executados por \textbf{kernels CUDA customizados} escritos em C++ (\texttt{RawKernel}).
+O desenvolvimento direto desses \emph{kernels} evita sobrecargas repetidas de chamadas da API de alto nível e viabiliza três ganhos estruturais:
 
 \begin{enumerate}
       \item
@@ -86,7 +114,7 @@ O desenvolvimento direto desses \emph{kernels} evita sobrecargas repetidas de la
       \item
             \textbf{Uso explícito da memória rápida local:} Armazenar dados ativos das rotas e estruturas auxiliares na memória compartilhada dos blocos e em registradores, reduzindo acessos à memória global.
       \item
-            \textbf{Cooperação entre \emph{threads} na busca \(2\)-opt:} Em vez de limitar cada rota a uma única \emph{thread} isolada, os \emph{kernels} customizados permitem que múltiplas \emph{threads} de um mesmo bloco cooperem na avaliação dos movimentos candidatos de cada rota --- realizando redução paralela em memória compartilhada para selecionar a melhor troca (\(\Delta C < 0\)) --- e processem toda a matriz de rotas da população de uma só vez.
+            \textbf{Cooperação entre \emph{threads} na busca \(2\)-opt:} Em vez de limitar cada rota a uma única \emph{thread} isolada, os \emph{kernels} customizados permitem que múltiplas \emph{threads} de um mesmo bloco cooperem na avaliação dos movimentos candidatos de cada rota e processem toda a matriz de rotas da população de uma só vez.
 \end{enumerate}
 
 A avaliação de custos usa \textbf{aritmética inteira}.
@@ -94,16 +122,16 @@ O arredondamento da TSPLIB é aplicado uma única vez, ao montar a matriz de dis
 A partir desse ponto, todas as distâncias entre cidades são números inteiros de \(32\) bits (\texttt{int32}) e o custo total de qualquer circuito é acumulado em \(64\) bits (\texttt{int64}), o que evita ultrapassar o limite de representação de \(32\) bits em rotas de grande porte.
 Consequentemente, o custo de qualquer rota candidata e o ganho \(\Delta C\) de qualquer troca \(2\)-opt reduzem-se a somas e subtrações exatas de inteiros, eliminando divergências de arredondamento de ponto flutuante entre CPU e GPU e garantindo que duas variantes quaisquer atribuam \textbf{exatamente o mesmo custo} a uma mesma rota.
 
-\subsection{Arquitetura do framework experimental}\label{sec-313-arquitetura-framework}
+\subsection{Arquitetura do \emph{framework} experimental}\label{sec-313-arquitetura-framework}
 
 Para garantir comparações justas, o código foi estruturado em uma arquitetura modular que separa a lógica dos algoritmos da orquestração dos experimentos.
-O framework opera em três camadas distintas, ilustradas na \figref{fig:class-diagram}:
+O \emph{framework} opera em três camadas distintas, ilustradas na \figref{fig:class-diagram}:
 
 \begin{enumerate}
       \item
             \textbf{Camada de Algoritmos:} Adota um padrão modular de estratégias intercambiáveis em torno de uma única classe orquestradora (\texttt{GeneticAlgorithm}), cujas seis etapas do ciclo evolutivo recebem implementações de CPU ou de GPU sob o mesmo contrato; a definição detalhada das quatro variantes é apresentada na \secref{sec-32-arquitetura-variantes}.
       \item
-            \textbf{Camada de Orquestração (Benchmark):} Responsável por carregar as configurações experimentais (parâmetros, instâncias), gerenciar a execução das repetições independentes e garantir o isolamento entre testes.
+            \textbf{Camada de Orquestração (\hyperlink{term:benchmark}{Benchmark}):} Responsável por carregar as configurações experimentais (parâmetros, instâncias), gerenciar a execução das repetições independentes e garantir o isolamento entre testes.
             Esta camada implementa mecanismos de \emph{checkpoint} para salvar o estado de cada execução, permitindo a recuperação em caso de falhas e a auditoria posterior dos dados.
       \item
             \textbf{Camada de Análise Estatística e Visualização:} Scripts dedicados a processar os \emph{checkpoints}, consolidar os dados e gerar as tabelas, diagramas e relatórios estatísticos.
@@ -111,6 +139,7 @@ O framework opera em três camadas distintas, ilustradas na \figref{fig:class-di
 
 \begin{figure}[htbp]
       \centering
+      \caption{Arquitetura modular em três camadas do \emph{framework} experimental}\label{fig:class-diagram}
       \begin{tikzpicture}[node distance=5mm and 4mm]
             % CAMADA 1: Algoritmos e Estrategias
             \node[fc_proc, text width=12.6cm] (solver) {\textbf{GeneticAlgorithm}\\(\texttt{+evolve()}, \texttt{+timer: PhaseTimer}, composição de estratégias)};
@@ -153,41 +182,59 @@ O framework opera em três camadas distintas, ilustradas na \figref{fig:class-di
             \draw[fc_arr] (c1.south) -- node[fc_lbl, right=2mm, pos=0.48] {Configuração e execução das variantes} (c1.south |- c2.north);
             \draw[fc_arr] (c2.south) -- node[fc_lbl, right=2mm, pos=0.48] {Checkpoints JSON / registros DuckDB} (c2.south |- c3.north);
       \end{tikzpicture}
-      \caption{Arquitetura modular em três camadas do \emph{framework} experimental.}\label{fig:class-diagram}
 \end{figure}
 
 Esta separação assegura que as métricas de tempo e qualidade sejam coletadas de forma consistente para todas as variantes, eliminando vieses que poderiam surgir de implementações \emph{ad hoc} para cada plataforma.
 
-\section{Arquitetura do framework e variantes algorítmicas}\label{sec-32-arquitetura-variantes}
+\section{Variantes algorítmicas e estratégias de paralelização}\label{sec-32-arquitetura-variantes}
 
-As variantes comparadas neste trabalho são \textbf{análogas}, mas não equivalentes.
+As variantes comparadas neste trabalho são \textbf{análogas}.
 Todas partem do mesmo algoritmo memético, com os mesmos operadores, os mesmos hiperparâmetros globais e os mesmos critérios de parada, e diferem em \emph{onde} cada etapa é executada --- CPU ou GPU --- e em \emph{como} os dados trafegam e são processados: sequencialmente na CPU, por circuito individual \(C_m\) ou pela matriz completa da população \(P(t)\) (\secref{sec-322-variantes}).
-Paralelizar não preserva o algoritmo: muda o modo de execução, e é por isso que as variantes são tratadas como análogas, e não como equivalentes.
+Paralelizar muda o modo de execução, e é por isso que as variantes são tratadas como análogas, e não como equivalentes.
 A assimetria de avaliação entre CPU e GPU --- bem como a equivalência bit a bit verificada entre as variantes híbridas --- é detalhada na \secref{sec-5311-semantica-operadores}.
 
-\subsection{O Algoritmo Genético Base (AG + \texorpdfstring{\(2\)-opt}{2-opt})}\label{sec-321-ga-base}
+\subsection{O algoritmo genético base (AG + \texorpdfstring{\(2\)-opt}{2-opt})}\label{sec-321-ga-base}
 
-O algoritmo base, em sua descrição mais técnica, é um Algoritmo Genético (AG) geracional com elitismo, hibridizado com uma busca local \(2\)-opt truncada.
-Esta combinação, frequentemente denominada Algoritmo Memético, equilibra a exploração global do espaço de busca (via operadores genéticos) com a exploração local intensiva (via \(2\)-opt).
+O algoritmo base é um Algoritmo Genético (AG) com seleção elitista de sobreviventes do tipo \((\mu + \lambda)\), na qual pais e descendentes têm o mesmo tamanho (\(\mu = \lambda = n_{pop}\)), hibridizado com uma busca local \(2\)-opt truncada.
+Esta combinação, denominada Algoritmo Memético, equilibra a exploração global do espaço de busca (via operadores genéticos) com a intensificação local (via \(2\)-opt).
+Todos os hiperparâmetros mantidos constantes nas quatro variantes constam na \tabref{tbl:ga-hyperparameters} e são detalhados a seguir:
 
-Os componentes e parâmetros fundamentais, mantidos constantes em todas as variantes, são:
+\begin{table}[htbp]
+      \centering
+      \caption{Hiperparâmetros e configurações fixas do algoritmo memético AG+\(2\)-opt adotados nas quatro variantes}\label{tbl:ga-hyperparameters}
+      \begin{tabelapadrao}
+            \begin{tabular}{@{}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3400}}
+                        >{\centering\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.1600}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5000}}@{}}
+                  \toprule
+                  Parâmetro / Componente                  & Símbolo                    & Valor / Especificação                                                                      \\
+                  \midrule
+                  Tamanho da população                    & \(n_{pop}\)                & \(256\) rotas                                                                              \\
+                  Seleção de progenitores                 & \(\tau_{\text{trnmt}}\)    & Torneio de tamanho \(5\)                                                                   \\
+                  Cruzamento (\emph{Order Crossover}, OX) & \(p_c\)                    & \(1{,}0\) (aplicado a todos os \(n_{pop}/2\) pares)                                        \\
+                  Mutação por troca (\emph{swap})         & \(p_{\text{mut}}\)         & \(0{,}02\) por rota descendente                                                            \\
+                  Busca local \(2\)-opt (pós-mutação)     & \(\kappa\)                 & Até \(\maxpassadas\) varreduras \emph{best-improvement}                                    \\
+                  Lista estática de candidatos            & \(k_{\text{viz}}\)         & \(\kviz\) vizinhos mais próximos por cidade                                                \\
+                  Seleção de sobreviventes (elitismo)     & \((\mu + \lambda)\)        & Determinística com \(\mu = \lambda = 256\) (melhores \(256\) de \(512\))                   \\
+                  Critério de parada (i) --- alvo         & \(\varepsilon_{\text{alvo}}\) & \(\text{gap} \le 1\%\) em relação a \(B^*\)                                             \\
+                  Critério de parada (ii) --- estagnação  & \(G_{\text{estag}}\)       & \(\lceil 2\sqrt{n_{coords}} \rceil\) gerações sem melhoria                                 \\
+                  Critério de parada (iii) --- teto       & \(G_{\max}\)               & \(\lceil 2\,n_{coords}\sqrt{n_{coords}} \rceil\) gerações                                  \\
+                  Repetições e sementes                   & \(n_{reps}\)               & \(\totalrepeticoes\) execuções (sementes inteiras \(\sementeinicial\) a \(\sementefinal\)) \\
+                  \bottomrule
+            \end{tabular}
+      \end{tabelapadrao}
+\end{table}
+
+As escolhas de projeto subjacentes aos parâmetros da \tabref{tbl:ga-hyperparameters} obedecem a três diretrizes técnicas:
 
 \begin{itemize}
       \item
-            \textbf{Representação:} Permutação de inteiros representando a sequência de cidades visitadas.
+            \textbf{Escala de memória da população (\(n_{pop} = 256\)):} O tamanho fixo enquadra-se na faixa usual de \(50\) a \(500\) indivíduos da literatura de AGs para o TSP \autocite{harik1999gambler,goldberg1992massive,larranaga1999genetic} e equilibra a ocupação em VRAM. Enquanto a matriz de distâncias cresce quadraticamente (\(\mathcal{O}(n_{coords}^2)\), ocupando \(4\,n_{coords}^2\) bytes), a população cresce bilinearmente (\(\mathcal{O}(n_{pop}\,n_{coords})\), ocupando \(4\,n_{pop}\,n_{coords}\) bytes por \emph{buffer}), mantendo o custo de uma população abaixo de \(1\text{ MiB}\) (\(\approx 1{,}03\text{ MB}\)) até \(n_{coords} = \maiorinstancia\) e evitando que um \(n_{pop}\) proporcional a \(n_{coords}\) introduza um segundo termo quadrático na memória do dispositivo.
       \item
-            \textbf{População Inicial:} Gerada aleatoriamente com tamanho fixo \(n_{pop} = 256\) para todas as instâncias e variantes, dentro da faixa usual de \(50\) a \(500\) indivíduos da literatura de AGs para o TSP \autocite{harik1999gambler,goldberg1992massive,larranaga1999genetic}.
-            Em termos de memória na GPU, a matriz de distâncias escala quadraticamente (\(\mathcal{O}(n_{coords}^2)\), ocupando \(4\,n_{coords}^2\) bytes), enquanto a população escala bilinearmente (\(\mathcal{O}(n_{pop}\,n_{coords})\), ocupando \(4\,n_{pop}\,n_{coords}\) bytes por \emph{buffer}); a razão \(n_{pop}/n_{coords}\) mantém o custo de memória de uma população inferior a \(1\text{ MiB}\) (\(\approx 1{,}03\text{ MB}\)) para \(n_{coords} \le \maiorinstancia\), evitando que um \(n_{pop}\) proporcional a \(n_{coords}\) adicione um segundo termo quadrático e reduza o limite de instâncias comportadas na VRAM.
+            \textbf{Representação e operadores evolutivos:} As rotas são codificadas como permutações de inteiros sem repetição; a seleção por torneio independe de reescalonamento global de aptidão e paraleliza-se diretamente por sorteios independentes; o operador OX preserva a ordem relativa de sub-rotas válidas ao recombinar cada par de progenitores; e a mutação por troca (\emph{swap}) introduz perturbações mínimas mantendo a factibilidade do circuito.
       \item
-            \textbf{Seleção:} Torneio (\emph{Tournament Selection}), favorecendo indivíduos com menor custo (distância total).
-      \item
-            \textbf{Cruzamento (Crossover):} \emph{Order Crossover} (OX), escolhido por preservar a ordem relativa das cidades e gerar permutações válidas.
-      \item
-            \textbf{Mutação:} \emph{Swap Mutation}, que troca a posição de duas cidades aleatórias no cromossomo.
-      \item
-            \textbf{Busca Local (\(2\)-opt):} Aplicada pós-mutação sobre cada descendente \autocite{alsheddy2017memetic,larranaga1999genetic}, adotando critério \emph{best-improvement}, limite de \(\kappa = \maxpassadas\) varreduras e vizinhança restrita à lista pré-computada de \(k_{\text{viz}} = \kviz\) vizinhos mais próximos (formulação teórica na \secref{sec-221-2opt}).
-      \item
-            \textbf{Critérios de Parada:} O ciclo evolutivo encerra-se assim que qualquer uma das três condições for atingida: (i) alcance de \(\text{gap} \le 1\%\) em relação ao ótimo conhecido \(B^*\); (ii) estagnação por \(\lceil 2\sqrt{n_{coords}} \rceil\) gerações consecutivas sem melhoria do melhor custo; ou (iii) limite máximo de \(\lceil 2\,n_{coords}\sqrt{n_{coords}} \rceil\) gerações.
+            \textbf{Acoplamento pós-mutação e lista estática de vizinhos (\(k_{\text{viz}} = \kviz\)):} A busca local \(2\)-opt \emph{best-improvement} é aplicada sobre cada descendente pós-mutação \autocite{alsheddy2017memetic,larranaga1999genetic} com vizinhança restrita aos \(k_{\text{viz}} = \kviz\) vizinhos mais próximos (\secref{sec-221-2opt}), encerrando-se o ciclo evolutivo assim que qualquer um dos três critérios de parada listados na \tabref{tbl:ga-hyperparameters} é satisfeito.
 \end{itemize}
 
 Para justificar empiricamente a escolha de \(k_{\text{viz}} = \kviz\), realizou-se um microbenchmark isolado com \(64\) rotas e \(\kappa = \maxpassadas\) varreduras de \(2\)-opt comparando a lista de candidatos contra a varredura exaustiva completa, cujos resultados constam na \tabref{tbl:candidate-k-microbenchmark}.
@@ -195,52 +242,56 @@ Em instâncias muito pequenas (\texttt{berlin52}), o custo de indireção da tab
 
 \begin{table}[htbp]
       \centering
-      \setlength{\tabcolsep}{4.5pt}
       \caption{Microbenchmark isolado da restrição por lista de candidatos (\(k_{\text{viz}} = \kviz\) vs.\ varredura exaustiva, \(64\) rotas, \(\kappa = \maxpassadas\) passadas)}\label{tbl:candidate-k-microbenchmark}
-      \begin{tabular}{lrrrrrr}
-            \toprule
-            Instância                    & \multicolumn{3}{c}{CPU (s)} & \multicolumn{3}{c}{GPU -- matriz de rotas (s)}                                                                                  \\
-            \cmidrule(lr){2-4} \cmidrule(lr){5-7}
-                                         & \(k_{\text{viz}} = \kviz\)  & Exaustiva                                      & Ganho            & \(k_{\text{viz}} = \kviz\) & Exaustiva   & Ganho            \\
-            \midrule
-            \texttt{berlin52} (\(n=52\)) & \(0{,}935\)                 & \(0{,}924\)                                    & \(0{,}99\times\) & \(0{,}001\)                & \(0{,}001\) & \(0{,}79\times\) \\
-            \texttt{kroA100} (\(n=100\)) & \(1{,}590\)                 & \(4{,}250\)                                    & \(2{,}67\times\) & \(0{,}002\)                & \(0{,}003\) & \(1{,}51\times\) \\
-            \texttt{ch150} (\(n=150\))   & \(3{,}122\)                 & \(8{,}066\)                                    & \(2{,}58\times\) & \(0{,}003\)                & \(0{,}005\) & \(2{,}03\times\) \\
-            \texttt{pr264} (\(n=264\))   & \(4{,}808\)                 & \(39{,}513\)                                   & \(8{,}22\times\) & \(0{,}004\)                & \(0{,}016\) & \(3{,}72\times\) \\
-            \texttt{lin318} (\(n=318\))  & \(5{,}811\)                 & \(45{,}798\)                                   & \(7{,}88\times\) & \(0{,}006\)                & \(0{,}023\) & \(4{,}05\times\) \\
-            \bottomrule
-      \end{tabular}
+      \begin{tabelapadrao}
+            \begin{tabular}{@{}lrrrrrr@{}}
+                  \toprule
+                  Instância                    & \multicolumn{3}{c}{CPU (s)} & \multicolumn{3}{c}{GPU -- matriz de rotas (s)}                                                                                  \\
+                  \cmidrule(lr){2-4} \cmidrule(lr){5-7}
+                                               & \(k_{\text{viz}} = \kviz\)  & Exaustiva                                      & Ganho            & \(k_{\text{viz}} = \kviz\) & Exaustiva   & Ganho            \\
+                  \midrule
+                  \texttt{berlin52} (\(n=52\)) & \(0{,}935\)                 & \(0{,}924\)                                    & \(0{,}99\times\) & \(0{,}001\)                & \(0{,}001\) & \(0{,}79\times\) \\
+                  \texttt{kroA100} (\(n=100\)) & \(1{,}590\)                 & \(4{,}250\)                                    & \(2{,}67\times\) & \(0{,}002\)                & \(0{,}003\) & \(1{,}51\times\) \\
+                  \texttt{ch150} (\(n=150\))   & \(3{,}122\)                 & \(8{,}066\)                                    & \(2{,}58\times\) & \(0{,}003\)                & \(0{,}005\) & \(2{,}03\times\) \\
+                  \texttt{pr264} (\(n=264\))   & \(4{,}808\)                 & \(39{,}513\)                                   & \(8{,}22\times\) & \(0{,}004\)                & \(0{,}016\) & \(3{,}72\times\) \\
+                  \texttt{lin318} (\(n=318\))  & \(5{,}811\)                 & \(45{,}798\)                                   & \(7{,}88\times\) & \(0{,}006\)                & \(0{,}023\) & \(4{,}05\times\) \\
+                  \bottomrule
+            \end{tabular}
+      \end{tabelapadrao}
 \end{table}
 
-\subsection{Estratégias de Paralelização (As 4 Variantes)}\label{sec-322-variantes}
+\subsection{Estratégias de paralelização (as quatro variantes)}\label{sec-322-variantes}
 
-Para investigar o impacto da GPU, o algoritmo base foi instanciado em quatro variantes, que não são implementações separadas: todas usam o mesmo algoritmo, e a variante define apenas quais implementações ocupam cada uma das seis etapas do ciclo evolutivo --- inicialização, seleção, cruzamento, mutação, busca local e avaliação.
+Para investigar o impacto da GPU, o algoritmo base foi instanciado em quatro variantes, que não são implementações separadas: todas usam o mesmo algoritmo, e a variante define apenas quais implementações ocupam cada uma das seis estratégias intercambiáveis do ciclo evolutivo --- inicialização, seleção, cruzamento, mutação, busca local e avaliação.
+Conectando o ciclo conceitual de sete etapas (\secref{sec-251-ga-2opt}) à decomposição temporal em oito fases cronometradas no \capref{cap4-resultados} (\secref{sec-44-decomposicao-fases} e \apref{apendice-telemetria}), a sétima etapa --- seleção de sobreviventes elitista \((\mu + \lambda)\) --- executa na CPU nas três primeiras variantes e na GPU na variante Totalmente em GPU, enquanto a oitava fase registra explicitamente a sincronização entre CPU e GPU (\texttt{Sinc.}).
 
 \begin{enumerate}
       \item
-            \textbf{CPU (\emph{baseline}):} Execução inteiramente na CPU utilizando NumPy: inicialização, seleção, cruzamento, mutação, busca local e avaliação apontam para as implementações NumPy da mesma classe \texttt{GeneticAlgorithm}.
+            \textbf{CPU (\hyperlink{term:baseline}{\emph{baseline}}):} Execução inteiramente na CPU utilizando NumPy: inicialização, seleção, cruzamento, mutação, busca local e avaliação apontam para as implementações NumPy da mesma classe \texttt{GeneticAlgorithm}.
             No nível arquitetural, a CPU permanece sendo a plataforma MIMD de referência; o que ocorre aqui é o aproveitamento pontual de vetorização SIMD dentro dos núcleos para acelerar partes da avaliação dos movimentos \(2\)-opt.
             Já o processamento dos indivíduos, no nível do algoritmo, ocorre essencialmente de forma sequencial.
             Esta variante serve como referência para medir o ganho de performance absoluto.
       \item
-            \textbf{HybridNaive (Híbrida Ingênua):} Mantém a população e os operadores genéticos na CPU --- apenas a busca local roda em GPU --- e transfere cada indivíduo separadamente como um vetor de circuito \(C_m = (v_{m,0}, v_{m,1}, \dots, v_{m,n_{coords}-1})\) (\(m = 1, \dots, n_{pop}\)), na notação da \secref{sec-221-2opt}.
-            Esta abordagem foi nomeada ``ingênua'' porque realiza transferências (\(\mathit{H2D}\) e \(\mathit{D2H}\)) e um lançamento de \emph{kernel} para \emph{cada circuito \(C_m\)} em \emph{cada geração}, expondo a latência de lançamento e o custo do barramento PCIe.
-            Nessa variante, o \emph{kernel} processa uma única rota por chamada e mantém o circuito inteiro em memória compartilhada, sem o fatiamento em janelas usado no modo matricial em instâncias maiores; esse detalhe limita o porte máximo aceito, mas não é o que a define como ingênua --- o que a define é o envio individual vetor a vetor, e todas as instâncias usadas neste trabalho ficam muito abaixo desse limite.
+            \textbf{HybridNaive (Híbrida Ingênua):} Mantém a população, os operadores genéticos e a avaliação de custos na CPU, enviando apenas a busca local \(2\)-opt para a GPU.
+            A cada geração, reenvia a matriz de distâncias \(D\) e transfere cada uma das \(n_{pop} = 256\) rotas individualmente (uma a uma) para a placa, disparando um lançamento de \emph{kernel} por rota e trazendo-a de volta em seguida.
+            É esse envio individual --- que multiplica as transferências (\(\mathit{H2D}\) e \(\mathit{D2H}\)) e os lançamentos de \emph{kernel} em cada geração --- que caracteriza a abordagem como ``ingênua'', expondo a latência de disparo e o gargalo do barramento PCIe.
       \item
-            \textbf{HybridOptimized (Híbrida Otimizada):} Também mantém a lógica genética na CPU, mas organiza a população \(P(t)\) em uma única matriz de rotas de dimensão \(n_{pop} \times n_{coords}\) --- cuja \(m\)-ésima linha corresponde ao circuito \(C_m\) --- e transfere essa matriz inteira para a GPU de uma só vez.
-            Nesta configuração, um único lançamento do \emph{kernel} \(2\)-opt processa todas as linhas de \(P(t)\) em paralelo na GPU, a avaliação de custos também executa no dispositivo e a matriz refinada retorna em conjunto para a CPU, amortizando drasticamente o custo de lançamento e de comunicação pelo barramento PCIe.
+            \textbf{HybridOptimized (Híbrida Otimizada):} Também mantém os operadores genéticos na CPU, mas fixa a matriz \(D\) em VRAM e agrupa todas as rotas da população \(P(t)\) em uma única matriz (\(n_{pop} \times n_{coords}\)).
+            Em cada geração, toda a população é enviada em bloco à GPU e refinada por um único lançamento do \emph{kernel} \(2\)-opt, que devolve a matriz refinada à CPU; em seguida, a avaliação de custos também roda em bloco na GPU, retornando apenas o vetor com os \(256\) custos.
+            Comparada à Híbrida Ingênua, essa organização em lote elimina o reenvio repetido de \(D\) e reduz drasticamente o número de lançamentos de \emph{kernel}.
       \item
-            \textbf{FullGPUModular (Totalmente em GPU):} Implementa a estratégia de ``GPU residente'': a população inicial é gerada sob a mesma semente compartilhada e enviada uma única vez à VRAM, onde permanece residente enquanto todas as etapas iterativas do ciclo evolutivo --- seleção, cruzamento, mutação, busca local \(2\)-opt e avaliação --- são executadas na GPU.
-            Isso elimina quase completamente a necessidade de comunicação com a CPU durante as gerações, restringindo o tráfego \(\mathit{D2H}\) à coleta de estatísticas e verificação de critérios de parada.
-            Os operadores de GPU não usam as abstrações de alto nível do CuPy, e sim \emph{kernels} CUDA escritos para este trabalho e compilados antes do laço de repetições medido, numa etapa de aquecimento que mantém o custo de compilação fora dos tempos registrados.
+            \textbf{FullGPUModular (Totalmente em GPU):} Implementa a estratégia de ``GPU residente'': a matriz de distâncias \(D\), a lista de candidatos \(N_k\) e a população inicial \(P(0)\) (gerada sob a mesma semente compartilhada) são enviadas uma única vez na inicialização à VRAM, onde permanecem residentes enquanto todas as etapas iterativas do ciclo evolutivo --- seleção, cruzamento, mutação, busca local \(2\)-opt, avaliação e seleção de sobreviventes \((\mu + \lambda)\) --- executam na GPU.
+            Essa organização elimina completamente o retorno de matrizes de rotas para a CPU (\(0{,}00\)\,MB em \(\mathit{D2H}\), restrito a escalares de parada) e reduz o tráfego recorrente \(\mathit{H2D}\) a apenas cerca de \(11{,}26\)\,KB por geração (independentemente de \(n_{coords}\)), correspondentes aos sorteios aleatórios gerados na CPU pelo NumPy (participantes dos torneios, pontos de corte do OX e posições de mutação) para manter exatamente a mesma sequência de sementes nas quatro variantes.
+            Os operadores de GPU não usam as abstrações de alto nível do CuPy, e sim \emph{kernels} CUDA escritos especificamente para este trabalho e pré-compilados antes das medições.
 \end{enumerate}
 
 \section{Seleção de instâncias e protocolo experimental}\label{sec-33-selecao-instancias}
 
 Para garantir a relevância estatística dos resultados, foram selecionadas \totalinstancias\ instâncias da biblioteca \textbf{TSPLIB} \autocite{reinelt1991tsplib}, variando de \(\menorinstancia\) a \(\maiorinstancia\) cidades, de modo a abranger diferentes escalas de dimensão no conjunto avaliado.
-O conjunto inclui problemas com diferentes características geométricas e diferentes formatos de peso de aresta (\texttt{EUC\_2D}, \texttt{ATT}, \texttt{GEO} e \texttt{EXPLICIT}) \autocite{reinelt1991tsplib}, permitindo avaliar a robustez dos algoritmos em diversos cenários.
+O conjunto inclui problemas com diferentes características geométricas e diferentes formatos de cálculo de distância (\texttt{EUC\_2D}, \texttt{ATT}, \texttt{GEO} e \texttt{EXPLICIT}) \autocite{reinelt1991tsplib}, permitindo avaliar os algoritmos em diferentes cenários.
 As \totalinstancias\ instâncias selecionadas estão listadas em ordem crescente de dimensão na \tabref{tbl:selected-instances}, juntamente com seus respectivos formatos de distância e ótimos conhecidos (\(B^*\)).
 
+\begin{tabelapadrao}
 \begin{longtable}[]{@{}
             >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2400}}
             >{\centering\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1800}}
@@ -273,6 +324,7 @@ As \totalinstancias\ instâncias selecionadas estão listadas em ordem crescente
       \texttt{rat783}   & \(783\)        & \texttt{EUC\_2D}  & \(8806\)                  \\*
       \texttt{pr1002}   & \(1002\)       & \texttt{EUC\_2D}  & \(259045\)                \\
 \end{longtable}
+\end{tabelapadrao}
 
 O protocolo de execução seguiu as diretrizes para comparação de algoritmos estocásticos:
 
@@ -285,28 +337,27 @@ O protocolo de execução seguiu as diretrizes para comparação de algoritmos e
 
 \section{Protocolo de análise estatística}\label{sec-34-protocolo-estatistico}
 
-Partindo dos fundamentos apresentados na \secref{sec-27-comparacao-estatistica}, esta seção parametriza o protocolo não paramétrico proposto por \textcite{demsar2006statistical} ao nível de significância \(\alpha = 0{,}05\) para as duas métricas centrais do estudo: a qualidade das soluções, expressa pelo \emph{gap} percentual em relação ao ótimo conhecido \(B^*\), e o desempenho computacional, medido pelo tempo de execução e pelo respectivo ganho de velocidade (\emph{speedup}).
-Conforme sintetizado na \figref{fig:results-flowchart}, o protocolo articula dois eixos complementares de inferência sobre as \(m_{\text{alg}} = \totalvariantes\) variantes e as \(n_{\text{inst}} = \totalinstancias\) instâncias avaliadas, considerando \(n_{reps} = \totalrepeticoes\) repetições independentes por combinação algoritmo--instância.
+Aplicando os testes não paramétricos formulados na \secref{sec-27-comparacao-estatistica} \autocite{demsar2006statistical} ao nível de significância \(\alpha = 0{,}05\), avaliam-se as duas métricas centrais do estudo: a qualidade das soluções (\emph{gap} percentual frente a \(B^*\)) e o desempenho computacional (tempo de execução e \hyperlink{term:speedup}{\emph{speedup}}).
+O protocolo combina dois eixos complementares sobre as \(m_{\text{alg}} = \totalvariantes\) variantes, as \(n_{\text{inst}} = \totalinstancias\) instâncias e as \(n_{reps} = \totalrepeticoes\) repetições independentes, sintetizados na \figref{fig:results-flowchart}.
 
-No primeiro eixo (\textbf{comparações pareadas por instância}), cada uma das \(n_{\text{inst}} = \totalinstancias\) instâncias tem todos os seus \(\binom{\totalvariantes}{2} = 6\) pares de variantes confrontados sobre as \(n_{reps} = \totalrepeticoes\) execuções pareadas pelas mesmas sementes aleatórias por meio do teste de postos sinalizados de Wilcoxon \autocite{wilcoxon1945individual}.
-Como essa análise envolve \(m = 6\) hipóteses simultâneas por instância, os valores-\(p\) passam pelo ajuste sequencial (\emph{step-down}) de Holm--Bonferroni \autocite{holm1979simple}: os valores-\(p\) são ordenados de forma crescente e o \(i\)-ésimo deles é comparado ao limiar \(\alpha / (m - i + 1)\), controlando a probabilidade global de erro do Tipo~I no conjunto das comparações sem perda excessiva de poder estatístico.
-Quando mais da metade das diferenças pareadas em uma comparação é exatamente nula, registra-se o número efetivo de diferenças não nulas como alerta de poder reduzido \autocite[Seção~3.1.3]{demsar2006statistical}.
+\subsection{Eixo 1: comparações pareadas por instância}\label{sec-341-eixo1}
 
-No segundo eixo (\textbf{comparação global multi-instância}), cada par algoritmo--instância é resumido pela média das \(n_{reps} = \totalrepeticoes\) repetições, formando uma matriz de \(n_{\text{inst}} = \totalinstancias\) instâncias por \(m_{\text{alg}} = \totalvariantes\) variantes para o \emph{gap} e outra para o tempo de execução.
-Para avaliar a hipótese nula global \(H_0\) de equivalência entre os postos médios \(R_j\) das variantes, utiliza-se o teste não paramétrico de Friedman \autocite{friedman1937use} com a estatística \(F_F\) de Iman--Davenport, obtida a partir da estatística \(\chi_F^2\) de Friedman:
-\begin{equation}\label{eq:iman-davenport}
-      F_F = \frac{(n_{\text{inst}} - 1)\,\chi_F^2}{n_{\text{inst}}(m_{\text{alg}} - 1) - \chi_F^2}\text{,}
-\end{equation}
-que segue aproximadamente uma distribuição \(F\) com \(m_{\text{alg}} - 1\) e \((m_{\text{alg}} - 1)(n_{\text{inst}} - 1)\) graus de liberdade \autocite[Seção~3.2.1]{demsar2006statistical}.
-Caso \(H_0\) seja rejeitada (\(p_F < \alpha\)), aplica-se o teste \emph{post-hoc} de Nemenyi \autocite{nemenyi1963distribution} para comparar todos os \(\binom{\totalvariantes}{2} = 6\) pares de variantes e construir os Diagramas de Diferença Crítica, nos quais duas variantes diferem Estatísticamente sempre que a distância entre seus postos médios supera o limiar crítico:
-\begin{equation}\label{eq:nemenyi-cd}
-      CD = q_{\alpha}\,\sqrt{\frac{m_{\text{alg}}(m_{\text{alg}} + 1)}{6\,n_{\text{inst}}}}\text{,}
-\end{equation}
-em que \(q_{\alpha}\) corresponde ao valor crítico da amplitude studentizada dividido por \(\sqrt{2}\).
-Por fim, quando o objetivo é contrastar exclusivamente as variantes aceleradas em GPU frente à linha de base em CPU ao longo das \(n_{\text{inst}} = \totalinstancias\) instâncias (\(m_{\text{alg}} - 1 = 3\) hipóteses), adota-se o teste pareado de Wilcoxon com ajuste \emph{step-down} de Holm--Bonferroni, conforme recomendado por \textcite[Seção~3.2.2]{demsar2006statistical}.
+Dentro de cada uma das \(n_{\text{inst}} = \totalinstancias\) instâncias, confrontam-se todos os \(m = 6\) pares possíveis entre as \totalvariantes\ variantes sobre as \(n_{reps} = \totalrepeticoes\) execuções pareadas pelas mesmas sementes aleatórias, utilizando o teste de Wilcoxon da Equação~\eqref{eq:wilcoxon} \autocite{wilcoxon1945individual}.
+Para controlar o erro do Tipo~I global nas \(m = 6\) comparações simultâneas de cada instância, os valores-\(p\) recebem o ajuste sequencial de Holm--Bonferroni (\secref{sec-272-comparacoes-multiplas}), comparando-se os valores-\(p\) ordenados aos limiares \(\alpha / (6 - i + 1)\) para \(i = 1, \dots, 6\) \autocite{holm1979simple}.
+Quando mais da metade das diferenças pareadas em um par é exatamente nula (empates idênticos), registra-se o número efetivo de diferenças não nulas como alerta de poder estatístico reduzido \autocite[Seção~3.1.3]{demsar2006statistical}.
+
+\subsection{Eixo 2: comparação global multi-instância}\label{sec-342-eixo2}
+
+Na análise agregada, cada combinação algoritmo--instância é resumida pela média das \(n_{reps} = \totalrepeticoes\) repetições, gerando uma matriz \(N \times k\) com \(N = n_{\text{inst}} = \totalinstancias\) e \(k = m_{\text{alg}} = \totalvariantes\) para o \emph{gap} e outra para o tempo de execução.
+Sobre cada matriz, calculam-se os postos médios \(R_j\) pela Equação~\eqref{eq:friedman-ranks}, a estatística de Friedman \(\chi_F^2\) pela Equação~\eqref{eq:friedman-chi2} e a estatística \(F_F\) de Iman--Davenport pela Equação~\eqref{eq:iman-davenport} (com \(3\) e \(42\) graus de liberdade) \autocite{friedman1937use,demsar2006statistical}.
+
+Sempre que a hipótese nula global \(H_0\) é rejeitada (\(p_F < 0{,}05\)), aplica-se o pós-teste de Nemenyi pela Equação~\eqref{eq:nemenyi-cd} para comparar todos os \(6\) pares de variantes \autocite{nemenyi1963distribution}.
+Substituindo \(k = \totalvariantes\), \(N = \totalinstancias\) e o valor crítico tabelado \(q_{0{,}05} = 2{,}569\) \autocite[Tabela~5]{demsar2006statistical} na Equação~\eqref{eq:nemenyi-cd}, obtém-se o limiar \emph{a priori} \(CD = 1{,}211\), utilizado na \figref{fig:results-flowchart} e nos diagramas de diferença crítica do \capref{cap4-resultados}.
+Por fim, ao contrastar exclusivamente as três variantes em GPU frente à referência em CPU ao longo das \totalinstancias\ instâncias (\(m = 3\) hipóteses), emprega-se o teste pareado de Wilcoxon com ajuste de Holm--Bonferroni, conforme recomendado por \textcite[Seção~3.2.2]{demsar2006statistical}.
 
 \begin{figure}[htbp]
       \centering
+      \caption{Fluxograma unificado do protocolo experimental e de análise estatística dos resultados}\label{fig:results-flowchart}
       \begin{tikzpicture}[node distance=5.5mm and 8mm]
             % Topo comum
             \node[fc_term, text width=12.6cm] (collect) {\textbf{Coleta Experimental:} \(n_{\text{inst}} = \totalinstancias\) instâncias TSPLIB \(\times\) \(m_{\text{alg}} = \totalvariantes\) variantes \(\times\) \(n_{reps} = \totalrepeticoes\) execuções independentes};
@@ -320,8 +371,8 @@ Por fim, quando o objetivo é contrastar exclusivamente as variantes aceleradas 
             % Eixo 2 (Direita): Analise Global
             \node[fc_proc, below right=22mm and -5.9cm of metrics, text width=5.8cm] (g1) {Teste Omnibus de Friedman com\\ estatística \(F_F\) de Iman--Davenport\\(\(\alpha = 0{,}05\), \(n_{\text{inst}} = \totalinstancias\))};
             \node[fc_dec, below=5.5mm of g1, text width=2.7cm] (gdec) {Rejeita \(H_0\)\\(\(p_F < 0{,}05\))?};
-            \node[fc_proc, below left=6.5mm and -0.8cm of gdec, text width=2.9cm] (gnem) {Pós-teste de Nemenyi\\(\(CD = 1{,}211\)) e\\Diagramas \(CD\)\\(ex.: tempo)};
-            \node[fc_proc, below right=6.5mm and -0.8cm of gdec, text width=2.9cm] (gno) {Equivalência estatística\\de qualidade\\(ex.: \(\text{gap}\),\\\(p = 0{,}4543\))};
+            \node[fc_proc, below left=6.5mm and -0.8cm of gdec, text width=2.9cm] (gnem) {Pós-teste de Nemenyi\\(\(CD = 1{,}211\)) e\\Diagramas \(CD\)};
+            \node[fc_proc, below right=6.5mm and -0.8cm of gdec, text width=2.9cm] (gno) {Sem diferença\\significativa\\(\(p_F \ge 0{,}05\))};
 
             % Caixas de fundo + títulos fc_grouptitle centralizados no topo com entrada simétrica deslocada da borda externa
             \begin{scope}[on background layer]
@@ -341,5 +392,4 @@ Por fim, quando o objetivo é contrastar exclusivamente as variantes aceleradas 
             \draw[fc_arr] (gdec) -| node[fc_lbl, pos=0.25] {Sim} (gnem);
             \draw[fc_arr] (gdec) -| node[fc_lbl, pos=0.25] {Não} (gno);
       \end{tikzpicture}
-      \caption{Fluxograma unificado do protocolo experimental e de análise estatística dos resultados.}\label{fig:results-flowchart}
 \end{figure}

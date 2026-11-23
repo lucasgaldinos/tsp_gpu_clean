@@ -5,13 +5,13 @@ Este capítulo sintetiza as conclusões frente aos objetivos formulados na \secr
 \section{Conclusões}\label{sec-61-conclusoes}
 
 Como arquiteturas de CPU e GPU possuem modelos de execução distintos, um algoritmo não pode ser implementado de maneira estritamente idêntica nas duas plataformas: cada variante exige otimizações próprias (como vetorização na CPU e distribuição de \emph{threads}, uso de memória compartilhada e operações com máscaras de bits na GPU).
-Para tornar a comparação justa dentro desse limite real, o estudo manteve comuns o núcleo do algoritmo memético AG+\(2\)-opt, os parâmetros globais e os critérios de parada, avaliando as quatro variantes em \totalinstancias\ instâncias da TSPLIB (de \(\menorinstancia\) a \(\maiorinstancia\) cidades) com \totalrepeticoes\ repetições pareadas (\capref{cap3-materiais-metodos}).
+Para tornar a comparação justa dentro desse limite real, o estudo manteve comuns o núcleo do algoritmo memético AG+\(2\)-opt, os parâmetros globais e os critérios de parada, enquadrando as estratégias aceleradas no paralelismo de baixo nível (Tipo~1) da taxonomia de \textcite{crainic2003parallel,crainic2010parallel} (\secref{sec-261-taxonomia-paralelizacao}) e avaliando as quatro variantes em \totalinstancias\ instâncias da TSPLIB (de \(\menorinstancia\) a \(\maiorinstancia\) cidades, nos formatos \texttt{EUC\_2D}, \texttt{ATT}, \texttt{GEO} e \texttt{EXPLICIT}) com \totalrepeticoes\ repetições pareadas (\capref{cap3-materiais-metodos}).
 
 Os resultados do \capref{cap4-resultados} mostram que a estratégia de paralelização determina fortemente o desempenho sem comprometer a qualidade das soluções.
-Na métrica de qualidade (\emph{gap}), o protocolo estatístico de \textcite{demsar2006statistical} confirmou equivalência entre todas as variantes (\(p = 0{,}4543\), com \emph{gaps} médios entre \(0{,}90\%\) e \(0{,}91\%\)).
-Já no tempo de execução, a variante \textbf{Totalmente em GPU} obteve o menor tempo em todas as \totalinstancias\ instâncias (ganho médio geométrico de \(71{,}03\times\) sobre a CPU e tempo médio global de \(2{,}46\)\,s), seguida pela \textbf{Híbrida Otimizada} (\(23{,}86\times\); \(5{,}16\)\,s) e pela \textbf{Híbrida Ingênua} (\(4{,}57\times\); \(23{,}09\)\,s), com superioridade estatisticamente significativa das versões em GPU frente à CPU (\(p_{\text{Holm}} < 0{,}001\)).
+Na métrica de qualidade (\emph{gap}), o protocolo estatístico de \textcite{demsar2006statistical} não identificou diferença estatisticamente significativa entre as quatro variantes (teste de Friedman, \(p = 0{,}4543\), com \emph{gaps} médios entre \(0{,}90\%\) e \(0{,}91\%\), e \(0\) de \(90\) pares significativos no Eixo~1, \secref{sec-341-eixo1}).
+Já no tempo de execução, a variante \textbf{Totalmente em GPU} obteve o menor tempo em todas as \totalinstancias\ instâncias (ganho médio geométrico de \(71{,}03\times\) sobre a CPU e tempo mediano de \(0{,}34\)\,s), seguida pela \textbf{Híbrida Otimizada} (\(23{,}86\times\); mediana de \(1{,}02\)\,s) e pela \textbf{Híbrida Ingênua} (\(4{,}57\times\); mediana de \(4{,}81\)\,s), com superioridade estatisticamente significativa nos seis pares em todas as \totalinstancias\ instâncias (\(p_{\text{Holm}} < 0{,}001\)).
 
-A análise por etapa (\secref{sec-44-decomposicao-fases}) confirma ainda que reduzir o tráfego CPU--GPU é condição necessária, mas não suficiente, para extrair desempenho do acelerador: o ganho prático resulta da combinação entre baixa comunicação, \emph{kernels} bem estruturados e equilíbrio do ciclo evolutivo frente à Lei de Amdahl (como visto na inversão de gargalo para o cruzamento em CPU na Híbrida Otimizada).
+A análise por etapa (\secref{sec-44-decomposicao-fases}) confirma ainda que reduzir o tráfego CPU--GPU é condição necessária, mas não suficiente, para extrair desempenho do acelerador: o ganho prático resulta da combinação entre baixa comunicação, \emph{kernels} bem estruturados e equilíbrio do ciclo evolutivo frente à Lei de Amdahl (Equação~\eqref{eq:amdahl}, como visto na inversão de gargalo para o cruzamento em CPU na Híbrida Otimizada).
 Por fim, embora o limite de VRAM não tenha sido atingido no conjunto avaliado, a literatura aponta que o crescimento quadrático da matriz densa tende a se tornar restritivo em problemas de porte muito maior \autocite{schulz2013gpu,oneil2015rethinking}, exigindo alternativas como cálculo sob demanda, fatiamento em memória compartilhada ou estratégias híbridas, ainda que em geral com menor eficiência temporal.
 
 \section{Contribuições}\label{sec-62-contribuicoes}
@@ -29,7 +29,7 @@ As principais contribuições deste trabalho podem ser reunidas em quatro frente
             \textbf{Contribuição analítica:} a caracterização do compromisso entre tempo, qualidade e comunicação em uma GPU de entrada, mostrando como os gargalos se deslocam entre busca local, transferências PCIe e cruzamento em CPU conforme a Lei de Amdahl.
 \end{itemize}
 
-\section{Trabalhos Futuros}\label{sec-64-trabalhos-futuros}
+\section{Trabalhos futuros}\label{sec-64-trabalhos-futuros}
 
 Como desdobramento deste estudo, destacam-se cinco frentes de investigação:
 
@@ -43,9 +43,5 @@ Como desdobramento deste estudo, destacam-se cinco frentes de investigação:
       \item
             \textbf{Generalização entre arquiteturas de \emph{hardware} e custo energético:} Repetir o protocolo em diferentes combinações de CPU (incluindo versões paralelizadas em múltiplos núcleos) e GPUs de gerações distintas, incorporando também a medição de consumo de energia, ajudará a delimitar quando o uso de GPU oferece melhor relação entre desempenho e custo computacional.
       \item
-            \textbf{Comparação estatística sob abordagem bayesiana:} A análise conduzida neste trabalho é frequentista: ela verifica se há evidência para rejeitar a hipótese de equivalência, mas não estima a probabilidade de uma variante ser melhor que outra. Anos após o protocolo de 2006, o próprio Demšar e colaboradores passaram a defender uma abordagem bayesiana para a comparação de algoritmos, capaz de estimar diretamente a probabilidade de superioridade ou de equivalência prática entre métodos \autocite{benavoli2017time}.
-
-            Essa perspectiva substitui um veredito binário por uma distribuição de probabilidades, permite incorporar o custo de diferentes tipos de erro e dispensa um limiar fixo de significância; em contrapartida, exige definir previamente uma margem de equivalência prática e uma distribuição inicial sobre as diferenças.
-
-            Aplicar esse enfoque aos dados pareados deste trabalho permitiria relatar, para cada par de variantes, a probabilidade direta de uma ser mais rápida ou de ambas serem praticamente equivalentes em qualidade.
+            \textbf{Comparação estatística sob abordagem bayesiana:} A análise conduzida neste trabalho é frequentista, verificando se há evidência para rejeitar a hipótese de equivalência sem estimar diretamente a probabilidade de uma variante superar outra. Como propuseram \textcite{benavoli2017time} em revisão ao protocolo de 2006, adotar testes bayesianos sobre os dados pareados permitiria substituir o veredito binário por probabilidades diretas de superioridade temporal ou de equivalência prática em qualidade, mediante a definição prévia de uma margem de equivalência prática e de uma distribuição inicial.
 \end{itemize}
