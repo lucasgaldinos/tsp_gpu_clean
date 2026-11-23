@@ -62,9 +62,15 @@ modifications:
       - description: >
           Indexed `analysis-sample-variance-bessel-correction-and-ddof.md` covering
           Bessel's correction derivation, degrees of freedom, and NumPy ddof semantics.
+  - date_modified: 2026-11-22
+    modifications:
+      - description: >
+          Indexed `analysis-host-sync-drain-and-mitigations.md` under GPU architecture,
+          memory hierarchy, and synchronization.
 related_files:
   - "[README.md](../README.md)"
   - "[analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md)"
+  - "[analysis-host-sync-drain-and-mitigations.md](./analysis-host-sync-drain-and-mitigations.md)"
   - "[analysis-host-side-sampling-bottlenecks.md](./analysis-host-side-sampling-bottlenecks.md)"
   - "[analysis-gpu-two-opt-dispatch-and-reduction.md](./analysis-gpu-two-opt-dispatch-and-reduction.md)"
   - "[analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md)"
@@ -108,6 +114,7 @@ Curated technical reference articles, mathematical derivations, and engineering 
 - [guide-cuda-warp-primitives-and-intrinsics.md](./guide-cuda-warp-primitives-and-intrinsics.md) — Warp vote and shuffle primitives (`__ballot_sync`, `__shfl_*_sync`), Pascal CC 6.1 vs Volta+ CC 7.0 mask RSVP semantics, sub-warp partitioning, classroom broadcast analogies, and step-by-step stream compaction for Davis Order Crossover.
 - [analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md) — Memory coalescing in tournament selection (SEL-A/B), warp branch divergence in inversion mutation (INV-A), cost evaluation without shared-memory caps (EVAL-A), and cooperative 2-opt block reversal (2OPT-A).
 - [analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md) — The two clocks that synchronize the device: `@time_strategy` as an unconditional `cp.cuda.Event` + `end_evt.synchronize()` barrier versus `PhaseTimer.measure`, why the 2026-11-06 `DP11-7` premise was refuted (the three-call-surface experiment: $260.840\ \text{ms}$ wrapped vs $0.363\ \text{ms}$ enqueue vs $258.725\ \text{ms}$ enqueue-plus-explicit-drain), the 6–8 host-device round trips per `FullGPUModular` generation, `SurvivalStep` async bleed into `host_sync`, `ddof=1` for `phase_share_cv_pct`, warm-up instance isolation for RNG-stream integrity, and deterministic AOT warm-up via `_compile_kernel_cached.cache_info().currsize` (`BUG-25`, `DP11-21`, `DP11-22`).
+- [analysis-host-sync-drain-and-mitigations.md](./analysis-host-sync-drain-and-mitigations.md) — Plain-language architectural guide to the `host_sync` (`Sinc.`) timing bucket ($36\%\text{–}95\%$ of wall time in `FullGPUModular` via `_best_cost().get()` draining the async CUDA stream) and four mitigations: batched $K$-generation convergence checks, crossover+mutation fusion and `s_tour` shared-memory caching in candidate-list 2-opt, CUDA Graphs, and device-side RNG.
 - [analysis-non-power-of-two-blocks.md](./analysis-non-power-of-two-blocks.md) — Formal proof of orphaned-thread failure modes in non-power-of-two tree reductions.
 - [guide-cupy-raw-kernels-optimization.md](./guide-cupy-raw-kernels-optimization.md) — Authoring and compiling custom CUDA C++ `RawKernel` modules in CuPy.
 - [notes_cupy_amd_rocm_compatibility.md](./notes_cupy_amd_rocm_compatibility.md) — Portability notes for running CuPy kernels on AMD ROCm / HIP backends.

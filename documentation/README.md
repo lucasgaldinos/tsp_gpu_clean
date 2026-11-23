@@ -19,10 +19,19 @@ modifications:
           Created master documentation catalog indexing all 76 curated files across
           knowledge-base, analysis, critical_analysis, walkthroughs, and archive
           in compliance with repository Markdown standards.
+  - date_modified: 2026-11-21
+    modifications:
+      - description: >
+          Indexed the Master Project Architecture Blueprint
+          (`guide-project-architecture-blueprint.md`) and the four subsystem
+          architecture guides under `analysis/` (`guide-architecture-*.md`), updating
+          directory counts, adding symmetric `related_files` links, and fixing two
+          dead `useful_notes/` links to `useful-notes/`.
 related_files:
   - "[AGENTS.md](../AGENTS.md)"
   - "[markdown.instructions.md](../.agents/rules/markdown.instructions.md)"
   - "[guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md)"
+  - "[guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md)"
   - "[knowledge-base/README.md](./knowledge-base/README.md)"
 tags:
   - guide/documentation
@@ -47,15 +56,16 @@ Central navigation hub for `documentation/`. All Markdown documents follow [mark
 
 | Directory / File | Purpose | Count |
 | --- | --- | --- |
-| [guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md) | Root architectural guide on composing `LocalSearchStage` within Genetic Algorithms | 1 |
+| Root guides (`./`) | Master project architecture blueprint (`guide-project-architecture-blueprint.md`) and `LocalSearchStage` composition guide (`guide-local-search-pipeline-stages.md`) | 2 |
 | [knowledge-base/](./knowledge-base/README.md) | Modular technical guides on GPU hardware, CUDA 2-opt, Simulated Annealing, Memetic GAs, statistics, and LaTeX tooling | 46 |
-| `analysis/` | Implementation analyses of the four GA solver variants, benchmarking pipeline, thesis slides, and scaling trade-offs | 12 |
+| `analysis/` | Architecture subsystem guides (`guide-architecture-*.md`), implementation analyses of the four GA solver variants, benchmarking pipeline, thesis slides, and scaling trade-offs | 16 |
 | `critical_analysis/` | Academic literature synthesis, prior-art comparison, and critical appraisal checklists | 4 |
 | `walkthroughs/` | Phase-by-phase engineering walkthroughs (Phases 1–10) and test-suite verification records | 10 |
 | `archive/` | Preserved historical/exploratory notes outside current solver scope (ACO, AODV, GLS, early 2024 reading log) | 4 |
 
-## 1. Root pipeline guide
+## 1. Root architecture & pipeline guides
 
+- [guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md) — Master `Implementation-Ready` architectural blueprint consolidating all eight `src/` packages, layer boundaries, CUDA kernel contracts, GoF patterns, DuckDB schemas, and ADRs.
 - [guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md) — Integrating optional post-mutation and post-generation `LocalSearchStage` passes in the modular Genetic Algorithm pipeline.
 
 ## 2. Knowledge base (`knowledge-base/`)
@@ -100,12 +110,17 @@ See [knowledge-base/README.md](./knowledge-base/README.md) for the full thematic
   + [guide-statistical-effect-sizes-and-power.md](./knowledge-base/guide-statistical-effect-sizes-and-power.md)
   + [analysis-complete-statistical-results.md](./knowledge-base/analysis-complete-statistical-results.md) & [notes_types_of_variables_statistics.md](./knowledge-base/notes_types_of_variables_statistics.md)
 - **Reading notes, authoring & LaTeX templates**:
-  + [notes_cook2012_pursuit_of_tsp.md](./knowledge-base/useful_notes/notes_cook2012_pursuit_of_tsp.md) & [notes_crainic2003_metaheuristics.md](./knowledge-base/useful_notes/notes_crainic2003_metaheuristics.md)
+  + [notes_cook2012_pursuit_of_tsp.md](./knowledge-base/useful-notes/notes_cook2012_pursuit_of_tsp.md) & [notes_crainic2003_metaheuristics.md](./knowledge-base/useful-notes/notes_crainic2003_metaheuristics.md)
   + [guide-latex-math-notation.md](./knowledge-base/guide-latex-math-notation.md), [guide-pandoc-latex-compilation.md](./knowledge-base/guide-pandoc-latex-compilation.md), & [guide-mermaid-diagram-authoring.md](./knowledge-base/guide-mermaid-diagram-authoring.md)
   + [CheatSheet.tex](./knowledge-base/tex-docs/CheatSheet.tex) & [Template.tex](./knowledge-base/tex-docs/Template.tex)
 
 ## 3. Solver, benchmark, and presentation analyses (`analysis/`)
 
+- **Architecture subsystem guides (`analysis/`)**:
+  + [guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md) — `src/protocols/` and `src/data_models/` structural contracts, `ProblemContext`, and `Problem` invariants.
+  + [guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md) — `src/loaders/` (`routing_data` ETL, DuckDB, TSPLIB) and `src/distances/` (three-tier TSPLIB95 computation & CUDA device primitives).
+  + [guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md) — `src/algorithms/` (`GeneticAlgorithm`, `STAGE_SPECS`, 17 `Design B` strategies, 8 CUDA kernels, and `archive/`).
+  + [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) — `src/benchmarking/`, `src/cli/`, `src/utils/`, and `configs/schemas/` (runner, telemetry, DuckDB, Demšar inference, and CLI).
 - **Algorithm variants (`analysis/algorithms/`)**:
   + [analysis-genetic-algorithm-cpu.md](./analysis/algorithms/analysis-genetic-algorithm-cpu.md)
   + [analysis-genetic-algorithm-hybrid-naive.md](./analysis/algorithms/analysis-genetic-algorithm-hybrid-naive.md)
