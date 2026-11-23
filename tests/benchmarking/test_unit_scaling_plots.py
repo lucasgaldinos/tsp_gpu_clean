@@ -17,8 +17,8 @@ from benchmarking.analysis.scaling_plots import (
   generate_scaling_plots,
   generate_scaling_plots_from_checkpoints,
   get_academic_plot_rc_params,
-  load_results_from_checkpoints,
 )
+from benchmarking.runner.checkpoint_io import load_checkpoints_dir
 from benchmarking.runner.config_loader import ProblemConfig
 
 if TYPE_CHECKING:
@@ -196,8 +196,11 @@ def test_load_and_generate_from_checkpoints_dir(tmp_path: Path) -> None:
   # Malformed checkpoint should be skipped gracefully
   (ckpt_dir / "corrupt.json").write_text("{not valid json", encoding="utf-8")
 
-  loaded = load_results_from_checkpoints(ckpt_dir)
+  loaded = load_checkpoints_dir(ckpt_dir)
   assert set(loaded.keys()) == {"att48", "lin318"}
+  # Also accepts parent output directory containing checkpoints/
+  loaded_parent = load_checkpoints_dir(tmp_path)
+  assert set(loaded_parent.keys()) == {"att48", "lin318"}
 
   pdf_path, svg_path = generate_scaling_plots_from_checkpoints(ckpt_dir, out_dir)
   assert pdf_path.read_bytes()[:4] == b"%PDF"
@@ -522,9 +525,7 @@ def test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties(
     stem: str,
   ) -> tuple[list[tuple[str, str]], list[tuple[str, float]]]:
     configs = [ProblemConfig(name=f"p{s}", optimal=100.0, size=s) for s in sizes]
-    all_res = {
-      f"p{s}": {"A": {"problem_size": s, "raw_times": [1.0, 1.2], "raw_gaps": [0.1, 0.2]}} for s in sizes
-    }
+    all_res = {f"p{s}": {"A": {"problem_size": s, "raw_times": [1.0, 1.2], "raw_gaps": [0.1, 0.2]}} for s in sizes}
     overlaps: list[tuple[str, str]] = []
     right_overshoot: list[tuple[str, float]] = []
 

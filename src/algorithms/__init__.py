@@ -9,6 +9,8 @@ Structure:
   public API and never imported by this package
 """
 
+from algorithms.pipeline_steps import register_pipeline_step
+from algorithms.strategies import register_strategy
 from protocols.types import LocalSearchStage
 
 from .metaheuristics import (
@@ -20,4 +22,6 @@ __all__: list[str] = [
   "GeneticAlgorithm",
   "GeneticAlgorithmBase",
   "LocalSearchStage",
+  "register_pipeline_step",
+  "register_strategy",
 ]

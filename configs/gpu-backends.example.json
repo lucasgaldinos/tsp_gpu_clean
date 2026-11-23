@@ -1,0 +1,175 @@
+{
+  "$schema": "./schemas/algorithms.schema.json",
+  "default_params": {
+    "population_size": 256,
+    "mutation_rate": 0.02,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "CPU_Baseline": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Pure NumPy CPU reference pipeline with candidate-list 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "mode": "best",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "Hybrid_TwoOpt_Batch": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "CPU evolutionary operators paired with batched CUDA 2-opt and GPU cost evaluation",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": false
+          }
+        }
+      }
+    },
+    "FullGPU_Swap": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU pipeline using swap mutation and batched CUDA 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "FullGPU_Inversion": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU pipeline using inversion mutation and batched CUDA 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    }
+  }
+}

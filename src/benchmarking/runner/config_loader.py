@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
-from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsplib_file
+from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsplib_file, resolve_opt_tour_cost
 
 if TYPE_CHECKING:
   from inspect import Signature
@@ -107,9 +107,7 @@ class AlgorithmConfig:
     if strategy_overrides:
       for slot in strategy_overrides:
         if slot not in valid_slots:
-          raise ValueError(
-            f"Unknown strategy slot '{slot}'. Valid slots: {sorted(valid_slots)}"
-          )
+          raise ValueError(f"Unknown strategy slot '{slot}'. Valid slots: {sorted(valid_slots)}")
 
     # 1. Monolithic / class-based instantiation
     if self.class_module and self.class_name:
@@ -153,14 +151,6 @@ class AlgorithmConfig:
     else:
       resolved_seed = self.params.get("seed", default_params.seed)
 
-    valid_slots = {"initialization", "selection", "crossover", "mutation", "evaluation", "local_search"}
-    if strategy_overrides:
-      for slot_name in strategy_overrides:
-        if slot_name not in valid_slots:
-          raise ValueError(
-            f"Unknown strategy slot '{slot_name}'. Valid slots are: {sorted(valid_slots)}"
-          )
-
     def _build_spec(
       spec: dict[str, Any] | None,
       registry: dict[str, type],
@@ -173,12 +163,8 @@ class AlgorithmConfig:
       class_name = spec.get("class")
       if not class_name:
         return None
-      if class_name not in registry:
-        slot_ctx = f" in slot '{slot}'" if slot else ""
-        raise ValueError(
-          f"Unknown {registry_name} class '{class_name}'{slot_ctx}. Available: {sorted(registry.keys())}"
-        )
-      target_cls: type = registry[class_name]
+
+      target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot)
       params = dict(spec.get("params", {}))
 
       import inspect
@@ -200,9 +186,9 @@ class AlgorithmConfig:
           if k in sig.parameters and k not in params and v is not None:
             params[k] = v
 
-      # Resolve nested strategy specifications if provided
+      # Resolve nested strategy specifications if provided (registered or external module)
       for k, v in list(params.items()):
-        if isinstance(v, dict) and "class" in v and v["class"] in STRATEGY_REGISTRY:
+        if isinstance(v, dict) and "class" in v and ("module" in v or v["class"] in STRATEGY_REGISTRY):
           params[k] = _build_spec(v, STRATEGY_REGISTRY, "strategy")
 
       if "seed" in sig.parameters and "seed" not in params:
@@ -282,8 +268,9 @@ class AlgorithmConfig:
 class BenchmarkConfig:
   """Benchmark execution parameters."""
 
-  repetitions: int
-  patience: int | None
+  repetitions: int = 10
+  patience: int | None = None
+  max_generations: int | None = None
   cpu_size_threshold: int | None = None
   incremental_runs: bool = False
   line_width: int = 80
@@ -304,7 +291,7 @@ class ProblemConfig:
   """Configuration for a single TSP problem instance."""
 
   name: str
-  optimal: float
+  optimal: float | None
   size: int
 
 
@@ -313,8 +300,102 @@ class ProblemConfig:
 # =============================================================================
 
 
+def _resolve_class_spec(
+  spec: Mapping[str, Any],
+  registry: Mapping[str, type],
+  registry_name: str,
+  slot: str | None = None,
+) -> type:
+  """Resolve a built-in registry or external ``{"module", "class"}`` specification to a class."""
+  class_name = spec.get("class")
+  if not isinstance(class_name, str) or not class_name.strip():
+    slot_ctx = f" in slot '{slot}'" if slot else ""
+    raise ValueError(f"Missing or invalid 'class' name for {registry_name}{slot_ctx}.")
+
+  module_name = spec.get("module")
+  if module_name is not None:
+    if not isinstance(module_name, str) or not module_name.strip():
+      raise ValueError(f"Invalid 'module' value {module_name!r} for {registry_name} '{class_name}'.")
+    mod = importlib.import_module(module_name)
+    loaded_cls = getattr(mod, class_name, None)
+    if not isinstance(loaded_cls, type):
+      raise ValueError(f"External {registry_name} '{class_name}' not found as a class in module '{module_name}'.")
+    return loaded_cls
+
+  if class_name not in registry:
+    slot_ctx = f" in slot '{slot}'" if slot else ""
+    raise ValueError(
+      f"Unknown {registry_name} class '{class_name}'{slot_ctx}. "
+      f"Available: {sorted(registry.keys())} (or provide 'module' to import an external class)"
+    )
+  return registry[class_name]
+
+
+def _validate_class_spec(
+  spec: Mapping[str, Any] | None,
+  registry: Mapping[str, type],
+  registry_name: str,
+  *,
+  context_label: str,
+  slot: str | None = None,
+  strategy_registry: Mapping[str, type] | None = None,
+) -> list[str]:
+  """Validate class resolution, constructor parameter names, and nested strategy specs."""
+  if not spec or ("class" not in spec and "module" not in spec):
+    return []
+
+  import inspect
+
+  errors: list[str] = []
+  try:
+    target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot)
+  except (ImportError, ValueError, AttributeError) as exc:
+    return [f"{context_label}: {exc}"]
+
+  raw_params = spec.get("params", {})
+  if not isinstance(raw_params, Mapping):
+    return [f"{context_label}: 'params' must be a mapping, got {type(raw_params).__name__}"]
+
+  sig = inspect.signature(target_cls)
+  has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+  for k, v in raw_params.items():
+    if not has_var_kw and k not in sig.parameters:
+      errors.append(
+        f"{context_label}: {registry_name} class '{target_cls.__name__}' does not accept parameter '{k}'. "
+        f"Accepted parameters: {list(sig.parameters.keys())}"
+      )
+    if (
+      strategy_registry is not None
+      and isinstance(v, Mapping)
+      and "class" in v
+      and ("module" in v or v["class"] in strategy_registry)
+    ):
+      errors.extend(
+        _validate_class_spec(
+          v,
+          strategy_registry,
+          "strategy",
+          context_label=f"{context_label}.params.{k}",
+          strategy_registry=strategy_registry,
+        )
+      )
+  return errors
+
+
+def _resolve_config_file(path: str | Path, default_filename: str) -> Path:
+  """Resolve either a direct JSON file path or a directory containing ``default_filename``."""
+  candidate = Path(path)
+  if candidate.is_file():
+    return candidate
+  if candidate.is_dir():
+    return candidate / default_filename
+  if candidate.suffix.lower() == ".json":
+    return candidate
+  return candidate / default_filename
+
+
 def load_algorithms_config(
-  config_dir: Path,
+  config_path: str | Path,
   *,
   config_name: str = "algorithms.json",
 ) -> tuple[GAParams, dict[str, AlgorithmConfig]]:
@@ -322,19 +403,18 @@ def load_algorithms_config(
   Load an algorithms configuration file containing default parameters and variants.
 
   Args:
-      config_dir: Path to configuration directory
-      config_name: Configuration file name. Pass `"algorithms.archive.json"` to load the
-          archived monolithic baseline, which the active configuration no longer lists.
+      config_path: Path to either a configuration directory or a direct JSON file.
+      config_name: Configuration file name when ``config_path`` is a directory.
 
   Returns:
       Tuple of (GAParams, dict of algorithm_name -> AlgorithmConfig)
   """
-  config_path: Path = config_dir / config_name
+  resolved_path: Path = _resolve_config_file(config_path, config_name)
 
-  if not config_path.exists():
-    raise FileNotFoundError(f"Algorithms config not found: {config_path}")
+  if not resolved_path.exists():
+    raise FileNotFoundError(f"Algorithms config not found: {resolved_path}")
 
-  with open(config_path) as f:
+  with open(resolved_path) as f:
     data = json.load(f)
 
   params_dict = data.get("default_params") or data.get("ga_params", {})
@@ -363,22 +443,23 @@ def load_algorithms_config(
   return ga_params, algorithms
 
 
-def load_benchmark_config(config_dir: Path) -> BenchmarkConfig:
+def load_benchmark_config(config_path: str | Path) -> BenchmarkConfig:
   """
-  Load benchmark.json containing execution parameters.
+  Load benchmark execution parameters from a JSON file or configuration directory.
 
   Args:
-      config_dir: Path to configuration directory
+      config_path: Path to either a configuration directory (containing ``benchmark.json``)
+          or a direct JSON file.
 
   Returns:
       BenchmarkConfig instance
   """
-  config_path: Path = config_dir / "benchmark.json"
+  resolved_path: Path = _resolve_config_file(config_path, "benchmark.json")
 
-  if not config_path.exists():
-    raise FileNotFoundError(f"Benchmark config not found: {config_path}")
+  if not resolved_path.exists():
+    raise FileNotFoundError(f"Benchmark config not found: {resolved_path}")
 
-  with open(config_path) as f:
+  with open(resolved_path) as f:
     data = json.load(f)
 
   required_fields: list[str] = [
@@ -392,36 +473,43 @@ def load_benchmark_config(config_dir: Path) -> BenchmarkConfig:
   raw_threshold = data.get("cpu_size_threshold")
   cpu_size_threshold = int(raw_threshold) if raw_threshold is not None else None
 
+  raw_max_gen = data.get("max_generations")
+  if isinstance(raw_max_gen, bool):
+    raise ValueError(f"benchmark.json 'max_generations' must be an integer or null, got bool: {raw_max_gen!r}")
+  max_generations = int(raw_max_gen) if raw_max_gen is not None else None
+
   line_width = data.get("display", {}).get("line_width", 80)
 
   return BenchmarkConfig(
     repetitions=data["repetitions"],
     patience=data["patience"],
+    max_generations=max_generations,
     cpu_size_threshold=cpu_size_threshold,
     incremental_runs=bool(data.get("incremental_runs", False)),
     line_width=line_width,
   )
 
 
-def load_problems_config(config_dir: Path) -> list[ProblemConfig]:
+def load_problems_config(config_path: str | Path) -> list[ProblemConfig]:
   """
-  Load problems.json containing TSP problem definitions.
+  Load TSP problem definitions from a JSON file or configuration directory.
 
   The document is an object with a `$schema` reference and a `problems` array, so
   editors validate it against `configs/schemas/problems.schema.json` (`DP11-5`).
 
   Args:
-      config_dir: Path to configuration directory
+      config_path: Path to either a configuration directory (containing ``problems.json``)
+          or a direct JSON file.
 
   Returns:
       List of ProblemConfig instances
   """
-  config_path: Path = config_dir / "problems.json"
+  resolved_path: Path = _resolve_config_file(config_path, "problems.json")
 
-  if not config_path.exists():
-    raise FileNotFoundError(f"Problems config not found: {config_path}")
+  if not resolved_path.exists():
+    raise FileNotFoundError(f"Problems config not found: {resolved_path}")
 
-  with open(config_path) as f:
+  with open(resolved_path) as f:
     data = json.load(f)
 
   if not isinstance(data, dict):
@@ -439,10 +527,11 @@ def load_problems_config(config_dir: Path) -> list[ProblemConfig]:
       if field not in problem_dict:
         raise ValueError(f"Problem at index {idx} missing required field: {field}")
 
+    raw_optimal = problem_dict["optimal"]
     problems.append(
       ProblemConfig(
         name=problem_dict["name"],
-        optimal=float(problem_dict["optimal"]),
+        optimal=float(raw_optimal) if raw_optimal is not None else None,
         size=int(problem_dict["size"]),
       )
     )
@@ -471,6 +560,59 @@ def load_all_configs(config_dir: str | Path) -> dict[str, Any]:
   ga_params, algorithms = load_algorithms_config(config_path)
   benchmark: BenchmarkConfig = load_benchmark_config(config_path)
   problems: list[ProblemConfig] = load_problems_config(config_path)
+
+  return {
+    "ga_params": ga_params,
+    "algorithms": algorithms,
+    "benchmark": benchmark,
+    "problems": problems,
+  }
+
+
+def resolve_benchmark_configs(
+  *,
+  config_dir: str | Path | None = None,
+  algorithms_config: str | Path | None = None,
+  benchmark_config: str | Path | None = None,
+  problems_config: str | Path | None = None,
+  require_algorithms: bool = True,
+) -> dict[str, Any]:
+  """Resolve benchmark configurations from optional individual files and/or a config directory.
+
+  Precedence: explicit ``*_config`` path > file inside ``config_dir`` > neutral defaults
+  (for ``benchmark`` and ``problems``). ``algorithms`` is required unless
+  ``require_algorithms=False`` (e.g., when ``algorithm_configs_override`` is supplied).
+  """
+  resolved_dir: Path | None = None
+  if config_dir is not None:
+    resolved_dir = Path(config_dir)
+    if not resolved_dir.exists():
+      raise FileNotFoundError(f"Configuration directory not found: {resolved_dir}")
+    if not resolved_dir.is_dir():
+      raise ValueError(f"Config path must be a directory: {resolved_dir}")
+
+  if algorithms_config is not None:
+    ga_params, algorithms = load_algorithms_config(algorithms_config)
+  elif resolved_dir is not None:
+    ga_params, algorithms = load_algorithms_config(resolved_dir)
+  elif require_algorithms:
+    raise ValueError("Either config_dir or algorithms_config must be provided.")
+  else:
+    ga_params, algorithms = GAParams(), {}
+
+  if benchmark_config is not None:
+    benchmark = load_benchmark_config(benchmark_config)
+  elif resolved_dir is not None and (resolved_dir / "benchmark.json").is_file():
+    benchmark = load_benchmark_config(resolved_dir)
+  else:
+    benchmark = BenchmarkConfig()
+
+  if problems_config is not None:
+    problems = load_problems_config(problems_config)
+  elif resolved_dir is not None and (resolved_dir / "problems.json").is_file():
+    problems = load_problems_config(resolved_dir)
+  else:
+    problems = []
 
   return {
     "ga_params": ga_params,
@@ -524,6 +666,9 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   if benchmark.patience is not None and benchmark.patience <= 0:
     warnings.append(f"Invalid patience: {benchmark.patience} (must be > 0 or None)")
 
+  if benchmark.max_generations is not None and benchmark.max_generations <= 0:
+    warnings.append(f"Invalid max_generations: {benchmark.max_generations} (must be > 0 or None)")
+
   if benchmark.cpu_size_threshold is not None and benchmark.cpu_size_threshold <= 0:
     warnings.append(f"Invalid cpu_size_threshold: {benchmark.cpu_size_threshold} (must be > 0)")
 
@@ -533,7 +678,7 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   for problem in problems:
     if problem.size <= 0:
       warnings.append(f"Problem '{problem.name}' has invalid size: {problem.size} (must be > 0)")
-    if problem.optimal <= 0:
+    if problem.optimal is not None and problem.optimal <= 0:
       warnings.append(f"Problem '{problem.name}' has invalid optimal: {problem.optimal} (must be > 0)")
 
   problem_names = [p.name for p in problems]
@@ -541,11 +686,49 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
     duplicates = [name for name in problem_names if problem_names.count(name) > 1]
     warnings.append(f"Duplicate problem names found: {set(duplicates)}")
 
+  from algorithms.strategies import STRATEGY_REGISTRY
+
   for name, algo in algorithms.items():
     try:
       algo.get_class()
     except (ModuleNotFoundError, AttributeError) as e:
       warnings.append(f"Algorithm '{name}' class not found: {e}")
+      continue
+
+    if algo.class_module and algo.class_name:
+      continue
+
+    for slot, spec in algo.strategies.items():
+      if isinstance(spec, Mapping):
+        warnings.extend(
+          _validate_class_spec(
+            spec,
+            STRATEGY_REGISTRY,
+            "strategy",
+            context_label=f"Algorithm '{name}' slot '{slot}'",
+            slot=slot,
+            strategy_registry=STRATEGY_REGISTRY,
+          )
+        )
+
+    pipeline_specs = algo.params.get("pipeline")
+    if pipeline_specs is not None:
+      if not isinstance(pipeline_specs, list):
+        warnings.append(f"Algorithm '{name}': 'pipeline' must be a list of step specs")
+      else:
+        for idx, step_spec in enumerate(pipeline_specs):
+          if not isinstance(step_spec, Mapping):
+            warnings.append(f"Algorithm '{name}' pipeline[{idx}]: step spec must be a mapping")
+          else:
+            warnings.extend(
+              _validate_class_spec(
+                step_spec,
+                PIPELINE_STEP_REGISTRY,
+                "pipeline step",
+                context_label=f"Algorithm '{name}' pipeline[{idx}]",
+                strategy_registry=STRATEGY_REGISTRY,
+              )
+            )
 
   return warnings
 
@@ -564,7 +747,7 @@ def build_problem_configs_from_tsp_files(
       existing_configs: Optional list of already loaded ProblemConfig instances.
       tsp_dir: Optional base directory to resolve bare problem names against.
       known_optimals: Optional name -> optimal tour cost map, normally derived from
-          `configs/problems.json` (`{cfg.name: cfg.optimal}`). This function performs no
+          a `problems.json` catalogue (`{cfg.name: cfg.optimal}`). This function performs no
           file I/O beyond the `.tsp` parse, so the reference costs stay a caller concern
           (`DP11-4`).
 
@@ -596,19 +779,17 @@ def build_problem_configs_from_tsp_files(
     dimension = int(bundle.problem.dimension)
     tsp_path_map[name] = candidate.resolve()
 
+    optimal: float | None
     if name in existing_map:
-      optimal: float = existing_map[name].optimal
+      optimal = existing_map[name].optimal
     elif name in optimal_map:
       optimal = float(optimal_map[name])
     elif candidate.stem in optimal_map:
       optimal = float(optimal_map[candidate.stem])
     else:
-      raise KeyError(
-        f"Known optimal tour cost not found for '{name}' ({candidate}). "
-        f"Add it to configs/problems.json and pass it via `known_optimals`."
-      )
+      optimal = resolve_opt_tour_cost(candidate, bundle=bundle)
 
-    resolved_configs.append(ProblemConfig(name=name, optimal=float(optimal), size=dimension))
+    resolved_configs.append(ProblemConfig(name=name, optimal=optimal, size=dimension))
 
   return resolved_configs, tsp_path_map
 
@@ -624,7 +805,7 @@ def build_problem_configs_from_duckdb(
   Queries the normalized DuckDB schema:
   - `problems` joined with `tsp_problems` for dimension and name
   - `solutions` for the optimal cost, falling back to `existing_configs` (loaded from
-    `configs/problems.json`) when the database carries no optimal solution (`DP11-4`).
+    a `problems.json` catalogue) when the database carries no optimal solution (`DP11-4`).
 
   Args:
       db_path: Path to DuckDB database file.
@@ -675,15 +856,13 @@ def build_problem_configs_from_duckdb(
 
     for _prob_id, name, dimension, solution_cost in rows:
       found_names.add(name)
+      optimal: float | None
       if solution_cost is not None:
         optimal = float(solution_cost)
       elif name in existing_map:
         optimal = existing_map[name].optimal
       else:
-        raise KeyError(
-          f"Optimal tour cost not found for '{name}' in the DuckDB `solutions` table or "
-          f"`existing_configs` (configs/problems.json)."
-        )
+        optimal = None
       resolved_configs.append(ProblemConfig(name=name, optimal=optimal, size=dimension))
 
     if problem_names is not None:

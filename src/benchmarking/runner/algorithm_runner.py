@@ -102,11 +102,14 @@ def _initialize_results_dict(existing_checkpoint: dict[str, Any] | None = None) 
     else:
       initial_costs = [np.nan] * len(raw_costs)
 
+    raw_gaps = existing_checkpoint.get("raw_gaps")
+    gaps_list: list[Any] = list(raw_gaps) if raw_gaps is not None else [np.nan] * len(raw_costs)
+
     return {
       "times": existing_checkpoint.get("raw_times", []).copy(),
       "initial_costs": initial_costs,
       "final_costs": raw_costs.copy(),
-      "gaps": existing_checkpoint.get("raw_gaps", []).copy(),
+      "gaps": gaps_list,
       "improvements": [],
       "generations": existing_checkpoint.get("raw_generations", []).copy(),
       "stop_reasons": existing_checkpoint.get("raw_stop_reasons", []).copy(),
@@ -163,6 +166,7 @@ def _build_summary_payload(
   carried_h2d_bytes: float = 0.0,
   carried_d2h_bytes: float = 0.0,
   carried_kernel_launches: float = 0.0,
+  has_known_optimal: bool = True,
 ) -> dict[str, Any]:
   """Construct normalized benchmark summary dictionary from intermediate or final results.
 
@@ -247,7 +251,18 @@ def _build_summary_payload(
   mean_time, std_time, min_time, max_time = compute_series_stats(times, total_successful)
   mean_cost, std_cost, best_cost, worst_cost = compute_series_stats(final_costs, total_successful)
   mean_initial_cost, std_initial_cost, _, _ = compute_series_stats(initial_costs_arr, total_successful)
-  mean_gap, std_gap, best_gap, _ = compute_series_stats(gaps, total_successful)
+  mean_gap: float | None
+  std_gap: float | None
+  best_gap: float | None
+  raw_gaps_out: list[float] | None
+  if has_known_optimal:
+    mean_gap, std_gap, best_gap, _ = compute_series_stats(gaps, total_successful)
+    raw_gaps_out = gaps[valid_mask].tolist()
+  else:
+    mean_gap = None
+    std_gap = None
+    best_gap = None
+    raw_gaps_out = None
   mean_generations, std_generations, min_generations, max_generations = compute_series_stats(
     generations_arr, total_successful
   )
@@ -286,7 +301,7 @@ def _build_summary_payload(
     "raw_times": times[valid_mask].tolist(),
     "raw_initial_costs": initial_costs_arr[valid_mask].tolist(),
     "raw_costs": final_costs[valid_mask].tolist(),
-    "raw_gaps": gaps[valid_mask].tolist(),
+    "raw_gaps": raw_gaps_out,
     "raw_generations": generations_arr[valid_mask].tolist(),
     "raw_stop_reasons": [results["stop_reasons"][i] for i in range(len(valid_mask)) if valid_mask[i]]
     if results["stop_reasons"]
@@ -308,7 +323,7 @@ def run_single_algorithm(
   problem_size: int,
   customers: list[int],
   max_generations: int,
-  optimal_cost: float,
+  optimal_cost: float | None,
   repetitions: int,
   use_gpu: bool,
   patience: int | None = None,
@@ -354,7 +369,8 @@ def run_single_algorithm(
 
     results = _initialize_results_dict(existing_checkpoint)
   else:
-    logging.info(f"\n  [{algorithm_name}] Processing {problem_name} (n={problem_size}, optimal={optimal_cost:.0f})")
+    opt_label = f"{optimal_cost:.0f}" if optimal_cost is not None else "unknown"
+    logging.info(f"\n  [{algorithm_name}] Processing {problem_name} (n={problem_size}, optimal={opt_label})")
     logging.info(f"    Backend: {backend} | Early stopping: {patience} gen patience | Repetitions: {repetitions}")
 
     results = _initialize_results_dict()
@@ -433,7 +449,12 @@ def run_single_algorithm(
 
       initial_cost = stats["initial_fitness"]
       final_cost = stats["best_fitness"]
-      gap = (final_cost - optimal_cost) / optimal_cost * 100
+      has_known_optimal = optimal_cost is not None and optimal_cost > 0
+      gap = (
+        (final_cost - optimal_cost) / optimal_cost * 100.0
+        if (optimal_cost is not None and optimal_cost > 0)
+        else np.nan
+      )
       if math.isfinite(initial_cost) and initial_cost > 0:
         improvement = (initial_cost - final_cost) / initial_cost * 100.0
       else:
@@ -455,9 +476,10 @@ def run_single_algorithm(
       tour_list = tour.tolist() if hasattr(tour, "tolist") else list(tour)
       results["best_tours"].append(tour_list)
 
+      gap_log = f"gap: {gap:.2f}%" if has_known_optimal and math.isfinite(gap) else "gap: N/A"
       logging.info(
         f"      → Completed in {elapsed:.2f}s | "
-        f"Cost: {final_cost:.0f} (gap: {gap:.2f}%) | "
+        f"Cost: {final_cost:.0f} ({gap_log}) | "
         f"Generations: {generations}/{max_generations}"
       )
 
@@ -478,6 +500,7 @@ def run_single_algorithm(
         carried_h2d_bytes=carried_h2d_bytes,
         carried_d2h_bytes=carried_d2h_bytes,
         carried_kernel_launches=carried_kernel_launches,
+        has_known_optimal=optimal_cost is not None and optimal_cost > 0,
       )
       on_repetition_completed(rep + 1, current_summary)
 
@@ -498,21 +521,27 @@ def run_single_algorithm(
     carried_h2d_bytes=carried_h2d_bytes,
     carried_d2h_bytes=carried_d2h_bytes,
     carried_kernel_launches=carried_kernel_launches,
+    has_known_optimal=optimal_cost is not None and optimal_cost > 0,
   )
 
+  gap_summary = (
+    f"Gap={summary['mean_gap']:.2f}%±{summary['std_gap']:.2f}%"
+    if summary["mean_gap"] is not None and summary["std_gap"] is not None
+    else "Gap=N/A"
+  )
   if incremental_mode and existing_checkpoint:
     logging.info(
       f"\n    ✓ {algorithm_name} INCREMENTAL summary for {problem_name} "
       f"({summary['successful_runs']} total runs): "
       f"Cost={summary['mean_cost']:.0f}±{summary['std_cost']:.1f} | "
-      f"Gap={summary['mean_gap']:.2f}%±{summary['std_gap']:.2f}% | "
+      f"{gap_summary} | "
       f"Time={summary['mean_time']:.2f}s±{summary['std_time']:.2f}s"
     )
   else:
     logging.info(
       f"\n    ✓ {algorithm_name} summary for {problem_name}: "
       f"Cost={summary['mean_cost']:.0f}±{summary['std_cost']:.1f} | "
-      f"Gap={summary['mean_gap']:.2f}%±{summary['std_gap']:.2f}% | "
+      f"{gap_summary} | "
       f"Time={summary['mean_time']:.2f}s±{summary['std_time']:.2f}s"
     )
 

@@ -24,8 +24,7 @@ from benchmarking.runner.algorithm_runner import (
   compute_series_stats,
   run_single_algorithm,
 )
-from benchmarking.runner.checkpoint_io import CheckpointManager
-from benchmarking.runner.orchestration import _save_problem_statistics_file
+from benchmarking.runner.checkpoint_io import CheckpointManager, save_problem_statistics
 
 if TYPE_CHECKING:
   from pathlib import Path
@@ -302,9 +301,9 @@ def test_runner_helpers_dry_refactoring() -> None:
 
 
 def test_save_problem_statistics_file_uses_compute_series_stats(tmp_path: Path) -> None:
-  """WHAT: Test _save_problem_statistics_file in orchestration.py.
+  """WHAT: Test `save_problem_statistics` in `checkpoint_io.py`.
 
-  WHY: Task 12.23 (DP12-16) — Ensure orchestration reuses compute_series_stats and handles
+  WHY: Task 12.23 (DP12-16) — Ensure problem statistics persistence reuses compute_series_stats and handles
   empty raw_initial_costs -> 0.0 without crash or NaN.
   EXPECTED: Valid JSON stats file written via CheckpointManager; mean_initial_cost and std_initial_cost are 0.0.
   """
@@ -324,7 +323,7 @@ def test_save_problem_statistics_file_uses_compute_series_stats(tmp_path: Path) 
     }
   }
 
-  _save_problem_statistics_file(
+  save_problem_statistics(
     problem_name="test_prob",
     problem_size=50,
     optimal_cost=100.0,

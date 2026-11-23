@@ -1,18 +1,28 @@
-"""CLI entrypoint for running the comprehensive GA routing benchmark."""
+"""CLI entrypoint for running the modular GA routing benchmark.
+
+Executes collection-only by default (checkpoints JSON + per-problem statistics).
+Pass ``--reports all`` (or a subset of ``markdown``, ``latex``, ``macros``, ``cd``,
+``plots``) to emit reports inline, or run ``tsp-report`` separately on the saved
+checkpoints directory.
+"""
+
+from __future__ import annotations
 
 import argparse
 import json
 import logging
 import sys
-from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_args
 
+from benchmarking.analysis.report_style import ReportStyle, load_report_style, parse_report_artifacts
 from benchmarking.logging_config import setup_benchmark_logging
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 from protocols.types import LocalSearchStage
 
 if TYPE_CHECKING:
+  from collections.abc import Callable, Mapping, Sequence
+
   from benchmarking.runner.config_loader import AlgorithmConfig, GAParams, ProblemConfig
 
 
@@ -57,26 +67,49 @@ def build_parser(*, epilog: str | None = None) -> argparse.ArgumentParser:
   parser.add_argument(
     "--config-dir",
     type=Path,
-    required=True,
-    help="Directory containing benchmark configuration JSON files (algorithms, benchmark, problems)",
+    default=None,
+    help=(
+      "Optional directory containing benchmark configuration JSON files "
+      "(algorithms.json, and optionally benchmark.json and problems.json)"
+    ),
+  )
+  parser.add_argument(
+    "--algorithms-config",
+    type=Path,
+    default=None,
+    help="Direct path to an algorithms JSON config file (required unless --config-dir is provided)",
+  )
+  parser.add_argument(
+    "--benchmark-config",
+    type=Path,
+    default=None,
+    help="Optional direct path to a benchmark execution JSON config file (overrides defaults)",
+  )
+  parser.add_argument(
+    "--problems-config",
+    type=Path,
+    default=None,
+    help=(
+      "Optional direct path to a problems catalogue JSON file (auto-discovered from --tsp-dir/--tsp-files if omitted)"
+    ),
   )
   parser.add_argument(
     "--output-dir",
     type=Path,
     required=True,
-    help="Directory to write checkpoints, statistics, and tables",
+    help="Directory to write checkpoints, per-problem statistics, and optional reports",
+  )
+  parser.add_argument(
+    "--tsp-dir",
+    type=Path,
+    default=None,
+    help="Directory containing TSPLIB .tsp files (primary input without DuckDB; also used as fallback)",
   )
   parser.add_argument(
     "--db-path",
     type=Path,
     default=None,
-    help="Path to DuckDB database containing TSP problems",
-  )
-  parser.add_argument(
-    "--fallback-tsp-dir",
-    type=Path,
-    default=None,
-    help="Directory of .tsp files to fall back to if not found in database",
+    help="Optional path to DuckDB database containing pre-ingested TSP problems",
   )
   parser.add_argument(
     "--tsp-files",
@@ -97,20 +130,48 @@ def build_parser(*, epilog: str | None = None) -> argparse.ArgumentParser:
     nargs="+",
     type=str,
     default=None,
-    help="Algorithms to run (defaults to all configured in algorithms.json)",
+    help="Algorithms to run (defaults to all configured in algorithms JSON)",
   )
   parser.add_argument(
     "-r",
     "--repetitions",
     type=int,
     default=None,
-    help="Number of independent repetitions per problem/algorithm",
+    help="Number of independent repetitions per problem/algorithm (default: 10 if no benchmark.json)",
+  )
+  parser.add_argument(
+    "--max-generations",
+    type=int,
+    default=None,
+    help="Fixed generation budget per repetition (default: adaptive 2 * n * sqrt(n))",
   )
   parser.add_argument(
     "--benchmark-name",
     type=str,
-    default="chapter4_validation",
-    help="Name identifier for this benchmark run (used in table captions)",
+    default="benchmark",
+    help="Name identifier for this benchmark run (used in logs and report filenames; default: benchmark)",
+  )
+  parser.add_argument(
+    "--reports",
+    nargs="+",
+    type=str,
+    default=None,
+    metavar="ARTIFACT",
+    help=(
+      "Opt-in report artifacts to generate after collection: 'none' (default), 'all', "
+      "or any subset of markdown, latex, macros, cd, plots"
+    ),
+  )
+  parser.add_argument(
+    "--report-style",
+    type=Path,
+    default=None,
+    help="Optional JSON file configuring display names, labels, decimal separators, and size thresholds",
+  )
+  parser.add_argument(
+    "--include-size-category-table",
+    action="store_true",
+    help="Include Table 3 (best algorithm by problem size stratum) when generating Markdown/LaTeX tables",
   )
   parser.add_argument(
     "--local-search-stage",
@@ -191,7 +252,7 @@ def build_parser(*, epilog: str | None = None) -> argparse.ArgumentParser:
   parser.add_argument(
     "--test-mode",
     action="store_true",
-    help="Run in test mode (fewer problems/repetitions for quick verification)",
+    help="Run in test mode (fewer problems for quick verification)",
   )
   parser.add_argument(
     "--dry-run",
@@ -205,7 +266,7 @@ def main(
   argv: Sequence[str] | None = None,
   *,
   preflight_validator: Callable[
-    [Mapping[str, "AlgorithmConfig"], "GAParams", Sequence["ProblemConfig"]],
+    [Mapping[str, AlgorithmConfig], GAParams, Sequence[ProblemConfig]],
     Sequence[str],
   ]
   | None = None,
@@ -216,8 +277,25 @@ def main(
   parser = build_parser(epilog=parser_epilog)
   args = parser.parse_args(argv)
 
+  if args.config_dir is None and args.algorithms_config is None:
+    parser.error("one of the arguments --config-dir or --algorithms-config is required")
+
   level = getattr(logging, args.log_level.upper(), logging.INFO)
   setup_benchmark_logging(args.output_dir, args.benchmark_name, log_level=level)
+
+  try:
+    selected_reports = parse_report_artifacts(args.reports, default=())
+  except ValueError as e:
+    logging.error(f"Invalid --reports option: {e}")
+    return 2
+
+  report_style: ReportStyle | None = None
+  if args.report_style is not None:
+    try:
+      report_style = load_report_style(args.report_style)
+    except (FileNotFoundError, ValueError) as e:
+      logging.error(f"Failed to load --report-style: {e}")
+      return 2
 
   strategy_overrides: dict[str, dict[str, Any]] = {}
   if args.strategy_param:
@@ -232,19 +310,26 @@ def main(
   try:
     results = run_comprehensive_benchmark(
       config_dir=args.config_dir,
+      algorithms_config=args.algorithms_config,
+      benchmark_config=args.benchmark_config,
+      problems_config=args.problems_config,
       output_dir=args.output_dir,
       db_path=args.db_path,
-      fallback_tsp_dir=args.fallback_tsp_dir,
+      tsp_dir=args.tsp_dir,
       tsp_files=args.tsp_files,
       problem_names=args.problems,
       algorithms=args.algorithms,
       repetitions=args.repetitions,
+      max_generations=args.max_generations,
       benchmark_name=args.benchmark_name,
       local_search_stage=args.local_search_stage,
       skip_cpu=args.skip_cpu,
       incremental_runs=args.incremental_runs,
       cpu_size_threshold=args.cpu_size_threshold,
       baseline_algorithm=args.baseline_algorithm,
+      reports=selected_reports,
+      report_style=report_style,
+      include_size_category_table=args.include_size_category_table,
       test_mode=args.test_mode,
       patience=args.patience,
       seed=args.seed,

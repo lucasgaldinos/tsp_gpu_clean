@@ -1,0 +1,174 @@
+{
+  "$schema": "./schemas/algorithms.schema.json",
+  "default_params": {
+    "population_size": 128,
+    "mutation_rate": 0.03,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "TwoOpt_PostMutation_First": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Canonical memetic GA applying first-improvement 2-opt to every offspring after mutation",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom"
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "mode": "first",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "TwoOpt_PostEvolution_MultiMove": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Pure GA evolution followed by a single multi-move 2-opt polish on the final population",
+      "params": {
+        "local_search_stage": "post_evolution"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom"
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverPartiallyMapped"
+        },
+        "mutation": {
+          "class": "MutationInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "mode": "multi_move",
+            "max_iterations": 15,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "Pipeline_WarmStart_And_Elite": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Custom pipeline: generation-1 warm start plus elite-only top-16 2-opt refinement after survival",
+      "params": {
+        "local_search_stage": "none",
+        "pipeline": [
+          {
+            "class": "PostInitLocalSearchStep"
+          },
+          {
+            "class": "EliteOnlyLocalSearchStep",
+            "params": {
+              "elite_count": 16
+            }
+          }
+        ]
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom"
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "mode": "best",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "Pipeline_Periodic_Offspring": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Custom pipeline: periodic 2-opt on offspring every 5 generations",
+      "params": {
+        "local_search_stage": "none",
+        "pipeline": [
+          {
+            "class": "PeriodicLocalSearchStep",
+            "params": {
+              "interval": 5,
+              "target": "offspring"
+            }
+          }
+        ]
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom"
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "mode": "first",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    }
+  }
+}

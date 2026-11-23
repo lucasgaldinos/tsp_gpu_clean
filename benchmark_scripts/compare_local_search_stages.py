@@ -28,7 +28,7 @@ from benchmarking.runner.config_loader import (
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-CONFIG_DIR: Path = PROJECT_ROOT / "configs"
+CONFIG_DIR: Path = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
 
 # Experiment parameters
 TARGET_PROBLEMS: list[Path] = [

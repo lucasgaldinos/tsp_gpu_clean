@@ -43,7 +43,11 @@ from typing import TYPE_CHECKING, Any, LiteralString
 import numpy as np
 
 from benchmarking.analysis.statistics import compute_mean_ranks
-from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
+from benchmarking.analysis.stats_utils import (
+  finite_metric,
+  holm_bonferroni_correction,
+  resolve_baseline_algorithm,
+)
 
 if TYPE_CHECKING:
   from collections.abc import Sequence
@@ -75,7 +79,11 @@ def _get_data_field(results_dict: dict[str, Any], field: str) -> list[Any]:
   """
   raw_field: str = f"raw_{field}"
   direct_field: str = "final_costs" if field == "costs" else field
-  val = results_dict.get(raw_field, results_dict.get(direct_field, []))
+  val = results_dict.get(raw_field)
+  if val is None:
+    val = results_dict.get(direct_field)
+  if val is None:
+    return []
   return val if isinstance(val, list) else list(val)
 
 
@@ -87,13 +95,13 @@ def _resolve_metric_mean(
 ) -> float:
   """Resolve mean metric value lazily from dictionary or raw data series.
 
-  Prefers `results_dict[metric_key]` if present and not None. Otherwise,
-  computes the mean of non-NaN elements in `raw_series`.
+  Prefers `results_dict[metric_key]` if present and finite. Otherwise,
+  computes the mean of finite elements in `raw_series`.
   Raises KeyError if neither a precomputed metric nor valid raw data is present.
   """
-  val = results_dict.get(metric_key)
+  val = finite_metric(results_dict.get(metric_key))
   if val is not None:
-    return float(val)
+    return val
 
   if len(raw_series) > 0:
     arr = np.asarray(raw_series, dtype=np.float64)
@@ -101,25 +109,25 @@ def _resolve_metric_mean(
     if valid.size > 0:
       return float(np.mean(valid))
 
-  raise KeyError(
-    f"Algorithm '{alg_name}' is missing both precomputed '{metric_key}' "
-    f"and valid raw data series."
-  )
+  raise KeyError(f"Algorithm '{alg_name}' is missing both precomputed '{metric_key}' and valid raw data series.")
 
 
 def _resolve_gap_mean(
   results_dict: dict[str, Any],
   mean_cost: float,
-  optimal_cost: float,
+  optimal_cost: float | None,
   raw_gaps: Sequence[float] | np.ndarray,
   alg_name: str,
-) -> float:
-  """Resolve mean gap percentage lazily from dictionary, cost, or raw gaps."""
-  val = results_dict.get("mean_gap")
-  if val is not None:
-    return float(val)
+) -> float | None:
+  """Resolve mean gap percentage lazily from dictionary, cost, or raw gaps.
 
-  if optimal_cost > 0:
+  Returns ``None`` when ``optimal_cost`` is ``None`` and no finite gap data is available.
+  """
+  val = finite_metric(results_dict.get("mean_gap"))
+  if val is not None:
+    return val
+
+  if optimal_cost is not None and optimal_cost > 0:
     return float((mean_cost - optimal_cost) / optimal_cost * 100.0)
 
   if len(raw_gaps) > 0:
@@ -128,52 +136,10 @@ def _resolve_gap_mean(
     if valid.size > 0:
       return float(np.mean(valid))
 
-  raise KeyError(
-    f"Algorithm '{alg_name}' is missing both precomputed 'mean_gap' "
-    f"and valid raw gap data."
-  )
+  if optimal_cost is None:
+    return None
 
-
-def holm_bonferroni_correction(p_values: list[float], alpha: float = 0.05) -> tuple[list[bool], list[float]]:
-  """
-  Apply Holm-Bonferroni multiple comparison correction.
-
-  Corrects p-values for family-wise error rate when performing
-  multiple pairwise comparisons.
-
-  Args:
-      p_values: List of p-values to correct
-      alpha: Significance level (default: 0.05)
-
-  Returns:
-      Tuple of (reject_list, pvals_corrected) where:
-      - reject_list: Boolean list indicating which hypotheses to reject
-      - pvals_corrected: Adjusted p-values
-  """
-  n: int = len(p_values)
-  if n == 0:
-    return [], []
-
-  # Sort p-values with original indices
-  sorted_indices = np.argsort(p_values)
-  sorted_pvals = np.array(p_values)[sorted_indices]
-
-  # Adjusted p-values (step-down procedure)
-  raw_adjusted = np.minimum((n - np.arange(n)) * sorted_pvals, 1.0)
-  pvals_corrected_sorted = np.maximum.accumulate(raw_adjusted)
-
-  # Step-down rejection: an hypothesis is rejected if and only if its adjusted p-value <= alpha.
-  # This guarantees step-down termination at the first non-rejected hypothesis and ensures
-  # strict consistency between `reject` and `pvals_corrected` (BUG-46 / DP12-23).
-  reject_sorted = pvals_corrected_sorted <= alpha
-
-  # Restore original order
-  reject = np.zeros(n, dtype=bool)
-  pvals_corrected = np.zeros(n)
-  reject[sorted_indices] = reject_sorted
-  pvals_corrected[sorted_indices] = pvals_corrected_sorted
-
-  return [bool(x) for x in reject], [float(x) for x in pvals_corrected]
+  raise KeyError(f"Algorithm '{alg_name}' is missing both precomputed 'mean_gap' and valid raw gap data.")
 
 
 # =============================================================================
@@ -351,9 +317,7 @@ def _run_pairwise_metric_comparisons(
       )
       logging.info(f"    Test selected: {summary.test_used}")
       logging.info(f"    Mean difference: {summary.mean_difference:{fmt}}")
-      logging.info(
-        f"    95% CI difference: [{summary.ci_95_difference[0]:{fmt}}, {summary.ci_95_difference[1]:{fmt}}]"
-      )
+      logging.info(f"    95% CI difference: [{summary.ci_95_difference[0]:{fmt}}, {summary.ci_95_difference[1]:{fmt}}]")
       logging.info(f"    p-value (uncorrected): {summary.p_value:.6f}")
       logging.info(f"    Effect size (rank-biserial): {summary.effect_size:.4f}")
       logging.info(f"    Effect size interpretation: {_interpret_effect_size(summary.effect_size)}")
@@ -405,7 +369,7 @@ def _run_pairwise_metric_comparisons(
 
 def perform_statistical_analysis(
   problem_name: str,
-  optimal_cost: float,
+  optimal_cost: float | None,
   results: dict[str, dict[str, Any]],
   analyzer: StatisticalAnalyzer,
   short_sep: str = "-" * 80,
@@ -466,9 +430,7 @@ def perform_statistical_analysis(
   cost_lengths: list[int] = [len(d) for d in cost_data]
   paired_cost_data: list[NDArray[Any]] = cost_data
   if strict_lengths and any(length == 0 for length in cost_lengths):
-    raise ValueError(
-      f"Missing raw cost arrays across algorithms for problem '{problem_name}': lengths={cost_lengths}."
-    )
+    raise ValueError(f"Missing raw cost arrays across algorithms for problem '{problem_name}': lengths={cost_lengths}.")
   if len(set(cost_lengths)) > 1:
     min_cost_len: int = min(cost_lengths) if cost_lengths else 0
     if strict_lengths:
@@ -577,7 +539,8 @@ def perform_statistical_analysis(
   # Summary Table
   # =========================================================================
 
-  logging.info(f"\nSummary: {problem_name} (optimal={optimal_cost})")
+  opt_label = f"{optimal_cost}" if optimal_cost is not None else "unknown"
+  logging.info(f"\nSummary: {problem_name} (optimal={opt_label})")
   logging.info(short_sep)
   header_fmt: LiteralString = (
     f"{'Algorithm':<20} {'Mean Cost':<15} {'Gap (%)':<12} {'Time (s)':<12} {'H2D (MB)':<12} {'D2H (MB)':<12}"
@@ -590,10 +553,11 @@ def perform_statistical_analysis(
     m_cost = _resolve_metric_mean(r, "mean_cost", cost_data[i], name)
     m_gap = _resolve_gap_mean(r, m_cost, optimal_cost, gap_data[i], name)
     m_time = _resolve_metric_mean(r, "mean_time", time_data[i], name)
+    gap_cell = f"{m_gap:<12.2f}" if m_gap is not None else f"{'—':<12}"
     row_fmt: str = (
       f"{name:<20} "
       f"{m_cost:<15.2f} "
-      f"{m_gap:<12.2f} "
+      f"{gap_cell} "
       f"{m_time:<12.2f} "
       f"{r.get('mean_h2d_mb', 0.0):<12.2f} "
       f"{r.get('mean_d2h_mb', 0.0):<12.2f}"

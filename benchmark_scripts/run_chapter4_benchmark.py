@@ -22,16 +22,16 @@ Variants compared under identical GA parameters (`population_size=256`,
 
 Checkpoint repetition contract (`--incremental` vs `--no-incremental`)
 ---------------------------------------------------------------------
-Because ``INCREMENTAL_RUNS = True`` by default in this thesis script, invoking
-without either flag executes the ``--incremental`` branch:
+Because ``INCREMENTAL_RUNS = False`` by default in this thesis script, invoking
+without either flag executes the ``--no-incremental`` branch:
 
     flag               incremental_runs   behavior when checkpoint has ``existing_runs``
     -----------------  ------------------ ------------------------------------------------
-    (default) /        True               Appends a full new block of ``repetitions``
-    --incremental                         runs (target = ``existing_runs + repetitions``;
+    --incremental      True               Appends a full new block of ``repetitions``
+                                          runs (target = ``existing_runs + repetitions``;
                                           e.g. running again with ``r=30`` yields 60).
-    --no-incremental   False              Completes only missing repetitions up to
-                                          ``repetitions`` (``repetitions - existing_runs``),
+    (default) /        False              Completes only missing repetitions up to
+    --no-incremental                      ``repetitions`` (``repetitions - existing_runs``),
                                           or skips/reuses if ``existing_runs >= repetitions``.
 
 Usage:
@@ -51,7 +51,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from benchmarking.analysis.aggregate_statistics import compare_algorithms
-from benchmarking.analysis.cd_diagram import compute_cd_diagram_data, export_cd_diagram_tikz
+from benchmarking.analysis.report_generator import generate_result_tables
+from benchmarking.analysis.report_style import load_report_style
 from benchmarking.analysis.scaling_plots import (
   generate_scaling_plots,
   generate_scaling_plots_from_checkpoints,
@@ -73,7 +74,8 @@ if TYPE_CHECKING:
 # =============================================================================
 
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-CONFIG_DIR: Path = PROJECT_ROOT / "configs"
+CONFIG_DIR: Path = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
+REPORT_STYLE_PATH: Path = CONFIG_DIR / "report_style.json"
 DB_PATH: Path = PROJECT_ROOT / "datasets" / "tsp.duckdb"
 FALLBACK_TSP_DIR: Path = PROJECT_ROOT / "datasets" / "tsp"
 OUTPUT_DIR: Path = PROJECT_ROOT / "results_v4"
@@ -115,21 +117,8 @@ SEED: int = 42
 POPULATION_SIZE: int = 256
 MUTATION_RATE: float = 0.02
 REPETITIONS: int = 30
-INCREMENTAL_RUNS: bool = True
+INCREMENTAL_RUNS: bool = False
 LOCAL_SEARCH_STAGE: LocalSearchStage = "post_mutation"
-
-#: Brazilian Portuguese plot labels injected into generic `scaling_plots` (`DP14-3`, `DP14-5`).
-THESIS_PLOT_TITLE: str = "Escalonamento do Tempo de Execução e da Qualidade vs. Dimensão do Problema"
-THESIS_TIME_YLABEL: str = "Tempo de Execução (s)"
-THESIS_GAP_YLABEL: str = "Gap de Otimalidade (%)"
-THESIS_XLABEL: str = r"Dimensão do Problema ($n$)"
-THESIS_BAND_LABEL: str = "Faixa IIQ ($Q_{25}$\u2013$Q_{75}$, mediana)"
-THESIS_LEGEND_LABELS: dict[str, str] = {
-  "CPU": "CPU",
-  "HybridNaive": "Híbrida Ingênua",
-  "HybridOptimized": "Híbrida Otimizada",
-  "FullGPUModular": "Totalmente em GPU",
-}
 
 # =============================================================================
 # Comparison contract (thesis iso-algorithmic guarantees)
@@ -228,12 +217,12 @@ def validate_comparison_contract(
   algorithms: Mapping[str, AlgorithmConfig],
   ga_params: GAParams,
 ) -> list[str]:
-  """Check that `configs/` still encodes the iso-algorithmic comparison."""
+  """Check that `benchmark_scripts/configs/chapter4/` still encodes the iso-algorithmic comparison."""
   errors: list[str] = []
 
   for slot, variant in COMPARISON_SLOTS.items():
     if variant not in algorithms:
-      errors.append(f"slot '{slot}': variant '{variant}' missing from configs/algorithms.json")
+      errors.append(f"slot '{slot}': variant '{variant}' missing from chapter4/algorithms.json")
       continue
 
     config = algorithms[variant]
@@ -275,7 +264,7 @@ def validate_comparison_contract(
     if overrides[key] is not None:
       continue
     if actual_ga[key] != expected_value:
-      errors.append(f"GA {key}: expected {expected_value:g}, found {actual_ga[key]:g} in configs/algorithms.json")
+      errors.append(f"GA {key}: expected {expected_value:g}, found {actual_ga[key]:g} in chapter4/algorithms.json")
 
   return errors
 
@@ -391,24 +380,17 @@ def generate_thesis_scaling_plots(
   problem_configs: Sequence[ProblemConfig] | None = None,
   filename_stem: str = "scaling_time_gap",
 ) -> tuple[Path, ...]:
-  """Emit ABNT-sized vector `.pdf` and `.svg` scaling figures with pt-BR thesis labels."""
+  """Emit ABNT-sized vector `.pdf` and `.svg` scaling figures styled from `report_style.json`."""
   if problem_configs is None and CONFIG_DIR.exists():
     problem_configs = load_problems_config(CONFIG_DIR)
 
+  thesis_style = load_report_style(REPORT_STYLE_PATH)
   plot_kwargs: dict[str, Any] = {
-    "title": THESIS_PLOT_TITLE,
-    "time_ylabel": THESIS_TIME_YLABEL,
-    "gap_ylabel": THESIS_GAP_YLABEL,
-    "xlabel": THESIS_XLABEL,
-    "band_label": THESIS_BAND_LABEL,
-    "legend_labels": THESIS_LEGEND_LABELS,
-    "algorithm_order": ALGORITHMS,
+    "style": thesis_style,
     "formats": ("pdf", "svg"),
     "dispersion_metric": "iqr",
     "x_axis_mode": "continuous",
     "x_tick_mode": "instances",
-    "show_size_guides": False,
-    "decimal_comma": True,
   }
   if results is not None:
     return generate_scaling_plots(
@@ -462,9 +444,7 @@ def log_comparison(
 
   # Multi-metric cross-problem summary & joint interpretive synthesis (Task 14.2)
   present_variants = [v for v in ALGORITHMS if any(v in prob_res for prob_res in results.values())]
-  all_results_dict: dict[str, dict[str, dict[str, Any]]] = {
-    prob: dict(alg_map) for prob, alg_map in results.items()
-  }
+  all_results_dict: dict[str, dict[str, dict[str, Any]]] = {prob: dict(alg_map) for prob, alg_map in results.items()}
   problem_list = list(all_results_dict.keys())
   analyzer = StatisticalAnalyzer()
 
@@ -598,7 +578,7 @@ def build_chapter4_argv(user_argv: Sequence[str] | None = None) -> list[str]:
     str(CONFIG_DIR),
     "--output-dir",
     str(OUTPUT_DIR),
-    "--fallback-tsp-dir",
+    "--tsp-dir",
     str(FALLBACK_TSP_DIR),
     "--algorithms",
     *ALGORITHMS,
@@ -606,6 +586,10 @@ def build_chapter4_argv(user_argv: Sequence[str] | None = None) -> list[str]:
     str(REPETITIONS),
     "--benchmark-name",
     BENCHMARK_NAME,
+    "--reports",
+    "all",
+    "--report-style",
+    str(REPORT_STYLE_PATH),
     "--local-search-stage",
     LOCAL_SEARCH_STAGE,
     "--baseline-algorithm",
@@ -635,78 +619,29 @@ def generate_thesis_cd_diagrams(
   results: Mapping[str, Mapping[str, dict[str, Any]]],
   benchmark_name: str = BENCHMARK_NAME,
 ) -> tuple[Path, ...]:
-  """Emit pt-BR localized Demšar CD diagrams in TikZ for the thesis."""
-  out_dir = Path(output_dir)
-  problem_names = list(results.keys())
-  algorithm_names = [alg for alg in ALGORITHMS if any(alg in results[p] for p in problem_names)]
-  if len(algorithm_names) < 3 or len(problem_names) < 2:
+  """Emit pt-BR Demšar CD TikZ diagrams styled from `report_style.json` via `generate_result_tables`."""
+  if not results:
     return ()
-
-  complete_problems = [p for p in problem_names if all(alg in results[p] for alg in algorithm_names)]
-  gap_metric = (
-    "mean_gap"
-    if complete_problems
-    and all("mean_gap" in results[p][alg] for p in complete_problems for alg in algorithm_names)
-    else "mean_cost"
+  problem_configs = load_problems_config(CONFIG_DIR) if CONFIG_DIR.exists() else []
+  thesis_style = load_report_style(REPORT_STYLE_PATH)
+  normalized = {p: {a: dict(rec) for a, rec in algs.items()} for p, algs in results.items()}
+  emitted = generate_result_tables(
+    all_results=normalized,
+    problem_configs=problem_configs,
+    output_dir=output_dir,
+    benchmark_name=benchmark_name,
+    baseline_algorithm=BASELINE_ALGORITHM,
+    style=thesis_style,
+    artifacts=("cd",),
   )
-  cd_specs: tuple[tuple[str, str, str], ...] = (
-    (gap_metric, f"{benchmark_name}_cd_diagram_gap.tikz", "Gap de Otimalidade"),
-    ("mean_time", f"{benchmark_name}_cd_diagram_time.tikz", "Tempo de Execução"),
-  )
-  written: list[Path] = []
-  for metric_key, filename, metric_label in cd_specs:
-    valid_problems = [
-      p
-      for p in problem_names
-      if all(alg in results[p] and metric_key in results[p][alg] for alg in algorithm_names)
-    ]
-    if len(valid_problems) < 2:
-      continue
-    matrix = np.array([[float(results[p][alg][metric_key]) for alg in algorithm_names] for p in valid_problems])
-    cd_data = compute_cd_diagram_data(matrix, algorithm_names)
-    tikz_path = out_dir / filename
-    export_cd_diagram_tikz(
-      cd_data,
-      tikz_path,
-      metric_label=metric_label,
-      display_names=THESIS_LEGEND_LABELS,
-      rank_label="Posto médio",
-      decimal_sep=",",
-    )
-    written.append(tikz_path)
-  return tuple(written)
+  return emitted.get("cd", ())
 
 
 def _on_chapter4_complete(
   args: argparse.Namespace,
   results: dict[str, dict[str, dict[str, Any]]],
 ) -> None:
-  """Generate pt-BR vector scaling plots, CD diagrams, and log thesis comparison after completion."""
-  if results:
-    tables_dir = Path(args.output_dir) / "tables"
-    try:
-      cd_paths = generate_thesis_cd_diagrams(
-        output_dir=tables_dir,
-        results=results,
-        benchmark_name=args.benchmark_name or BENCHMARK_NAME,
-      )
-      if cd_paths:
-        logging.info("Chapter 4 pt-BR CD diagrams: %s", ", ".join(str(p) for p in cd_paths))
-    except Exception as exc:
-      logging.warning("Could not regenerate Chapter 4 pt-BR CD diagrams: %s", exc)
-
-    figures_dir = Path(args.output_dir) / "figures"
-    try:
-      cfg_dir = Path(args.config_dir)
-      problem_configs = load_problems_config(cfg_dir) if cfg_dir.exists() else None
-      generated = generate_thesis_scaling_plots(
-        output_dir=figures_dir,
-        results=results,
-        problem_configs=problem_configs,
-      )
-      logging.info("Chapter 4 pt-BR scaling plots: %s", ", ".join(str(p) for p in generated))
-    except Exception as exc:
-      logging.warning("Could not regenerate Chapter 4 scaling plots: %s", exc)
+  """Log thesis joint comparison summary (pt-BR CD diagrams and scaling plots are rendered in one pass)."""
   log_comparison(results, baseline_algorithm=args.baseline_algorithm or BASELINE_ALGORITHM)
 
 

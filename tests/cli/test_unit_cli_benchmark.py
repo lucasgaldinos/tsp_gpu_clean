@@ -38,6 +38,81 @@ def test_benchmark_cli_run(fixture_config_dir: Path, fixture_tsp_dir: Path, tmp_
   assert (tmp_path / "checkpoints").exists()
 
 
+def test_benchmark_cli_tsp_dir_without_db_and_custom_unknown_optimal(
+  fixture_config_dir: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+) -> None:
+  """Verify `--tsp-dir` works without `--db-path`, defaults to collection-only, and honors `--reports`."""
+  tsp_dir = tmp_path / "custom_tsps"
+  tsp_dir.mkdir()
+  (tsp_dir / "gr17.tsp").write_text((fixture_tsp_dir / "gr17.tsp").read_text(encoding="utf-8"), encoding="utf-8")
+  custom_text = (fixture_tsp_dir / "burma14.tsp").read_text(encoding="utf-8").replace("burma14", "custom14")
+  (tsp_dir / "custom14.tsp").write_text(custom_text, encoding="utf-8")
+
+  # 1. Collection-only default (no tables/ or figures/ emitted)
+  collect_dir = tmp_path / "collect_only"
+  exit_code = benchmark_main(
+    [
+      "--config-dir",
+      str(fixture_config_dir),
+      "--output-dir",
+      str(collect_dir),
+      "--tsp-dir",
+      str(tsp_dir),
+      "--problems",
+      "gr17",
+      "custom14",
+      "--algorithms",
+      "CPU",
+      "-r",
+      "1",
+      "--max-generations",
+      "5",
+    ]
+  )
+  assert exit_code == 0
+  assert (collect_dir / "checkpoints" / "gr17_CPU.json").is_file()
+  assert (collect_dir / "checkpoints" / "custom14_CPU.json").is_file()
+  assert not (collect_dir / "tables").exists()
+  assert not (collect_dir / "figures").exists()
+
+  # 2. Zero-boilerplate single-file --algorithms-config + auto-discovered --tsp-dir + opt-in --reports
+  out_dir = tmp_path / "single_file_out"
+  example_alg = Path(__file__).resolve().parents[2] / "configs" / "cpu-operators.example.json"
+  example_style = Path(__file__).resolve().parents[2] / "configs" / "report-style.example.json"
+  exit_code2 = benchmark_main(
+    [
+      "--algorithms-config",
+      str(example_alg),
+      "--output-dir",
+      str(out_dir),
+      "--tsp-dir",
+      str(tsp_dir),
+      "--algorithms",
+      "PureGA_OX_Swap",
+      "-r",
+      "1",
+      "--max-generations",
+      "5",
+      "--reports",
+      "markdown",
+      "plots",
+      "--report-style",
+      str(example_style),
+    ]
+  )
+  assert exit_code2 == 0
+  assert (out_dir / "checkpoints" / "gr17_PureGA_OX_Swap.json").is_file()
+  assert (out_dir / "checkpoints" / "custom14_PureGA_OX_Swap.json").is_file()
+  md_text = (out_dir / "tables" / "benchmark.md").read_text(encoding="utf-8")
+  assert "custom14" in md_text
+  assert "Pure GA (OX + Swap)" in md_text
+  assert "| — |" in md_text
+  assert not (out_dir / "tables" / "benchmark.tex").exists()
+  assert (out_dir / "figures" / "scaling_time_gap.pdf").is_file()
+
+
 def test_benchmark_parser_accepts_overrides() -> None:
   """Verify benchmark CLI parser parses all new override flags correctly."""
   from cli.benchmark import build_parser
@@ -318,5 +393,3 @@ def test_chapter4_script_end_to_end_delegation_and_joint_comparison(
   assert "FullGPUModular ranks fastest" in gpu_only_log
   assert "baseline CPU omitted" in gpu_only_log
   assert "1.00x geometric speedup" not in gpu_only_log
-
-

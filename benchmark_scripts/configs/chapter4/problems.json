@@ -1,5 +1,5 @@
 {
-  "$schema": "./schemas/problems.schema.json",
+  "$schema": "../../../configs/schemas/problems.schema.json",
   "problems": [
   {"name": "gr17", "optimal": 2085, "size": 17},
   {"name": "gr21", "optimal": 2707, "size": 21},

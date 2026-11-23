@@ -16,8 +16,9 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from benchmarking.analysis.problem_statistics import holm_bonferroni_correction, perform_statistical_analysis
+from benchmarking.analysis.problem_statistics import perform_statistical_analysis
 from benchmarking.analysis.statistics import StatisticalAnalyzer
+from benchmarking.analysis.stats_utils import holm_bonferroni_correction
 
 if TYPE_CHECKING:
   from pathlib import Path

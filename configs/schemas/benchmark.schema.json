@@ -21,6 +21,11 @@
       "minimum": 1,
       "description": "Generations without improvement before early stopping; `null` uses the adaptive formula `2 * sqrt(n)`."
     },
+    "max_generations": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "Optional fixed generation cap per repetition; `null` or omitted uses the adaptive formula `2 * n * sqrt(n)`."
+    },
     "cpu_size_threshold": {
       "type": ["integer", "null"],
       "minimum": 1,

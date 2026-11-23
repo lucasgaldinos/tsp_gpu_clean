@@ -11,7 +11,8 @@ functions while providing a small, well-scoped API.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -194,4 +195,55 @@ def resolve_baseline_algorithm(
   return algorithm_names[0] if algorithm_names else "Unknown"
 
 
+# ============================================================================
+# Metric validation, speedups, and multiple-comparison corrections
+# ============================================================================
 
+
+def finite_metric(val: Any) -> float | None:
+  """Return ``float(val)`` when ``val`` is a finite real number (excluding booleans), else ``None``."""
+  if val is None or isinstance(val, bool):
+    return None
+  try:
+    num = float(val)
+  except (TypeError, ValueError):
+    return None
+  return num if math.isfinite(num) else None
+
+
+def geometric_mean_ratios(ratios: Sequence[float]) -> float | None:
+  """Compute the Fleming & Wallace (1986) geometric mean over strictly positive finite ratios."""
+  valid = [num for raw in ratios if (num := finite_metric(raw)) is not None and num > 0.0]
+  if not valid:
+    return None
+  return float(np.exp(np.mean(np.log(np.asarray(valid, dtype=float)))))
+
+
+def holm_bonferroni_correction(
+  p_values: Sequence[float],
+  alpha: float = 0.05,
+) -> tuple[list[bool], list[float]]:
+  """Apply step-down Holm-Bonferroni multiple comparison correction (DP12-23, BUG-46).
+
+  Returns:
+      Tuple ``(reject_list, pvals_corrected)`` in the original input order, where
+      each hypothesis is rejected if and only if its step-down adjusted p-value ``<= alpha``.
+  """
+  n = len(p_values)
+  if n == 0:
+    return [], []
+
+  arr = np.asarray(p_values, dtype=float)
+  sorted_indices = np.argsort(arr)
+  sorted_pvals = arr[sorted_indices]
+
+  raw_adjusted = np.minimum((n - np.arange(n)) * sorted_pvals, 1.0)
+  pvals_corrected_sorted = np.maximum.accumulate(raw_adjusted)
+  reject_sorted = pvals_corrected_sorted <= alpha
+
+  reject = np.zeros(n, dtype=bool)
+  pvals_corrected = np.zeros(n, dtype=float)
+  reject[sorted_indices] = reject_sorted
+  pvals_corrected[sorted_indices] = pvals_corrected_sorted
+
+  return [bool(x) for x in reject], [float(x) for x in pvals_corrected]

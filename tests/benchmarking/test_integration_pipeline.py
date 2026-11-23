@@ -206,6 +206,7 @@ def test_run_comprehensive_benchmark_fixture(
     repetitions=1,
     skip_cpu=False,
     benchmark_name="gr17_smoke",
+    reports=("markdown", "latex"),
   )
   assert "gr17" in results
   assert "CPU" in results["gr17"]
@@ -272,7 +273,6 @@ def test_run_comprehensive_benchmark_forwards_baseline_algorithm(
     assert mock_cross.called
     _, cross_kwargs = mock_cross.call_args
     assert cross_kwargs.get("baseline_algorithm") == "CustomBaseline"
-
 
 
 def test_compare_algorithms_and_grouping() -> None:
@@ -605,7 +605,7 @@ def test_run_comprehensive_benchmark_rejects_dimension_mismatch(
       config_dir=fixture_config_dir,
       output_dir=tmp_path,
       db_path=fixture_duckdb_path,
-      fallback_tsp_dir=fixture_tsp_dir,
+      tsp_dir=fixture_tsp_dir,
       problem_configs=[ProblemConfig(name="gr17", optimal=2085.0, size=999)],
       algorithms=["CPU"],
       repetitions=1,

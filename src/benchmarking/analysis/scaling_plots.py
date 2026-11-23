@@ -8,7 +8,6 @@ percentage optimality gap relative to known TSPLIB optima.
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 from pathlib import Path
@@ -24,7 +23,9 @@ from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter
 from scipy import stats
 
-from benchmarking.analysis.report_generator import MEDIUM_SIZE_MAX, SMALL_SIZE_MAX
+from benchmarking.analysis.cohort import resolve_algorithm_names
+from benchmarking.analysis.report_style import DEFAULT_SIZE_THRESHOLDS, ReportStyle, validate_size_thresholds
+from benchmarking.runner.checkpoint_io import load_checkpoints_dir
 
 if TYPE_CHECKING:
   from collections.abc import Mapping, Sequence
@@ -254,17 +255,8 @@ def _collect_algorithm_series(
 ) -> dict[str, list[dict[str, Any]]]:
   """Collect sorted per-algorithm scaling series from ``all_results``."""
   size_lookup = _build_size_lookup(problem_configs)
-
-  ordered_algs: list[str] = list(algorithm_order) if algorithm_order else []
-  seen_algs: set[str] = set()
-  for prob_entries in all_results.values():
-    for alg_name in prob_entries:
-      if alg_name not in seen_algs:
-        seen_algs.add(alg_name)
-        if alg_name not in ordered_algs:
-          ordered_algs.append(alg_name)
-
-  series_by_alg: dict[str, list[dict[str, Any]]] = {alg: [] for alg in ordered_algs if alg in seen_algs}
+  ordered_algs = resolve_algorithm_names(all_results, algorithm_order)
+  series_by_alg: dict[str, list[dict[str, Any]]] = {alg: [] for alg in ordered_algs}
 
   for problem_name, prob_entries in all_results.items():
     size = _resolve_problem_size(problem_name, prob_entries, size_lookup)
@@ -286,7 +278,14 @@ def _collect_algorithm_series(
         "std_gap",
         dispersion_metric=dispersion_metric,
       )
-      if time_stats is None and gap_stats is None:
+      cost_stats = _summarize_metric(
+        entry,
+        "raw_costs",
+        "mean_cost",
+        "std_cost",
+        dispersion_metric=dispersion_metric,
+      )
+      if time_stats is None and gap_stats is None and cost_stats is None:
         continue
 
       point: dict[str, Any] = {"problem": problem_name, "n": float(size)}
@@ -300,6 +299,11 @@ def _collect_algorithm_series(
         point["gap_mean"] = g_mean
         point["gap_lo"] = g_lo
         point["gap_hi"] = g_hi
+      if cost_stats is not None:
+        c_mean, c_lo, c_hi = cost_stats
+        point["cost_mean"] = c_mean
+        point["cost_lo"] = c_lo
+        point["cost_hi"] = c_hi
 
       series_by_alg[alg_name].append(point)
 
@@ -445,11 +449,7 @@ def _apply_continuous_instance_ticks(
       rotation=45,
       rotation_mode="anchor",
       fontsize=tick_fontsize,
-      arrowprops=(
-        {"arrowstyle": "-", "color": "#777777", "lw": 0.55, "shrinkA": 0, "shrinkB": 0}
-        if moved
-        else None
-      ),
+      arrowprops=({"arrowstyle": "-", "color": "#777777", "lw": 0.55, "shrinkA": 0, "shrinkB": 0} if moved else None),
       annotation_clip=False,
     )
     annotations.append(ann)
@@ -470,13 +470,16 @@ def _draw_stratum_guides(
   *,
   annotate: bool,
   ordinal_sizes: Sequence[int] | None = None,
+  size_thresholds: tuple[int, int] = DEFAULT_SIZE_THRESHOLDS,
 ) -> None:
-  """Draw subtle vertical reference lines for canonical size strata when in range."""
+  """Draw subtle vertical reference lines for configured size strata when in range."""
+  small_max, medium_max = validate_size_thresholds(size_thresholds)
+  guide_specs = (
+    (small_max, f"n = {small_max}"),
+    (medium_max, f"n = {medium_max}"),
+  )
   if ordinal_sizes is not None:
-    for threshold, label in (
-      (SMALL_SIZE_MAX, f"n = {SMALL_SIZE_MAX}"),
-      (MEDIUM_SIZE_MAX, f"n = {MEDIUM_SIZE_MAX}"),
-    ):
+    for threshold, label in guide_specs:
       boundary_idx: float | None = None
       for idx in range(len(ordinal_sizes) - 1):
         if ordinal_sizes[idx] <= threshold < ordinal_sizes[idx + 1]:
@@ -497,10 +500,7 @@ def _draw_stratum_guides(
           )
     return
 
-  for threshold, label in (
-    (SMALL_SIZE_MAX, f"n = {SMALL_SIZE_MAX}"),
-    (MEDIUM_SIZE_MAX, f"n = {MEDIUM_SIZE_MAX}"),
-  ):
+  for threshold, label in guide_specs:
     if threshold <= x_max * 1.05:
       ax.axvline(threshold, color="#7F7F7F", linestyle=":", linewidth=0.9, alpha=0.65, zorder=1)
       if annotate:
@@ -522,10 +522,12 @@ def generate_scaling_plots(
   output_dir: Path | str,
   filename_stem: str = "scaling_time_gap",
   *,
-  title: str = "Execution Time and Solution Quality Scaling vs. Problem Dimension",
-  time_ylabel: str = "Execution Time (s)",
-  gap_ylabel: str = "Optimality Gap (%)",
-  xlabel: str = r"Problem Dimension ($n$)",
+  style: ReportStyle | None = None,
+  title: str | None = None,
+  time_ylabel: str | None = None,
+  gap_ylabel: str | None = None,
+  cost_ylabel: str | None = None,
+  xlabel: str | None = None,
   band_label: str | None = None,
   legend_labels: Mapping[str, str] | None = None,
   algorithm_order: Sequence[str] | None = None,
@@ -533,22 +535,21 @@ def generate_scaling_plots(
   formats: Sequence[str] = ("pdf", "svg"),
   figure_width: float = TEXT_WIDTH_INCHES,
   figure_height: float = DEFAULT_FIGURE_HEIGHT_INCHES,
-  show_size_guides: bool = True,
+  show_size_guides: bool | None = None,
+  size_thresholds: tuple[int, int] | None = None,
   dispersion_metric: DispersionMetric = "iqr",
   x_axis_mode: XAxisMode = "continuous",
   x_tick_mode: XTickMode = "instances",
-  decimal_comma: bool = False,
+  decimal_comma: bool | None = None,
 ) -> tuple[Path, ...]:
   """Generate dual-panel Time x Dimension and Gap x Dimension scaling plots.
 
   Top panel renders execution time (seconds) on a logarithmic y-axis with
   empirical dispersion bands (``"iqr"``, ``"std"``, or ``"ci"``) across
   repetitions. Bottom panel renders percentage optimality gap relative to the
-  TSPLIB optimum on a linear y-axis. Both panels share the x-axis, supporting a
-  continuous numerical ``n`` axis with collision-free instance ticks
-  (``x_axis_mode="continuous", x_tick_mode="instances"``) or equally spaced
-  ordinal instance slots (``x_axis_mode="ordinal"``), and gracefully plot
-  partial cohorts.
+  TSPLIB optimum on a linear y-axis (or raw mean cost when optima are absent).
+  Presentation options default to ``style`` (or neutral ``ReportStyle()``) and
+  may be individually overridden via keyword arguments.
 
   Returns:
       Tuple of written figure paths corresponding to ``formats``.
@@ -562,13 +563,22 @@ def generate_scaling_plots(
       f"Unsupported dispersion_metric '{dispersion_metric}'. Expected one of {sorted(_VALID_DISPERSION_METRICS)}."
     )
   if x_axis_mode not in _VALID_X_AXIS_MODES:
-    raise ValueError(
-      f"Unsupported x_axis_mode '{x_axis_mode}'. Expected one of {sorted(_VALID_X_AXIS_MODES)}."
-    )
+    raise ValueError(f"Unsupported x_axis_mode '{x_axis_mode}'. Expected one of {sorted(_VALID_X_AXIS_MODES)}.")
   if x_tick_mode not in _VALID_X_TICK_MODES:
-    raise ValueError(
-      f"Unsupported x_tick_mode '{x_tick_mode}'. Expected one of {sorted(_VALID_X_TICK_MODES)}."
-    )
+    raise ValueError(f"Unsupported x_tick_mode '{x_tick_mode}'. Expected one of {sorted(_VALID_X_TICK_MODES)}.")
+
+  base_style = style or ReportStyle()
+  resolved_title = base_style.plot_title if title is None else title
+  resolved_time_ylabel = base_style.plot_time_ylabel if time_ylabel is None else time_ylabel
+  resolved_gap_ylabel = base_style.plot_gap_ylabel if gap_ylabel is None else gap_ylabel
+  resolved_cost_ylabel = base_style.plot_cost_ylabel if cost_ylabel is None else cost_ylabel
+  resolved_xlabel = base_style.plot_xlabel if xlabel is None else xlabel
+  resolved_band_label = base_style.plot_band_label if band_label is None else band_label
+  resolved_legend_labels = (base_style.display_names or None) if legend_labels is None else legend_labels
+  resolved_algorithm_order = base_style.algorithm_order if algorithm_order is None else algorithm_order
+  resolved_show_size_guides = base_style.show_size_guides if show_size_guides is None else show_size_guides
+  resolved_size_thresholds = base_style.size_thresholds if size_thresholds is None else size_thresholds
+  resolved_decimal_comma = base_style.plot_decimal_comma if decimal_comma is None else decimal_comma
 
   normalized_formats = [fmt.lower().lstrip(".") for fmt in formats]
   supported_formats = {"pdf", "svg", "png"}
@@ -581,7 +591,7 @@ def generate_scaling_plots(
   series_by_alg = _collect_algorithm_series(
     all_results,
     problem_configs,
-    algorithm_order=algorithm_order,
+    algorithm_order=resolved_algorithm_order,
     dispersion_metric=dispersion_metric,
   )
   if not series_by_alg:
@@ -592,9 +602,7 @@ def generate_scaling_plots(
   ordinal_x_by_problem: dict[str, float] = {}
   if x_axis_mode == "ordinal":
     ordinal_slots = [
-      slot
-      for slot in _collect_ordinal_slots(all_results, problem_configs)
-      if slot[1] in plottable_problems
+      slot for slot in _collect_ordinal_slots(all_results, problem_configs) if slot[1] in plottable_problems
     ]
     for idx, (_, slot_problem) in enumerate(ordinal_slots):
       ordinal_x_by_problem[slot_problem] = float(idx)
@@ -607,7 +615,7 @@ def generate_scaling_plots(
   unique_ns = sorted({round(val) for val in x_values})
   x_min = min(x_values)
   x_max = max(x_values)
-  effective_band_label = _DEFAULT_BAND_LABELS[dispersion_metric] if band_label is None else band_label
+  effective_band_label = _DEFAULT_BAND_LABELS[dispersion_metric] if resolved_band_label is None else resolved_band_label
 
   with mpl.rc_context(cast("Any", get_academic_plot_rc_params())):
     fig = Figure(figsize=(figure_width, figure_height), dpi=300)
@@ -618,6 +626,9 @@ def generate_scaling_plots(
 
     has_positive_times = False
     has_band = False
+    has_any_gap = any("gap_mean" in pt for pts in series_by_alg.values() for pt in pts)
+    quality_prefix = "gap" if has_any_gap else "cost"
+    effective_gap_ylabel = resolved_gap_ylabel if has_any_gap else resolved_cost_ylabel
 
     def _map_xs(pts: list[dict[str, Any]]) -> np.ndarray:
       if x_axis_mode == "ordinal":
@@ -625,10 +636,10 @@ def generate_scaling_plots(
       return np.asarray([float(pt["n"]) for pt in pts], dtype=float)
 
     for style_idx, (alg_name, pts) in enumerate(series_by_alg.items()):
-      style = _resolve_style(
+      series_style = _resolve_style(
         alg_name,
         style_idx,
-        legend_labels=legend_labels,
+        legend_labels=resolved_legend_labels,
         algorithm_styles=algorithm_styles,
       )
 
@@ -644,41 +655,44 @@ def generate_scaling_plots(
         ax_time.plot(
           xs_t,
           ys_t,
-          color=style["color"],
-          marker=style["marker"],
-          linestyle=style["linestyle"],
+          color=series_style["color"],
+          marker=series_style["marker"],
+          linestyle=series_style["linestyle"],
           linewidth=1.6,
           markersize=4.5,
-          label=style["label"],
+          label=series_style["label"],
           zorder=3,
         )
         if xs_t.size >= 2:
           has_band = True
-          ax_time.fill_between(xs_t, lo_t, hi_t, color=style["color"], alpha=0.16, linewidth=0.0, zorder=2)
+          ax_time.fill_between(xs_t, lo_t, hi_t, color=series_style["color"], alpha=0.16, linewidth=0.0, zorder=2)
 
-      gap_pts = [pt for pt in pts if "gap_mean" in pt]
+      mean_key = f"{quality_prefix}_mean"
+      lo_key = f"{quality_prefix}_lo"
+      hi_key = f"{quality_prefix}_hi"
+      gap_pts = [pt for pt in pts if mean_key in pt]
       if gap_pts:
         xs_g = _map_xs(gap_pts)
-        ys_g = np.asarray([pt["gap_mean"] for pt in gap_pts], dtype=float)
-        lo_g = np.asarray([pt["gap_lo"] for pt in gap_pts], dtype=float)
+        ys_g = np.asarray([pt[mean_key] for pt in gap_pts], dtype=float)
+        lo_g = np.asarray([pt[lo_key] for pt in gap_pts], dtype=float)
         if np.all(ys_g >= 0.0):
           lo_g = np.maximum(lo_g, 0.0)
-        hi_g = np.asarray([pt["gap_hi"] for pt in gap_pts], dtype=float)
+        hi_g = np.asarray([pt[hi_key] for pt in gap_pts], dtype=float)
 
         ax_gap.plot(
           xs_g,
           ys_g,
-          color=style["color"],
-          marker=style["marker"],
-          linestyle=style["linestyle"],
+          color=series_style["color"],
+          marker=series_style["marker"],
+          linestyle=series_style["linestyle"],
           linewidth=1.6,
           markersize=4.5,
-          label=style["label"] if not time_pts else None,
+          label=series_style["label"] if not time_pts else None,
           zorder=3,
         )
         if xs_g.size >= 2:
           has_band = True
-          ax_gap.fill_between(xs_g, lo_g, hi_g, color=style["color"], alpha=0.16, linewidth=0.0, zorder=2)
+          ax_gap.fill_between(xs_g, lo_g, hi_g, color=series_style["color"], alpha=0.16, linewidth=0.0, zorder=2)
 
     if has_positive_times:
       ax_time.set_yscale("log")
@@ -692,12 +706,24 @@ def generate_scaling_plots(
     elif ordinal_slots:
       ax_gap.set_xlim(-0.5, len(ordinal_slots) - 0.5)
 
-    if show_size_guides:
+    if resolved_show_size_guides:
       ordinal_sizes = [slot[0] for slot in ordinal_slots] if x_axis_mode == "ordinal" else None
-      _draw_stratum_guides(ax_time, x_max, annotate=True, ordinal_sizes=ordinal_sizes)
-      _draw_stratum_guides(ax_gap, x_max, annotate=False, ordinal_sizes=ordinal_sizes)
+      _draw_stratum_guides(
+        ax_time,
+        x_max,
+        annotate=True,
+        ordinal_sizes=ordinal_sizes,
+        size_thresholds=resolved_size_thresholds,
+      )
+      _draw_stratum_guides(
+        ax_gap,
+        x_max,
+        annotate=False,
+        ordinal_sizes=ordinal_sizes,
+        size_thresholds=resolved_size_thresholds,
+      )
 
-    ax_time.set_ylabel(time_ylabel)
+    ax_time.set_ylabel(resolved_time_ylabel)
     ax_time.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.35)
 
     handles, labels = ax_time.get_legend_handles_labels()
@@ -721,13 +747,13 @@ def generate_scaling_plots(
         edgecolor="#CCCCCC",
       )
 
-    ax_gap.set_ylabel(gap_ylabel)
-    ax_gap.set_xlabel(xlabel)
-    if decimal_comma:
+    ax_gap.set_ylabel(effective_gap_ylabel)
+    ax_gap.set_xlabel(resolved_xlabel)
+    if resolved_decimal_comma:
       ax_gap.yaxis.set_major_formatter(FuncFormatter(lambda x, _pos: f"{x:.1f}".replace(".", ",")))
     ax_gap.grid(True, which="major", linestyle="--", linewidth=0.5, alpha=0.35)
 
-    suptitle_obj = fig.suptitle(title, y=0.98, fontsize=10) if title else None
+    suptitle_obj = fig.suptitle(resolved_title, y=0.98, fontsize=10) if resolved_title else None
 
     bottom_margin = 0.16 if (x_axis_mode == "ordinal" or x_tick_mode == "instances") else 0.11
 
@@ -773,43 +799,18 @@ def generate_scaling_plots(
   return output_paths
 
 
-def load_results_from_checkpoints(checkpoint_dir: Path | str) -> dict[str, dict[str, dict[str, Any]]]:
-  """Load consolidated checkpoint JSON files from ``checkpoint_dir`` (read-only)."""
-  ckpt_path = Path(checkpoint_dir)
-  if not ckpt_path.is_dir():
-    raise FileNotFoundError(f"Checkpoint directory does not exist: {ckpt_path}")
-
-  all_results: dict[str, dict[str, dict[str, Any]]] = {}
-  for json_file in sorted(ckpt_path.glob("*.json")):
-    try:
-      with json_file.open("r", encoding="utf-8") as fh:
-        payload = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
-      logger.warning("Skipping unreadable checkpoint %s: %s", json_file.name, exc)
-      continue
-
-    if not isinstance(payload, dict):
-      continue
-    problem_name = payload.get("problem_name")
-    algorithm = payload.get("algorithm")
-    if not isinstance(problem_name, str) or not isinstance(algorithm, str):
-      continue
-
-    all_results.setdefault(problem_name, {})[algorithm] = payload
-
-  return all_results
-
-
 def generate_scaling_plots_from_checkpoints(
   checkpoint_dir: Path | str,
   output_dir: Path | str,
   problem_configs: Sequence[ProblemConfig] | None = None,
   filename_stem: str = "scaling_time_gap",
   *,
-  title: str = "Execution Time and Solution Quality Scaling vs. Problem Dimension",
-  time_ylabel: str = "Execution Time (s)",
-  gap_ylabel: str = "Optimality Gap (%)",
-  xlabel: str = r"Problem Dimension ($n$)",
+  style: ReportStyle | None = None,
+  title: str | None = None,
+  time_ylabel: str | None = None,
+  gap_ylabel: str | None = None,
+  cost_ylabel: str | None = None,
+  xlabel: str | None = None,
   band_label: str | None = None,
   legend_labels: Mapping[str, str] | None = None,
   algorithm_order: Sequence[str] | None = None,
@@ -817,22 +818,25 @@ def generate_scaling_plots_from_checkpoints(
   formats: Sequence[str] = ("pdf", "svg"),
   figure_width: float = TEXT_WIDTH_INCHES,
   figure_height: float = DEFAULT_FIGURE_HEIGHT_INCHES,
-  show_size_guides: bool = True,
+  show_size_guides: bool | None = None,
+  size_thresholds: tuple[int, int] | None = None,
   dispersion_metric: DispersionMetric = "iqr",
   x_axis_mode: XAxisMode = "continuous",
   x_tick_mode: XTickMode = "instances",
-  decimal_comma: bool = False,
+  decimal_comma: bool | None = None,
 ) -> tuple[Path, ...]:
   """Load checkpoints read-only and write scaling plots to ``output_dir``."""
-  all_results = load_results_from_checkpoints(checkpoint_dir)
+  all_results = load_checkpoints_dir(checkpoint_dir)
   return generate_scaling_plots(
     all_results=all_results,
     problem_configs=problem_configs,
     output_dir=output_dir,
     filename_stem=filename_stem,
+    style=style,
     title=title,
     time_ylabel=time_ylabel,
     gap_ylabel=gap_ylabel,
+    cost_ylabel=cost_ylabel,
     xlabel=xlabel,
     band_label=band_label,
     legend_labels=legend_labels,
@@ -842,6 +846,7 @@ def generate_scaling_plots_from_checkpoints(
     figure_width=figure_width,
     figure_height=figure_height,
     show_size_guides=show_size_guides,
+    size_thresholds=size_thresholds,
     dispersion_metric=dispersion_metric,
     x_axis_mode=x_axis_mode,
     x_tick_mode=x_tick_mode,

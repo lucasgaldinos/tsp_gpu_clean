@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../configs/schemas/report_style.schema.json",
+  "display_names": {
+    "CPU": "CPU",
+    "HybridNaive": "Híbrida Ingênua",
+    "HybridOptimized": "Híbrida Otimizada",
+    "FullGPUModular": "Totalmente em GPU"
+  },
+  "algorithm_order": [
+    "CPU",
+    "HybridNaive",
+    "HybridOptimized",
+    "FullGPUModular"
+  ],
+  "decimal_separator": "{,}",
+  "cd_decimal_sep": ",",
+  "plot_decimal_comma": true,
+  "latex_label_prefix": "chapter4_",
+  "size_thresholds": [100, 400],
+  "show_size_guides": false,
+  "cd_quality_label": "Gap de Otimalidade",
+  "cd_cost_label": "Custo Médio",
+  "cd_time_label": "Tempo de Execução",
+  "cd_rank_label": "Posto médio",
+  "plot_title": "Escalonamento do Tempo de Execução e da Qualidade vs. Dimensão do Problema",
+  "plot_time_ylabel": "Tempo de Execução (s)",
+  "plot_gap_ylabel": "Gap de Otimalidade (%)",
+  "plot_cost_ylabel": "Custo Médio",
+  "plot_xlabel": "Dimensão do Problema ($n$)",
+  "plot_band_label": "Faixa IIQ ($Q_{25}$–$Q_{75}$, mediana)"
+}

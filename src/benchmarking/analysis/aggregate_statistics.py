@@ -44,55 +44,12 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from benchmarking.analysis.cohort import BenchmarkCohort, resolve_algorithm_names
 from benchmarking.analysis.statistics import StatisticalAnalyzer, compute_mean_ranks
-from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
 
 if TYPE_CHECKING:
   from benchmarking.runner.config_loader import ProblemConfig
   from data_models.records import NemenyiResult
-
-# =============================================================================
-# Helper Functions
-# =============================================================================
-
-
-def _get_problem_size_map(problem_configs: list[ProblemConfig]) -> dict[str, int]:
-  """
-  Create mapping from problem name to size.
-
-  Args:
-      problem_configs: List of ProblemConfig instances
-
-  Returns:
-      Dictionary mapping problem_name -> size
-  """
-  return {p.name: p.size for p in problem_configs}
-
-
-def _collect_canonical_algorithms(
-  all_results: dict[str, dict[str, dict[str, Any]]],
-) -> list[str]:
-  """Collect unique algorithm names preserving canonical insertion order."""
-  ordered: dict[str, None] = {}
-  for problem_results in all_results.values():
-    for algo in problem_results:
-      ordered.setdefault(algo, None)
-  return list(ordered.keys())
-
-
-def _extract_algorithm_metric(
-  all_results: dict[str, dict[str, dict[str, Any]]],
-  problem_names: list[str],
-  algorithm_name: str,
-  metric_key: str = "mean_gap",
-) -> list[float]:
-  """Extract metric values for an algorithm across specified problems."""
-  values: list[float] = []
-  for problem in problem_names:
-    if algorithm_name in all_results[problem]:
-      values.append(float(all_results[problem][algorithm_name][metric_key]))
-  return values
-
 
 # =============================================================================
 # Generalized Algorithm Comparison (Decoupled from thresholds)
@@ -110,35 +67,22 @@ def compare_algorithms(
   metric_key: str = "mean_gap",
   higher_is_better: bool = False,
   metric_unit: str | None = None,
+  *,
+  cohort: BenchmarkCohort | None = None,
 ) -> dict[str, Any] | None:
-  """
-  Compare a subset of algorithms across a designated subset of problems.
+  """Compare a subset of algorithms across a designated subset of problems.
 
-  Validates that each problem has results for all requested algorithms,
+  Validates that each problem has finite results for all requested algorithms,
   executes the Friedman test (with Iman-Davenport correction), runs Nemenyi
-  post-hoc if significant, and computes geometric mean speedups if
+  post-hoc if significant, and computes geometric mean speedups when
   ``baseline_algorithm`` is provided.
-
-  Args:
-      all_results: Nested dictionary: problem_name -> algorithm_name -> metrics
-      problems: Candidate problem names to compare across
-      algorithms: Algorithm names to include in comparison
-      analyzer: Optional StatisticalAnalyzer instance (instantiated if None)
-      baseline_algorithm: Optional baseline for geometric speedup calculations
-      label: Human-readable header label for logging
-      separator: Separator line for logging
-      metric_key: Metric field name in per-algorithm results (default: "mean_gap")
-      higher_is_better: Rank direction (False = smaller is better, e.g. gap or time)
-      metric_unit: Display unit suffix in logs (inferred from metric_key if None)
-
-  Returns:
-      Comparison dictionary or None if len(problems) < 3 or len(algorithms) < 3.
   """
-  valid_problems = [
-    p
-    for p in problems
-    if p in all_results and all(a in all_results[p] and metric_key in all_results[p][a] for a in algorithms)
-  ]
+  active_cohort = cohort or BenchmarkCohort.from_results(all_results, sort_problems=False)
+  valid_problems, matrix = active_cohort.metric_matrix(
+    metric_key,
+    algorithms=algorithms,
+    problems=problems,
+  )
 
   if len(algorithms) < 3 or len(valid_problems) < 3:
     logging.info(separator)
@@ -151,12 +95,7 @@ def compare_algorithms(
     analyzer = StatisticalAnalyzer()
 
   if metric_unit is None:
-    if metric_key == "mean_gap":
-      unit_suffix = "%"
-    elif metric_key == "mean_time":
-      unit_suffix = "s"
-    else:
-      unit_suffix = ""
+    unit_suffix = "%" if metric_key == "mean_gap" else ("s" if metric_key == "mean_time" else "")
   else:
     unit_suffix = metric_unit
 
@@ -172,12 +111,10 @@ def compare_algorithms(
   logging.info(f"Metric: {metric_key} ({'higher is better' if higher_is_better else 'lower is better'})")
   logging.info("")
 
-  data: list[np.ndarray] = []
-  for algo in algorithms:
-    algo_vals: list[float] = _extract_algorithm_metric(all_results, valid_problems, algo, metric_key=metric_key)
-    data.append(np.array(algo_vals, dtype=float))
-    std_val = float(np.std(algo_vals, ddof=1)) if len(algo_vals) > 1 else 0.0
-    logging.info(f"  {algo}: {metric_key}={np.mean(algo_vals):.2f}{unit_suffix} ± {std_val:.2f}{unit_suffix}")
+  data: list[np.ndarray] = [matrix[:, idx] for idx in range(len(algorithms))]
+  for algo, col in zip(algorithms, data, strict=True):
+    std_val = float(np.std(col, ddof=1)) if col.size > 1 else 0.0
+    logging.info(f"  {algo}: {metric_key}={float(np.mean(col)):.2f}{unit_suffix} ± {std_val:.2f}{unit_suffix}")
 
   logging.info("")
 
@@ -189,25 +126,16 @@ def compare_algorithms(
         logging.info(f"  {algo}: 1.00x (baseline)")
         speedup_summary[algo] = 1.0
       else:
-        speedups = []
-        for problem in valid_problems:
-          baseline_res: dict[str, Any] = all_results[problem].get(baseline_algorithm, {})
-          algo_res: dict[str, Any] = all_results[problem].get(algo, {})
-          baseline_time = float(baseline_res.get("mean_time", 0.0))
-          algo_time = float(algo_res.get("mean_time", 0.0))
-          if algo_time > 0.0 and baseline_time > 0.0:
-            speedups.append(baseline_time / algo_time)
-
-        if speedups:
-          geomean_speedup = float(np.exp(np.mean(np.log(speedups))))
-          speedup_summary[algo] = geomean_speedup
-          logging.info(f"  {algo}: {geomean_speedup:.2f}x vs {baseline_algorithm}")
+        sp = active_cohort.paired_geometric_speedup(algo, baseline_algorithm, problems=valid_problems)
+        if sp.geomean is not None:
+          speedup_summary[algo] = sp.geomean
+          logging.info(f"  {algo}: {sp.geomean:.2f}x vs {baseline_algorithm}")
 
     logging.info("")
 
   rank_oriented_data = [-d for d in data] if higher_is_better else data
   friedman_result: dict[str, Any] = analyzer.friedman_test(rank_oriented_data)
-  mean_ranks: dict[str, float] = compute_mean_ranks(data, algorithms, higher_is_better=higher_is_better)
+  mean_ranks: dict[str, float] = compute_mean_ranks(matrix, algorithms, higher_is_better=higher_is_better)
   logging.info("Friedman Test (Iman-Davenport):")
   logging.info(f"  Chi-square: {friedman_result['statistic']:.4f} (p={friedman_result['p_value']:.6f})")
   logging.info(
@@ -258,22 +186,8 @@ def compare_algorithms_by_group(
   metric_key: str = "mean_gap",
   higher_is_better: bool = False,
 ) -> dict[str, Any]:
-  """
-  Compare algorithms grouped by problem metadata (e.g. edge_type, size bracket).
-
-  Args:
-      all_results: Nested dictionary: problem_name -> algorithm_name -> metrics
-      problem_configs: List of ProblemConfig instances
-      group_key: Attribute of ProblemConfig or key in result metadata to group by
-      analyzer: Optional StatisticalAnalyzer instance
-      separator: Separator line for logging
-      baseline_algorithm: Optional baseline algorithm for geometric speedups
-      metric_key: Metric field name in per-algorithm results (default: "mean_gap")
-      higher_is_better: Rank direction (False = smaller is better)
-
-  Returns:
-      Dictionary mapping group_name -> comparison results dict or None
-  """
+  """Compare algorithms grouped by problem metadata (e.g. edge_type, size bracket)."""
+  cohort = BenchmarkCohort.from_results(all_results, problem_configs, sort_problems=False)
   groups: dict[str, list[str]] = {}
   config_map: dict[str, ProblemConfig] = {p.name: p for p in problem_configs}
 
@@ -291,21 +205,20 @@ def compare_algorithms_by_group(
 
   results_by_group: dict[str, Any] = {}
   for group_name, prob_list in sorted(groups.items()):
-    ordered_group_algos: list[str] = _collect_canonical_algorithms({p: all_results[p] for p in prob_list})
+    ordered_group_algos: list[str] = resolve_algorithm_names({p: all_results[p] for p in prob_list})
     common_algos: list[str] = [a for a in ordered_group_algos if all(a in all_results[sp] for sp in prob_list)]
-    group_label: str = f"GROUP COMPARISON: {group_key}={group_name}"
-    res: dict[str, Any] | None = compare_algorithms(
+    results_by_group[group_name] = compare_algorithms(
       all_results=all_results,
       problems=prob_list,
       algorithms=common_algos,
       analyzer=analyzer,
       baseline_algorithm=baseline_algorithm,
-      label=group_label,
+      label=f"GROUP COMPARISON: {group_key}={group_name}",
       separator=separator,
       metric_key=metric_key,
       higher_is_better=higher_is_better,
+      cohort=cohort,
     )
-    results_by_group[group_name] = res
 
   return results_by_group
 
@@ -316,9 +229,7 @@ def compare_algorithms_by_group(
 
 
 def _compute_cross_problem_summary(
-  all_results: dict[str, dict[str, dict[str, Any]]],
-  problem_names: list[str],
-  all_algorithm_names: list[str],
+  cohort: BenchmarkCohort,
   separator: str,
 ) -> dict[str, dict[str, Any]]:
   """Compute and log per-algorithm cross-problem mean/std summary for gap and time."""
@@ -327,30 +238,27 @@ def _compute_cross_problem_summary(
   logging.info(separator)
 
   summary_stats: dict[str, dict[str, Any]] = {}
-  for algo in all_algorithm_names:
-    all_gaps: list[float] = []
-    all_times: list[float] = []
-    for problem in problem_names:
-      if algo in all_results[problem]:
-        if "mean_gap" in all_results[problem][algo]:
-          all_gaps.append(float(all_results[problem][algo]["mean_gap"]))
-        if "mean_time" in all_results[problem][algo]:
-          all_times.append(float(all_results[problem][algo]["mean_time"]))
+  for algo in cohort.algorithms:
+    agg = cohort.summarize_algorithm(algo)
+    if agg is None or (agg.mean_gap is None and agg.mean_time is None):
+      continue
 
-    if all_gaps or all_times:
-      entry: dict[str, Any] = {"n_problems": max(len(all_gaps), len(all_times))}
-      if all_gaps:
-        std_gap_val = float(np.std(all_gaps, ddof=1)) if len(all_gaps) > 1 else 0.0
-        entry["mean_gap"] = float(np.mean(all_gaps))
-        entry["std_gap"] = std_gap_val
-      if all_times:
-        std_time_val = float(np.std(all_times, ddof=1)) if len(all_times) > 1 else 0.0
-        entry["mean_time"] = float(np.mean(all_times))
-        entry["std_time"] = std_time_val
-      summary_stats[algo] = entry
-      gap_str = f"mean_gap={entry['mean_gap']:.2f}% ± {entry['std_gap']:.2f}%" if all_gaps else "mean_gap=N/A"
-      time_str = f"mean_time={entry['mean_time']:.2f}s ± {entry['std_time']:.2f}s" if all_times else "mean_time=N/A"
-      logging.info(f"{algo}: {gap_str} | {time_str} (n={entry['n_problems']} problems)")
+    n_gap_or_time = max(
+      len(cohort.algorithm_metric_values(algo, "mean_gap")),
+      len(cohort.algorithm_metric_values(algo, "mean_time")),
+    )
+    entry: dict[str, Any] = {"n_problems": n_gap_or_time}
+    if agg.mean_gap is not None and agg.std_gap is not None:
+      entry["mean_gap"] = agg.mean_gap
+      entry["std_gap"] = agg.std_gap
+    if agg.mean_time is not None and agg.std_time is not None:
+      entry["mean_time"] = agg.mean_time
+      entry["std_time"] = agg.std_time
+
+    summary_stats[algo] = entry
+    gap_str = f"mean_gap={agg.mean_gap:.2f}% ± {agg.std_gap:.2f}%" if agg.mean_gap is not None else "mean_gap=N/A"
+    time_str = f"mean_time={agg.mean_time:.2f}s ± {agg.std_time:.2f}s" if agg.mean_time is not None else "mean_time=N/A"
+    logging.info(f"{algo}: {gap_str} | {time_str} (n={entry['n_problems']} problems)")
 
   logging.info("")
   return summary_stats
@@ -364,33 +272,21 @@ def perform_cross_problem_analysis_stratified(
   separator: str = "=" * 80,
   baseline_algorithm: str | None = None,
 ) -> dict[str, Any]:
-  """
-  Perform cross-problem statistical analysis across all benchmarked algorithms.
+  """Perform cross-problem statistical analysis across all benchmarked algorithms.
 
   When ``cpu_threshold is None`` (no size cutoff), runs a unified multi-metric
-  analysis (quality ``mean_gap`` and runtime ``mean_time`` with geometric mean
-  speedups against ``baseline_algorithm``) with no stratum split.
+  analysis (quality ``mean_gap`` or ``mean_cost`` fallback, and runtime ``mean_time``
+  with geometric mean speedups against ``baseline_algorithm``) with no stratum split.
 
-  When an integer ``cpu_threshold`` is provided, falls back to stratified
-  analysis: Stratum 1 compares all algorithms present on problems with
-  ``size <= cpu_threshold``; Stratum 2 compares algorithms covering instances
-  above the threshold across all complete problems.
-
-  Args:
-      all_results: Nested dictionary: problem_name -> algorithm_name -> metrics
-      problem_configs: List of ProblemConfig instances with name, size, optimal
-      analyzer: StatisticalAnalyzer instance
-      cpu_threshold: Optional size threshold restricting a subset of algorithms
-      separator: Separator line for logging (default: 80 equals signs)
-      baseline_algorithm: Optional baseline algorithm for speedup computation
-
-  Returns:
-      Dictionary containing cross-problem comparison results and summary statistics
+  When an integer ``cpu_threshold`` is provided, falls back to stratified analysis:
+  Stratum 1 compares algorithms present on problems with ``size <= cpu_threshold``;
+  Stratum 2 compares algorithms covering instances above the threshold across all
+  complete problems.
   """
-  problem_sizes: dict[str, int] = _get_problem_size_map(problem_configs)
-  problem_names: list[str] = list(all_results.keys())
-  all_algorithm_names: list[str] = _collect_canonical_algorithms(all_results)
-  effective_baseline: str = resolve_baseline_algorithm(all_algorithm_names, baseline_algorithm)
+  cohort = BenchmarkCohort.from_results(all_results, problem_configs, sort_problems=False)
+  problem_names = list(cohort.problems)
+  all_algorithm_names = list(cohort.algorithms)
+  effective_baseline = cohort.baseline(baseline_algorithm)
 
   if cpu_threshold is None:
     logging.info(separator)
@@ -402,25 +298,30 @@ def perform_cross_problem_analysis_stratified(
     logging.info(f"Baseline algorithm: {effective_baseline}")
     logging.info("")
 
-    complete_for_all = [p for p in problem_names if all(a in all_results[p] for a in all_algorithm_names)]
+    complete_for_all = cohort.complete_problems(algorithms=all_algorithm_names)
     if len(complete_for_all) >= 3:
       target_algos = all_algorithm_names
     else:
-      target_algos = [a for a in all_algorithm_names if all(a in all_results[p] for p in problem_names)]
-      if len(target_algos) < 3:
-        target_algos = all_algorithm_names
+      full_cov = [a for a in all_algorithm_names if all(a in all_results[p] for p in problem_names)]
+      target_algos = full_cov if len(full_cov) >= 3 else all_algorithm_names
 
     comp_baseline: str | None = effective_baseline if effective_baseline in target_algos else None
+    quality_metric = cohort.quality_metric_key(
+      algorithms=target_algos,
+      problems=problem_names,
+      require_complete=False,
+    )
     gap_comparison = compare_algorithms(
       all_results=all_results,
       problems=problem_names,
       algorithms=target_algos,
       analyzer=analyzer,
       baseline_algorithm=None,
-      label="CROSS-PROBLEM QUALITY COMPARISON (mean_gap)",
+      label=f"CROSS-PROBLEM QUALITY COMPARISON ({quality_metric})",
       separator=separator,
-      metric_key="mean_gap",
+      metric_key=quality_metric,
       higher_is_better=False,
+      cohort=cohort,
     )
     time_comparison = compare_algorithms(
       all_results=all_results,
@@ -432,9 +333,10 @@ def perform_cross_problem_analysis_stratified(
       separator=separator,
       metric_key="mean_time",
       higher_is_better=False,
+      cohort=cohort,
     )
 
-    summary_stats = _compute_cross_problem_summary(all_results, problem_names, all_algorithm_names, separator)
+    summary_stats = _compute_cross_problem_summary(cohort, separator)
     return {
       "stratified": False,
       "gap_comparison": gap_comparison,
@@ -458,8 +360,8 @@ def perform_cross_problem_analysis_stratified(
   logging.info(f"Algorithms present: {', '.join(all_algorithm_names)}")
   logging.info("")
 
-  small_problems: list[str] = [p for p in problem_names if problem_sizes.get(p, 0) <= cpu_threshold]
-  small_problem_algos: list[str] = [
+  small_problems = [p for p in problem_names if (cohort.problem_size(p) or 0) <= cpu_threshold]
+  small_problem_algos = [
     a for a in all_algorithm_names if small_problems and all(a in all_results.get(sp, {}) for sp in small_problems)
   ]
   stratum1_baseline: str | None = (
@@ -467,7 +369,11 @@ def perform_cross_problem_analysis_stratified(
     if effective_baseline in small_problem_algos
     else (small_problem_algos[0] if small_problem_algos else None)
   )
-
+  stratum1_metric = cohort.quality_metric_key(
+    algorithms=small_problem_algos,
+    problems=small_problems,
+    require_complete=False,
+  )
   stratum1_results: dict[str, Any] | None = compare_algorithms(
     all_results=all_results,
     problems=small_problems,
@@ -476,27 +382,25 @@ def perform_cross_problem_analysis_stratified(
     baseline_algorithm=stratum1_baseline,
     label=f"STRATUM 1: Small Problems (n ≤ {cpu_threshold})",
     separator=separator,
-    metric_key="mean_gap",
+    metric_key=stratum1_metric,
     higher_is_better=False,
+    cohort=cohort,
   )
 
-  large_problems: list[str] = [p for p in problem_names if problem_sizes.get(p, 0) > cpu_threshold]
-  if large_problems:
-    full_coverage_algos: list[str] = [
-      a for a in all_algorithm_names if all(a in all_results.get(lp, {}) for lp in large_problems)
-    ]
-  else:
-    full_coverage_algos = [a for a in all_algorithm_names if all(a in all_results.get(p, {}) for p in problem_names)]
-
-  stratum2_problems: list[str] = [
-    p for p in problem_names if full_coverage_algos and all(a in all_results.get(p, {}) for a in full_coverage_algos)
-  ]
+  large_problems = [p for p in problem_names if (cohort.problem_size(p) or 0) > cpu_threshold]
+  coverage_target = large_problems if large_problems else problem_names
+  full_coverage_algos = [a for a in all_algorithm_names if all(a in all_results.get(p, {}) for p in coverage_target)]
+  stratum2_problems = cohort.complete_problems(algorithms=full_coverage_algos, problems=problem_names)
   stratum2_baseline: str | None = (
     baseline_algorithm
     if baseline_algorithm and baseline_algorithm in full_coverage_algos
     else (full_coverage_algos[0] if full_coverage_algos else None)
   )
-
+  stratum2_metric = cohort.quality_metric_key(
+    algorithms=full_coverage_algos,
+    problems=stratum2_problems,
+    require_complete=False,
+  )
   stratum2_results: dict[str, Any] | None = compare_algorithms(
     all_results=all_results,
     problems=stratum2_problems,
@@ -505,11 +409,12 @@ def perform_cross_problem_analysis_stratified(
     baseline_algorithm=stratum2_baseline,
     label="STRATUM 2: Full-Coverage Algorithms (All Problems)",
     separator=separator,
-    metric_key="mean_gap",
+    metric_key=stratum2_metric,
     higher_is_better=False,
+    cohort=cohort,
   )
 
-  summary_stats = _compute_cross_problem_summary(all_results, problem_names, all_algorithm_names, separator)
+  summary_stats = _compute_cross_problem_summary(cohort, separator)
 
   return {
     "stratified": True,

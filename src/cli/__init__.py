@@ -1,4 +1,3 @@
 """Command-line interfaces for TSP GPU-accelerated routing optimization (`src.cli`)."""
 
-__all__ = ["benchmark", "checkpoints", "tsplib"]
-
+__all__ = ["benchmark", "checkpoints", "report", "tsplib"]

@@ -193,37 +193,61 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "module": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional dotted Python module path for loading an external custom class outside the built-in registry without modifying src/."
+        },
         "class": {
           "type": "string",
-          "description": "Key of `STRATEGY_REGISTRY`; the slot prefix identifies the stage.",
-          "enum": [
-            "CrossoverGPUOrder",
-            "CrossoverOrder",
-            "CrossoverPartiallyMapped",
-            "EvaluationCPUCost",
-            "EvaluationGPUCost",
-            "InitializationNearestNeighbor",
-            "InitializationRandom",
-            "LocalSearchCPUTwoOpt",
-            "LocalSearchGPUTwoOpt",
-            "LocalSearchNoOp",
-            "MutationGPUInversion",
-            "MutationGPUSwap",
-            "MutationInversion",
-            "MutationSwap",
-            "SelectionGPUTournament",
-            "SelectionRouletteWheel",
-            "SelectionTournament"
-          ]
+          "minLength": 1,
+          "description": "Key of `STRATEGY_REGISTRY`; the slot prefix identifies the stage."
         },
         "params": {
           "type": "object",
           "description": "Constructor keyword arguments validated per selected strategy class via `allOf`."
         }
       },
+      "if": {
+        "not": {
+          "required": [
+            "module"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "class": {
+            "enum": [
+              "CrossoverGPUOrder",
+              "CrossoverOrder",
+              "CrossoverPartiallyMapped",
+              "EvaluationCPUCost",
+              "EvaluationGPUCost",
+              "InitializationNearestNeighbor",
+              "InitializationRandom",
+              "LocalSearchCPUTwoOpt",
+              "LocalSearchGPUTwoOpt",
+              "LocalSearchNoOp",
+              "MutationGPUInversion",
+              "MutationGPUSwap",
+              "MutationInversion",
+              "MutationSwap",
+              "SelectionGPUTournament",
+              "SelectionRouletteWheel",
+              "SelectionTournament"
+            ]
+          }
+        }
+      },
       "allOf": [
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -243,6 +267,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -262,6 +291,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -281,6 +315,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -300,6 +339,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -319,6 +363,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -338,6 +387,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -357,6 +411,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -376,6 +435,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -395,6 +459,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -414,6 +483,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -433,6 +507,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -452,6 +531,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -471,6 +555,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -490,6 +579,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -509,6 +603,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -528,6 +627,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -554,23 +658,47 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "module": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional dotted Python module path for loading an external custom class outside the built-in registry without modifying src/."
+        },
         "class": {
           "type": "string",
-          "description": "Key of `PIPELINE_STEP_REGISTRY`.",
-          "enum": [
-            "EliteOnlyLocalSearchStep",
-            "PeriodicLocalSearchStep",
-            "PostInitLocalSearchStep"
-          ]
+          "minLength": 1,
+          "description": "Key of `PIPELINE_STEP_REGISTRY`."
         },
         "params": {
           "type": "object",
           "description": "Constructor keyword arguments validated per selected pipeline step class via `allOf`."
         }
       },
+      "if": {
+        "not": {
+          "required": [
+            "module"
+          ]
+        }
+      },
+      "then": {
+        "properties": {
+          "class": {
+            "enum": [
+              "EliteOnlyLocalSearchStep",
+              "PeriodicLocalSearchStep",
+              "PostInitLocalSearchStep"
+            ]
+          }
+        }
+      },
       "allOf": [
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -590,6 +718,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],
@@ -609,6 +742,11 @@
         },
         {
           "if": {
+            "not": {
+              "required": [
+                "module"
+              ]
+            },
             "required": [
               "class"
             ],

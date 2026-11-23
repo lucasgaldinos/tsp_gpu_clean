@@ -19,7 +19,12 @@ from typing import Any
 import numpy as np
 from scipy import stats
 
-from benchmarking.analysis.stats_utils import compute_nemenyi_critical_distance
+from benchmarking.analysis.stats_utils import (
+  compute_nemenyi_critical_distance,
+)
+from benchmarking.analysis.stats_utils import (
+  holm_bonferroni_correction as _holm_bonferroni,
+)
 from data_models.records import NemenyiResult
 
 POSTHOCS_AVAILABLE = find_spec("scikit_posthocs") is not None
@@ -485,33 +490,32 @@ class StatisticalAnalyzer:
 
     return (float(ci_low), float(ci_high), bootstrap_samples)
 
+  def wilcoxon_paired_summary(
+    self,
+    data_a: np.ndarray,
+    data_b: np.ndarray,
+  ) -> tuple[float, float, float]:
+    """Compute paired Wilcoxon signed-rank ``(W, p_value, rank_biserial_r)`` using ``zsplit``.
+
+    Returns ``(0.0, 1.0, 0.0)`` cleanly when paired vectors are identical within tolerance.
+    """
+    arr_a = np.asarray(data_a, dtype=float)
+    arr_b = np.asarray(data_b, dtype=float)
+    if arr_a.size < 2 or arr_b.size < 2 or np.allclose(arr_a, arr_b):
+      return 0.0, 1.0, 0.0
+    wilcoxon_res = stats.wilcoxon(arr_a, arr_b, zero_method="zsplit")
+    w_stat = float(wilcoxon_res.statistic)
+    p_val = float(wilcoxon_res.pvalue)
+    r_eff = float(self.rank_biserial_correlation(arr_a, arr_b))
+    return w_stat, p_val, r_eff
+
   def holm_bonferroni_correction(self, p_values: list[float], alpha: float = 0.05) -> list[tuple[int, float, bool]]:
-    """
-    Apply Holm-Bonferroni correction for multiple comparisons.
-
-    Following Section 3.4 (Protocolo de Análise Estatística) Step 4, controls family-wise error rate
-    while being less conservative than Bonferroni.
-    """
-    m = len(p_values)
-    if m == 0:
+    """Apply step-down Holm-Bonferroni correction delegating to ``stats_utils.holm_bonferroni_correction``."""
+    if not p_values:
       return []
-
-    indexed_p = list(enumerate(p_values))
-    indexed_p.sort(key=lambda x: x[1])
-
-    results = []
-    for i, (original_idx, p_val) in enumerate(indexed_p):
-      threshold = alpha / (m - i)
-      is_significant = p_val <= threshold
-      results.append((original_idx, p_val, is_significant))
-
-      if not is_significant:
-        for j in range(i + 1, len(indexed_p)):
-          orig_idx, p_v = indexed_p[j]
-          results.append((orig_idx, p_v, False))
-        break
-
-    return results
+    reject, _ = _holm_bonferroni(p_values, alpha=alpha)
+    indexed = sorted(enumerate(p_values), key=lambda item: item[1])
+    return [(orig_idx, p_val, reject[orig_idx]) for orig_idx, p_val in indexed]
 
   def friedman_test(self, data_sets: list[np.ndarray]) -> dict[str, Any]:
     """

@@ -24,13 +24,11 @@ from benchmarking.analysis.problem_statistics import (
   _resolve_metric_mean,
   perform_statistical_analysis,
 )
-from benchmarking.analysis.report_generator import (
-  _compute_table2_stats,
-  escape_latex_identifier,
-  generate_result_tables,
-)
+from benchmarking.analysis.report_generator import generate_result_tables
+from benchmarking.analysis.report_style import escape_latex_identifier
 from benchmarking.analysis.statistics import StatisticalAnalyzer
 from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
+from benchmarking.analysis.table_reports import _compute_table2_stats
 from benchmarking.runner.algorithm_runner import compute_series_stats
 from benchmarking.runner.config_loader import ProblemConfig
 

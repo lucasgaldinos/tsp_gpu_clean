@@ -16,6 +16,7 @@ Why reflection instead of a hand-maintained lookup table:
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import inspect
 import json
 import re
@@ -30,10 +31,17 @@ import protocols.types as _protocol_types
 from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
 from algorithms.strategies import STRATEGY_REGISTRY
 from algorithms.strategies.base import StrategyBase
+from benchmarking.analysis.report_style import ReportStyle
 
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 SCHEMA_ID = "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json"
 DEFAULT_SCHEMA_PATH = Path(__file__).resolve().parents[3] / "configs" / "schemas" / "algorithms.schema.json"
+REPORT_STYLE_SCHEMA_ID = (
+  "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/report_style.schema.json"
+)
+DEFAULT_REPORT_STYLE_SCHEMA_PATH = (
+  Path(__file__).resolve().parents[3] / "configs" / "schemas" / "report_style.schema.json"
+)
 
 # Optional advisory metadata (numeric bounds, $comment, descriptions) overlaid onto
 # reflectively discovered constructor parameters. Never introduces parameter keys
@@ -306,6 +314,7 @@ def _build_slot_definition(
     all_of_branches.append(
       {
         "if": {
+          "not": {"required": ["module"]},
           "required": ["class"],
           "properties": {
             "class": {
@@ -328,14 +337,32 @@ def _build_slot_definition(
     "required": ["class"],
     "additionalProperties": False,
     "properties": {
+      "module": {
+        "type": "string",
+        "minLength": 1,
+        "description": (
+          "Optional dotted Python module path for loading an external custom class "
+          "outside the built-in registry without modifying src/."
+        ),
+      },
       "class": {
         "type": "string",
+        "minLength": 1,
         "description": class_description,
-        "enum": [class_name for class_name, _ in sorted_items],
       },
       "params": {
         "type": "object",
         "description": params_description,
+      },
+    },
+    "if": {
+      "not": {"required": ["module"]},
+    },
+    "then": {
+      "properties": {
+        "class": {
+          "enum": [class_name for class_name, _ in sorted_items],
+        },
       },
     },
     "allOf": all_of_branches,
@@ -549,33 +576,174 @@ def render_algorithms_schema(
   return f"{json.dumps(schema, indent=2)}\n"
 
 
+_REPORT_STYLE_FIELD_METADATA: dict[str, dict[str, Any]] = {
+  "display_names": {
+    "additionalProperties": {"type": "string"},
+    "description": "Optional mapping from canonical JSON algorithm keys to rendered table/figure labels.",
+  },
+  "decimal_separator": {
+    "minLength": 1,
+    "description": "Decimal separator used in quantitative LaTeX macros (e.g., '.' or '{,}').",
+  },
+  "cd_decimal_sep": {
+    "minLength": 1,
+    "description": "Decimal separator used in Demšar Critical Difference TikZ diagrams (e.g., '.' or ',').",
+  },
+  "plot_decimal_comma": {
+    "description": "Format Matplotlib y-axis gap/cost tick labels with decimal commas when true.",
+  },
+  "latex_label_prefix": {
+    "description": "Optional prefix inserted into LaTeX \\label{tab:<prefix>...} identifiers.",
+  },
+  "size_thresholds": {
+    "prefixItems": [
+      {"type": "integer", "minimum": 1},
+      {"type": "integer", "minimum": 2},
+    ],
+    "items": False,
+    "minItems": 2,
+    "maxItems": 2,
+    "description": "Two-element [small_max, medium_max] stratum cutoffs satisfying 0 < small_max < medium_max.",
+  },
+  "show_size_guides": {
+    "description": "Draw vertical problem-size stratum guides on scaling plots when true.",
+  },
+  "cd_quality_label": {
+    "description": "Metric label for optimality-gap Demšar Critical Difference diagrams.",
+  },
+  "cd_cost_label": {
+    "description": "Fallback metric label for cost Demšar CD diagrams when reference optima are absent.",
+  },
+  "cd_time_label": {
+    "description": "Metric label for execution-time Demšar Critical Difference diagrams.",
+  },
+  "cd_rank_label": {
+    "description": "Axis label placed at the right end of Demšar CD rank axes.",
+  },
+  "plot_title": {
+    "description": "Main suptitle rendered above the dual-panel scaling figure.",
+  },
+  "plot_time_ylabel": {
+    "description": "Y-axis label for the top (execution time) scaling panel.",
+  },
+  "plot_gap_ylabel": {
+    "description": "Y-axis label for the bottom (optimality gap) scaling panel.",
+  },
+  "plot_cost_ylabel": {
+    "description": "Fallback y-axis label for the bottom panel when reference optima are absent.",
+  },
+  "plot_xlabel": {
+    "description": "Shared x-axis label for problem dimension n.",
+  },
+  "plot_band_label": {
+    "description": "Optional legend label for the empirical dispersion band (null uses metric default).",
+  },
+  "algorithm_order": {
+    "description": "Optional explicit algorithm ordering applied across tables, macros, CD diagrams, and plots.",
+  },
+}
+
+
+def _report_style_field_schema(field_name: str, annotation: Any) -> dict[str, Any]:
+  """Reflectively convert one ``ReportStyle`` dataclass field into a strict JSON Schema property."""
+  prop_schema = annotation_to_json_schema(annotation)
+  if field_name == "algorithm_order":
+    prop_schema = {
+      "anyOf": [
+        {"type": "array", "items": {"type": "string"}},
+        {"type": "null"},
+      ]
+    }
+  advisory = _REPORT_STYLE_FIELD_METADATA.get(field_name)
+  if advisory:
+    for key, value in advisory.items():
+      if key not in prop_schema:
+        prop_schema[key] = value
+  return prop_schema
+
+
+def generate_report_style_schema() -> dict[str, Any]:
+  """Reflectively generate Draft 2020-12 JSON Schema for ``ReportStyle`` JSON files."""
+  type_hints = get_type_hints(ReportStyle, globalns={"Mapping": Mapping, "Sequence": Sequence})
+  properties: dict[str, Any] = {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference used by editors for completion and validation.",
+    }
+  }
+  for dc_field in dataclasses.fields(ReportStyle):
+    ann = type_hints.get(dc_field.name, dc_field.type)
+    properties[dc_field.name] = _report_style_field_schema(dc_field.name, ann)
+
+  return {
+    "$schema": DRAFT_2020_12,
+    "$id": REPORT_STYLE_SCHEMA_ID,
+    "title": "Benchmark report presentation style configuration",
+    "description": (
+      "External presentation settings injected via --report-style or load_report_style(). "
+      "Generated reflectively from benchmarking.analysis.report_style.ReportStyle so schema "
+      "and runtime validation stay locked to a single source of truth."
+    ),
+    "type": "object",
+    "additionalProperties": False,
+    "properties": properties,
+  }
+
+
+def render_report_style_schema() -> str:
+  """Render `generate_report_style_schema()` as deterministic formatted JSON."""
+  return f"{json.dumps(generate_report_style_schema(), indent=2)}\n"
+
+
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-  parser = argparse.ArgumentParser(description="Generate or verify configs/schemas/algorithms.schema.json")
+  parser = argparse.ArgumentParser(
+    description="Generate or verify configs/schemas/{algorithms,report_style}.schema.json"
+  )
   parser.add_argument(
     "--output",
     type=Path,
-    default=DEFAULT_SCHEMA_PATH,
-    help="Target schema JSON file path.",
+    default=None,
+    help="Target algorithms schema JSON file path (default: configs/schemas/algorithms.schema.json).",
+  )
+  parser.add_argument(
+    "--report-style-output",
+    type=Path,
+    default=None,
+    help="Target report_style schema JSON file path (default: configs/schemas/report_style.schema.json).",
   )
   parser.add_argument(
     "--check",
     action="store_true",
-    help="Verify that the target file matches the generated schema without modifying it.",
+    help="Verify that target schema files match generated schemas without modifying them.",
   )
   return parser.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-  """CLI entry point to write or verify `configs/schemas/algorithms.schema.json`."""
+  """CLI entry point to write or verify reflective JSON schemas."""
   args = _parse_args(argv)
-  rendered = render_algorithms_schema()
+  targets: list[tuple[Path, str]] = []
+  if args.output is not None:
+    targets.append((args.output, render_algorithms_schema()))
+    if args.report_style_output is not None:
+      targets.append((args.report_style_output, render_report_style_schema()))
+  elif args.report_style_output is not None:
+    targets.append((args.report_style_output, render_report_style_schema()))
+  else:
+    targets.append((DEFAULT_SCHEMA_PATH, render_algorithms_schema()))
+    targets.append((DEFAULT_REPORT_STYLE_SCHEMA_PATH, render_report_style_schema()))
+
   if args.check:
-    current = args.output.read_text(encoding="utf-8")
-    if current != rendered:
-      print(f"Schema drift detected in {args.output}", file=sys.stderr)
-      return 1
-    return 0
-  args.output.write_text(rendered, encoding="utf-8")
+    drifted = False
+    for path, rendered in targets:
+      if not path.is_file() or path.read_text(encoding="utf-8") != rendered:
+        print(f"Schema drift detected in {path}", file=sys.stderr)
+        drifted = True
+    return 1 if drifted else 0
+
+  for path, rendered in targets:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(rendered, encoding="utf-8")
   return 0
 
 

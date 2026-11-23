@@ -30,11 +30,23 @@ from protocols.types import LocalSearchStage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = PROJECT_ROOT / "configs"
-PROD_ALGORITHMS_JSON = PROJECT_ROOT / "configs" / "algorithms.json"
+CHAPTER4_CONFIG_DIR = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
+PROD_ALGORITHMS_JSON = CHAPTER4_CONFIG_DIR / "algorithms.json"
 FIXTURE_ALGORITHMS_JSON = PROJECT_ROOT / "tests" / "fixtures" / "configs" / "algorithms.json"
 SCHEMA_DIR = CONFIG_DIR / "schemas"
 SCHEMA_NAMES: tuple[str, ...] = ("algorithms.schema.json", "benchmark.schema.json", "problems.schema.json")
-CONFIG_NAMES: tuple[str, ...] = ("algorithms.json", "algorithms.archive.json", "benchmark.json", "problems.json")
+CHAPTER4_CONFIG_NAMES: tuple[str, ...] = (
+  "algorithms.json",
+  "algorithms.archive.json",
+  "benchmark.json",
+  "problems.json",
+)
+EXAMPLE_ALGORITHM_CONFIGS: tuple[str, ...] = (
+  "algorithms.full.example.json",
+  "cpu-operators.example.json",
+  "local-search-pipelines.example.json",
+  "gpu-backends.example.json",
+)
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 
 
@@ -91,9 +103,7 @@ def test_algorithms_json_structural_parity() -> None:
 
     for slot, p_slot_cfg in prod_strats.items():
       f_slot_cfg = fix_strats[slot]
-      assert p_slot_cfg.get("class") == f_slot_cfg.get("class"), (
-        f"Strategy class mismatch in {variant_name}.{slot}"
-      )
+      assert p_slot_cfg.get("class") == f_slot_cfg.get("class"), f"Strategy class mismatch in {variant_name}.{slot}"
       p_slot_params = p_slot_cfg.get("params") or {}
       f_slot_params = f_slot_cfg.get("params") or {}
       assert set(p_slot_params.keys()) == set(f_slot_params.keys()), (
@@ -147,40 +157,56 @@ def test_schema_documents_exist_as_draft_2020_12() -> None:
 
 
 def test_every_config_declares_a_schema_path() -> None:
-  """WHAT: The `$schema` key of each production configuration file.
+  """WHAT: The `$schema` key of every example and Chapter-4 configuration file.
 
   WHY: Without it the editor cannot resolve completions or flag unknown keys.
-  EXPECTED: A relative `./schemas/<name>.schema.json` reference pointing at an existing file.
+  EXPECTED: Every relative `$schema` reference points to an existing schema file under `configs/schemas/`.
   """
-  for config_name in CONFIG_NAMES:
-    config = json.loads((CONFIG_DIR / config_name).read_text(encoding="utf-8"))
+  for config_name in EXAMPLE_ALGORITHM_CONFIGS:
+    config_path = CONFIG_DIR / config_name
+    config = json.loads(config_path.read_text(encoding="utf-8"))
     schema_ref = config["$schema"]
     assert isinstance(schema_ref, str) and schema_ref.startswith("./schemas/"), (
       f"{config_name} must reference ./schemas/, got {schema_ref!r}"
     )
-    assert (CONFIG_DIR / schema_ref).is_file(), f"{config_name} references a missing schema"
+    assert (config_path.parent / schema_ref).resolve().is_file(), f"{config_name} references a missing schema"
+
+  for config_name in CHAPTER4_CONFIG_NAMES:
+    config_path = CHAPTER4_CONFIG_DIR / config_name
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    schema_ref = config["$schema"]
+    assert isinstance(schema_ref, str) and "configs/schemas/" in schema_ref, (
+      f"{config_name} must reference configs/schemas/, got {schema_ref!r}"
+    )
+    assert (config_path.parent / schema_ref).resolve().is_file(), f"{config_name} references a missing schema"
 
 
-def test_example_config_instantiates_every_variant() -> None:
-  """WHAT: `configs/algorithms.full.example.json` loaded through the real loader.
+def test_example_configs_instantiate_every_variant() -> None:
+  """WHAT: All generic `configs/*.example.json` algorithm configs loaded through the real loader.
 
-  WHY: The example is the human-facing catalogue of every `Design B` class, mode and
-  knob; it is only useful while it still instantiates (`DP11-5`).
-  EXPECTED: At least six variants, all strategy classes in `STRATEGY_REGISTRY`, every
-  variant builds a `GeneticAlgorithm` without raising, and all five modes appear.
+  WHY: Example configs are the user-facing showcase of Design B strategies, modes, and
+  composable pipelines; every shipped example must stay schema-valid and instantiable.
   """
-  ga_params, algorithms = load_algorithms_config(CONFIG_DIR, config_name="algorithms.full.example.json")
+  schema = json.loads((SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
 
-  assert len(algorithms) >= 6
-  modes: set[str] = set()
-  for name, cfg in algorithms.items():
-    for slot, spec in cfg.strategies.items():
-      assert spec["class"] in STRATEGY_REGISTRY, f"unknown class in {name}.{slot}"
-      mode = (spec.get("params") or {}).get("mode")
-      if mode is not None:
-        modes.add(str(mode))
-    assert cfg.instantiate(ga_params) is not None, f"variant {name} failed to instantiate"
+  for example_name in EXAMPLE_ALGORITHM_CONFIGS:
+    example_path = CONFIG_DIR / example_name
+    jsonschema.validate(instance=json.loads(example_path.read_text(encoding="utf-8")), schema=schema)
+    ga_params, algorithms = load_algorithms_config(example_path)
+    assert len(algorithms) >= 3, f"{example_name} should showcase at least 3 variants"
+    for name, cfg in algorithms.items():
+      for slot, spec in cfg.strategies.items():
+        assert spec["class"] in STRATEGY_REGISTRY, f"unknown class in {example_name}:{name}.{slot}"
+      assert cfg.instantiate(ga_params) is not None, f"{example_name}:{name} failed to instantiate"
 
+  _, full_algorithms = load_algorithms_config(CONFIG_DIR, config_name="algorithms.full.example.json")
+  assert len(full_algorithms) >= 6
+  modes = {
+    str((spec.get("params") or {}).get("mode"))
+    for cfg in full_algorithms.values()
+    for spec in cfg.strategies.values()
+    if (spec.get("params") or {}).get("mode") is not None
+  }
   assert modes == {"best", "first", "multi_move", "batch", "naive"}
 
 
@@ -228,8 +254,10 @@ def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> 
   pipeline_branches = _extract_allof_branch_map(pipeline_step)
   assert set(strategy_branches.keys()) == set(STRATEGY_REGISTRY.keys())
   assert set(pipeline_branches.keys()) == set(PIPELINE_STEP_REGISTRY.keys())
-  assert set(strategy_slot["properties"]["class"]["enum"]) == set(STRATEGY_REGISTRY.keys())
-  assert set(pipeline_step["properties"]["class"]["enum"]) == set(PIPELINE_STEP_REGISTRY.keys())
+  assert set(strategy_slot["then"]["properties"]["class"]["enum"]) == set(STRATEGY_REGISTRY.keys())
+  assert set(pipeline_step["then"]["properties"]["class"]["enum"]) == set(PIPELINE_STEP_REGISTRY.keys())
+  assert "module" in strategy_slot["properties"]
+  assert "module" in pipeline_step["properties"]
 
   # (b) & (c) Constructor parameter fidelity and Literal enum parity across all 20 classes.
   for registry, branch_map in (
@@ -307,7 +335,7 @@ def test_schema_generator_reflects_synthetic_strategy_without_manual_table_edits
   assert param_def["properties"]["tolerance"] == {"type": ["number", "null"]}
   assert param_def["properties"]["dry_run"] == {"type": "boolean"}
 
-  base_cfg = json.loads((CONFIG_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  base_cfg = json.loads(PROD_ALGORITHMS_JSON.read_text(encoding="utf-8"))
   base_cfg["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
     "class": "SyntheticThreeOptPreview",
     "params": {"acceptance": "greedy", "max_passes": 4, "tolerance": 0.01, "dry_run": True},
@@ -331,7 +359,7 @@ def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_cand
     - `PostInitLocalSearchStep` with `interval: 5` fails `jsonschema.validate`.
   """
   schema = json.loads((SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
-  base = json.loads((CONFIG_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  base = json.loads(PROD_ALGORITHMS_JSON.read_text(encoding="utf-8"))
 
   bad_cpu = json.loads(json.dumps(base))
   bad_cpu["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"] = {
@@ -363,3 +391,25 @@ def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_cand
   ]
   with pytest.raises(jsonschema.ValidationError, match="Additional properties are not allowed"):
     jsonschema.validate(instance=bad_step, schema=schema)
+
+  external_cfg = json.loads(json.dumps(base))
+  external_cfg["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
+    "module": "my_custom_ops.local_search",
+    "class": "CustomOrOptSearch",
+    "params": {"window_size": 3, "custom_flag": True},
+  }
+  external_cfg["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {
+      "module": "my_custom_ops.steps",
+      "class": "CustomDiversityStep",
+      "params": {"every_n_generations": 5},
+    }
+  ]
+  jsonschema.validate(instance=external_cfg, schema=schema)
+
+  unknown_builtin = json.loads(json.dumps(base))
+  unknown_builtin["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
+    "class": "CustomOrOptSearch",
+  }
+  with pytest.raises(jsonschema.ValidationError, match="is not one of"):
+    jsonschema.validate(instance=unknown_builtin, schema=schema)

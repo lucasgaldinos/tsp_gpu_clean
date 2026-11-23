@@ -20,12 +20,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import stats
 
-from benchmarking.analysis.report_generator import escape_latex_identifier
+from benchmarking.analysis.report_style import escape_latex_identifier
 from benchmarking.analysis.statistics import compute_iman_davenport_f, compute_mean_ranks
 from benchmarking.analysis.stats_utils import compute_nemenyi_critical_distance
 
 if TYPE_CHECKING:
   from collections.abc import Mapping
+
+  from benchmarking.analysis.report_style import ReportStyle
 
 logger = logging.getLogger(__name__)
 
@@ -168,8 +170,9 @@ def export_cd_diagram_tikz(
   metric_label: str | None = None,
   *,
   display_names: Mapping[str, str] | None = None,
-  rank_label: str = "Rank",
-  decimal_sep: str = ".",
+  rank_label: str | None = None,
+  decimal_sep: str | None = None,
+  style: ReportStyle | None = None,
 ) -> str:
   """Export publication-grade TikZ vector code from CDResults.
 
@@ -178,13 +181,22 @@ def export_cd_diagram_tikz(
       output_path: Optional path to write the generated .tikz file.
       standalone: If True, wraps in a complete compilable standalone document.
       metric_label: Optional metric label recorded in the generated TikZ header comment.
-      display_names: Optional mapping from canonical algorithm keys to rendered labels.
-      rank_label: Label placed at the right end of the rank axis (default ``"Rank"``).
-      decimal_sep: Decimal separator for rendered numbers (e.g. ``","`` for pt-BR).
+      display_names: Optional mapping from canonical algorithm keys to rendered labels
+          (defaults to ``style.display_names`` when ``style`` is provided).
+      rank_label: Label placed at the right end of the rank axis (defaults to
+          ``style.cd_rank_label`` when ``style`` is provided, else ``"Rank"``).
+      decimal_sep: Decimal separator for rendered numbers (defaults to
+          ``style.cd_decimal_sep`` when ``style`` is provided, else ``"."``).
+      style: Optional ``ReportStyle`` providing presentation defaults overridden by
+          any explicitly supplied keyword arguments.
 
   Returns:
       TikZ code as a string.
   """
+  effective_display_names = display_names if display_names is not None else (style.display_names if style else None)
+  effective_rank_label = rank_label if rank_label is not None else (style.cd_rank_label if style else "Rank")
+  effective_decimal_sep = decimal_sep if decimal_sep is not None else (style.cd_decimal_sep if style else ".")
+
   k = cd_results.k_algorithms
   cd = cd_results.critical_difference
   sorted_items = sorted(cd_results.ranks.items(), key=lambda x: (x[1], x[0]))
@@ -193,21 +205,17 @@ def export_cd_diagram_tikz(
 
   def _fmt_text(value: float, decimals: int) -> str:
     formatted = f"{value:.{decimals}f}"
-    return formatted.replace(".", decimal_sep) if decimal_sep != "." else formatted
+    return formatted.replace(".", effective_decimal_sep) if effective_decimal_sep != "." else formatted
 
   def _fmt_math(value: float, decimals: int) -> str:
     formatted = f"{value:.{decimals}f}"
-    return formatted.replace(".", f"{{{decimal_sep}}}") if decimal_sep != "." else formatted
+    return formatted.replace(".", f"{{{effective_decimal_sep}}}") if effective_decimal_sep != "." else formatted
 
-  safe_rank_label = escape_latex_identifier(rank_label)
+  safe_rank_label = escape_latex_identifier(effective_rank_label)
 
   tikz_body: list[str] = [
     "% Auto-generated Demšar Critical Difference Diagram in TikZ",
-    *(
-      [f"% Metric: {metric_label}"]
-      if metric_label
-      else []
-    ),
+    *([f"% Metric: {metric_label}"] if metric_label else []),
     (
       f"% Generated for k = {k} algorithms across N = {cd_results.n_instances} instances "
       f"(CD = {cd:.3f}, alpha = {cd_results.alpha}, F_F = {cd_results.friedman_f:.3f}, "
@@ -259,7 +267,7 @@ def export_cd_diagram_tikz(
   x_right_label = float(k) + 0.32
 
   for idx, (name, r) in enumerate(left_items):
-    shown_name = display_names.get(name, name) if display_names else name
+    shown_name = effective_display_names.get(name, name) if effective_display_names else name
     safe_name = escape_latex_identifier(shown_name)
     rank_text = _fmt_text(r, 2)
     coord_name = re.sub(r"[^a-zA-Z0-9]", "", name)
@@ -274,7 +282,7 @@ def export_cd_diagram_tikz(
     )
 
   for idx, (name, r) in enumerate(right_items):
-    shown_name = display_names.get(name, name) if display_names else name
+    shown_name = effective_display_names.get(name, name) if effective_display_names else name
     safe_name = escape_latex_identifier(shown_name)
     rank_text = _fmt_text(r, 2)
     coord_name = re.sub(r"[^a-zA-Z0-9]", "", name)
@@ -292,7 +300,7 @@ def export_cd_diagram_tikz(
   tikz_body.append("")
   tikz_body.append("    % Major Tick Labels (drawn after drop lines so white fill masks crossings)")
   for tick in range(1, k + 1):
-    tick_label = f"{tick}{decimal_sep}0"
+    tick_label = f"{tick}{effective_decimal_sep}0"
     tikz_body.append(
       f"    \\node[below=2pt, font=\\footnotesize, fill=white, inner sep=1.5pt] at ({tick}.0, -0.08) {{{tick_label}}};"
     )

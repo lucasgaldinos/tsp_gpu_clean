@@ -14,6 +14,7 @@ This module provides fault-tolerant checkpoint management, enabling:
 Author: GPU Accelerated Routing Optimization Team
 Date: 2025-01-28
 """
+
 from __future__ import annotations
 
 import json
@@ -24,6 +25,8 @@ import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
+
+import numpy as np
 
 if TYPE_CHECKING:
   from collections.abc import Mapping, Sequence
@@ -72,7 +75,7 @@ class CheckpointManager:
 
     Args:
         problem_name: Name of TSP problem (e.g., "berlin52")
-        algorithm_name: Name of algorithm (e.g., "HybridOptimized")
+        algorithm_name: Name of algorithm (e.g., "MemeticGA")
 
     Returns:
         Path to checkpoint JSON file
@@ -240,6 +243,49 @@ def load_checkpoint(filepath: Path) -> dict[str, Any]:
   """
   with open(filepath) as f:
     return cast("dict[str, Any]", json.load(f))
+
+
+def load_checkpoints_dir(checkpoint_dir: Path | str) -> dict[str, dict[str, dict[str, Any]]]:
+  """Load consolidated checkpoint JSON files from ``checkpoint_dir`` (read-only).
+
+  Accepts either a directory containing ``*.json`` checkpoint files or a parent
+  benchmark output directory that contains a ``checkpoints/`` subdirectory.
+
+  Args:
+      checkpoint_dir: Path to the checkpoints directory (or parent results directory).
+
+  Returns:
+      Nested mapping ``problem_name -> algorithm_name -> checkpoint_payload``.
+
+  Raises:
+      FileNotFoundError: If ``checkpoint_dir`` does not exist.
+  """
+  ckpt_path = Path(checkpoint_dir)
+  if not ckpt_path.is_dir():
+    raise FileNotFoundError(f"Checkpoint directory does not exist: {ckpt_path}")
+
+  if not any(ckpt_path.glob("*.json")) and (ckpt_path / "checkpoints").is_dir():
+    ckpt_path = ckpt_path / "checkpoints"
+
+  all_results: dict[str, dict[str, dict[str, Any]]] = {}
+  for json_file in sorted(ckpt_path.glob("*.json")):
+    try:
+      with json_file.open("r", encoding="utf-8") as fh:
+        payload = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+      logging.warning("Skipping unreadable checkpoint %s: %s", json_file.name, exc)
+      continue
+
+    if not isinstance(payload, dict):
+      continue
+    problem_name = payload.get("problem_name")
+    algorithm = payload.get("algorithm")
+    if not isinstance(problem_name, str) or not isinstance(algorithm, str):
+      continue
+
+    all_results.setdefault(problem_name, {})[algorithm] = payload
+
+  return all_results
 
 
 def quarantine_checkpoint(filepath: Path, timestamp: int | None = None) -> Path:
@@ -473,6 +519,7 @@ def _validate_single_checkpoint_compatibility(
   ga_params: GAParams,
   param_overrides: Mapping[str, Any] | None,
   seed_override: int | None,
+  max_generations: int | None = None,
 ) -> list[str]:
   """Verify one checkpoint file matches the modular schema and active algorithm configuration."""
   try:
@@ -492,6 +539,11 @@ def _validate_single_checkpoint_compatibility(
     errors.append(f"{path.name}: problem_name is {data.get('problem_name')!r}, expected {expected_problem!r}")
   if data.get("algorithm") != expected_algorithm:
     errors.append(f"{path.name}: algorithm is {data.get('algorithm')!r}, expected {expected_algorithm!r}")
+
+  if max_generations is not None:
+    rec_max_gen = data.get("max_generations_configured")
+    if isinstance(rec_max_gen, bool) or not isinstance(rec_max_gen, int) or rec_max_gen != max_generations:
+      errors.append(f"{path.name}: max_generations_configured is {rec_max_gen!r}, expected {max_generations!r}")
 
   recorded_strategies = data.get("strategies")
   if not isinstance(recorded_strategies, dict):
@@ -518,11 +570,7 @@ def _validate_single_checkpoint_compatibility(
       if (param_overrides and "mutation_rate" in param_overrides)
       else float(alg_cfg.params.get("mutation_rate", ga_params.mutation_rate))
     )
-    expected_seed = (
-      int(seed_override)
-      if seed_override is not None
-      else int(alg_cfg.params.get("seed", ga_params.seed))
-    )
+    expected_seed = int(seed_override) if seed_override is not None else int(alg_cfg.params.get("seed", ga_params.seed))
 
     rec_pop = recorded_cfg.get("population_size")
     if isinstance(rec_pop, bool) or not isinstance(rec_pop, int) or rec_pop != expected_pop:
@@ -540,6 +588,18 @@ def _validate_single_checkpoint_compatibility(
     if isinstance(rec_seed, bool) or not isinstance(rec_seed, int) or rec_seed != expected_seed:
       errors.append(f"{path.name}: algorithm_config.seed is {rec_seed!r}, expected {expected_seed!r}")
 
+    recorded_strategy_params = recorded_cfg.get("strategy_params")
+    if isinstance(recorded_strategy_params, dict):
+      for slot, spec in alg_cfg.strategies.items():
+        expected_module = spec.get("module") if isinstance(spec, dict) else None
+        slot_params = recorded_strategy_params.get(slot)
+        if expected_module is not None and isinstance(slot_params, dict) and "module" in slot_params:
+          if slot_params.get("module") != expected_module:
+            errors.append(
+              f"{path.name}: algorithm_config.strategy_params.{slot}.module is "
+              f"{slot_params.get('module')!r}, expected {expected_module!r}"
+            )
+
   return errors
 
 
@@ -553,12 +613,13 @@ def validate_existing_checkpoints(
   param_overrides: Mapping[str, Any] | None = None,
   seed_override: int | None = None,
   cpu_size_threshold: int | None = None,
+  max_generations: int | None = None,
 ) -> list[str]:
   """Validate existing checkpoints in ``checkpoint_dir`` before running or resuming.
 
-  Rejects pre-modular checkpoints, strategy mismatches, or GA parameter drift
-  for any selected ``(problem, algorithm)`` pair so stale cohorts cannot be
-  silently reused.
+  Rejects pre-modular checkpoints, strategy mismatches, explicit ``max_generations``
+  mismatches, or GA parameter drift for any selected ``(problem, algorithm)`` pair so
+  stale cohorts cannot be silently reused.
   """
   if not checkpoint_dir.exists():
     return []
@@ -587,7 +648,85 @@ def validate_existing_checkpoints(
           ga_params,
           param_overrides,
           seed_override,
+          max_generations=max_generations,
         )
       )
 
   return errors
+
+
+def save_problem_statistics(
+  problem_name: str,
+  problem_size: int,
+  optimal_cost: float | None,
+  problem_results: dict[str, dict[str, Any]],
+  statistical_test_results: dict[str, Any],
+  checkpoint_manager: CheckpointManager,
+  problem_metadata: dict[str, Any] | None = None,
+) -> None:
+  """Persist per-problem summary metrics and statistical test outputs to JSON."""
+  from benchmarking.runner.algorithm_runner import compute_series_stats
+
+  stats_path: Path = checkpoint_manager.get_problem_stats_path(problem_name)
+
+  try:
+    problem_info: dict[str, Any] = {
+      "name": problem_name,
+      "size": problem_size,
+      "optimal_cost": optimal_cost,
+    }
+    if problem_metadata:
+      problem_info.update(problem_metadata)
+
+    problem_stats: dict[str, Any] = {
+      "problem_info": problem_info,
+      "algorithms": {},
+      "statistical_tests": statistical_test_results,
+    }
+
+    for alg_name, results in problem_results.items():
+      times = np.array(results.get("raw_times", results.get("times", [])), dtype=np.float64)
+      initial_costs = np.array(results.get("raw_initial_costs", results.get("initial_costs", [])), dtype=np.float64)
+      costs = np.array(results.get("raw_costs", results.get("final_costs", [])), dtype=np.float64)
+      raw_gaps = results.get("raw_gaps", results.get("gaps"))
+      generations = np.array(results.get("raw_generations", results.get("generations", [])), dtype=np.float64)
+
+      n_valid = int(np.sum(~np.isnan(times)))
+      mean_time, std_time, _, _ = compute_series_stats(times, n_valid)
+      mean_initial_cost, std_initial_cost, _, _ = compute_series_stats(initial_costs, n_valid)
+      mean_cost, std_cost, _, _ = compute_series_stats(costs, n_valid)
+      mean_gap: float | None
+      std_gap: float | None
+      if raw_gaps is not None and optimal_cost is not None:
+        gaps = np.array(raw_gaps, dtype=np.float64)
+        mean_gap, std_gap, _, _ = compute_series_stats(gaps, n_valid)
+      else:
+        mean_gap = None
+        std_gap = None
+      mean_generations, std_generations, _, _ = compute_series_stats(generations, n_valid)
+
+      problem_stats["algorithms"][alg_name] = {
+        "mean_time": mean_time,
+        "std_time": std_time,
+        "mean_initial_cost": mean_initial_cost,
+        "std_initial_cost": std_initial_cost,
+        "mean_cost": mean_cost,
+        "std_cost": std_cost,
+        "mean_gap": mean_gap,
+        "std_gap": std_gap,
+        "mean_generations": mean_generations,
+        "std_generations": std_generations,
+        "success_rate": float(n_valid / len(times)) if len(times) > 0 else 0.0,
+        "backend": results.get("backend", "unknown"),
+        "mean_phase_timings": results.get("mean_phase_timings", {}),
+        "phase_share_pct": results.get("phase_share_pct", {}),
+        "phase_share_cv_pct": results.get("phase_share_cv_pct", {}),
+        "algorithm_config": results.get("algorithm_config", {}),
+        "strategies": results.get("strategies", {}),
+      }
+
+    with open(stats_path, "w", encoding="utf-8") as f:
+      json.dump(problem_stats, f, indent=2, default=numpy_to_json_converter)
+    logging.info(f"✓ Problem statistics saved: {stats_path.name}\n")
+  except Exception as e:
+    logging.warning(f"Failed to save problem statistics: {e}\n")

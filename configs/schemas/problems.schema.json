@@ -26,9 +26,9 @@
             "examples": ["berlin52", "att532", "si535", "gr666"]
           },
           "optimal": {
-            "type": "number",
+            "type": ["number", "null"],
             "exclusiveMinimum": 0,
-            "description": "Canonical optimal tour cost from TSPLIB95; every gap is computed against it."
+            "description": "Canonical optimal tour cost from TSPLIB95 (or null when unknown); gaps are computed against it when present."
           },
           "size": {
             "type": "integer",

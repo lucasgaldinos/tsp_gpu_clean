@@ -35,7 +35,7 @@ SELECTED_PROBLEMS: tuple[str, ...] = (
 
 # Experiment parameters
 PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
-CONFIG_DIR: Path = PROJECT_ROOT / "configs"
+CONFIG_DIR: Path = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
 DB_PATH: Path = PROJECT_ROOT / "datasets" / "tsp.duckdb"
 REPETITIONS: int = 5
 CPU_SIZE_THRESHOLD: int = 400
