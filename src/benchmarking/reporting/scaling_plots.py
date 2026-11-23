@@ -160,12 +160,13 @@ def _build_size_lookup(problem_configs: Sequence[ProblemConfig] | None) -> dict[
 
 def _resolve_problem_size(
   problem_name: str,
-  problem_entries: dict[str, dict[str, Any]],
+  problem_entries: Mapping[str, Mapping[str, Any]],
   size_lookup: dict[str, int],
 ) -> int | None:
   """Resolve problem dimension ``n`` from configs or checkpoint metadata."""
-  if problem_name in size_lookup:
-    return size_lookup[problem_name]
+  configured_size = size_lookup.get(problem_name)
+  if configured_size is not None and configured_size > 0:
+    return configured_size
 
   for entry in problem_entries.values():
     raw_size = entry.get("problem_size")
@@ -173,14 +174,14 @@ def _resolve_problem_size(
       return int(raw_size)
     meta = entry.get("problem_metadata")
     if isinstance(meta, dict):
-      meta_size = meta.get("size")
+      meta_size = meta.get("dimension") if meta.get("dimension") is not None else meta.get("size")
       if isinstance(meta_size, (int, float)) and not isinstance(meta_size, bool) and int(meta_size) > 0:
         return int(meta_size)
   return None
 
 
 def _summarize_metric(
-  entry: dict[str, Any],
+  entry: Mapping[str, Any],
   raw_key: str,
   mean_key: str,
   std_key: str,
@@ -247,7 +248,7 @@ def _summarize_metric(
 
 
 def _collect_algorithm_series(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig] | None,
   *,
   algorithm_order: Sequence[str] | None = None,
@@ -314,7 +315,7 @@ def _collect_algorithm_series(
 
 
 def _collect_ordinal_slots(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig] | None,
 ) -> list[tuple[int, str]]:
   """Return ordered ``(size, problem_name)`` slots for ordinal axis rendering."""
@@ -517,7 +518,7 @@ def _draw_stratum_guides(
 
 
 def generate_scaling_plots(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig] | None,
   output_dir: Path | str,
   filename_stem: str = "scaling_time_gap",
@@ -626,9 +627,10 @@ def generate_scaling_plots(
 
     has_positive_times = False
     has_band = False
-    has_any_gap = any("gap_mean" in pt for pts in series_by_alg.values() for pt in pts)
-    quality_prefix = "gap" if has_any_gap else "cost"
-    effective_gap_ylabel = resolved_gap_ylabel if has_any_gap else resolved_cost_ylabel
+    all_points = [pt for pts in series_by_alg.values() for pt in pts]
+    has_all_gaps = bool(all_points) and all("gap_mean" in pt for pt in all_points)
+    quality_prefix = "gap" if has_all_gaps else "cost"
+    effective_gap_ylabel = resolved_gap_ylabel if has_all_gaps else resolved_cost_ylabel
 
     def _map_xs(pts: list[dict[str, Any]]) -> np.ndarray:
       if x_axis_mode == "ordinal":

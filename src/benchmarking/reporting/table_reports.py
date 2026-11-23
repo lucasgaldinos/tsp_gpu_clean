@@ -85,7 +85,7 @@ def _compute_baseline_times(
     if base_time is not None:
       baseline_times[problem] = base_time
       continue
-    first_alg = next(iter(cohort.results[problem].keys()))
+    first_alg = cohort.algorithms_for_problem(problem)[0]
     baseline_times[problem] = float(cohort.results[problem][first_alg]["mean_time"])
     logging.warning(f"Baseline {effective_baseline} not found for {problem}, using {first_alg}")
   return baseline_times
@@ -113,7 +113,7 @@ def _compute_table1_rows(
     if is_fallback:
       has_fallback = True
 
-    problem_base_alg = baseline_algorithm if not is_fallback else next(iter(prob_results.keys()))
+    problem_base_alg = baseline_algorithm if not is_fallback else algs_in_problem[0]
     base_time = baseline_times.get(problem, float(prob_results[problem_base_alg]["mean_time"]))
     span = len(algs_in_problem)
 
@@ -266,7 +266,7 @@ def _generate_table1_latex(
 
 
 def _compute_table2_stats(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_names: list[str],
   algorithm_names: list[str],
   baseline_algorithm: str,
@@ -406,7 +406,7 @@ def _generate_table2_latex(
 
 
 def _compute_table3_size_category_winners(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig],
   algorithm_names: list[str],
   size_thresholds: tuple[int, int] | None = None,
@@ -421,7 +421,11 @@ def _compute_table3_size_category_winners(
     sort_problems=False,
   )
   thresholds = ReportStyle().size_thresholds if size_thresholds is None else size_thresholds
-  categories = categorize_by_size(list(all_results.keys()), problem_configs, size_thresholds=thresholds)
+  categories = categorize_by_size(
+    list(active_cohort.problems),
+    active_cohort.problem_configs,
+    size_thresholds=thresholds,
+  )
   winners: list[dict[str, Any]] = []
 
   for category, problems in categories.items():
@@ -467,7 +471,7 @@ def _compute_table3_size_category_winners(
 
 
 def _generate_table3_markdown(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig],
   algorithm_names: list[str],
   style: ReportStyle,
@@ -507,7 +511,7 @@ def _generate_table3_markdown(
 
 
 def _generate_table3_latex(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig],
   algorithm_names: list[str],
   style: ReportStyle,
@@ -706,7 +710,7 @@ def _generate_phase_timings_latex(
 
 
 def generate_markdown_tables(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig],
   output_dir: Path | str,
   benchmark_name: str = "benchmark",
@@ -742,7 +746,7 @@ def generate_markdown_tables(
   baseline_times = _compute_baseline_times(active_cohort, effective_baseline)
   t1_rows, has_fallback = _compute_table1_rows(active_cohort, effective_baseline, baseline_times)
   t2_stats = _compute_table2_stats(
-    all_results,
+    active_cohort.results,
     list(active_cohort.problems),
     list(active_cohort.algorithms),
     effective_baseline,
@@ -756,8 +760,8 @@ def generate_markdown_tables(
   if include_size_category_table:
     md_lines.extend(
       _generate_table3_markdown(
-        all_results,
-        problem_configs,
+        active_cohort.results,
+        active_cohort.problem_configs,
         list(active_cohort.algorithms),
         effective_style,
         cohort=active_cohort,
@@ -773,7 +777,7 @@ def generate_markdown_tables(
 
 
 def generate_latex_tables(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig],
   output_dir: Path | str,
   benchmark_name: str = "benchmark",
@@ -809,7 +813,7 @@ def generate_latex_tables(
   baseline_times = _compute_baseline_times(active_cohort, effective_baseline)
   t1_rows, has_fallback = _compute_table1_rows(active_cohort, effective_baseline, baseline_times)
   t2_stats = _compute_table2_stats(
-    all_results,
+    active_cohort.results,
     list(active_cohort.problems),
     list(active_cohort.algorithms),
     effective_baseline,
@@ -823,8 +827,8 @@ def generate_latex_tables(
   if include_size_category_table:
     tex_lines.extend(
       _generate_table3_latex(
-        all_results,
-        problem_configs,
+        active_cohort.results,
+        active_cohort.problem_configs,
         list(active_cohort.algorithms),
         effective_style,
         cohort=active_cohort,

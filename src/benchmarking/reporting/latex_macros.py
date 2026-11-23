@@ -16,7 +16,7 @@ from benchmarking.analysis.cohort_analysis import CohortAnalysis, analyze_cohort
 from benchmarking.reporting.style import ReportStyle, escape_latex_identifier
 
 if TYPE_CHECKING:
-  from collections.abc import Sequence
+  from collections.abc import Mapping, Sequence
 
   from benchmarking.analysis.cohort import BenchmarkCohort
   from benchmarking.analysis.cohort_analysis import BaselineWilcoxonComparison
@@ -233,7 +233,7 @@ def _emit_wilcoxon_block(
 
 
 def generate_latex_macros(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig] | None,
   output_dir: Path | str,
   baseline_algorithm: str | None = None,

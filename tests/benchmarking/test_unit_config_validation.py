@@ -712,3 +712,39 @@ def test_report_style_schema_matches_generator_and_rejects_invalid_payloads() ->
     candidate.update(update)
     with pytest.raises(jsonschema.ValidationError, match=err_match):
       jsonschema.validate(instance=candidate, schema=schema)
+
+
+def test_validate_configs_and_instantiate_catch_bad_slots_protocols_and_algo_params() -> None:
+  """WHAT: `validate_configs` and `instantiate` reject unknown slots, mismatched protocols, and bad params.
+
+  WHY: BUG-101 — Typoed slot keys (`cross_over`), wrong-slot strategies (`MutationSwap` in
+  `crossover`), and out-of-range per-algorithm params previously slipped through with zero warnings.
+  """
+  from benchmarking.runner.config_loader import BenchmarkConfig, GAParams
+
+  cfg = AlgorithmConfig(
+    name="BrokenAlg",
+    use_gpu=False,
+    description="Broken",
+    params={"population_size": -5, "mutation_rate": 9.9, "local_search_stage": "not_a_stage"},
+    strategies={
+      "cross_over": {"class": "CrossoverOrder"},
+      "crossover": {"class": "MutationSwap"},
+    },
+  )
+  warnings = validate_configs(
+    {
+      "ga_params": GAParams(),
+      "algorithms": {"BrokenAlg": cfg},
+      "benchmark": BenchmarkConfig(),
+      "problems": [ProblemConfig("p1", 100.0, 10)],
+    }
+  )
+  assert any("population_size" in w for w in warnings)
+  assert any("mutation_rate" in w for w in warnings)
+  assert any("local_search_stage" in w for w in warnings)
+  assert any("unknown strategy slot 'cross_over'" in w for w in warnings)
+  assert any("CrossoverStrategy" in w for w in warnings)
+
+  with pytest.raises(ValueError, match="Unknown strategy slot 'cross_over'"):
+    cfg.instantiate(GAParams())

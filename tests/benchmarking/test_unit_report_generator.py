@@ -920,3 +920,77 @@ def test_generate_result_tables_computes_omnibus_once_per_metric(
     analysis=precomputed,
   )
   assert call_count == 4
+
+
+def test_table1_fallback_respects_algorithm_order_and_precomputed_analysis_drives_table3_and_plots(
+  tmp_path: Path,
+) -> None:
+  """WHAT: Table 1 fallback uses `algorithm_order`, and `analysis=` drives Table 3 and plots.
+
+  WHY: BUG-99 — Alphabetical dict keys previously overrode `ReportStyle.algorithm_order` for
+  Table 1 fallback baselines, and passing `problem_configs=[]` or `all_results={}` with a
+  precomputed `CohortAnalysis` produced an empty Table 3 and failed scaling-plot generation.
+  """
+  from benchmarking.analysis.cohort_analysis import analyze_cohort
+  from benchmarking.reporting.style import ReportStyle
+  from benchmarking.reporting.table_reports import (
+    _compute_baseline_times,
+    _compute_table1_rows,
+    _compute_table3_size_category_winners,
+  )
+
+  # Alphabetical keys place FullGPUModular before HybridNaive, opposite of style.algorithm_order
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    "small50": {
+      "CPU": {"problem_size": 50, "mean_cost": 100.0, "std_cost": 1.0, "mean_gap": 1.0, "mean_time": 10.0},
+      "FullGPUModular": {"problem_size": 50, "mean_cost": 100.5, "std_cost": 1.0, "mean_gap": 1.5, "mean_time": 0.5},
+      "HybridNaive": {"problem_size": 50, "mean_cost": 100.2, "std_cost": 1.0, "mean_gap": 1.2, "mean_time": 2.0},
+    },
+    "large500": {
+      "FullGPUModular": {"problem_size": 500, "mean_cost": 500.0, "std_cost": 2.0, "mean_gap": 2.0, "mean_time": 1.0},
+      "HybridNaive": {"problem_size": 500, "mean_cost": 502.0, "std_cost": 2.0, "mean_gap": 2.4, "mean_time": 4.0},
+    },
+  }
+  style = ReportStyle(algorithm_order=("CPU", "HybridNaive", "FullGPUModular"))
+  analysis = analyze_cohort(
+    all_results,
+    problem_configs=[],
+    baseline_algorithm="CPU",
+    algorithm_order=style.algorithm_order,
+  )
+
+  # 1. Table 1 fallback baseline on large500 must be HybridNaive (not FullGPUModular)
+  base_times = _compute_baseline_times(analysis.cohort, "CPU")
+  assert base_times["large500"] == pytest.approx(4.0)
+  rows, has_fallback = _compute_table1_rows(analysis.cohort, "CPU", base_times)
+  assert has_fallback is True
+  large_rows = {r.algorithm: r for r in rows if r.problem == "large500"}
+  assert large_rows["HybridNaive"].is_baseline is True
+  assert large_rows["HybridNaive"].speedup == pytest.approx(1.0)
+  assert large_rows["FullGPUModular"].is_baseline is False
+  assert large_rows["FullGPUModular"].speedup == pytest.approx(4.0)
+
+  # 2. Table 3 uses derived cohort.problem_configs even when caller passes empty all_results/problem_configs
+  winners = _compute_table3_size_category_winners(
+    all_results={},
+    problem_configs=[],
+    algorithm_names=list(analysis.cohort.algorithms),
+    cohort=analysis.cohort,
+  )
+  assert {w["category"] for w in winners} == {"Small (n≤100)", "Large (n>400)"}
+
+  # 3. generate_result_tables works across all 5 artifacts (including plots and Table 3) with analysis= only
+  generated = generate_result_tables(
+    all_results={},
+    problem_configs=[],
+    output_dir=tmp_path / "tables",
+    benchmark_name="from_analysis_only",
+    include_size_category_table=True,
+    style=style,
+    analysis=analysis,
+  )
+  assert generated["markdown"]
+  assert generated["plots"]
+  md_text = generated["markdown"][0].read_text(encoding="utf-8")
+  assert "Table 3" in md_text
+  assert "| Large (n>400) |" in md_text

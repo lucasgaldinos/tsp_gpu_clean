@@ -25,7 +25,7 @@ from benchmarking.reporting.table_reports import (
 )
 
 if TYPE_CHECKING:
-  from collections.abc import Sequence
+  from collections.abc import Mapping, Sequence
 
   from benchmarking.runner.config_loader import ProblemConfig
 
@@ -66,7 +66,7 @@ def _generate_cd_diagrams(
 
 
 def generate_result_tables(
-  all_results: dict[str, dict[str, dict[str, Any]]],
+  all_results: Mapping[str, Mapping[str, Mapping[str, Any]]],
   problem_configs: Sequence[ProblemConfig],
   output_dir: Path | str,
   benchmark_name: str = "benchmark",
@@ -113,8 +113,8 @@ def generate_result_tables(
 
   if "markdown" in selected:
     md_path = generate_markdown_tables(
-      all_results=all_results,
-      problem_configs=problem_configs,
+      all_results=cohort.results,
+      problem_configs=cohort.problem_configs,
       output_dir=out_dir,
       benchmark_name=benchmark_name,
       baseline_algorithm=baseline_algorithm,
@@ -128,8 +128,8 @@ def generate_result_tables(
 
   if "latex" in selected:
     tex_path = generate_latex_tables(
-      all_results=all_results,
-      problem_configs=problem_configs,
+      all_results=cohort.results,
+      problem_configs=cohort.problem_configs,
       output_dir=out_dir,
       benchmark_name=benchmark_name,
       baseline_algorithm=baseline_algorithm,
@@ -144,8 +144,8 @@ def generate_result_tables(
   if "macros" in selected:
     try:
       macros_path = generate_latex_macros(
-        all_results=all_results,
-        problem_configs=problem_configs,
+        all_results=cohort.results,
+        problem_configs=cohort.problem_configs,
         output_dir=out_dir,
         baseline_algorithm=baseline_algorithm,
         style=effective_style,
@@ -172,8 +172,8 @@ def generate_result_tables(
       from benchmarking.reporting.scaling_plots import generate_scaling_plots
 
       generated_plots = generate_scaling_plots(
-        all_results=all_results,
-        problem_configs=problem_configs,
+        all_results=cohort.results,
+        problem_configs=cohort.problem_configs,
         output_dir=figures_dir,
         style=effective_style,
       )

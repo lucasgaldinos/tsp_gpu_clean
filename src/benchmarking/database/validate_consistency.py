@@ -18,13 +18,52 @@ Date: 2025-11-23
 """
 
 import json
+import math
 from pathlib import Path
 from typing import Any, cast
 
 import duckdb
+import numpy as np
 import pandas as pd
 
 from benchmarking.database.schema import ALL_RUNS_BY_ID, COUNT_RUNS, TABLE_RUNS
+
+_EXCLUDED_COMPARE_COLUMNS: frozenset[str] = frozenset({"run_id", "created_at"})
+
+
+def _is_scalar_na(value: Any) -> bool:
+  """Return True only when ``value`` is a scalar NULL/NaN (never raises on arrays/lists)."""
+  if value is None:
+    return True
+  if isinstance(value, (list, tuple, dict, np.ndarray)):
+    return False
+  try:
+    return bool(pd.isna(value))
+  except (TypeError, ValueError):
+    return False
+
+
+def _values_equal(val1: Any, val2: Any) -> bool:
+  """Compare two DuckDB/pandas cell values safely across scalars, floats, NULLs, and LIST arrays."""
+  if _is_scalar_na(val1) and _is_scalar_na(val2):
+    return True
+  if _is_scalar_na(val1) or _is_scalar_na(val2):
+    return False
+
+  if isinstance(val1, (list, tuple, np.ndarray)) and isinstance(val2, (list, tuple, np.ndarray)):
+    seq1 = list(val1)
+    seq2 = list(val2)
+    return len(seq1) == len(seq2) and all(_values_equal(a, b) for a, b in zip(seq1, seq2, strict=True))
+
+  if isinstance(val1, bool) or isinstance(val2, bool):
+    return isinstance(val1, bool) and isinstance(val2, bool) and val1 == val2
+
+  if isinstance(val1, (int, float, np.integer, np.floating)) and isinstance(
+    val2, (int, float, np.integer, np.floating)
+  ):
+    return math.isclose(float(val1), float(val2), rel_tol=1e-9, abs_tol=1e-12)
+
+  return bool(val1 == val2)
 
 
 def load_checkpoint_json(filepath: Path) -> dict[str, Any]:
@@ -34,109 +73,97 @@ def load_checkpoint_json(filepath: Path) -> dict[str, Any]:
 
 
 def compare_databases(db1_path: str, db2_path: str) -> tuple[bool, list[str]]:
-  """
-  Compare two databases for identical content.
+  """Compare two DuckDB benchmark databases across every row ordered by ``(problem_name, algorithm)``.
 
   Returns:
-      (is_identical, list_of_differences)
+      ``(is_identical, list_of_differences)`` with DuckDB connections always closed.
   """
   print("=" * 80)
   print("PHASE 1: Comparing Two Databases")
   print("=" * 80)
   print()
 
-  conn1 = duckdb.connect(db1_path, read_only=True)
-  conn2 = duckdb.connect(db2_path, read_only=True)
+  conn1: duckdb.DuckDBPyConnection | None = None
+  conn2: duckdb.DuckDBPyConnection | None = None
+  differences: list[str] = []
 
-  differences = []
+  try:
+    conn1 = duckdb.connect(db1_path, read_only=True)
+    conn2 = duckdb.connect(db2_path, read_only=True)
 
-  # Compare row counts
-  r1 = conn1.execute(COUNT_RUNS).fetchone()
-  r2 = conn2.execute(COUNT_RUNS).fetchone()
-  count1 = r1[0] if r1 else 0
-  count2 = r2[0] if r2 else 0
+    r1 = conn1.execute(COUNT_RUNS).fetchone()
+    r2 = conn2.execute(COUNT_RUNS).fetchone()
+    count1 = r1[0] if r1 else 0
+    count2 = r2[0] if r2 else 0
 
-  print(f"Database 1: {count1} rows")
-  print(f"Database 2: {count2} rows")
+    print(f"Database 1: {count1} rows")
+    print(f"Database 2: {count2} rows")
 
-  if count1 != count2:
-    differences.append(f"Row count mismatch: {count1} vs {count2}")
-    print("❌ Row count mismatch!")
-    return False, differences
+    if count1 != count2:
+      differences.append(f"Row count mismatch: {count1} vs {count2}")
+      print("❌ Row count mismatch!")
+      return False, differences
 
-  print(f"✓ Row counts match: {count1} rows")
-  print()
+    print(f"✓ Row counts match: {count1} rows")
+    print()
 
-  # Load both databases into pandas
-  df1 = conn1.execute(ALL_RUNS_BY_ID).df()
-  df2 = conn2.execute(ALL_RUNS_BY_ID).df()
+    if count1 == 0:
+      print("✅ Databases are identical (both empty)!")
+      return True, []
 
-  # Compare unique problems
-  problems1 = set(df1["problem_name"].unique())
-  problems2 = set(df2["problem_name"].unique())
+    df1 = conn1.execute(ALL_RUNS_BY_ID).df()
+    df2 = conn2.execute(ALL_RUNS_BY_ID).df()
 
-  if problems1 != problems2:
-    differences.append(f"Problem sets differ: {problems1 ^ problems2}")
-    print("❌ Different problems!")
-    return False, differences
+    if list(df1.columns) != list(df2.columns):
+      differences.append(f"Column sets differ: {set(df1.columns) ^ set(df2.columns)}")
+      print("❌ Different table columns!")
+      return False, differences
 
-  print(f"✓ Same {len(problems1)} unique problems")
+    problems1 = set(df1["problem_name"].unique())
+    problems2 = set(df2["problem_name"].unique())
+    if problems1 != problems2:
+      differences.append(f"Problem sets differ: {problems1 ^ problems2}")
+      print("❌ Different problems!")
+      return False, differences
+    print(f"✓ Same {len(problems1)} unique problems")
 
-  # Compare algorithms
-  algos1 = set(df1["algorithm"].unique())
-  algos2 = set(df2["algorithm"].unique())
+    algos1 = set(df1["algorithm"].unique())
+    algos2 = set(df2["algorithm"].unique())
+    if algos1 != algos2:
+      differences.append(f"Algorithm sets differ: {algos1 ^ algos2}")
+      print("❌ Different algorithms!")
+      return False, differences
+    print(f"✓ Same {len(algos1)} algorithms")
+    print()
 
-  if algos1 != algos2:
-    differences.append(f"Algorithm sets differ: {algos1 ^ algos2}")
-    print("❌ Different algorithms!")
-    return False, differences
+    sort_cols = [c for c in ("problem_name", "algorithm", "timestamp", "run_id") if c in df1.columns]
+    df1_sorted = df1.sort_values(by=sort_cols, kind="mergesort").reset_index(drop=True)
+    df2_sorted = df2.sort_values(by=sort_cols, kind="mergesort").reset_index(drop=True)
 
-  print(f"✓ Same {len(algos1)} algorithms")
-  print()
+    compare_cols = [c for c in df1_sorted.columns if c not in _EXCLUDED_COMPARE_COLUMNS]
+    print(f"Comparing all {len(df1_sorted)} records across {len(compare_cols)} columns...")
 
-  # Compare sample records (2 random ones)
-  print("Comparing 2 random records in detail...")
-  sample_indices = [0, len(df1) // 2]  # First and middle records
+    for idx in range(len(df1_sorted)):
+      row1 = df1_sorted.iloc[idx]
+      row2 = df2_sorted.iloc[idx]
+      row_label = f"{row1['problem_name']} / {row1['algorithm']}"
+      for field in compare_cols:
+        val1 = row1[field]
+        val2 = row2[field]
+        if not _values_equal(val1, val2):
+          differences.append(f"Row {idx} ({row_label}), field {field}: {val1!r} vs {val2!r}")
 
-  for idx in sample_indices:
-    row1 = df1.iloc[idx]
-    row2 = df2.iloc[idx]
+    if differences:
+      print(f"❌ Found {len(differences)} cell difference(s)!")
+      return False, differences
 
-    problem = row1["problem_name"]
-    algo = row1["algorithm"]
-
-    print(f"\n  Record {idx + 1}: {problem} / {algo}")
-
-    key_fields = [
-      "mean_time",
-      "best_cost",
-      "repetitions",
-      "optimal_cost",
-      "problem_size",
-    ]
-
-    for field in key_fields:
-      val1 = row1[field]
-      val2 = row2[field]
-
-      if pd.isna(val1) and pd.isna(val2):
-        print(f"    ✓ {field}: NULL")
-      elif val1 != val2:
-        differences.append(f"Row {idx}, field {field}: {val1} vs {val2}")
-        print(f"    ❌ {field}: {val1} != {val2}")
-      else:
-        print(f"    ✓ {field}: {val1}")
-
-  print()
-
-  conn1.close()
-  conn2.close()
-
-  if differences:
-    return False, differences
-  else:
     print("✅ Databases are identical!")
     return True, []
+  finally:
+    if conn1 is not None:
+      conn1.close()
+    if conn2 is not None:
+      conn2.close()
 
 
 def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[bool, pd.DataFrame]:

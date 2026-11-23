@@ -205,6 +205,9 @@ def _run_preflight(
   ga_params: GAParams,
   param_overrides: Mapping[str, Any] | None,
   effective_seed: int,
+  local_search_stage: str | None = None,
+  strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
+  allow_corrupt_checkpoints: bool = False,
   preflight_validator: Callable[
     [Mapping[str, AlgorithmConfig], GAParams, Sequence[ProblemConfig]],
     Sequence[str],
@@ -236,6 +239,9 @@ def _run_preflight(
       seed_override=effective_seed,
       cpu_size_threshold=effective_benchmark_config.cpu_size_threshold,
       max_generations=effective_benchmark_config.max_generations,
+      local_search_stage=local_search_stage,
+      strategy_overrides=strategy_overrides,
+      allow_corrupt=allow_corrupt_checkpoints,
     )
   )
   if errors:
@@ -445,6 +451,9 @@ def run_comprehensive_benchmark(
     ga_params=ga_params,
     param_overrides=param_overrides or None,
     effective_seed=effective_seed,
+    local_search_stage=local_search_stage,
+    strategy_overrides=strategy_overrides,
+    allow_corrupt_checkpoints=not dry_run,
     preflight_validator=preflight_validator,
   )
 
@@ -550,6 +559,7 @@ def run_comprehensive_benchmark(
       incremental_mode = effective_benchmark_config.incremental_runs
 
       checkpoint_exists: bool = checkpoint_path.exists()
+      existing_runs = 0
 
       if checkpoint_exists:
         try:
@@ -565,6 +575,7 @@ def run_comprehensive_benchmark(
           existing_runs = 0
           checkpoint_exists = False
 
+      if checkpoint_exists:
         if incremental_mode:
           new_reps_to_add = effective_repetitions
           total_target_reps = existing_runs + new_reps_to_add
@@ -647,6 +658,8 @@ def run_comprehensive_benchmark(
         if isinstance(spec.get("module"), str) and spec["module"].strip():
           params["module"] = spec["module"]
         params.update(configured)
+        if strategy_overrides and slot in strategy_overrides:
+          params.update(strategy_overrides[slot])
         for attr in _STRATEGY_PARAM_ATTRS:
           value: Any = getattr(strat, attr, None)
           if value is not None:

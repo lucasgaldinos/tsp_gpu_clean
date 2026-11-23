@@ -1289,3 +1289,67 @@ def test_check_duplicate_equal_repetitions_timestamp_rules(db_conn: duckdb.DuckD
   # 4. Timezone-aware UTC timestamp (13:00:00Z > 12:00:00 naive): replace -> False
   tz_newer = production_payload(mean_time=1.9, algorithm="CPU", timestamp="2025-11-23T13:00:00+00:00")
   assert check_duplicate(db_conn, tz_newer) is False
+
+
+def test_compare_databases_handles_empty_dbs_reordered_rows_and_tail_differences(tmp_path: Path) -> None:
+  """WHAT: `compare_databases` handles empty DBs, ignores insertion order, and checks every row.
+
+  WHY: BUG-102 — Previous comparator crashed with `IndexError` on empty DBs, leaked DuckDB
+  connections on early returns, and only sampled 2 rows by `run_id`.
+  """
+  from benchmarking.database.validate_consistency import compare_databases
+
+  db1 = str(tmp_path / "a.duckdb")
+  db2 = str(tmp_path / "b.duckdb")
+  create_database(db1).close()
+  create_database(db2).close()
+
+  # 1. Empty databases compare cleanly without IndexError
+  identical_empty, diffs_empty = compare_databases(db1, db2)
+  assert identical_empty is True
+  assert diffs_empty == []
+
+  # 2. Four identical rows inserted in opposite order compare equal
+  rows = [
+    production_payload(
+      problem_name="p1", algorithm="CPU", mean_cost=100.0, mean_time=1.0, timestamp="2025-11-23T12:00:00"
+    ),
+    production_payload(
+      problem_name="p2", algorithm="CPU", mean_cost=200.0, mean_time=2.0, timestamp="2025-11-23T12:00:00"
+    ),
+    production_payload(
+      problem_name="p3", algorithm="CPU", mean_cost=300.0, mean_time=3.0, timestamp="2025-11-23T12:00:00"
+    ),
+    production_payload(
+      problem_name="p4", algorithm="CPU", mean_cost=400.0, mean_time=4.0, timestamp="2025-11-23T12:00:00"
+    ),
+  ]
+  c1 = create_database(db1)
+  c2 = create_database(db2)
+  for payload in rows:
+    insert_payload(c1, payload)
+  for payload in reversed(rows):
+    insert_payload(c2, payload)
+  c1.close()
+  c2.close()
+
+  identical_reordered, diffs_reordered = compare_databases(db1, db2)
+  assert identical_reordered is True
+  assert diffs_reordered == []
+
+  # 3. Difference strictly in the last row (missed by old [0, len//2] sampling) is detected
+  db3 = str(tmp_path / "c.duckdb")
+  c3 = create_database(db3)
+  for payload in rows[:-1]:
+    insert_payload(c3, payload)
+  insert_payload(
+    c3,
+    production_payload(
+      problem_name="p4", algorithm="CPU", mean_cost=499.0, mean_time=4.0, timestamp="2025-11-23T12:00:00"
+    ),
+  )
+  c3.close()
+
+  identical_diff, diffs = compare_databases(db1, db3)
+  assert identical_diff is False
+  assert any("p4 / CPU" in d and "mean_cost" in d for d in diffs)

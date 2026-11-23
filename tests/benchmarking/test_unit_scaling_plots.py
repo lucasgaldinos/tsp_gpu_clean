@@ -595,3 +595,53 @@ def test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties(
   monkeypatch.undo()
   assert captured_xdata[0] == pytest.approx([0.0, 1.0, 2.0])
   assert captured_tick_labels[0] == ["kroA100 (100)", "kroB100 (100)", "ch150 (150)"]
+
+
+def test_resolve_problem_size_metadata_dimension_and_mixed_optimal_cost_fallback(
+  tmp_path: Path,
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: `_resolve_problem_size` reads `problem_metadata['dimension']` and mixed cohorts plot cost.
+
+  WHY: BUG-99 — `Problem.to_metadata_dict` emits `'dimension'` (not `'size'`), and mixed
+  cohorts (some optima known, some unknown) must fall back to raw cost across all points
+  instead of dropping unknown-optimal instances from the bottom panel.
+  """
+  import numpy as np
+  from matplotlib.figure import Figure
+
+  from benchmarking.reporting.scaling_plots import _resolve_problem_size
+
+  entries = {"CPU": {"problem_metadata": {"dimension": 52}}}
+  assert _resolve_problem_size("berlin52", entries, {}) == 52
+  assert _resolve_problem_size("berlin52", entries, {"berlin52": 0}) == 52
+
+  mixed_results: dict[str, dict[str, dict[str, Any]]] = {
+    "known52": {
+      "CPU": {"problem_size": 52, "raw_times": [1.0, 1.2], "raw_costs": [7600.0, 7650.0], "raw_gaps": [0.7, 1.4]},
+    },
+    "custom80": {
+      "CPU": {"problem_metadata": {"dimension": 80}, "raw_times": [2.0, 2.2], "raw_costs": [9000.0, 9100.0]},
+    },
+  }
+  captured_bottom_n: list[int] = []
+  captured_bottom_ylabel: list[str] = []
+  orig_savefig = Figure.savefig
+
+  def _spy_mixed(self: Figure, *args: Any, **kwargs: Any) -> Any:
+    ax_bottom = self.axes[1]
+    captured_bottom_n.append(len(np.asarray(ax_bottom.lines[0].get_xdata(), dtype=float)))
+    captured_bottom_ylabel.append(ax_bottom.get_ylabel())
+    return orig_savefig(self, *args, **kwargs)
+
+  monkeypatch.setattr(Figure, "savefig", _spy_mixed)
+  generate_scaling_plots(
+    mixed_results,
+    problem_configs=None,
+    output_dir=tmp_path,
+    filename_stem="mixed_opt",
+    formats=("pdf",),
+  )
+  monkeypatch.undo()
+  assert captured_bottom_n == [2]
+  assert "Cost" in captured_bottom_ylabel[0]

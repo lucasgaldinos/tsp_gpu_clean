@@ -411,6 +411,11 @@ class StatisticalAnalyzer:
       return 0.0
     return float((pos_ranks - neg_ranks) / total)
 
+  @staticmethod
+  def _count_zero_differences(differences: np.ndarray, *, tolerance: float = 1e-10) -> int:
+    """Count paired differences that vanish within absolute ``tolerance``."""
+    return int(np.sum(np.abs(differences) < tolerance))
+
   def paired_comparison(
     self,
     data_a: np.ndarray,
@@ -465,7 +470,6 @@ class StatisticalAnalyzer:
       )
 
     differences = arr_a - arr_b
-    tolerance = 1e-10
     mean_a = float(np.mean(arr_a))
     mean_b = float(np.mean(arr_b))
     std_a = float(np.std(arr_a, ddof=1))
@@ -478,7 +482,7 @@ class StatisticalAnalyzer:
     _, ci_a = self.compute_hodges_lehmann(arr_a, confidence=confidence)
     _, ci_b = self.compute_hodges_lehmann(arr_b, confidence=confidence)
 
-    zero_diffs = int(np.sum(np.abs(differences) < tolerance))
+    zero_diffs = self._count_zero_differences(differences)
     effective_n = n - zero_diffs
     exact_min_p = 1.0 if effective_n == 0 else float(2.0 ** -(effective_n - 1))
     insufficient_power = bool((zero_diffs > (n // 2)) or (effective_n == 0) or (exact_min_p > self.alpha + 1e-15))
@@ -557,12 +561,18 @@ class StatisticalAnalyzer:
   ) -> tuple[float, float, float]:
     """Compute paired Wilcoxon signed-rank ``(W, p_value, rank_biserial_r)`` using ``zsplit``.
 
-    Returns ``(0.0, 1.0, 0.0)`` cleanly when paired vectors have ``n < 2`` or are
-    identical within tolerance.
+    Returns ``(0.0, 1.0, 0.0)`` cleanly when paired vectors have ``n < 2`` or all
+    paired differences vanish within the same scale-invariant absolute tolerance
+    (``1e-10``) used by ``paired_comparison``.
     """
     arr_a = np.asarray(data_a, dtype=float)
     arr_b = np.asarray(data_b, dtype=float)
-    if arr_a.size < 2 or arr_b.size < 2 or np.allclose(arr_a, arr_b):
+    if arr_a.size != arr_b.size:
+      raise ValueError(f"Arrays must have same length: {arr_a.size} != {arr_b.size}")
+    if arr_a.size < 2:
+      return 0.0, 1.0, 0.0
+    differences = arr_a - arr_b
+    if self._count_zero_differences(differences) == int(arr_a.size):
       return 0.0, 1.0, 0.0
     wilcoxon_res = stats.wilcoxon(arr_a, arr_b, zero_method="zsplit")
     w_stat = float(wilcoxon_res.statistic)

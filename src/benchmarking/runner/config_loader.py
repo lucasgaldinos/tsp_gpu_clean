@@ -103,11 +103,15 @@ class AlgorithmConfig:
     strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
   ) -> Any:
     """Instantiate the algorithm, applying optional seed, parameter, and strategy overrides."""
-    valid_slots = {"initialization", "selection", "crossover", "mutation", "evaluation", "local_search"}
+    for slot in self.strategies:
+      if slot not in VALID_STRATEGY_SLOTS:
+        raise ValueError(
+          f"Unknown strategy slot '{slot}' in algorithm '{self.name}'. Valid slots: {sorted(VALID_STRATEGY_SLOTS)}"
+        )
     if strategy_overrides:
       for slot in strategy_overrides:
-        if slot not in valid_slots:
-          raise ValueError(f"Unknown strategy slot '{slot}'. Valid slots: {sorted(valid_slots)}")
+        if slot not in VALID_STRATEGY_SLOTS:
+          raise ValueError(f"Unknown strategy slot '{slot}'. Valid slots: {sorted(VALID_STRATEGY_SLOTS)}")
 
     # 1. Monolithic / class-based instantiation
     if self.class_module and self.class_name:
@@ -331,6 +335,32 @@ def _resolve_class_spec(
   return registry[class_name]
 
 
+VALID_STRATEGY_SLOTS: frozenset[str] = frozenset(
+  {"initialization", "selection", "crossover", "mutation", "evaluation", "local_search"}
+)
+
+
+def _slot_protocol_map() -> dict[str, type]:
+  """Return the ``@runtime_checkable`` protocol expected for each declarative strategy slot."""
+  from protocols.algorithm_strategies import (
+    CrossoverStrategy,
+    EvaluationStrategy,
+    InitializationStrategy,
+    LocalSearchStrategy,
+    MutationStrategy,
+    SelectionStrategy,
+  )
+
+  return {
+    "initialization": InitializationStrategy,
+    "selection": SelectionStrategy,
+    "crossover": CrossoverStrategy,
+    "mutation": MutationStrategy,
+    "evaluation": EvaluationStrategy,
+    "local_search": LocalSearchStrategy,
+  }
+
+
 def _validate_class_spec(
   spec: Mapping[str, Any] | None,
   registry: Mapping[str, type],
@@ -340,17 +370,28 @@ def _validate_class_spec(
   slot: str | None = None,
   strategy_registry: Mapping[str, type] | None = None,
 ) -> list[str]:
-  """Validate class resolution, constructor parameter names, and nested strategy specs."""
+  """Validate class resolution, slot-protocol conformance, constructor params, and nested specs."""
   if not spec or ("class" not in spec and "module" not in spec):
     return []
 
   import inspect
+
+  if slot is not None and registry_name == "strategy" and slot not in VALID_STRATEGY_SLOTS:
+    return [f"{context_label}: unknown strategy slot '{slot}'. Valid slots: {sorted(VALID_STRATEGY_SLOTS)}"]
 
   errors: list[str] = []
   try:
     target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot)
   except (ImportError, ValueError, AttributeError) as exc:
     return [f"{context_label}: {exc}"]
+
+  if slot is not None and registry_name == "strategy":
+    expected_protocol = _slot_protocol_map().get(slot)
+    if expected_protocol is not None and not issubclass(target_cls, expected_protocol):
+      errors.append(
+        f"{context_label}: class '{target_cls.__name__}' does not implement {expected_protocol.__name__} "
+        f"required for slot '{slot}'"
+      )
 
   raw_params = spec.get("params", {})
   if not isinstance(raw_params, Mapping):
@@ -650,7 +691,31 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   if not (0.0 <= ga_params.mutation_rate <= 1.0):
     warnings.append(f"Invalid mutation_rate: {ga_params.mutation_rate} (must be in [0, 1])")
 
+  from typing import get_args
+
+  from protocols.types import LocalSearchStage as _LocalSearchStage
+
+  valid_ls_stages: frozenset[str] = frozenset(get_args(getattr(_LocalSearchStage, "__value__", _LocalSearchStage)))
+
   for algo_name, algo_cfg in algorithms.items():
+    if "population_size" in algo_cfg.params:
+      algo_pop = algo_cfg.params["population_size"]
+      if isinstance(algo_pop, bool) or not isinstance(algo_pop, int) or algo_pop <= 0:
+        warnings.append(f"Invalid population_size in {algo_name}.params: {algo_pop!r} (must be > 0)")
+
+    if "mutation_rate" in algo_cfg.params:
+      algo_mut = algo_cfg.params["mutation_rate"]
+      if isinstance(algo_mut, bool) or not isinstance(algo_mut, (int, float)) or not (0.0 <= float(algo_mut) <= 1.0):
+        warnings.append(f"Invalid mutation_rate in {algo_name}.params: {algo_mut!r} (must be in [0, 1])")
+
+    if "local_search_stage" in algo_cfg.params:
+      algo_stage = algo_cfg.params["local_search_stage"]
+      if not isinstance(algo_stage, str) or algo_stage not in valid_ls_stages:
+        warnings.append(
+          f"Invalid local_search_stage in {algo_name}.params: {algo_stage!r} "
+          f"(expected one of {sorted(valid_ls_stages)})"
+        )
+
     sel_params = algo_cfg.strategies.get("selection", {}).get("params", {})
     tournament_k = sel_params.get("k")
     if tournament_k is not None and tournament_k <= 0:
@@ -699,6 +764,11 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
       continue
 
     for slot, spec in algo.strategies.items():
+      if slot not in VALID_STRATEGY_SLOTS:
+        warnings.append(
+          f"Algorithm '{name}': unknown strategy slot '{slot}'. Valid slots: {sorted(VALID_STRATEGY_SLOTS)}"
+        )
+        continue
       if isinstance(spec, Mapping):
         warnings.extend(
           _validate_class_spec(

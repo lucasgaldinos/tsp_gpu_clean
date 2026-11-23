@@ -213,3 +213,28 @@ def test_nemenyi_posthoc_guards() -> None:
     analyzer.nemenyi_posthoc([np.array([1.0, 2.0])])
   with pytest.raises(ValueError, match="at least 1 observation"):
     analyzer.nemenyi_posthoc([np.array([]), np.array([])])
+
+
+def test_wilcoxon_paired_summary_is_scale_invariant_and_checks_length() -> None:
+  """WHAT: `wilcoxon_paired_summary` matches `paired_comparison` on large-scale paired costs.
+
+  WHY: BUG-97 — Relative tolerance (`np.allclose` default `rtol=1e-5`) previously collapsed
+  consistent differences of 5.0 on 1e6-scale costs to `(0.0, 1.0, 0.0)`.
+  """
+  analyzer = StatisticalAnalyzer()
+  a = np.full(10, 1_000_000.0)
+  b = np.full(10, 1_000_005.0)
+  pc = analyzer.paired_comparison(a, b, "A vs B", "cost")
+  w_stat, p_val, r_eff = analyzer.wilcoxon_paired_summary(a, b)
+  assert w_stat == pytest.approx(pc.test_statistic)
+  assert p_val == pytest.approx(pc.p_value)
+  assert p_val == pytest.approx(2.0**-9)
+  assert r_eff == pytest.approx(pc.effect_size)
+  assert r_eff == pytest.approx(-1.0)
+
+  # Identical vectors still short-circuit cleanly
+  assert analyzer.wilcoxon_paired_summary(a, a.copy()) == (0.0, 1.0, 0.0)
+
+  # Mismatched lengths raise ValueError instead of failing inside SciPy
+  with pytest.raises(ValueError, match="same length"):
+    analyzer.wilcoxon_paired_summary(np.array([1.0, 2.0]), np.array([1.0, 2.0, 3.0]))

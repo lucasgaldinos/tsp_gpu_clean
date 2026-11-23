@@ -154,3 +154,56 @@ def test_report_cli_defaults_to_neutral_english_and_supports_selective_reports(t
   assert "Average rank" in cd_gap
   assert "Mean Cost" in cd_gap
   assert (out_dir / "figures" / "scaling_time_gap.pdf").is_file()
+
+
+def test_report_cli_validates_config_dir_avoids_spurious_checkpoints_and_sets_log_level(tmp_path: Path) -> None:
+  """WHAT: `tsp-report` rejects missing `--config-dir`, avoids empty `checkpoints/`, sets log level.
+
+  WHY: BUG-100 — Nonexistent `--config-dir` previously succeeded silently, `CheckpointManager`
+  created an empty `output_root/checkpoints/` folder, and `basicConfig` was a no-op with active handlers.
+  """
+  import logging
+
+  in_dir = tmp_path / "raw_jsons"
+  out_dir = tmp_path / "out_reports"
+  _write_synthetic_checkpoints(in_dir, with_optimal=True)
+
+  # 1. Missing --config-dir fails fast with exit code 2 and creates nothing
+  rc_bad = report_main(
+    [
+      "-i",
+      str(in_dir),
+      "-o",
+      str(out_dir),
+      "--config-dir",
+      str(tmp_path / "DOES_NOT_EXIST"),
+      "--reports",
+      "none",
+    ]
+  )
+  assert rc_bad == 2
+  assert not (out_dir / "checkpoints").exists()
+
+  # 2. Valid run creates problem_statistics/ without a spurious checkpoints/ dir and updates root log level
+  root_logger = logging.getLogger()
+  prev_level = root_logger.level
+  try:
+    root_logger.setLevel(logging.WARNING)
+    rc_ok = report_main(
+      [
+        "-i",
+        str(in_dir),
+        "-o",
+        str(out_dir),
+        "--reports",
+        "none",
+        "--log-level",
+        "DEBUG",
+      ]
+    )
+    assert rc_ok == 0
+    assert (out_dir / "problem_statistics" / "berlin52_stats.json").is_file()
+    assert not (out_dir / "checkpoints").exists()
+    assert root_logger.level == logging.DEBUG
+  finally:
+    root_logger.setLevel(prev_level)

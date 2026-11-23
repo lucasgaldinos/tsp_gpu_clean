@@ -42,8 +42,11 @@ def _load_problem_configs(
   explicit: list[ProblemConfig] | None = None
   if problems_config is not None:
     explicit = load_problems_config(problems_config)
-  elif config_dir is not None and (config_dir / "problems.json").is_file():
-    explicit = load_problems_config(config_dir)
+  elif config_dir is not None:
+    if not config_dir.is_dir():
+      raise FileNotFoundError(f"Configuration directory not found: '{config_dir}'")
+    if (config_dir / "problems.json").is_file():
+      explicit = load_problems_config(config_dir)
   return derive_problem_configs(all_results, explicit)
 
 
@@ -138,10 +141,12 @@ def main(argv: Sequence[str] | None = None) -> int:
   parser = build_parser()
   args = parser.parse_args(argv)
 
+  resolved_log_level = getattr(logging, args.log_level.upper(), logging.INFO)
   logging.basicConfig(
-    level=getattr(logging, args.log_level.upper(), logging.INFO),
+    level=resolved_log_level,
     format="%(levelname)s: %(message)s",
   )
+  logging.getLogger().setLevel(resolved_log_level)
 
   try:
     selected_reports = parse_report_artifacts(args.reports, default=ALL_REPORT_ARTIFACTS)
@@ -185,8 +190,9 @@ def main(argv: Sequence[str] | None = None) -> int:
   analyzer = StatisticalAnalyzer()
 
   if not args.skip_problem_stats:
+    resolved_ckpt_dir = (ckpt_input / "checkpoints") if (ckpt_input / "checkpoints").is_dir() else ckpt_input
     checkpoint_manager = CheckpointManager(
-      checkpoint_dir=ckpt_input if ckpt_input.name == "checkpoints" else (output_root / "checkpoints"),
+      checkpoint_dir=resolved_ckpt_dir,
       problem_stats_dir=output_root / "problem_statistics",
     )
     for problem_name, alg_results in sorted(all_results.items()):
