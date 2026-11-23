@@ -535,6 +535,7 @@ def test_behavioral_latex_escaping_across_all_four_tables(tmp_path: Path) -> Non
     output_dir=tmp_path,
     benchmark_name="latex_escaping_test",
     baseline_algorithm="Base_Alg",
+    include_size_category_table=True,
   )
 
   md_content = (tmp_path / "latex_escaping_test.md").read_text(encoding="utf-8")

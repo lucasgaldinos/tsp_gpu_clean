@@ -1034,6 +1034,8 @@ def generate_result_tables(
   output_dir: Path | str,
   benchmark_name: str = "chapter4_validation",
   baseline_algorithm: str | None = None,
+  *,
+  include_size_category_table: bool = False,
 ) -> None:
   """
   Generate comprehensive result tables, LaTeX macros, CD diagrams, and scaling figures.
@@ -1097,8 +1099,9 @@ def generate_result_tables(
   md_lines.extend(_generate_table2_markdown(all_results, problem_names, algorithm_names, effective_baseline))
   tex_lines.extend(_generate_table2_latex(all_results, problem_names, algorithm_names, effective_baseline))
 
-  md_lines.extend(_generate_table3_markdown(all_results, problem_configs, algorithm_names))
-  tex_lines.extend(_generate_table3_latex(all_results, problem_configs, algorithm_names))
+  if include_size_category_table:
+    md_lines.extend(_generate_table3_markdown(all_results, problem_configs, algorithm_names))
+    tex_lines.extend(_generate_table3_latex(all_results, problem_configs, algorithm_names))
 
   if _has_phase_timings(all_results):
     md_lines.extend(_generate_phase_timings_markdown(all_results, problem_names, algorithm_names))

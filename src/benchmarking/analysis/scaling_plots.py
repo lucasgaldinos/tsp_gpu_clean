@@ -21,6 +21,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.font_manager import FontProperties
 from matplotlib.patches import Patch
+from matplotlib.ticker import FuncFormatter
 from scipy import stats
 
 from benchmarking.analysis.report_generator import MEDIUM_SIZE_MAX, SMALL_SIZE_MAX
@@ -536,6 +537,7 @@ def generate_scaling_plots(
   dispersion_metric: DispersionMetric = "iqr",
   x_axis_mode: XAxisMode = "continuous",
   x_tick_mode: XTickMode = "instances",
+  decimal_comma: bool = False,
 ) -> tuple[Path, ...]:
   """Generate dual-panel Time x Dimension and Gap x Dimension scaling plots.
 
@@ -721,6 +723,8 @@ def generate_scaling_plots(
 
     ax_gap.set_ylabel(gap_ylabel)
     ax_gap.set_xlabel(xlabel)
+    if decimal_comma:
+      ax_gap.yaxis.set_major_formatter(FuncFormatter(lambda x, _pos: f"{x:.1f}".replace(".", ",")))
     ax_gap.grid(True, which="major", linestyle="--", linewidth=0.5, alpha=0.35)
 
     suptitle_obj = fig.suptitle(title, y=0.98, fontsize=10) if title else None
@@ -817,6 +821,7 @@ def generate_scaling_plots_from_checkpoints(
   dispersion_metric: DispersionMetric = "iqr",
   x_axis_mode: XAxisMode = "continuous",
   x_tick_mode: XTickMode = "instances",
+  decimal_comma: bool = False,
 ) -> tuple[Path, ...]:
   """Load checkpoints read-only and write scaling plots to ``output_dir``."""
   all_results = load_results_from_checkpoints(checkpoint_dir)
@@ -840,4 +845,5 @@ def generate_scaling_plots_from_checkpoints(
     dispersion_metric=dispersion_metric,
     x_axis_mode=x_axis_mode,
     x_tick_mode=x_tick_mode,
+    decimal_comma=decimal_comma,
   )

@@ -15,6 +15,7 @@ import re
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy import stats
@@ -22,6 +23,9 @@ from scipy import stats
 from benchmarking.analysis.report_generator import escape_latex_identifier
 from benchmarking.analysis.statistics import compute_iman_davenport_f, compute_mean_ranks
 from benchmarking.analysis.stats_utils import compute_nemenyi_critical_distance
+
+if TYPE_CHECKING:
+  from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +166,10 @@ def export_cd_diagram_tikz(
   output_path: Path | str | None = None,
   standalone: bool = False,
   metric_label: str | None = None,
+  *,
+  display_names: Mapping[str, str] | None = None,
+  rank_label: str = "Rank",
+  decimal_sep: str = ".",
 ) -> str:
   """Export publication-grade TikZ vector code from CDResults.
 
@@ -170,6 +178,9 @@ def export_cd_diagram_tikz(
       output_path: Optional path to write the generated .tikz file.
       standalone: If True, wraps in a complete compilable standalone document.
       metric_label: Optional metric label recorded in the generated TikZ header comment.
+      display_names: Optional mapping from canonical algorithm keys to rendered labels.
+      rank_label: Label placed at the right end of the rank axis (default ``"Rank"``).
+      decimal_sep: Decimal separator for rendered numbers (e.g. ``","`` for pt-BR).
 
   Returns:
       TikZ code as a string.
@@ -179,6 +190,16 @@ def export_cd_diagram_tikz(
   sorted_items = sorted(cd_results.ranks.items(), key=lambda x: (x[1], x[0]))
   top_clique_y = 0.35 + max(0, len(cd_results.cliques) - 1) * 0.15
   cd_bar_y = max(1.1, top_clique_y + 0.30)
+
+  def _fmt_text(value: float, decimals: int) -> str:
+    formatted = f"{value:.{decimals}f}"
+    return formatted.replace(".", decimal_sep) if decimal_sep != "." else formatted
+
+  def _fmt_math(value: float, decimals: int) -> str:
+    formatted = f"{value:.{decimals}f}"
+    return formatted.replace(".", f"{{{decimal_sep}}}") if decimal_sep != "." else formatted
+
+  safe_rank_label = escape_latex_identifier(rank_label)
 
   tikz_body: list[str] = [
     "% Auto-generated Demšar Critical Difference Diagram in TikZ",
@@ -207,11 +228,14 @@ def export_cd_diagram_tikz(
     (
       f"    \\draw[cdbar] (1.0, {cd_bar_y:.2f}) -- "
       f"node[above=2pt, font=\\footnotesize\\bfseries] "
-      f"{{CD = {cd:.3f} ($\\alpha = {cd_results.alpha:.2f}$)}} ({1.0 + cd:.3f}, {cd_bar_y:.2f});"
+      f"{{CD = {_fmt_text(cd, 3)} ($\\alpha = {_fmt_math(cd_results.alpha, 2)}$)}} ({1.0 + cd:.3f}, {cd_bar_y:.2f});"
     ),
     "",
     "    % 2. Main Horizontal Rank Axis (1.0 to k.0)",
-    f"    \\draw[axis] (0.8, 0.0) -- ({k + 0.3:.1f}, 0.0) node[right, font=\\footnotesize\\bfseries] {{Rank}};",
+    (
+      f"    \\draw[axis] (0.8, 0.0) -- ({k + 0.3:.1f}, 0.0) "
+      f"node[right, font=\\footnotesize\\bfseries] {{{safe_rank_label}}};"
+    ),
     "",
     "    % Major Ticks",
   ]
@@ -235,7 +259,9 @@ def export_cd_diagram_tikz(
   x_right_label = float(k) + 0.32
 
   for idx, (name, r) in enumerate(left_items):
-    safe_name = escape_latex_identifier(name)
+    shown_name = display_names.get(name, name) if display_names else name
+    safe_name = escape_latex_identifier(shown_name)
+    rank_text = _fmt_text(r, 2)
     coord_name = re.sub(r"[^a-zA-Z0-9]", "", name)
     y_drop = -0.48 - 0.50 * idx
     tikz_body.extend(
@@ -243,12 +269,14 @@ def export_cd_diagram_tikz(
         f"    \\coordinate (A_{coord_name}) at ({r:.3f}, 0.0);",
         f"    \\node[algomarker] at (A_{coord_name}) {{}};",
         f"    \\draw[thick] (A_{coord_name}) -- ({r:.3f}, {y_drop:.2f}) -- ({x_left_elbow:.2f}, {y_drop:.2f});",
-        f"    \\node[labelnode, anchor=east] at ({x_left_label:.2f}, {y_drop:.2f}) {{{safe_name}\\\\({r:.2f})}};",
+        f"    \\node[labelnode, anchor=east] at ({x_left_label:.2f}, {y_drop:.2f}) {{{safe_name}\\\\({rank_text})}};",
       ]
     )
 
   for idx, (name, r) in enumerate(right_items):
-    safe_name = escape_latex_identifier(name)
+    shown_name = display_names.get(name, name) if display_names else name
+    safe_name = escape_latex_identifier(shown_name)
+    rank_text = _fmt_text(r, 2)
     coord_name = re.sub(r"[^a-zA-Z0-9]", "", name)
     depth_idx = len(right_items) - 1 - idx
     y_drop = -0.48 - 0.50 * depth_idx
@@ -257,15 +285,16 @@ def export_cd_diagram_tikz(
         f"    \\coordinate (A_{coord_name}) at ({r:.3f}, 0.0);",
         f"    \\node[algomarker] at (A_{coord_name}) {{}};",
         f"    \\draw[thick] (A_{coord_name}) -- ({r:.3f}, {y_drop:.2f}) -- ({x_right_elbow:.2f}, {y_drop:.2f});",
-        f"    \\node[labelnode, anchor=west] at ({x_right_label:.2f}, {y_drop:.2f}) {{{safe_name}\\\\({r:.2f})}};",
+        f"    \\node[labelnode, anchor=west] at ({x_right_label:.2f}, {y_drop:.2f}) {{{safe_name}\\\\({rank_text})}};",
       ]
     )
 
   tikz_body.append("")
   tikz_body.append("    % Major Tick Labels (drawn after drop lines so white fill masks crossings)")
   for tick in range(1, k + 1):
+    tick_label = f"{tick}{decimal_sep}0"
     tikz_body.append(
-      f"    \\node[below=2pt, font=\\footnotesize, fill=white, inner sep=1.5pt] at ({tick}.0, -0.08) {{{tick}.0}};"
+      f"    \\node[below=2pt, font=\\footnotesize, fill=white, inner sep=1.5pt] at ({tick}.0, -0.08) {{{tick_label}}};"
     )
 
   tikz_body.append("")

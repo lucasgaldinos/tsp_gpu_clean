@@ -51,6 +51,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from benchmarking.analysis.aggregate_statistics import compare_algorithms
+from benchmarking.analysis.cd_diagram import compute_cd_diagram_data, export_cd_diagram_tikz
 from benchmarking.analysis.scaling_plots import (
   generate_scaling_plots,
   generate_scaling_plots_from_checkpoints,
@@ -122,7 +123,7 @@ THESIS_PLOT_TITLE: str = "Escalonamento do Tempo de Execução e da Qualidade vs
 THESIS_TIME_YLABEL: str = "Tempo de Execução (s)"
 THESIS_GAP_YLABEL: str = "Gap de Otimalidade (%)"
 THESIS_XLABEL: str = r"Dimensão do Problema ($n$)"
-THESIS_BAND_LABEL: str = "Faixa IQR ($Q_{25}$\u2013$Q_{75}$, mediana)"
+THESIS_BAND_LABEL: str = "Faixa IIQ ($Q_{25}$\u2013$Q_{75}$, mediana)"
 THESIS_LEGEND_LABELS: dict[str, str] = {
   "CPU": "CPU",
   "HybridNaive": "Híbrida Ingênua",
@@ -406,6 +407,8 @@ def generate_thesis_scaling_plots(
     "dispersion_metric": "iqr",
     "x_axis_mode": "continuous",
     "x_tick_mode": "instances",
+    "show_size_guides": False,
+    "decimal_comma": True,
   }
   if results is not None:
     return generate_scaling_plots(
@@ -626,12 +629,72 @@ def build_chapter4_argv(user_argv: Sequence[str] | None = None) -> list[str]:
   return [*defaults, *extra]
 
 
+def generate_thesis_cd_diagrams(
+  *,
+  output_dir: Path | str,
+  results: Mapping[str, Mapping[str, dict[str, Any]]],
+  benchmark_name: str = BENCHMARK_NAME,
+) -> tuple[Path, ...]:
+  """Emit pt-BR localized Demšar CD diagrams in TikZ for the thesis."""
+  out_dir = Path(output_dir)
+  problem_names = list(results.keys())
+  algorithm_names = [alg for alg in ALGORITHMS if any(alg in results[p] for p in problem_names)]
+  if len(algorithm_names) < 3 or len(problem_names) < 2:
+    return ()
+
+  complete_problems = [p for p in problem_names if all(alg in results[p] for alg in algorithm_names)]
+  gap_metric = (
+    "mean_gap"
+    if complete_problems
+    and all("mean_gap" in results[p][alg] for p in complete_problems for alg in algorithm_names)
+    else "mean_cost"
+  )
+  cd_specs: tuple[tuple[str, str, str], ...] = (
+    (gap_metric, f"{benchmark_name}_cd_diagram_gap.tikz", "Gap de Otimalidade"),
+    ("mean_time", f"{benchmark_name}_cd_diagram_time.tikz", "Tempo de Execução"),
+  )
+  written: list[Path] = []
+  for metric_key, filename, metric_label in cd_specs:
+    valid_problems = [
+      p
+      for p in problem_names
+      if all(alg in results[p] and metric_key in results[p][alg] for alg in algorithm_names)
+    ]
+    if len(valid_problems) < 2:
+      continue
+    matrix = np.array([[float(results[p][alg][metric_key]) for alg in algorithm_names] for p in valid_problems])
+    cd_data = compute_cd_diagram_data(matrix, algorithm_names)
+    tikz_path = out_dir / filename
+    export_cd_diagram_tikz(
+      cd_data,
+      tikz_path,
+      metric_label=metric_label,
+      display_names=THESIS_LEGEND_LABELS,
+      rank_label="Posto médio",
+      decimal_sep=",",
+    )
+    written.append(tikz_path)
+  return tuple(written)
+
+
 def _on_chapter4_complete(
   args: argparse.Namespace,
   results: dict[str, dict[str, dict[str, Any]]],
 ) -> None:
-  """Generate pt-BR vector scaling plots and log thesis comparison after benchmark completion."""
+  """Generate pt-BR vector scaling plots, CD diagrams, and log thesis comparison after completion."""
   if results:
+    tables_dir = Path(args.output_dir) / "tables"
+    try:
+      cd_paths = generate_thesis_cd_diagrams(
+        output_dir=tables_dir,
+        results=results,
+        benchmark_name=args.benchmark_name or BENCHMARK_NAME,
+      )
+      if cd_paths:
+        logging.info("Chapter 4 pt-BR CD diagrams: %s", ", ".join(str(p) for p in cd_paths))
+    except Exception as exc:
+      logging.warning("Could not regenerate Chapter 4 pt-BR CD diagrams: %s", exc)
+
     figures_dir = Path(args.output_dir) / "figures"
     try:
       cfg_dir = Path(args.config_dir)
