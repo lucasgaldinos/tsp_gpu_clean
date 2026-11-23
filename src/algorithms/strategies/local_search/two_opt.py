@@ -114,22 +114,20 @@ class _DistanceOperandCache:
     `ProblemContext.get_gpu_distance_operands` decides between the dense matrix and
     on-the-fly coordinates and hands back the context-owned buffers, so
     `EvaluationGPUCost` and `LocalSearchGPUTwoOpt` bind the same VRAM objects
-    (`DP10-17`).
+    (`DP10-17`). `uploaded_bytes` reflects only the physical upload delta recorded
+    by `context.h2d_bytes` (`BUG-95`), so an already-cached buffer charges zero.
     """
+    before_h2d = int(getattr(context, "h2d_bytes", 0))
     d_distances, d_coords, edge_type_code = context.get_gpu_distance_operands(n, max_matrix_dimension)
+    uploaded_bytes = max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)
     problem = context.problem
     problem_key = (problem.name, problem.dimension, problem.edge_type, id(problem))
-    uploaded_bytes = 0
     if isinstance(d_distances, int):
-      if self.coords is not d_coords:
-        uploaded_bytes = int(d_coords.nbytes)
       self.coords = d_coords
       self.coords_key = problem_key
       self.distances = None
       self.distance_key = None
     else:
-      if self.distances is not d_distances:
-        uploaded_bytes = int(d_distances.nbytes)
       self.distances = d_distances
       self.distance_key = problem_key
       self.coords = None
@@ -140,14 +138,15 @@ class _DistanceOperandCache:
     """Return `(d_candidates, uploaded_bytes)` for the context-owned `N_k` table.
 
     `ProblemContext.get_gpu_candidate_list` caches the device table per `k`, so the
-    first strategy that asks pays the single upload and every later generation, and
-    every sibling strategy, binds the same VRAM object for zero bytes (`BUG-27`).
+    first strategy that triggers the physical upload pays `context.h2d_bytes`'s delta
+    and every later generation or sibling strategy binds it for zero bytes
+    (`BUG-27`, `BUG-95`).
     """
+    before_h2d = int(getattr(context, "h2d_bytes", 0))
     d_candidates = context.get_gpu_candidate_list(k)
+    uploaded_bytes = max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)
     problem = context.problem
     problem_key = (problem.name, problem.dimension, problem.edge_type, id(problem))
-    reused: bool = self.candidates is d_candidates and self.candidates_key == problem_key
-    uploaded_bytes = 0 if reused else int(d_candidates.nbytes)
     self.candidates = d_candidates
     self.candidates_key = problem_key
     return d_candidates, uploaded_bytes

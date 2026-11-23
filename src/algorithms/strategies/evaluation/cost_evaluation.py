@@ -153,37 +153,27 @@ class EvaluationGPUCost(StrategyBase, EvaluationStrategy):
       self._cached_problem_key = problem_key
     return self._cached_distances_gpu
 
-  def _get_coords_gpu(self, context: ProblemContext) -> Any:
-    """Return the context-owned `float64` coordinates for the coordinate mode.
-
-    `ProblemContext.get_gpu_coordinates()` caches one buffer per problem instance,
-    so counting the upload here is only bookkeeping for this strategy (`DP10-17`).
-    """
-    coords = context.get_gpu_coordinates()
-    if coords is None:
-      raise ValueError(f"Problem '{context.problem.name}' has no coordinates for the on-the-fly distance mode")
-    problem_key = (context.problem.name, context.problem.dimension, context.problem.edge_type, id(context.problem))
-    if self._cached_coords_gpu is not coords:
-      self.h2d_bytes += int(coords.nbytes)
-      self._cached_coords_gpu = coords
-      self._cached_coords_key = problem_key
-    return coords
-
   def _distance_operands(self, context: ProblemContext, n: int) -> tuple[Any, Any, int]:
     """Return `(d_distances, d_coords, edge_type_code)` for one kernel launch.
 
     The dense/on-the-fly decision and the VRAM buffers are owned by
     `ProblemContext.get_gpu_distance_operands`, so the evaluator and the local-search
-    kernels bind the exact same matrix (`BUG-14` / `DP10-17`). Coordinate mode passes
-    `0` for `d_distances` (a CUDA `nullptr`) and never materializes `(n, n)`.
+    kernels bind the exact same matrix (`BUG-14` / `DP10-17`). Only the physical
+    upload delta reported by `context.h2d_bytes` is charged here (`BUG-95`), so
+    a shared VRAM buffer is never double-counted by sibling strategies.
     """
+    before_h2d = int(getattr(context, "h2d_bytes", 0))
     d_distances, d_coords, edge_type_code = context.get_gpu_distance_operands(n, self.max_matrix_dimension)
+    uploaded_bytes = max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)
+    self.h2d_bytes += uploaded_bytes
+
+    problem_key = (context.problem.name, context.problem.dimension, context.problem.edge_type, id(context.problem))
     if isinstance(d_distances, int):
-      self._get_coords_gpu(context)
+      if d_coords is None:
+        raise ValueError(f"Problem '{context.problem.name}' has no coordinates for the on-the-fly distance mode")
+      self._cached_coords_gpu = d_coords
+      self._cached_coords_key = problem_key
     else:
-      problem_key = (context.problem.name, context.problem.dimension, context.problem.edge_type, id(context.problem))
-      if self._cached_distances_gpu is not d_distances:
-        self.h2d_bytes += int(d_distances.nbytes)
       self._cached_distances_gpu = d_distances
       self._cached_problem_key = problem_key
     return d_distances, d_coords, edge_type_code

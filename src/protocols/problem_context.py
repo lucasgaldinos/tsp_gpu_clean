@@ -196,6 +196,10 @@ class ProblemContext:
     self._gpu_demands: CupyArray | None = None
     self._cpu_coordinates: np.ndarray | None = None
     self._gpu_coordinates: CupyArray | None = None
+    # Physical host-to-device bytes actually uploaded by this context's lazy GPU
+    # caches (`BUG-95`): strategies attribute the delta around each lookup so a
+    # shared VRAM buffer is counted once across the whole pipeline, never per caller.
+    self.h2d_bytes: int = 0
     # `k`-NN candidate lists `N_k`, cached per requested `k` (`DP10-20`). A caller that
     # rebuilds contexts for the same problem (one per benchmark repetition) passes its own
     # mapping so the construction is amortised instead of repeated (`BUG-59`).
@@ -361,12 +365,15 @@ class ProblemContext:
       if self._cpu_distances is not None:
         # Transfer from CPU cache (most efficient if CPU was used first)
         self._gpu_distances = cp.asarray(self._cpu_distances, dtype=cp.int32)
+        self.h2d_bytes += int(self._gpu_distances.nbytes)
       elif self.problem.distances is not None:
         # Transfer EXPLICIT matrix to GPU
         self._gpu_distances = cp.asarray(self.problem.distances, dtype=cp.int32)
+        self.h2d_bytes += int(self._gpu_distances.nbytes)
       elif self.problem.coordinates is not None:
-        # Compute from coordinates on GPU
+        # Compute from coordinates on GPU: only the coordinate buffer crosses PCIe.
         coords_gpu = cp.asarray(self.problem.coordinates)
+        self.h2d_bytes += int(coords_gpu.nbytes)
         self._gpu_distances = cp.asarray(
           compute_distance_matrix(coords_gpu, self.problem.edge_type, cp), dtype=cp.int32
         )
@@ -394,6 +401,7 @@ class ProblemContext:
     if self._gpu_coordinates is None and self.problem.coordinates is not None:
       source = self._cpu_coordinates if self._cpu_coordinates is not None else self.problem.coordinates
       self._gpu_coordinates = cp.asarray(source)
+      self.h2d_bytes += int(self._gpu_coordinates.nbytes)
     return self._gpu_coordinates
 
   def get_cpu_candidate_list(self, k: int = 20) -> np.ndarray:
@@ -455,6 +463,7 @@ class ProblemContext:
     if cached is None:
       cached = cp.asarray(self.get_cpu_candidate_list(k), dtype=cp.int32)
       self._gpu_candidate_lists[k] = cached
+      self.h2d_bytes += int(cached.nbytes)
     return cached
 
   def uses_on_the_fly_distances(self, n: int, max_matrix_dimension: int | None = None) -> bool:
