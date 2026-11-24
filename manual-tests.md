@@ -1,0 +1,3 @@
+- create a variant following the json schema
+- implement a 3-opt for local search, out of the main src package for GPU and CPU.
+- implement EAX as crossover operation
