@@ -34,6 +34,11 @@ modifications:
           (`guide-getting-started.md`) and Thesis Chapter 4 Reproduction
           (`guide-thesis-reproduction.md`) guides, updating root guide count
           to 4 and adding symmetric `related_files` links.
+      - description: >
+          Synchronized directory file counts (`knowledge-base/`: 59, `walkthroughs/`: 14),
+          indexed Phase 11–14 walkthroughs (`analysis-phase-11`, `analysis-phase-13`,
+          `analysis-phase-14`, `walkthrough_13.4.md`), and refreshed the benchmarking
+          architecture guide summary for the `analysis/` vs `reporting/` split and Phase 16.
 related_files:
   - "[AGENTS.md](../AGENTS.md)"
   - "[markdown.instructions.md](../.agents/rules/markdown.instructions.md)"
@@ -66,10 +71,10 @@ Central navigation hub for `documentation/`. All Markdown documents follow [mark
 | Directory / File | Purpose | Count |
 | --- | --- | --- |
 | Root guides (`./`) | Generic getting-started guide (`guide-getting-started.md`), isolated thesis reproduction guide (`guide-thesis-reproduction.md`), master architecture blueprint (`guide-project-architecture-blueprint.md`), and `LocalSearchStage` composition guide (`guide-local-search-pipeline-stages.md`) | 4 |
-| [knowledge-base/](./knowledge-base/README.md) | Modular technical guides on GPU hardware, CUDA 2-opt, Simulated Annealing, Memetic GAs, statistics, and LaTeX tooling | 46 |
+| [knowledge-base/](./knowledge-base/README.md) | Modular technical guides on GPU hardware, CUDA 2-opt, Simulated Annealing, Memetic GAs, statistics, and LaTeX tooling | 59 |
 | `analysis/` | Architecture subsystem guides (`guide-architecture-*.md`), implementation analyses of the four GA solver variants, benchmarking pipeline, thesis slides, and scaling trade-offs | 16 |
 | `critical_analysis/` | Academic literature synthesis, prior-art comparison, and critical appraisal checklists | 4 |
-| `walkthroughs/` | Phase-by-phase engineering walkthroughs (Phases 1–10) and test-suite verification records | 10 |
+| `walkthroughs/` | Phase-by-phase engineering walkthroughs (Phases 1–14) and test-suite verification records | 14 |
 | `archive/` | Preserved historical/exploratory notes outside current solver scope (ACO, AODV, GLS, early 2024 reading log) | 4 |
 
 ## 1. Root architecture & pipeline guides
@@ -131,7 +136,7 @@ See [knowledge-base/README.md](./knowledge-base/README.md) for the full thematic
   + [guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md) — `src/protocols/` and `src/data_models/` structural contracts, `ProblemContext`, and `Problem` invariants.
   + [guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md) — `src/loaders/` (`routing_data` ETL, DuckDB, TSPLIB) and `src/distances/` (three-tier TSPLIB95 computation & CUDA device primitives).
   + [guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md) — `src/algorithms/` (`GeneticAlgorithm`, `STAGE_SPECS`, 17 `Design B` strategies, 8 CUDA kernels, and `archive/`).
-  + [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) — `src/benchmarking/`, `src/cli/`, `src/utils/`, and `configs/schemas/` (runner, telemetry, DuckDB, Demšar inference, and CLI).
+  + [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) — `src/benchmarking/{runner,analysis,reporting,database}/`, `src/cli/` (`tsp-benchmark`, `tsp-report`), `src/utils/`, and `configs/schemas/` (preflight, telemetry, pure Demšar inference, composable `ReportStyle` reporting, optional DuckDB, and Phase 16 hardening).
 - **Algorithm variants (`analysis/algorithms/`)**:
   + [analysis-genetic-algorithm-cpu.md](./analysis/algorithms/analysis-genetic-algorithm-cpu.md)
   + [analysis-genetic-algorithm-hybrid-naive.md](./analysis/algorithms/analysis-genetic-algorithm-hybrid-naive.md)
@@ -167,6 +172,10 @@ See [knowledge-base/README.md](./knowledge-base/README.md) for the full thematic
 - [analysis-walkthrough-10-19-vram-guard.md](./walkthroughs/analysis-walkthrough-10-19-vram-guard.md) — Task 10.19 pre-flight VRAM capacity guardrails (`VRAMInsufficientError`).
 - [analysis-walkthrough-10-20-candidate-lists.md](./walkthroughs/analysis-walkthrough-10-20-candidate-lists.md) — Task 10.20 nearest-neighbor candidate lists and inverse position arrays.
 - [analysis-walkthrough-10-21-docs-cleanup.md](./walkthroughs/analysis-walkthrough-10-21-docs-cleanup.md) — Task 10.21 legacy scripts and documentation cleanup record.
+- [analysis-phase-11-strategy-unification-and-gpu-kernels-walkthrough.md](./walkthroughs/analysis-phase-11-strategy-unification-and-gpu-kernels-walkthrough.md) — Phase 11 Design B strategy unification, host-oracle GPU kernels, and AOT warm-up isolation.
+- [analysis-phase-13-text-updates-and-methodology-walkthrough.md](./walkthroughs/analysis-phase-13-text-updates-and-methodology-walkthrough.md) — Phase 13 Demšar statistical protocol (`DP13-3`, `DP13-4`), CPU 2-opt vectorization, and thesis methodology alignment.
+- [walkthrough_13.4.md](./walkthroughs/walkthrough_13.4.md) — Task 13.4 targeted audit (`BUG-57` `candidate_k` dispatch in `LocalSearchGPUTwoOpt._improve_naive`).
+- [analysis-phase-14-consolidation-and-benchmarks-walkthrough.md](./walkthroughs/analysis-phase-14-consolidation-and-benchmarks-walkthrough.md) — Phase 14 homogeneous `results_v4` consolidation, multi-metric CD diagrams, `benchmark_macros.tex`, and `EUC_3D` support.
 
 ## 6. Archive (`archive/`)
 

@@ -13,6 +13,9 @@ modifications:
           `README.md` reference with the registered `tsp-import-checkpoints` and
           `tsp-validate-db` CLIs, clarifying that DuckDB consolidation is optional
           and adding YAML frontmatter compliant with repository standards.
+      - description: >
+          Noted full-table deterministic `(problem_name, algorithm)` comparison and
+          guaranteed connection cleanup in `validate_consistency.py::compare_databases` (`BUG-102`).
 related_files:
   - "[schema.sql](./schema.sql)"
   - "[db_operations.py](./db_operations.py)"
@@ -44,7 +47,7 @@ tags:
 - [schema.py](./schema.py) — Table name and reusable SQL query constants.
 - [db_operations.py](./db_operations.py) — Schema creation, payload validation ([db_operations.py::validate_benchmark_data](./db_operations.py)), insertion ([db_operations.py::insert_benchmark_run](./db_operations.py)), and query helpers.
 - [import_checkpoints.py](./import_checkpoints.py) — Idempotent batch importer exposed through the `tsp-import-checkpoints` CLI.
-- [validate_consistency.py](./validate_consistency.py) — Cross-validation between DuckDB and source JSON checkpoints exposed through the `tsp-validate-db` CLI.
+- [validate_consistency.py](./validate_consistency.py) — Cross-validation between DuckDB and source JSON checkpoints (`validate_against_checkpoints`), plus full-table row-by-row database comparison ordered by `(problem_name, algorithm, timestamp, run_id)` ([validate_consistency.py::compare_databases](./validate_consistency.py), `BUG-102`), exposed through the `tsp-validate-db` CLI.
 
 ## 1. Import Checkpoints via CLI
 

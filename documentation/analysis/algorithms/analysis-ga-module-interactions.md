@@ -16,7 +16,16 @@ modifications:
       - description: >
           Standardized documentation with YAML frontmatter, verified code fences,
           and updated source references to current repository layout.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Updated benchmarking layer diagrams (`analysis/` vs `reporting/`, `cohort_analysis.py`,
+          `reporting/generator.py`, `analyze_problem`, `analyze_cohort`) and added cross-reference
+          callout to the authoritative post-Design-B Implementation-Ready architecture guides.
 related_files:
+  - "[guide-project-architecture-blueprint.md](../../guide-project-architecture-blueprint.md)"
+  - "[guide-architecture-algorithms-and-strategies.md](../guide-architecture-algorithms-and-strategies.md)"
+  - "[guide-architecture-benchmarking-cli-and-utils.md](../guide-architecture-benchmarking-cli-and-utils.md)"
   - "[analysis-genetic-algorithm-cpu.md](./analysis-genetic-algorithm-cpu.md)"
   - "[analysis-genetic-algorithm-hybrid-naive.md](./analysis-genetic-algorithm-hybrid-naive.md)"
   - "[analysis-genetic-algorithm-hybrid-optimized.md](./analysis-genetic-algorithm-hybrid-optimized.md)"
@@ -38,7 +47,8 @@ tags:
 
 # Module Interactions — Architecture
 
-> Comprehensive documentation of how all modules in `src` collaborate to deliver CPU and GPU-accelerated genetic algorithm benchmarking for TSP instances.
+> [!NOTE]
+> This analysis captures the conceptual interaction model and early solver evolution. For the current **Design B** modular `GeneticAlgorithm` pipeline (`STAGE_SPECS`, 17 strategies, `src/benchmarking/{runner,analysis,reporting,database}/`, and Phase 16 contracts), refer to [guide-project-architecture-blueprint.md](../../guide-project-architecture-blueprint.md), [guide-architecture-algorithms-and-strategies.md](../guide-architecture-algorithms-and-strategies.md), and [guide-architecture-benchmarking-cli-and-utils.md](../guide-architecture-benchmarking-cli-and-utils.md).
 
 ---
 
@@ -83,15 +93,15 @@ The codebase is organized into **six distinct layers**, each with a clear respon
 flowchart TB
     subgraph Benchmarking["🔴 Benchmarking Layer"]
         style Benchmarking fill:#ffe0e0,stroke:#cc0000
-        ORCH["orchestration.py<br/><i>run_comprehensive_benchmark()</i>"]
-        CONF["config_loader.py<br/><i>GAParams, BenchmarkConfig</i>"]
-        RUNNER["algorithm_runner.py<br/><i>run_single_algorithm()</i>"]
-        CKPT["checkpoint_io.py<br/><i>CheckpointManager</i>"]
-        STATS["statistics.py<br/><i>StatisticalAnalyzer</i>"]
-        PSTATS["problem_statistics.py<br/><i>Friedman, Nemenyi</i>"]
-        ASTATS["aggregate_statistics.py<br/><i>Cross-problem stratified</i>"]
-        REPORT["report_generator.py<br/><i>Markdown & LaTeX</i>"]
-        SUTILS["stats_utils.py<br/><i>R², curve fitting</i>"]
+        ORCH["runner/orchestration.py<br/><i>run_comprehensive_benchmark()</i>"]
+        CONF["runner/config_loader.py<br/><i>GAParams, AlgorithmConfig</i>"]
+        RUNNER["runner/algorithm_runner.py<br/><i>run_single_algorithm()</i>"]
+        CKPT["runner/checkpoint_io.py<br/><i>CheckpointManager</i>"]
+        STATS["analysis/statistics.py<br/><i>StatisticalAnalyzer, OmnibusTestResult</i>"]
+        PSTATS["analysis/problem_statistics.py<br/><i>analyze_problem()</i>"]
+        ASTATS["analysis/cohort_analysis.py<br/><i>analyze_cohort(), compare_algorithms()</i>"]
+        REPORT["reporting/generator.py<br/><i>Tables, Macros, CD TikZ, Plots</i>"]
+        SUTILS["analysis/stats_utils.py<br/><i>Holm, Nemenyi CD, geomean</i>"]
     end
 
     subgraph Algorithm["🟢 Algorithm Layer"]
@@ -841,16 +851,16 @@ src/algorithms/metaheuristics/
 
 ```mermaid
 flowchart TB
-    subgraph Orchestration["benchmarking/ — 9 Modules"]
-        ORCH["orchestration.py<br/>─────────────────<br/>run_comprehensive_benchmark()<br/>Main entry point"]
-        CONF["config_loader.py<br/>─────────────────<br/>GAParams dataclass<br/>AlgorithmConfig dataclass<br/>ProblemConfig dataclass<br/>BenchmarkConfig dataclass<br/>load_all_configs()"]
-        RUNNER["algorithm_runner.py<br/>─────────────────<br/>adaptive_generations(n)<br/>run_single_algorithm()"]
-        CKPT["checkpoint_io.py<br/>─────────────────<br/>CheckpointManager<br/>save_checkpoint()<br/>load_checkpoint()"]
-        STATS["statistics.py<br/>─────────────────<br/>StatisticalAnalyzer<br/>StatisticalSummary<br/>Shapiro-Wilk normality<br/>Paired t-test / Wilcoxon<br/>Cohen's d effect size<br/>Bootstrap confidence intervals"]
-        PSTATS["problem_statistics.py<br/>─────────────────<br/>perform_statistical_analysis()<br/>Friedman rank test<br/>Nemenyi post-hoc"]
-        ASTATS["aggregate_statistics.py<br/>─────────────────<br/>perform_cross_problem_<br/>analysis_stratified()<br/>Size-stratified analysis"]
-        REPORT["report_generator.py<br/>─────────────────<br/>generate_result_tables()<br/>Markdown output<br/>LaTeX output"]
-        SUTILS["stats_utils.py<br/>─────────────────<br/>calculate_r2()<br/>adjusted_r2()<br/>Curve fitting helpers"]
+    subgraph Orchestration["benchmarking/ — Runner, Pure Analysis & Pure Reporting"]
+        ORCH["runner/orchestration.py<br/>─────────────────<br/>run_comprehensive_benchmark()<br/>_run_preflight()"]
+        CONF["runner/config_loader.py<br/>─────────────────<br/>GAParams, AlgorithmConfig<br/>VALID_STRATEGY_SLOTS<br/>validate_configs()"]
+        RUNNER["runner/algorithm_runner.py<br/>─────────────────<br/>adaptive_generations(n)<br/>run_single_algorithm()"]
+        CKPT["runner/checkpoint_io.py<br/>─────────────────<br/>CheckpointManager<br/>save_checkpoint_atomic()<br/>quarantine_checkpoint()"]
+        STATS["analysis/statistics.py<br/>─────────────────<br/>StatisticalAnalyzer<br/>OmnibusTestResult<br/>Unconditional Wilcoxon + HL CI<br/>Iman-Davenport F_F + Nemenyi"]
+        PSTATS["analysis/problem_statistics.py<br/>─────────────────<br/>analyze_problem()<br/>ProblemAnalysis (cost + time)"]
+        ASTATS["analysis/cohort_analysis.py<br/>─────────────────<br/>analyze_cohort()<br/>CohortAnalysis, compare_algorithms()"]
+        REPORT["reporting/generator.py<br/>─────────────────<br/>generate_result_tables()<br/>Markdown, LaTeX, Macros,<br/>CD TikZ, Scaling Plots + Style"]
+        SUTILS["analysis/stats_utils.py<br/>─────────────────<br/>holm_bonferroni_correction()<br/>compute_nemenyi_critical_distance()<br/>geometric_mean_ratios()"]
     end
 
     ORCH --> CONF
@@ -860,9 +870,10 @@ flowchart TB
     ORCH --> ASTATS
     ORCH --> REPORT
     PSTATS --> STATS
+    PSTATS --> SUTILS
     ASTATS --> STATS
     ASTATS --> SUTILS
-    REPORT --> STATS
+    REPORT --> ASTATS
 
     style Orchestration fill:#fff0f0,stroke:#cc0000
 ```

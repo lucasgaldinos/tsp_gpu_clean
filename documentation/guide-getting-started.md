@@ -20,6 +20,12 @@ modifications:
           Created generic framework getting-started guide separating general
           library usage, custom external strategy/pipeline authoring, and
           composable reporting from thesis-specific reproduction.
+      - description: >
+          Documented single-pass `benchmarking.analysis` (`analyze_cohort`) to
+          `benchmarking.reporting` (`generate_result_tables`) Python workflow,
+          PEP 544 slot-protocol preflight validation (`BUG-101`), checkpoint
+          drift/quarantine behavior (`BUG-98`), and retroactive `optimal_cost`
+          gap computation in `tsp-report` (`BUG-96`, `BUG-100`).
 related_files:
   - "[README.md](../README.md)"
   - "[documentation/README.md](./README.md)"
@@ -405,9 +411,12 @@ uv run tsp-benchmark \
   --dry-run
 ```
 
+> [!NOTE]
+> **Preflight & Resume Guarantees (`DP16-1`, `BUG-96`, `BUG-98`, `BUG-101`):** Before executing any solver, `tsp-benchmark` validates strategy slot names (`VALID_STRATEGY_SLOTS`), PEP 544 `@runtime_checkable` protocol conformance for both built-in and external custom strategies, per-algorithm `params` bounds, and existing checkpoint compatibility (`local_search_stage`, `strategy_params`, `pipeline`, and raw array lengths). Checkpoints collected on custom `.tsp` instances without a known optimal cost (`optimal_cost: null`, `raw_gaps: null`) validate and resume cleanly. Truncated/corrupt JSON files fail `--dry-run` without mutating disk and are automatically quarantined to `*.corrupt.<timestamp>.bak` on live runs.
+
 ## 7. Composable Reporting & External Styling (`tsp-report` & Python API)
 
-Because `tsp-benchmark` is collection-only by default (`--reports none`), you can iterate on report layouts, display names, language, or subsets of outputs without re-running any solver:
+Because `tsp-benchmark` is collection-only by default (`--reports none`), you can iterate on report layouts, display names, language, or subsets of outputs without re-running any solver. Passing `--problems-config <problems.json>` also derives optimality gaps retroactively for checkpoints that were collected without known optima (`BUG-96`), while nonexistent `--config-dir` paths fail fast with exit code `2` (`BUG-100`):
 
 ```bash
 # Generate every report artifact with neutral English defaults
@@ -426,32 +435,55 @@ uv run tsp-report \
 All presentation parameters live in [`ReportStyle`](../src/benchmarking/reporting/style.py) (loadable from JSON via [`load_report_style`](../src/benchmarking/reporting/style.py)):
 
 - `display_names`: map canonical JSON variant keys to human-readable table/figure labels
-- `algorithm_order`: explicit display order across tables, CD diagrams, and plots
+- `algorithm_order`: explicit display order across tables, CD diagrams, and plots (also used for Table 1 fallback baselines when the primary baseline is absent on an instance)
 - `decimal_separator`, `cd_decimal_sep`, `plot_decimal_comma`: numeric formatting for LaTeX macros, TikZ CD diagrams, and Matplotlib axes
 - `latex_label_prefix`: prefix for LaTeX `\label{tab:<prefix>summary}` identifiers (default `""`)
 - `size_thresholds` & `show_size_guides`: `[small_max, medium_max]` stratum cutoffs (default `[100, 400]`) and vertical plot guides
 - `cd_*` & `plot_*`: customizable metric, rank, and axis titles in any language
 
-You can also invoke each generator independently in Python without the facade:
+Pure statistical computation lives in [`benchmarking.analysis`](../src/benchmarking/analysis/__init__.py) (`analyze_problem`, `analyze_cohort`, `OmnibusTestResult`), while pure rendering lives in [`benchmarking.reporting`](../src/benchmarking/reporting/__init__.py). You can compute a `CohortAnalysis` snapshot once and pass it to the facade or invoke individual renderers in Python:
 
 ```python
+from benchmarking.analysis import analyze_cohort
 from benchmarking.reporting import (
-  ReportStyle,
   generate_latex_macros,
   generate_markdown_tables,
+  generate_result_tables,
   load_report_style,
 )
-from benchmarking.runner import ProblemConfig, load_checkpoints_dir
+from benchmarking.runner import load_checkpoints_dir
 
 all_results = load_checkpoints_dir("/tmp/run_operators/checkpoints")
-problem_configs = [
-  ProblemConfig(name=name, optimal=next(iter(algs.values())).get("optimal_cost"), size=int(next(iter(algs.values()))["problem_size"]))
-  for name, algs in sorted(all_results.items())
-]
 style = load_report_style("configs/report-style.example.json")
 
-md_path = generate_markdown_tables(all_results, problem_configs, "/tmp/custom_tables", style=style)
-macros_path = generate_latex_macros(all_results, problem_configs, "/tmp/custom_tables", style=style)
+# Single-pass statistical analysis (zero file I/O or logging side effects)
+analysis = analyze_cohort(all_results, problem_configs=[], algorithm_order=style.algorithm_order)
+
+# Option A: render selected artifacts through the single-pass facade
+paths = generate_result_tables(
+  all_results={},
+  problem_configs=[],
+  output_dir="/tmp/custom_tables",
+  style=style,
+  artifacts=("markdown", "macros", "cd", "plots"),
+  analysis=analysis,
+)
+
+# Option B: invoke individual pure renderers directly
+md_path = generate_markdown_tables(
+  analysis.cohort.results,
+  analysis.cohort.problem_configs,
+  "/tmp/custom_tables",
+  style=style,
+  analysis=analysis,
+)
+macros_path = generate_latex_macros(
+  analysis.cohort.results,
+  analysis.cohort.problem_configs,
+  "/tmp/custom_tables",
+  style=style,
+  analysis=analysis,
+)
 ```
 
 ## 8. Optional DuckDB Workflow

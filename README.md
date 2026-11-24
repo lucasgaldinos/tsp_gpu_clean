@@ -155,11 +155,11 @@ Five CLI commands are registered in [pyproject.toml](./pyproject.toml):
 
 | Command | Role | DuckDB Required? |
 | --- | --- | --- |
-| `tsp-benchmark` | Runs declarative benchmarks from `--algorithms-config` (or `--config-dir`) and `--tsp-dir`/`--tsp-files`; collection-only by default, opt-in `--reports` and `--report-style` | Optional |
-| `tsp-report` | Regenerates statistical JSONs, Markdown/LaTeX tables, `benchmark_macros.tex`, CD TikZ diagrams, and scaling figures directly from JSON checkpoints | No |
+| `tsp-benchmark` | Runs declarative benchmarks from `--algorithms-config` (or `--config-dir`) and `--tsp-dir`/`--tsp-files` with preflight slot/protocol & checkpoint-drift checks, live corrupt-checkpoint quarantine, and nullable `optimal_cost` resume; collection-only by default, opt-in `--reports` and `--report-style` | Optional |
+| `tsp-report` | Regenerates statistical JSONs (including retroactive optimality gaps via `--problems-config`), Markdown/LaTeX tables, `benchmark_macros.tex`, CD TikZ diagrams, and scaling figures directly from JSON checkpoints | No |
 | `tsp-ingest` | Optional helper to validate and pre-ingest a `.tsp` directory into a reusable DuckDB file | Yes (optional workflow) |
 | `tsp-import-checkpoints` | Optional idempotent import of `checkpoints/*.json` into `results.duckdb` for SQL queries | Yes (optional workflow) |
-| `tsp-validate-db` | Optional consistency audit comparing `results.duckdb` against source JSON checkpoints (and optionally a second DuckDB) | Yes (optional workflow) |
+| `tsp-validate-db` | Optional full-table consistency audit comparing `results.duckdb` against source JSON checkpoints (and optionally a second DuckDB across every sorted row) | Yes (optional workflow) |
 
 ## Repository Structure
 
@@ -167,7 +167,8 @@ Five CLI commands are registered in [pyproject.toml](./pyproject.toml):
 .
 ├── src/
 │   ├── algorithms/      # GeneticAlgorithm, 17 strategies, 3 pipeline steps, CUDA kernels
-│   ├── benchmarking/    # Runner, config loader, checkpoint I/O, stats, composable reporting, optional DuckDB
+│   ├── benchmarking/    # runner/ (orchestration, configs, checkpoints), analysis/ (pure stats),
+│   │                    # reporting/ (tables, macros, CD TikZ, plots, ReportStyle), database/ (optional)
 │   ├── cli/             # tsp-benchmark, tsp-report, tsp-ingest, tsp-import-checkpoints, tsp-validate-db
 │   ├── data_models/     # Problem & typed BenchmarkRunRecord dataclasses
 │   ├── distances/       # Three-tier TSPLIB95 distance engines (CPU & CUDA)

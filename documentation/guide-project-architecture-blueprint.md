@@ -24,10 +24,12 @@ modifications:
       - description: >
           Synchronized runtime stack (removed unused `numba`/`tabulate`), updated
           `BenchmarkRunInput` nullability counts (`22` required + `21` nullable for
-          optional optimal cost), documented acyclic composable reporting (`report_style.py`,
-          `table_reports.py`, `latex_macros.py`), relocated Chapter 4 configs under
-          `benchmark_scripts/configs/chapter4/`, added external custom strategy/step
-          loading, and linked `guide-getting-started.md` and `guide-thesis-reproduction.md`.
+          optional optimal cost), documented acyclic `benchmarking/analysis/` vs
+          `benchmarking/reporting/` split (`style.py`, `console.py`, `table_reports.py`,
+          `latex_macros.py`, `cd_diagram.py`, `scaling_plots.py`, `generator.py`),
+          relocated Chapter 4 configs under `benchmark_scripts/configs/chapter4/`, added
+          external custom strategy/step loading, linked `guide-getting-started.md` and
+          `guide-thesis-reproduction.md`, and recorded Phase 16 hardening (`DP16-1`, `DP16-2`).
 related_files:
   - "[design-patterns-links.md](../design-patterns-links.md)"
   - "[README.md](./README.md)"
@@ -38,6 +40,7 @@ related_files:
   - "[guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md)"
   - "[guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md)"
   - "[plan-architecture-documentation.plan.md](../documents_tcc/plan/plan-architecture-documentation.plan.md)"
+  - "[plan-benchmarking-hardening.plan.md](../documents_tcc/plan/plan-benchmarking-hardening.plan.md)"
   - "[table-of-symbols.plan.md](../documents_tcc/plan/table-of-symbols.plan.md)"
 tags:
   - guide/architecture
@@ -254,9 +257,9 @@ sequenceDiagram
         end
 
         Runner->>Runner: verify JIT cache currsize unchanged + compute_series_stats(ddof=1)
-        Orch->>Stats: perform_statistical_analysis + compare_algorithms
-        Orch->>Store: import_checkpoints -> benchmark_runs (natural-key upsert)
-        Stats-->>CLI: Markdown/LaTeX Tables 1-4, TikZ CDs, PDF/SVG scaling plots, macros
+        Orch->>Stats: analyze_problem() + analyze_cohort() -> ProblemAnalysis / CohortAnalysis
+        Stats-->>CLI: log_problem_analysis / log_cohort_analysis + opt-in generate_result_tables (or tsp-report)
+        Note over Store: Optional DuckDB consolidation via tsp-import-checkpoints (natural-key upsert)
     end
 ```
 
@@ -446,7 +449,7 @@ flowchart LR
 | `src/distances/` | 3-tier TSPLIB95 distances (`pairwise_device.cuh`, vectorized chunked `matrix.py`, `pairwise.py` w/ `BUG-32`) | [guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md) |
 | `src/algorithms/` | `GeneticAlgorithm`, `STAGE_SPECS`, `pipeline_steps.py`, 17 `Design B` strategies, 8 `.cu` kernels, `archive/` | [guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md) |
 | `src/utils/` | `load_kernel` (`-I` + SHA-256), `PhaseTimer` / `@time_strategy`, `make_rng` / `resolve_rng`, `route_helpers` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
-| `src/benchmarking/` | `runner/` (`orchestration`, `algorithm_runner`, `checkpoint_io`, `config_loader`, `schema_generator`), `database/`, `analysis/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
+| `src/benchmarking/` | `runner/` (`orchestration`, `algorithm_runner`, `checkpoint_io`, `config_loader`, `schema_generator`), `analysis/` (`cohort`, `statistics`, `stats_utils`, `problem_statistics`, `cohort_analysis`), `reporting/` (`style`, `console`, `table_reports`, `latex_macros`, `cd_diagram`, `scaling_plots`, `generator`), `database/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 | `src/cli/` | 5 entry points (`benchmark.py`, `report.py`, `checkpoints.py`, `tsplib.py`) invoked directly or via `benchmark_scripts/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 
 Outside `src/`, [`configs/`](../configs/cpu-operators.example.json) stores generic example configurations and Draft 2020-12 JSON Schemas (`configs/schemas/`), while `benchmark_scripts/` isolates thesis Chapter 4 configs (`benchmark_scripts/configs/chapter4/`), thesis drivers ([run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py)), and verification gates ([check_docs.py](../benchmark_scripts/check_docs.py), [check_thesis.py](../benchmark_scripts/check_thesis.py)).
@@ -563,7 +566,7 @@ Generic ready-to-run examples live directly in `configs/` ([`cpu-operators.examp
 1. **Adding a New Evolutionary Strategy (external or built-in):** External users never need to modify `src/` — implement the target PEP 544 `Protocol` (optionally subclassing `StrategyBase`) and inject directly into `GeneticAlgorithm(...)`, call [`register_strategy`](../src/algorithms/strategies/__init__.py), or reference `{"module": "...", "class": "..."}` in JSON. For built-in strategies under `src/algorithms/strategies/`, name `<SlotPrefix><Family>`, honor `resolve_rng` & `require_gpu()`, register in [`STRATEGY_REGISTRY`](../src/algorithms/strategies/__init__.py), and regenerate `configs/schemas/algorithms.schema.json` via `python -m benchmarking.runner.schema_generator` (`BUG-85`).
 2. **Adding a New TSPLIB95 Edge Weight Type (`data_models` + `distances`):** Register in [`VALID_EDGE_TYPES`](../src/data_models/problem.py) (and [`THREE_DIMENSIONAL_EDGE_TYPES`](../src/data_models/problem.py) if 3D), implement Tier 3 scalar + [`EDGE_TYPE_TO_CODE`](../src/distances/pairwise.py) in `pairwise.py`, Tier 2 broadcast in [`_distance_block`](../src/distances/matrix.py), and Tier 1 device function in [`pairwise_device.cuh::gpu_pairwise_distance`](../src/distances/kernels/pairwise_device.cuh).
 3. **Adding a Custom Pipeline Step (`src/algorithms/pipeline_steps.py`):** Declare `stage_anchor: StageAnchor`, `strategies()`, `public_params()`, `warmup(context)`, and `run(state, timer)`, and register in [`PIPELINE_STEP_REGISTRY`](../src/algorithms/pipeline_steps.py).
-4. **Adding Statistical Outputs (`src/benchmarking/analysis/`):** Extend [`StatisticalAnalyzer`](../src/benchmarking/analysis/statistics.py) and wire multi-metric dispatch (`metric_key`, `higher_is_better`) through `problem_statistics.py`, `aggregate_statistics.py`, and `report_generator.py`.
+4. **Adding Statistical Outputs (`src/benchmarking/analysis/` & `reporting/`):** Extend [`StatisticalAnalyzer`](../src/benchmarking/analysis/statistics.py) and snapshot dataclasses (`ProblemAnalysis`, `CohortAnalysis`, `OmnibusTestResult`) inside `analysis/`, then wire pure formatters in `reporting/` ([`console.py`](../src/benchmarking/reporting/console.py), [`table_reports.py`](../src/benchmarking/reporting/table_reports.py), [`latex_macros.py`](../src/benchmarking/reporting/latex_macros.py), [`cd_diagram.py`](../src/benchmarking/reporting/cd_diagram.py), [`scaling_plots.py`](../src/benchmarking/reporting/scaling_plots.py), [`generator.py`](../src/benchmarking/reporting/generator.py)).
 
 ---
 
@@ -636,6 +639,7 @@ All identifiers resolve to [table-of-symbols.plan.md](../documents_tcc/plan/tabl
 | `DP13-3` / `DP13-4` / `DP13-5` / `DP13-8` | Iman–Davenport $F_F$, unconditional Wilcoxon + Hodges–Lehmann + Kerby $r$, NumPy vectorized CPU 2-opt, external CLI-delegating scripts. | [`statistics.py::StatisticalAnalyzer`](../src/benchmarking/analysis/statistics.py), [`two_opt.py::LocalSearchCPUTwoOpt`](../src/algorithms/strategies/local_search/two_opt.py) |
 | `DP14-6` | Full `(n, 3)` `EUC_3D` coordinate support and C-contiguous finite `float64` validation across `Problem` and loaders. | [`problem.py::Problem`](../src/data_models/problem.py) |
 | `DP15-1`–`DP15-3` | 4 subsystem guides + Master Blueprint in English (`Implementation-Ready`), pt-BR plan, bidirectional catalog, and `check_docs` gate. | [plan-architecture-documentation.plan.md](../documents_tcc/plan/plan-architecture-documentation.plan.md) |
+| `DP16-1`–`DP16-2` | Phase 16 hardening (`BUG-96`–`BUG-102`): nullable `raw_gaps` + retroactive gaps, scale-invariant `wilcoxon_paired_summary`, preflight drift vs live corrupt-JSON quarantine, unified cohort/style reporting, strict `tsp-report`, PEP 544 slot validation, and full-table `compare_databases`. | [plan-benchmarking-hardening.plan.md](../documents_tcc/plan/plan-benchmarking-hardening.plan.md), [`checkpoint_io.py::validate_existing_checkpoints`](../src/benchmarking/runner/checkpoint_io.py), [`config_loader.py::validate_configs`](../src/benchmarking/runner/config_loader.py) |
 
 ---
 
