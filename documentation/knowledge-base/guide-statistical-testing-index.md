@@ -18,6 +18,14 @@ modifications:
           Initial creation of the master index and architectural roadmap for the modularized
           statistical testing documentation suite, establishing the two-tier Demšar protocol,
           mathematical symbol taxonomy, and cross-module referencing standards.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Aligned the two-tier workflow diagram and execution sequence with the active
+          production protocol in `src/benchmarking/analysis/` (`DP13-3`, `DP13-4`, `BUG-60`,
+          `BUG-97`): unconditional paired Wilcoxon + Hodges–Lehmann CI + Kerby rank-biserial
+          (`0.1/0.3/0.5`), descriptive-only Shapiro–Wilk, and unified Friedman + Iman–Davenport
+          + Nemenyi omnibus (`k >= 3, N >= 2`).
 related_files:
   - "[guide-statistical-parametric-foundations.md](./guide-statistical-parametric-foundations.md)"
   - "[guide-statistical-normality-and-outliers.md](./guide-statistical-normality-and-outliers.md)"
@@ -101,23 +109,24 @@ Following the gold standard established by **Demšar (2006)** and **García et a
 ```mermaid
 graph TD
     subgraph Tier 1: Within-Instance Analysis
-        D1[Instance j: n = 15 Runs per Algorithm]
-        D1 --> D2[Shapiro-Wilk Test on Differences]
-        D2 -->|p >= 0.05| D3[Paired Student's t-test + Cohen's d_z]
-        D2 -->|p < 0.05| D4[Wilcoxon Signed-Rank Test + Cliff's delta]
-        D3 --> D5[Instance Summary: Median Runtime & Gap]
-        D4 --> D5
+        D1[Instance j: n Matched-Seed Runs per Algorithm]
+        D1 --> D2[Shapiro-Wilk Diagnostic - Descriptive Only]
+        D1 --> D4[Unconditional Wilcoxon Signed-Rank zsplit + Hodges-Lehmann CI + Kerby r_rb]
+        D4 --> D4b[Holm-Bonferroni Step-Down Family-Wise Adjustment]
+        D4b --> D5[Instance Summary: Mean Cost, Gap, Runtime]
     end
 
     subgraph Tier 2: Across-Instance Meta-Analysis
-        D5 --> E1[Matrix M in R^{38 x 4}: 38 Blocks x 4 Treatments]
-        E1 --> E2[Friedman Omnibus Test & Iman-Davenport F_F]
-        E2 -->|p < 0.05| E3[Post-Hoc Pairwise Multi-Comparisons]
+        D5 --> E1[Complete-Case Matrix M in R^{N x k}: N >= 2 Blocks x k >= 3 Treatments]
+        E1 --> E2[Friedman Omnibus chi2_F & Iman-Davenport F_F]
+        E2 --> E3[OmnibusTestResult: Mean Ranks, Nemenyi CD, Cliques, Pairwise p-Values]
         E3 --> E4[All-vs-All: Nemenyi Critical Difference CD Diagram]
-        E3 --> E5[1-vs-All Control: Dunn-Bonferroni / Holm Step-Down]
-        E3 --> E6[Large-Scale Screening: Benjamini-Hochberg FDR]
+        E3 --> E5[1-vs-Baseline: Scale-Invariant Paired Wilcoxon + Holm Step-Down]
     end
 ```
+
+> [!IMPORTANT]
+> **Production Protocol Alignment (`DP13-3`, `DP13-4`, `BUG-60`, `BUG-97`):** Following Demšar (2006) §3.1.2, [`statistics.py::StatisticalAnalyzer.paired_comparison`](../../src/benchmarking/analysis/statistics.py) **never** switches between Student's $t$-test and Wilcoxon based on a Shapiro–Wilk pre-test (which distorts the nominal $\alpha = 0.05$ error rate on small samples). Shapiro–Wilk is recorded strictly as a descriptive diagnostic (`(nan, False)` for $n < 3$ or zero variance), while every paired comparison runs Wilcoxon signed-rank (`zero_method="zsplit"`), distribution-free Hodges–Lehmann CIs (guarded when $2^{-(n-1)} > \alpha$), and Kerby rank-biserial correlation $|r_{\text{rb}}|$ classified on the correlation scale (`0.1 / 0.3 / 0.5`). Cohort-level baseline Wilcoxon tests via [`statistics.py::StatisticalAnalyzer.wilcoxon_paired_summary`](../../src/benchmarking/analysis/statistics.py) share the exact `1e-10` absolute zero-difference tolerance (`BUG-97`). The parametric derivations in [guide-statistical-parametric-foundations.md](./guide-statistical-parametric-foundations.md) and [guide-statistical-pairwise-comparisons.md](./guide-statistical-pairwise-comparisons.md) remain as theoretical reference.
 
 ### 2.1 Tier 1: Within-Instance Stochastic Validation ($n = 15$ Runs)
 
@@ -157,44 +166,36 @@ The table below outlines each module in the documentation suite, its scope, and 
 When conducting a statistical comparison between routing solver strategies, adhere strictly to the following execution sequence:
 
 ```text
-START: Experimental Evaluation of Heuristics
+START: Experimental Evaluation of Heuristics (src/benchmarking/analysis/)
   │
-  ├─► [Step 1: Within-Instance Paired Comparison (n = 15 runs)]
+  ├─► [Step 1: Within-Instance Paired Comparison (analyze_problem)]
   │     │
-  │     ├── Extract difference vector: d_i = t_CPU,i - t_GPU,i
-  │     ├── Compute Shapiro-Wilk test on d_i:
-  │     │     ├─ If p_W >= 0.05:
-  │     │     │    └── Execute Paired Student's t-test + Paired Cohen's d_z
-  │     │     └─ If p_W < 0.05:
-  │     │          └── Execute Wilcoxon Signed-Rank Test + Cliff's delta
-  │     └── Record median runtime and median solution gap for each algorithm
+  │     ├── Extract paired vectors d_i = x_A,i - x_B,i (for both cost and time)
+  │     ├── Record Shapiro-Wilk p-values descriptively (never used for test selection)
+  │     ├── Execute Unconditional Wilcoxon Signed-Rank Test (zero_method="zsplit")
+  │     │     ├── Exact small-n minimum p = 2^{-(n-1)} (no false p=0.0 on constant diffs)
+  │     │     ├── Hodges-Lehmann location & 95% CI (NaN when 2^{-(n-1)} > alpha)
+  │     │     └── Kerby rank-biserial correlation r_rb (0.1 / 0.3 / 0.5 scale)
+  │     └── Adjust all C(k, 2) pairwise p-values with monotonic Holm-Bonferroni step-down
   │
-  ├─► [Step 2: Construct Across-Instance Matrix (N = 38, k = 4)]
+  ├─► [Step 2: Construct Across-Instance Matrix (analyze_cohort, N >= 2, k >= 3)]
   │     │
-  │     ├── Form Matrix M \in R^{38 x 4} from instance medians
-  │     ├── Rank algorithms within each problem row: r_ij in {1, 2, 3, 4}
+  │     ├── Form complete-case matrix M in R^{N x k} (gap/cost for quality; mean_time for speed)
+  │     ├── Rank algorithms within each problem row: r_ij in {1, ..., k}
   │     ├── Compute column average ranks: R_j = (1/N) * sum_i r_ij
-  │     └── Verify rank conservation: sum_j R_j = k(k + 1) / 2 = 10.00
+  │     └── Verify rank conservation: sum_j R_j = k(k + 1) / 2
   │
-  ├─► [Step 3: Omnibus Non-Parametric Significance Test]
+  ├─► [Step 3: Omnibus Non-Parametric Significance Test (run_friedman_nemenyi_analysis)]
   │     │
-  │     ├── Compute Friedman chi2_F and Iman-Davenport F_F
-  │     ├─ If p_iman >= 0.05:
-  │     │    └── Conclude NO statistically significant difference between algorithms
-  │     └─ If p_iman < 0.05:
-  │          └── Reject H_0: Proceed to Post-Hoc Pairwise Tests
+  │     ├── Compute Friedman chi2_F and Iman-Davenport F_F (flagging low_power when N < 5)
+  │     ├── Record omnibus_significant = (p_value_f < alpha)
+  │     └── Emit immutable OmnibusTestResult (reused once across console, macros, and CD plots)
   │
-  └─► [Step 4: Post-Hoc Pairwise Multi-Comparisons]
+  └─► [Step 4: Post-Hoc Multi-Comparisons & Baseline Speedups]
         │
-        ├─ Objective A: Compare ALL pairs with no designated control
-        │    └── Compute Nemenyi CD = q_alpha * sqrt(k(k+1)/(6N))
-        │        Plot Critical Difference (CD) diagram with clique bars
-        │
-        ├─ Objective B: Compare 3 GPU variants against CPU baseline
-        │    └── Execute Dunn's test with Holm Step-Down adjustment
-        │
-        └─ Objective C: High-dimensional screening of many configurations
-             └── Execute Benjamini-Hochberg (1995) False Discovery Rate (FDR) control
+        ├─ All-vs-All: Nemenyi CD = (q_Tukey / sqrt(2)) * sqrt(k(k+1)/(6N)) + CD TikZ diagram
+        ├─ 1-vs-Baseline: Scale-invariant wilcoxon_paired_summary (1e-10 abs tol) + Holm step-down
+        └─ Speedups: Fleming & Wallace (1986) paired geometric mean across common instances
 ```
 
 ---

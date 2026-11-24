@@ -19,6 +19,13 @@ modifications:
           Initial modularization extracted from statistical_tests_comprehensive_guide.md,
           providing exact rank sum variance proofs, pairing variance reduction algebra,
           frequentist interval interpretation guidelines, and real TSPLIB benchmark calculations.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Added production alignment note explaining that `src/benchmarking/analysis/statistics.py`
+          enforces unconditional Wilcoxon signed-rank (`DP13-4`, `BUG-60`), Hodges–Lehmann CIs,
+          and scale-invariant `wilcoxon_paired_summary` (`BUG-97`) rather than normality-gated
+          switching to Student's t-test.
 related_files:
   - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
   - "[guide-statistical-parametric-foundations.md](./guide-statistical-parametric-foundations.md)"
@@ -513,6 +520,9 @@ def run_paired_comparison(
         }
     }
 ```
+
+> [!NOTE]
+> **Production Implementation vs. Reference Script (`DP13-4`, `BUG-60`, `BUG-97`):** The didactic helper above contrasts Student's paired $t$-test with Wilcoxon side by side. In production, [`statistics.py::StatisticalAnalyzer.paired_comparison`](../../src/benchmarking/analysis/statistics.py) does **not** gate test selection on Shapiro–Wilk: it unconditionally executes Wilcoxon signed-rank (`zero_method="zsplit"`, preserving exact $p = 2^{-(n-1)}$ on constant non-zero differences), computes distribution-free Hodges–Lehmann CIs (`(nan, nan)` whenever $2^{-(n-1)} > \alpha$), reports Kerby rank-biserial correlation $|r_{\text{rb}}|$ on the `0.1 / 0.3 / 0.5` scale, and shares the same scale-invariant `1e-10` zero-difference guard with [`statistics.py::StatisticalAnalyzer.wilcoxon_paired_summary`](../../src/benchmarking/analysis/statistics.py).
 
 ---
 
