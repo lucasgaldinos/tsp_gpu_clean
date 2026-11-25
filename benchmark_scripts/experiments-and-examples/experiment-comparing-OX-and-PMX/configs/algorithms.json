@@ -1,0 +1,85 @@
+{
+  "$schema": "./algorithms.schema.json",
+  "default_params": {
+    "population_size": 128,
+    "mutation_rate": 0.03,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "OX_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU GA with CUDA Order Crossover (OX) and batched 2-opt",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "PMX_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU GA with custom CUDA PMX crossover and batched 2-opt",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "module": "../gpu_pmx_crossover.py",
+          "class": "CrossoverGPUPartiallyMapped"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    }
+  }
+}

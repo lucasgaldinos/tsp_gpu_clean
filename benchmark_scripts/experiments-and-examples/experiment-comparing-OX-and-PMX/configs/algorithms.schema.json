@@ -1,0 +1,1279 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json",
+  "title": "Algorithm variants configuration",
+  "description": "Declarative GA composition (Design B, DP11-1) or monolithic class loading. Built-in strategies and pipeline steps are partitioned by PEP 544 protocol slots and validated against constructor signatures via discriminated `oneOf` branches; external custom classes are supported via `module` + `class` without modifying src/ (DP11-5, BUG-85, BUG-103).",
+  "type": "object",
+  "required": [
+    "default_params",
+    "algorithm_configs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference used by editors for completion and validation."
+    },
+    "default_params": {
+      "type": "object",
+      "description": "Genetic Algorithm defaults applied to every variant unless overridden.",
+      "required": [
+        "population_size",
+        "mutation_rate",
+        "seed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "population_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of individuals kept per generation."
+        },
+        "mutation_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Per-individual probability of applying the mutation operator."
+        },
+        "seed": {
+          "type": "integer",
+          "description": "Base random seed; repetitions offset it."
+        }
+      }
+    },
+    "algorithm_configs": {
+      "type": "object",
+      "description": "Variant name -> configuration. Variant names are the labels reported in checkpoints and statistics.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/algorithm_config"
+      }
+    }
+  },
+  "$defs": {
+    "algorithm_config": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "Modular GeneticAlgorithm",
+          "type": "object",
+          "required": [
+            "metaheuristic",
+            "use_gpu",
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "metaheuristic": {
+              "const": "GeneticAlgorithm",
+              "description": "Selects the modular strategy-driven `GeneticAlgorithm` pipeline."
+            },
+            "use_gpu": {
+              "type": "boolean",
+              "description": "Whether the variant needs CuPy/CUDA at run time (the benchmark skips GPU variants when no device is present)."
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable label copied into reports."
+            },
+            "params": {
+              "type": "object",
+              "description": "Modular `GeneticAlgorithm` parameters: `pipeline`, `local_search_stage`, `population_size`, `mutation_rate`, and `seed`.",
+              "additionalProperties": false,
+              "properties": {
+                "pipeline": {
+                  "type": "array",
+                  "description": "Optional list of generational pipeline step specifications (DP11-6, DP11-10).",
+                  "items": {
+                    "$ref": "#/$defs/pipeline_step"
+                  }
+                },
+                "local_search_stage": {
+                  "$ref": "#/$defs/local_search_stage"
+                },
+                "population_size": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "mutation_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "seed": {
+                  "type": "integer"
+                }
+              }
+            },
+            "strategies": {
+              "type": "object",
+              "description": "Strategy slot -> class + parameters (Design B). Slots omitted from the pipeline stay `None`.",
+              "additionalProperties": false,
+              "properties": {
+                "initialization": {
+                  "$ref": "#/$defs/strategy_slot_initialization"
+                },
+                "selection": {
+                  "$ref": "#/$defs/strategy_slot_selection"
+                },
+                "crossover": {
+                  "$ref": "#/$defs/strategy_slot_crossover"
+                },
+                "mutation": {
+                  "$ref": "#/$defs/strategy_slot_mutation"
+                },
+                "local_search": {
+                  "$ref": "#/$defs/strategy_slot_local_search"
+                },
+                "evaluation": {
+                  "$ref": "#/$defs/strategy_slot_evaluation"
+                }
+              }
+            }
+          }
+        },
+        {
+          "title": "Monolithic Algorithm Class",
+          "type": "object",
+          "required": [
+            "metaheuristic",
+            "use_gpu",
+            "description",
+            "class_module",
+            "class_name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "metaheuristic": {
+              "type": "string",
+              "minLength": 1,
+              "not": {
+                "const": "GeneticAlgorithm"
+              },
+              "description": "Non-modular metaheuristic identifier loaded dynamically via `class_module`/`class_name`.",
+              "examples": [
+                "GeneticAlgorithmFullGPUMonolithic"
+              ]
+            },
+            "use_gpu": {
+              "type": "boolean",
+              "description": "Whether the variant needs CuPy/CUDA at run time (the benchmark skips GPU variants when no device is present)."
+            },
+            "description": {
+              "type": "string",
+              "description": "Human-readable label copied into reports."
+            },
+            "class_module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted module path or config-relative .py file path for monolithic variants resolved by `AlgorithmConfig.get_class()`.",
+              "examples": [
+                "algorithms.archive.full_gpu_monolithic"
+              ]
+            },
+            "class_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Class name inside `class_module`.",
+              "examples": [
+                "GeneticAlgorithmFullGPUMonolithic"
+              ]
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments forwarded to the monolithic algorithm class.",
+              "additionalProperties": true,
+              "properties": {
+                "local_search_stage": {
+                  "$ref": "#/$defs/local_search_stage"
+                },
+                "population_size": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "mutation_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "seed": {
+                  "type": "integer"
+                },
+                "tournament_size": {
+                  "type": "integer",
+                  "minimum": 2,
+                  "description": "Monolithic-only alias of the selection tournament size."
+                },
+                "two_opt_iterations": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Monolithic-only alias of the 2-opt pass cap."
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "local_search_stage": {
+      "type": "string",
+      "enum": [
+        "post_crossover",
+        "post_mutation",
+        "post_evaluation",
+        "post_evolution",
+        "none"
+      ],
+      "description": "Where the local-search strategy runs inside the generation pipeline (`LocalSearchStage`)."
+    },
+    "strategy_slot_initialization": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "InitializationNearestNeighbor",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationNearestNeighbor",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_nearest_neighbor",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationRandom",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationRandom",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_random",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom initialization strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom initialization strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "strategy_slot_selection": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "SelectionGPUTournament",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "SelectionGPUTournament",
+              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_selection_gpu_tournament",
+              "description": "Constructor keyword arguments for this `selection` strategy class."
+            }
+          }
+        },
+        {
+          "title": "SelectionRouletteWheel",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "SelectionRouletteWheel",
+              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_selection_roulette_wheel",
+              "description": "Constructor keyword arguments for this `selection` strategy class."
+            }
+          }
+        },
+        {
+          "title": "SelectionTournament",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "SelectionTournament",
+              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_selection_tournament",
+              "description": "Constructor keyword arguments for this `selection` strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom selection strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom selection strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "strategy_slot_crossover": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "CrossoverGPUOrder",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "CrossoverGPUOrder",
+              "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_crossover_gpu_order",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "CrossoverOrder",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "CrossoverOrder",
+              "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_crossover_order",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "CrossoverPartiallyMapped",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "CrossoverPartiallyMapped",
+              "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_crossover_partially_mapped",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "CrossoverGPUPartiallyMapped (external: ../gpu_pmx_crossover.py)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "const": "../gpu_pmx_crossover.py",
+              "description": "External Python module path or config-relative .py file path."
+            },
+            "class": {
+              "const": "CrossoverGPUPartiallyMapped",
+              "description": "External custom crossover strategy class exported by `../gpu_pmx_crossover.py`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_ext_gpu_pmx_crossover_py_crossover_gpu_partially_mapped",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom crossover strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom crossover strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          },
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "module",
+                  "class"
+                ],
+                "properties": {
+                  "module": {
+                    "const": "../gpu_pmx_crossover.py"
+                  },
+                  "class": {
+                    "const": "CrossoverGPUPartiallyMapped"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "strategy_slot_mutation": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "MutationGPUInversion",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationGPUInversion",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_gpu_inversion",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationGPUSwap",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationGPUSwap",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_gpu_swap",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationInversion",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationInversion",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_inversion",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationSwap",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationSwap",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_swap",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom mutation strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom mutation strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "strategy_slot_local_search": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "LocalSearchCPUTwoOpt",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "LocalSearchCPUTwoOpt",
+              "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_local_search_cpu_two_opt",
+              "description": "Constructor keyword arguments for this `local_search` strategy class."
+            }
+          }
+        },
+        {
+          "title": "LocalSearchGPUTwoOpt",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "LocalSearchGPUTwoOpt",
+              "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_local_search_gpu_two_opt",
+              "description": "Constructor keyword arguments for this `local_search` strategy class."
+            }
+          }
+        },
+        {
+          "title": "LocalSearchNoOp",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "LocalSearchNoOp",
+              "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_local_search_no_op",
+              "description": "Constructor keyword arguments for this `local_search` strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom local_search strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom local_search strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "strategy_slot_evaluation": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "EvaluationCPUCost",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "EvaluationCPUCost",
+              "description": "Built-in `EvaluationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_evaluation_cpu_cost",
+              "description": "Constructor keyword arguments for this `evaluation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "EvaluationGPUCost",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "EvaluationGPUCost",
+              "description": "Built-in `EvaluationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_evaluation_gpu_cost",
+              "description": "Constructor keyword arguments for this `evaluation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom evaluation strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom evaluation strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "pipeline_step": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "EliteOnlyLocalSearchStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "EliteOnlyLocalSearchStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_elite_only_local_search_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
+          "title": "PeriodicLocalSearchStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "PeriodicLocalSearchStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_periodic_local_search_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
+          "title": "PostInitLocalSearchStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "PostInitLocalSearchStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_post_init_local_search_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
+          "title": "External custom pipeline step (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom pipeline step class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "params_initialization_nearest_neighbor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_initialization_random": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        }
+      }
+    },
+    "params_selection_gpu_tournament": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_selection_roulette_wheel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_selection_tournament": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_gpu_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_partially_mapped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_ext_gpu_pmx_crossover_py_crossover_gpu_partially_mapped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_mutation_gpu_inversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_gpu_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_inversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_local_search_cpu_two_opt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "best",
+            "first",
+            "multi_move"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_local_search_gpu_two_opt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "batch",
+            "multi_move",
+            "naive"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "threads_per_block": {
+          "type": "integer",
+          "minimum": 32,
+          "$comment": "Advisory bound: GPU strategies clamp or derive block dimensions at runtime.",
+          "description": "CUDA threads per block for the GPU strategies (advisory lower bound)."
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "max_shared_tour_cities": {
+          "type": "integer",
+          "minimum": 2,
+          "$comment": "Advisory bound: minimum tour size for shared-memory caching.",
+          "description": "`n` above which the GPU 2-opt scans the tour tile by tile instead of caching it in shared memory (default 11 520)."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_local_search_no_op": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        }
+      }
+    },
+    "params_evaluation_cpu_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "params_evaluation_gpu_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "threads_per_block": {
+          "type": "integer",
+          "minimum": 32,
+          "$comment": "Advisory bound: GPU strategies clamp or derive block dimensions at runtime.",
+          "description": "CUDA threads per block for the GPU strategies (advisory lower bound)."
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        }
+      }
+    },
+    "params_elite_only_local_search_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_search": {
+          "$ref": "#/$defs/strategy_slot_local_search",
+          "description": "Local search strategy slot override; omitted inherits the variant's local_search strategy."
+        },
+        "evaluation": {
+          "$ref": "#/$defs/strategy_slot_evaluation",
+          "description": "Evaluation strategy slot override; omitted inherits the variant's evaluation strategy."
+        },
+        "elite_count": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: constructor enforces elite_count > 0.",
+          "description": "Number of top-fitness routes to refine (EliteOnlyLocalSearchStep)."
+        }
+      }
+    },
+    "params_periodic_local_search_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_search": {
+          "$ref": "#/$defs/strategy_slot_local_search",
+          "description": "Local search strategy slot override; omitted inherits the variant's local_search strategy."
+        },
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: constructor enforces interval > 0.",
+          "description": "Generation interval between local search passes (PeriodicLocalSearchStep)."
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "offspring",
+            "population"
+          ],
+          "description": "Target array to refine ('offspring' or 'population')."
+        },
+        "re_evaluate": {
+          "$ref": "#/$defs/strategy_slot_evaluation",
+          "description": "Evaluation strategy slot required when target='population' to recompute fitness after local search."
+        }
+      }
+    },
+    "params_post_init_local_search_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_search": {
+          "$ref": "#/$defs/strategy_slot_local_search",
+          "description": "Local search strategy slot override; omitted inherits the variant's local_search strategy."
+        },
+        "evaluation": {
+          "$ref": "#/$defs/strategy_slot_evaluation",
+          "description": "Evaluation strategy slot override; omitted inherits the variant's evaluation strategy."
+        }
+      }
+    }
+  }
+}
