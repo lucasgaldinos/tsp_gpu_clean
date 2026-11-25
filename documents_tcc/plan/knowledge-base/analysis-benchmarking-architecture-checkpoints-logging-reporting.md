@@ -31,7 +31,7 @@ related_files:
   - "[checkpoint_io.py](../../../src/benchmarking/runner/checkpoint_io.py)"
   - "[report_generator.py](../../../src/benchmarking/analysis/report_generator.py)"
   - "[db_operations.py](../../../src/benchmarking/database/db_operations.py)"
-  - "[run_chapter4_benchmark.py](../../../benchmark_scripts/run_chapter4_benchmark.py)"
+  - "[run_chapter4_benchmark.py](../../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)"
 tags:
   - analysis/benchmarking
   - analysis/architecture
@@ -284,7 +284,7 @@ def _make_persistence_callback(checkpoint_path: Path, static_metadata: dict[str,
 
 Auditing `src/benchmarking/` and `benchmark_scripts/` reveals fragmented logging practices:
 
-1. `benchmark_scripts/run_chapter4_benchmark.py:201` calls `logging.basicConfig(level=logging.INFO, handlers=[StreamHandler(sys.stdout)], force=True)`.
+1. `benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py:201` calls `logging.basicConfig(level=logging.INFO, handlers=[StreamHandler(sys.stdout)], force=True)`.
 2. `src/cli/benchmark.py:184` calls `logging.basicConfig(..., force=True)` with a different format string.
 3. `orchestration.py:340` relies purely on inherited root loggers without guaranteeing persistent disk retention.
 
@@ -400,7 +400,7 @@ def setup_benchmark_logging(
    In `cmd_run`: invoke `setup_benchmark_logging(args.output_dir, args.benchmark_name)` before invoking `run_comprehensive_benchmark`.
 2. **`orchestration.py`**:
    At entry to `run_comprehensive_benchmark`: check if any `FileHandler` is already bound to the active logger. If not, auto-attach a `FileHandler` writing to `resolved_output_dir / f"{resolved_benchmark_name}.log"`.
-3. **`benchmark_scripts/run_chapter4_benchmark.py`**:
+3. **`benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py`**:
    Replace local `setup_logging()` with `setup_benchmark_logging(output_dir, benchmark_name)`.
 
 ---

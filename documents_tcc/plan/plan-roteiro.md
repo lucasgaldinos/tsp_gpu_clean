@@ -369,7 +369,7 @@ Este plano detalha as adições e modificações necessárias diretamente no doc
   + **DoD (Definition of Done):** Script `run_selected_problems.py` executado com sucesso nas 10 instâncias com geração de *checkpoints*, estatísticas por instância, análise estratificada entre problemas e tabelas Markdown/LaTeX, além de suíte `pytest` e `ruff check` sem erros.
   + **Solution / O que foi feito:**
     - **Arquivos Alterados:**
-      - [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py) e [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py)
+      - [run_selected_problems.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_selected_problems.py) e [run_chapter4_benchmark.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)
       - [config_loader.py](../../src/benchmarking/runner/config_loader.py)
       - [orchestration.py](../../src/benchmarking/runner/orchestration.py)
       - [statistics.py](../../src/benchmarking/analysis/statistics.py)

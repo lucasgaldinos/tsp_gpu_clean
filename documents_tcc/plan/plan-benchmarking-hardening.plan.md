@@ -21,6 +21,15 @@ modifications:
           `plan-reorganization-and-typing.plan.md` por tamanho) com as decisões
           `DP16-1` e `DP16-2`, registro das Tasks `16.1` a `16.5` para os defeitos
           `BUG-96` a `BUG-102` e sincronização com `table-of-symbols.plan.md`.
+  - date_modified: 2026-11-24
+    modifications:
+      - description: >
+          Adição da decisão `DP16-3` e do Lote 3 (`Tasks 16.6` e `16.7`) cobrindo
+          os defeitos `BUG-103` a `BUG-106`: esquemas `oneOf` por protocolo de slot,
+          geração de esquemas locais para operadores externos (`--extra-file`/
+          `--extra-module`), carregamento relativo de `.py`, validação de passos
+          `GenerationStep`/slots aninhados/parâmetros modulares, paridade
+          `max_iterations >= 0` e campos opcionais `patience`/`optimal`.
 related_files:
   - "[table-of-symbols.plan.md](./table-of-symbols.plan.md)"
   - "[plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md)"
@@ -28,6 +37,7 @@ related_files:
   - "[checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py)"
   - "[orchestration.py](../../src/benchmarking/runner/orchestration.py)"
   - "[config_loader.py](../../src/benchmarking/runner/config_loader.py)"
+  - "[schema_generator.py](../../src/benchmarking/runner/schema_generator.py)"
   - "[statistics.py](../../src/benchmarking/analysis/statistics.py)"
   - "[scaling_plots.py](../../src/benchmarking/reporting/scaling_plots.py)"
   - "[table_reports.py](../../src/benchmarking/reporting/table_reports.py)"
@@ -65,6 +75,7 @@ Os identificadores `DP16-*` e `BUG-96` a `BUG-102` têm registro canônico em [t
 
 - `DP16-1`: Contratos estritos de checkpoints e estatística pareada — predicados de checkpoint aceitam `raw_gaps: None` quando o ótimo é desconhecido (`BUG-96`), `save_problem_statistics` deriva *gaps* a partir de `optimal_cost` retroativo, `wilcoxon_paired_summary` compartilha tolerância absoluta invariante à escala (`1e-10`) com `paired_comparison` (`BUG-97`), e o *preflight* distingue deriva de configuração (erro rígido) de JSON truncado/corrompido (quarentena automática fora de `--dry-run`, `BUG-98`).
 - `DP16-2`: Fonte única de coorte, estilo, validação de slots e integridade DuckDB — renderizadores (`table_reports.py`, `scaling_plots.py`, `generator.py`) consomem exclusivamente `cohort.results`, `cohort.problem_configs`, `cohort.algorithms_for_problem` e `meta["dimension"]` com regra unificada `all(...)` para *gap* vs. custo (`BUG-99`); `tsp-report` valida `--config-dir` sem criar `checkpoints/` espúrio (`BUG-100`); `config_loader.py` valida nomes de slots, protocolos `@runtime_checkable` e limites por algoritmo (`BUG-101`); e `compare_databases` verifica todas as linhas ordenadas com fechamento garantido de conexões (`BUG-102`).
+- `DP16-3`: Esquemas JSON discriminados por slot (`oneOf`), descoberta local de extensões externas e alinhamento de pré-voo — `schema_generator.py` particiona `STRATEGY_REGISTRY` nos 6 `$defs/strategy_slot_*` via protocolos PEP 544 e `oneOf` mutuamente exclusivo (garantindo IntelliSense no VS Code), separa variantes modulares vs. monolíticas em `algorithm_config` e oferece `--extra-file`/`--extra-module` + `--output` para gerar esquemas locais sem contaminar `configs/schemas/algorithms.schema.json` (`BUG-103`, `BUG-105`); `config_loader.py` carrega caminhos `.py` relativos a `algorithms.json`, valida passos `GenerationStep`/slots aninhados/parâmetros modulares, aceita `max_iterations >= 0` e torna `patience`/`optimal` opcionais com guardas contra `bool` (`BUG-104`–`BUG-106`).
 
 ## Lote 1 — Checkpoints, estatística e orquestração (Tasks 16.1–16.3)
 
@@ -170,6 +181,49 @@ Os identificadores `DP16-*` e `BUG-96` a `BUG-102` têm registro canônico em [t
     - **Resumo:** Validação de configuração ampliada para rejeitar slots desconhecidos, violação de protocolos PEP 544 e overrides fora de faixa em `algo_cfg.params`; `compare_databases` reescrito para cobertura total de linhas/colunas sem vazamento de conexões nem falha em tabelas vazias.
     - **DoD atendido:** `test_validate_configs_and_instantiate_catch_bad_slots_protocols_and_algo_params` e `test_compare_databases_handles_empty_dbs_reordered_rows_and_tail_differences` aprovados em `pytest`, com `mypy`, `ruff check`, `ruff format --check` e `schema_generator --check` todos em código `0`.
 
+## Lote 3 — Esquemas JSON discriminados, extensões externas e ergonomia de configuração (Tasks 16.6–16.7)
+
+- [x] **Task 16.6: Particionar `algorithms.schema.json` por protocolo via `oneOf` discriminado e suportar esquemas locais com `--extra-file`/`--extra-module` (`BUG-103`, `BUG-105`)**
+
+  - **O quê:** Substituir o `#/$defs/strategy_slot` plano e as guardas negadas `if: { not: { required: ["module"] } }` em `allOf` por 6 `$defs/strategy_slot_*` particionados pelos protocolos PEP 544 e por `oneOf` mutuamente exclusivo (tanto nos slots quanto em `pipeline_step` e na separação modular vs. monolítico de `algorithm_config`), apontar parâmetros de estratégia aninhados nos passos de pipeline para seus slots específicos e adicionar `--extra-file`/`--extra-module` com guarda obrigatória de `--output` em `schema_generator.py`.
+  - **Por quê:** O esquema anterior aceitava classes de slots incompatíveis (ex.: `MutationSwap` em `crossover`), impedia o `vscode-json-languageservice` de sugerir classes por slot e parâmetros específicos por classe, expunha chaves monolíticas em `GeneticAlgorithm` e não oferecia autocompletar para operadores externos customizados.
+  - **Quem:** Agent (`implementer`).
+  - **Onde:** [schema_generator.py::STRATEGY_SLOT_PROTOCOLS](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::discover_external_extensions](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::_build_slot_definition](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::generate_algorithms_schema](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::main](../../src/benchmarking/runner/schema_generator.py), [algorithms.schema.json](../../configs/schemas/algorithms.schema.json).
+  - **Quando:** Após o Lote 2; em paralelo à Task 16.7.
+  - **Como:** Definir `STRATEGY_SLOT_PROTOCOLS`, particionar `STRATEGY_REGISTRY` via `issubclass`, emitir ramos `oneOf` mutuamente exclusivos (built-ins com `required: ["class"]`, externos descobertos com `const` em `module`+`class` e ramo genérico com exclusão `"not"`), dividir `algorithm_config` em modular vs. monolítico e recusar `--extra-file`/`--extra-module` sem `--output` explícito distinto de `DEFAULT_SCHEMA_PATH`.
+  - **Esforço:** Médio.
+  - **Impacto:** Habilita IntelliSense por slot e por classe no VS Code (inclusive para operadores externos em pastas de experimento) mantendo `configs/schemas/algorithms.schema.json` 100% desacoplado de experimentos.
+  - **DoD:** Testes `test_algorithms_schema_matches_generator_and_registries_drift_contract`, `test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_candidate_k` e `test_schema_generator_extra_file_emits_typed_external_oneof_and_guards_core_schema` aprovados, com `schema_generator --check` retornando código `0`.
+
+  + **Solution / O que foi feito:**
+    - **Arquivos alterados:**
+      + [schema_generator.py::STRATEGY_SLOT_PROTOCOLS](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::ExternalClassSpec](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::discover_external_extensions](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::_build_slot_definition](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::generate_algorithms_schema](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::main](../../src/benchmarking/runner/schema_generator.py)
+      + [algorithms.schema.json](../../configs/schemas/algorithms.schema.json)
+      + [test_unit_algorithms_config_contract.py::test_algorithms_schema_matches_generator_and_registries_drift_contract](../../tests/benchmarking/test_unit_algorithms_config_contract.py), [test_unit_algorithms_config_contract.py::test_schema_generator_extra_file_emits_typed_external_oneof_and_guards_core_schema](../../tests/benchmarking/test_unit_algorithms_config_contract.py)
+    - **Resumo:** Removido `#/$defs/strategy_slot` plano (zero alias legado) em favor de 6 `$defs/strategy_slot_*` discriminados via `oneOf`, referências de slot específicas em passos de pipeline, separação `oneOf` entre `GeneticAlgorithm` modular e classes monolíticas, e CLI `--extra-file`/`--extra-module` gerando esquemas locais com caminhos relativos sem contaminar o esquema canônico.
+    - **DoD atendido:** `rtk .venv/bin/python -m benchmarking.runner.schema_generator --check` retorna código `0`, e todos os contratos de `test_unit_algorithms_config_contract.py` passam cobrindo partição por protocolo, rejeição de cruzamento entre slots, rejeição de erros de digitação em operadores externos descobertos e proteção contra escrita no esquema canônico.
+
+- [x] **Task 16.7: Suportar módulos `.py` relativos à configuração, validação de passos/slots aninhados, paridade `max_iterations >= 0` e campos opcionais `patience`/`optimal` (`BUG-104`, `BUG-105`, `BUG-106`)**
+
+  - **O quê:** Carregar caminhos `.py` relativos ao diretório de `algorithms.json` via `load_external_module`, validar `GenerationStep` (`run` e `stage_anchor`), protocolos de estratégias aninhadas em `params` de passos e chaves modulares permitidas (`MODULAR_ALGO_PARAMS`), aceitar `max_iterations >= 0` no pré-voo, e tornar `patience` (em `benchmark.json`) e `optimal` (em `problems.json`) opcionais com guardas contra `bool`.
+  - **Por quê:** Pastas de experimento com hífens quebravam `importlib.import_module` sem `PYTHONPATH`; passos externos inválidos e estratégias aninhadas de slot incorreto passavam no pré-voo; `max_iterations: 0` contradizia o esquema e `LocalSearchNoOp`; e campos nulos por padrão exigiam declarações redundantes nos JSONs.
+  - **Quem:** Agent (`implementer`).
+  - **Onde:** [config_loader.py::load_external_module](../../src/benchmarking/runner/config_loader.py), [config_loader.py::_infer_nested_strategy_slot](../../src/benchmarking/runner/config_loader.py), [config_loader.py::_validate_class_spec](../../src/benchmarking/runner/config_loader.py), [config_loader.py::load_benchmark_config](../../src/benchmarking/runner/config_loader.py), [config_loader.py::load_problems_config](../../src/benchmarking/runner/config_loader.py), [config_loader.py::validate_configs](../../src/benchmarking/runner/config_loader.py), [benchmark.schema.json](../../configs/schemas/benchmark.schema.json), [problems.schema.json](../../configs/schemas/problems.schema.json).
+  - **Quando:** Em paralelo à Task 16.6.
+  - **Como:** Adicionar `source_dir` em `AlgorithmConfig` e cache `(path, mtime_ns, size)` em `load_external_module` com registro prévio em `sys.modules`; resolver anotações `__init__` para inferir o slot de estratégias aninhadas; exigir `callable(run)` e `stage_anchor` válido em passos; alertar chaves fora de `MODULAR_ALGO_PARAMS`; aceitar `max_iterations >= 0`; e atualizar `benchmark.schema.json`/`problems.schema.json` junto com `_parse_optional_int_field`.
+  - **Esforço:** Médio.
+  - **Impacto:** Elimina a dependência de `PYTHONPATH` em pastas com hífen e unifica completamente as regras do JSON Schema com o pré-voo em Python.
+  - **DoD:** Testes `test_config_relative_py_path_loads_from_hyphenated_experiment_dir`, `test_validate_configs_checks_pipeline_steps_nested_slots_and_modular_params` e `test_load_benchmark_and_problems_optional_fields_and_bool_guards` aprovados junto com `pytest`, `mypy`, `ruff` e `check_docs`.
+
+  + **Solution / O que foi feito:**
+    - **Arquivos alterados:**
+      + [config_loader.py::is_file_module_ref](../../src/benchmarking/runner/config_loader.py), [config_loader.py::load_external_module](../../src/benchmarking/runner/config_loader.py), [config_loader.py::_infer_nested_strategy_slot](../../src/benchmarking/runner/config_loader.py), [config_loader.py::_validate_class_spec](../../src/benchmarking/runner/config_loader.py), [config_loader.py::load_benchmark_config](../../src/benchmarking/runner/config_loader.py), [config_loader.py::load_problems_config](../../src/benchmarking/runner/config_loader.py), [config_loader.py::validate_configs](../../src/benchmarking/runner/config_loader.py)
+      + [benchmark.schema.json](../../configs/schemas/benchmark.schema.json), [problems.schema.json](../../configs/schemas/problems.schema.json)
+      + [test_unit_custom_extensions.py::test_config_relative_py_path_loads_from_hyphenated_experiment_dir](../../tests/algorithms/test_unit_custom_extensions.py), [test_unit_config_validation.py::test_validate_configs_checks_pipeline_steps_nested_slots_and_modular_params](../../tests/benchmarking/test_unit_config_validation.py), [test_unit_config_loader.py::test_load_benchmark_and_problems_optional_fields_and_bool_guards](../../tests/benchmarking/test_unit_config_loader.py)
+      + [guide-getting-started.md](../../documentation/guide-getting-started.md), [guide-architecture-benchmarking-cli-and-utils.md](../../documentation/analysis/guide-architecture-benchmarking-cli-and-utils.md)
+    - **Resumo:** `AlgorithmConfig` preserva `source_dir` para resolver módulos `.py` relativos sem `PYTHONPATH`; pré-voo e `instantiate` validam `GenerationStep`, slots de estratégias aninhadas e `MODULAR_ALGO_PARAMS`; `max_iterations == 0` passa a ser aceito; e `patience`/`optimal` tornam-se opcionais com rejeição estrita de booleanos.
+    - **DoD atendido:** Suíte completa não-GPU/não-lenta, `mypy`, `ruff check`, `schema_generator --check` e `check_docs` (sobre os arquivos alterados) aprovados com código `0`.
+
 ## Itens adiados
 
 - `TASK 14.7` (substituição de literais nos `.tex` da dissertação por macros de `benchmark_macros.tex`) permanece adiada em [plan-reorganization-and-typing.plan.md](./plan-reorganization-and-typing.plan.md) por decisão explícita do usuário.
@@ -178,7 +232,7 @@ Os identificadores `DP16-*` e `BUG-96` a `BUG-102` têm registro canônico em [t
 ## Handoff
 
 - **State**: done
-- **Last verified observation**: `rtk .venv/bin/mypy src tests benchmark_scripts && rtk .venv/bin/ruff check src tests benchmark_scripts && rtk .venv/bin/pytest -q tests/benchmarking/test_unit_checkpoint_io.py ... tests/cli/test_unit_cli_report.py && ... && check_docs && check_thesis && tsp-report parity` -> `Success: no issues found in 162 source files`, `All checks passed!`, `309 passed` (`1189` no conjunto não-GPU/não-lento), `OK: no documentation drift detected`, `ALL_GATES_PASSED` (2026-11-23)
-- **Next item**: Nenhum (Fase 16 concluída; revisão do diff e commit mediante aprovação explícita do usuário)
+- **Last verified observation**: `rtk .venv/bin/pytest -q -m "not gpu and not slow" && rtk .venv/bin/mypy src tests benchmark_scripts && rtk .venv/bin/ruff check src tests benchmark_scripts && rtk .venv/bin/python -m benchmarking.runner.schema_generator --check` -> todos os portões aprovados com código `0` (2026-11-24)
+- **Next item**: Nenhum (Lote 3 da Fase 16 concluído; revisão do diff e commit mediante aprovação explícita do usuário)
 - **Open decisions**: Nenhuma | N/A | N/A
-- **Read first**: `plan-benchmarking-hardening.plan.md#decisões-fixadas`, `table-of-symbols.plan.md#fase-16-dp16`, `src/benchmarking/runner/checkpoint_io.py::_validate_single_checkpoint_compatibility`, `src/benchmarking/analysis/statistics.py::StatisticalAnalyzer.wilcoxon_paired_summary`
+- **Read first**: `plan-benchmarking-hardening.plan.md#decisões-fixadas`, `table-of-symbols.plan.md#fase-16-dp16`, `src/benchmarking/runner/schema_generator.py::generate_algorithms_schema`, `src/benchmarking/runner/config_loader.py::load_external_module`
