@@ -26,6 +26,11 @@ modifications:
           PEP 544 slot-protocol preflight validation (`BUG-101`), checkpoint
           drift/quarantine behavior (`BUG-98`), and retroactive `optimal_cost`
           gap computation in `tsp-report` (`BUG-96`, `BUG-100`).
+      - description: >
+          Added Section 7 ("JSON-First Experiment Cookbook & External Script
+          Templates") putting `algorithms.json`, `benchmark.json`, `problems.json`,
+          and `report_style.json`, `--config-dir` precedence, and Level 1 / Level 2
+          external experiment script templates side-by-side.
 related_files:
   - "[README.md](../README.md)"
   - "[documentation/README.md](./README.md)"
@@ -33,6 +38,9 @@ related_files:
   - "[guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md)"
   - "[guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md)"
   - "[benchmarking/database/QUICKSTART.md](../src/benchmarking/database/QUICKSTART.md)"
+  - "[benchmark.schema.json](../configs/schemas/benchmark.schema.json)"
+  - "[problems.schema.json](../configs/schemas/problems.schema.json)"
+  - "[report_style.schema.json](../configs/schemas/report_style.schema.json)"
 tags:
   - guide/quickstart
   - guide/usage
@@ -313,11 +321,11 @@ results = run_comprehensive_benchmark(
 
 ### Option 3 — Dynamic `"module"` loading directly from JSON & `tsp-benchmark` CLI
 
-To benchmark custom external classes directly from the CLI without writing any wrapper script, include `"module"` alongside `"class"` in your algorithm JSON config (validated by [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json)):
+To benchmark custom external classes directly from the CLI without writing any wrapper script, include `"module"` alongside `"class"` in your algorithm JSON config (validated by [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json)). `"module"` accepts **either** a dotted Python module path (e.g., `"my_experiment.my_ops"`) **or** a `.py` file path relative to `algorithms.json` (e.g., `"../my_ops.py"`), so experiments living inside hyphenated directories require neither `PYTHONPATH` nor packaging (`DP16-3`, `BUG-104`):
 
 ```json
 {
-  "$schema": "./configs/schemas/algorithms.schema.json",
+  "$schema": "./algorithms.schema.json",
   "default_params": { "population_size": 64, "mutation_rate": 0.1, "seed": 42 },
   "algorithm_configs": {
     "CustomScrambleMemetic": {
@@ -328,7 +336,7 @@ To benchmark custom external classes directly from the CLI without writing any w
         "local_search_stage": "none",
         "pipeline": [
           {
-            "module": "my_ops",
+            "module": "../my_ops.py",
             "class": "BestOnlyLocalSearchStep",
             "params": { "interval": 5 }
           }
@@ -339,7 +347,7 @@ To benchmark custom external classes directly from the CLI without writing any w
         "selection": { "class": "SelectionTournament", "params": { "k": 5 } },
         "crossover": { "class": "CrossoverOrder" },
         "mutation": {
-          "module": "my_ops",
+          "module": "../my_ops.py",
           "class": "ScrambleMutation",
           "params": { "max_span": 8 }
         },
@@ -354,11 +362,19 @@ To benchmark custom external classes directly from the CLI without writing any w
 }
 ```
 
-Run it with `PYTHONPATH=.` (or any installed package path containing `my_ops.py`):
+**Editor autocomplete for custom operations (`BUG-103`, `DP16-3`):** The core [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json) partitions all 17 built-in strategies across 6 protocol-specific `oneOf` slots and keeps a generic `{"module", "class", "params"}` fallback branch for ad-hoc external classes. To get full VS Code IntelliSense for your experiment's custom classes and constructor `params` without modifying `src/` or the core schema, generate an experiment-local schema with `--extra-file` (or `--extra-module`) and `--output`:
 
 ```bash
-PYTHONPATH=. uv run tsp-benchmark \
-  --algorithms-config my_experiment.json \
+uv run python -m benchmarking.runner.schema_generator \
+  --extra-file my_experiment/my_ops.py \
+  --output my_experiment/configs/algorithms.schema.json
+```
+
+Point your experiment's `algorithms.json` at `"$schema": "./algorithms.schema.json"`, then run directly without setting `PYTHONPATH`:
+
+```bash
+uv run tsp-benchmark \
+  --algorithms-config my_experiment/configs/algorithms.json \
   --tsp-dir tests/fixtures/tsp \
   --repetitions 3 \
   --max-generations 30 \
@@ -414,7 +430,183 @@ uv run tsp-benchmark \
 > [!NOTE]
 > **Preflight & Resume Guarantees (`DP16-1`, `BUG-96`, `BUG-98`, `BUG-101`):** Before executing any solver, `tsp-benchmark` validates strategy slot names (`VALID_STRATEGY_SLOTS`), PEP 544 `@runtime_checkable` protocol conformance for both built-in and external custom strategies, per-algorithm `params` bounds, and existing checkpoint compatibility (`local_search_stage`, `strategy_params`, `pipeline`, and raw array lengths). Checkpoints collected on custom `.tsp` instances without a known optimal cost (`optimal_cost: null`, `raw_gaps: null`) validate and resume cleanly. Truncated/corrupt JSON files fail `--dry-run` without mutating disk and are automatically quarantined to `*.corrupt.<timestamp>.bak` on live runs.
 
-## 7. Composable Reporting & External Styling (`tsp-report` & Python API)
+## 7. JSON-First Experiment Cookbook & External Script Templates
+
+To bundle an entire experiment in one reproducible directory outside `src/`, place up to four schema-validated JSON files in a config folder (`my_experiment/`) and pass `--config-dir my_experiment/` to `tsp-benchmark`.
+
+### 7.1 Directory Layout & Precedence
+
+```text
+my_experiment/
+├── algorithms.json     # Required (unless --algorithms-config or algorithm_configs_override is used)
+├── benchmark.json      # Optional (defaults: repetitions=10, adaptive patience/generations, threshold=null)
+├── problems.json       # Optional (defaults to --tsp-dir / --tsp-files with sibling .opt.tour lookup)
+└── report_style.json   # Optional (passed via --report-style to tsp-benchmark or tsp-report)
+```
+
+Configuration resolution in [`resolve_benchmark_configs`](../src/benchmarking/runner/config_loader.py) follows strict precedence:
+
+1. **CLI flags** (`--repetitions`, `--max-generations`, `--patience`, `--seed`, `--population-size`, `--mutation-rate`, `--local-search-stage`, `--strategy-param SLOT.KEY=VALUE`, `--cpu-size-threshold`, `--incremental` / `--no-incremental`)
+2. **Explicit single-file flags** (`--algorithms-config`, `--benchmark-config`, `--problems-config`)
+3. **Directory bundle** (`--config-dir <dir>/{algorithms,benchmark,problems}.json`)
+4. **Neutral library defaults** (`GAParams()`, `BenchmarkConfig()`, auto-discovered `.tsp` files)
+
+### 7.2 All Four Config Files Side-by-Side
+
+- **`algorithms.json`** ([`algorithms.schema.json`](../configs/schemas/algorithms.schema.json)) — declares `default_params` plus each variant under `algorithm_configs` (using built-in `STRATEGY_REGISTRY` names or external `"module"` + `"class"` imports, as shown in Section 5 Option 3).
+- **`benchmark.json`** ([`benchmark.schema.json`](../configs/schemas/benchmark.schema.json)) — requires `repetitions`; optional fields (`patience`, `max_generations`, `cpu_size_threshold`, `incremental_runs`, `display.line_width`) default to neutral values (`null` = adaptive $2\sqrt{n}$ patience / $2n\sqrt{n}$ generations, no CPU cutoff):
+
+```json
+{
+  "$schema": "./configs/schemas/benchmark.schema.json",
+  "repetitions": 10,
+  "patience": null,
+  "max_generations": 200,
+  "cpu_size_threshold": null,
+  "incremental_runs": false,
+  "display": { "line_width": 80 }
+}
+```
+
+- **`problems.json`** ([`problems.schema.json`](../configs/schemas/problems.schema.json)) — fixes instance order, expected dimension `size` (verified against `Problem.dimension` at runtime), and optional reference optima (`null` or omitted when unknown):
+
+```json
+{
+  "$schema": "./configs/schemas/problems.schema.json",
+  "problems": [
+    { "name": "berlin52", "optimal": 7542, "size": 52 },
+    { "name": "custom_no_optimum", "size": 80 }
+  ]
+}
+```
+
+- **`report_style.json`** ([`report_style.schema.json`](../configs/schemas/report_style.schema.json)) — controls display names, explicit `algorithm_order`, decimal formatting, LaTeX label prefix, size strata, and axis labels (see [`configs/report-style.example.json`](../configs/report-style.example.json)):
+
+```json
+{
+  "$schema": "./configs/schemas/report_style.schema.json",
+  "display_names": {
+    "PureGA": "Pure GA (OX + Swap)",
+    "MemeticTwoOpt": "Memetic GA (NN + 2-opt)"
+  },
+  "algorithm_order": ["PureGA", "MemeticTwoOpt"],
+  "decimal_separator": ".",
+  "cd_decimal_sep": ".",
+  "plot_decimal_comma": false,
+  "latex_label_prefix": "study_",
+  "size_thresholds": [100, 400],
+  "show_size_guides": true
+}
+```
+
+Run the bundle without writing any Python code:
+
+```bash
+uv run tsp-benchmark \
+  --config-dir my_experiment \
+  --tsp-dir /path/to/tsp_files \
+  --output-dir results/my_study
+
+uv run tsp-report \
+  --checkpoints results/my_study/checkpoints \
+  --config-dir my_experiment \
+  --report-style my_experiment/report_style.json \
+  --benchmark-name my_study
+```
+
+### 7.3 Level 1 External Script Template (Direct Python Orchestration)
+
+Use this template when you want a self-contained script outside `src/` that registers custom operators, sweeps variants (e.g., building `algorithm_configs_override` like [`compare_local_search_stages.py`](../benchmark_scripts/experiments-and-examples/chapter4/compare_local_search_stages.py)), or pins defaults like [`run_selected_problems.py`](../benchmark_scripts/experiments-and-examples/chapter4/run_selected_problems.py):
+
+```python
+# run_my_study.py (lives outside src/)
+from pathlib import Path
+
+from algorithms import register_strategy
+from benchmarking.analysis import analyze_cohort
+from benchmarking.logging_config import setup_benchmark_logging
+from benchmarking.reporting import generate_result_tables, load_report_style
+from benchmarking.runner.orchestration import run_comprehensive_benchmark
+from my_ops import ScrambleMutation
+
+EXPERIMENT_DIR = Path("my_experiment")
+OUTPUT_DIR = Path("results/my_study")
+
+register_strategy("ScrambleMutation", ScrambleMutation)
+setup_benchmark_logging(OUTPUT_DIR, "my_study")
+
+results = run_comprehensive_benchmark(
+  config_dir=EXPERIMENT_DIR,
+  tsp_dir=Path("tests/fixtures/tsp"),
+  output_dir=OUTPUT_DIR,
+  benchmark_name="my_study",
+  baseline_algorithm="PureGA",
+)
+
+style = load_report_style(EXPERIMENT_DIR / "report_style.json")
+analysis = analyze_cohort(results, problem_configs=[], baseline_algorithm="PureGA", algorithm_order=style.algorithm_order)
+generate_result_tables(
+  all_results=analysis.cohort.results,
+  problem_configs=analysis.cohort.problem_configs,
+  output_dir=OUTPUT_DIR / "tables",
+  benchmark_name="my_study",
+  baseline_algorithm="PureGA",
+  style=style,
+  analysis=analysis,
+)
+```
+
+### 7.4 Level 2 External CLI Wrapper Template (`cli.benchmark.main` Hooks)
+
+Use this template when you want full `tsp-benchmark` CLI flag compatibility (including `--dry-run`, `--strategy-param`, `--skip-cpu`, and `--reports`) plus custom domain invariants or post-run reporting hooks — the same pattern used by [`run_chapter4_benchmark.py`](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py):
+
+```python
+# my_cli_study.py (lives outside src/)
+from __future__ import annotations
+
+import argparse
+import sys
+from collections.abc import Mapping, Sequence
+from typing import Any
+
+import cli.benchmark as benchmark_cli
+from benchmarking.runner.config_loader import AlgorithmConfig, GAParams, ProblemConfig
+
+
+def check_iso_algorithmic(
+  algorithms: Mapping[str, AlgorithmConfig],
+  ga_params: GAParams,
+  problems: Sequence[ProblemConfig],
+) -> list[str]:
+  """Optional custom preflight gate executed before any benchmark repetition runs."""
+  del ga_params, problems
+  errors: list[str] = []
+  for name, cfg in algorithms.items():
+    if "evaluation" not in cfg.strategies:
+      errors.append(f"Variant '{name}' must declare an explicit evaluation strategy")
+  return errors
+
+
+def after_run(args: argparse.Namespace, results: dict[str, dict[str, dict[str, Any]]]) -> None:
+  """Optional hook invoked once collection completes (skipped during --dry-run)."""
+  print(f"Completed '{args.benchmark_name}' across {len(results)} instance(s).")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+  defaults = ["--config-dir", "my_experiment", "--output-dir", "results/my_cli_study"]
+  return benchmark_cli.main(
+    [*defaults, *(argv or sys.argv[1:])],
+    preflight_validator=check_iso_algorithmic,
+    on_complete=after_run,
+    parser_epilog="Custom experiment wrapper built on top of cli.benchmark.main.",
+  )
+
+
+if __name__ == "__main__":
+  sys.exit(main())
+```
+
+## 8. Composable Reporting & External Styling (`tsp-report` & Python API)
 
 Because `tsp-benchmark` is collection-only by default (`--reports none`), you can iterate on report layouts, display names, language, or subsets of outputs without re-running any solver. Passing `--problems-config <problems.json>` also derives optimality gaps retroactively for checkpoints that were collected without known optima (`BUG-96`), while nonexistent `--config-dir` paths fail fast with exit code `2` (`BUG-100`):
 
@@ -486,7 +678,7 @@ macros_path = generate_latex_macros(
 )
 ```
 
-## 8. Optional DuckDB Workflow
+## 9. Optional DuckDB Workflow
 
 DuckDB is never required to load `.tsp` files or build reports. If you want SQL analytics across large benchmark campaigns or pre-ingested binary problem storage:
 

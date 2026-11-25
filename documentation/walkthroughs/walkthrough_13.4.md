@@ -33,8 +33,8 @@ Substituir no Capítulo 3 os números e a nomenclatura que não descrevem mais o
 
 | Artifact | Location | Relevant Observation |
 | --- | --- | --- |
-| Configuração das variantes | [configs/algorithms.json](../../benchmark_scripts/configs/chapter4/algorithms.json) | Quatro chaves (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`), todas com `metaheuristic: GeneticAlgorithm`, `local_search_stage: post_mutation`, `max_iterations: 10` e `candidate_k: 20`. |
-| Script da coorte | [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py#L87-L104) | `PROBLEMS` com 15 instâncias, `REPETITIONS = 30`, `CPU_SIZE_THRESHOLD = 400`, `SEED = 42`. |
+| Configuração das variantes | [configs/algorithms.json](../../benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.json) | Quatro chaves (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`), todas com `metaheuristic: GeneticAlgorithm`, `local_search_stage: post_mutation`, `max_iterations: 10` e `candidate_k: 20`. |
+| Script da coorte | [run_chapter4_benchmark.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) | `PROBLEMS` com 15 instâncias, `REPETITIONS = 30`, `CPU_SIZE_THRESHOLD = 400`, `SEED = 42`. |
 | Derivação de sementes | [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py#L398) | `run_seed = seed_base + current_run_idx` — sementes fixas e distintas por repetição. |
 | Compilação de kernels | [algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py#L364-L381) | `warmup(context)` compila os kernels antes do laço medido; `cp.RawKernel` sobre fontes `.cu`. |
 | Fórmula da CD | [stats_utils.py](../../src/benchmarking/analysis/stats_utils.py#L151-L166) | `CD = (q_tukey / sqrt(2)) * sqrt(k(k+1)/(6n))`. |

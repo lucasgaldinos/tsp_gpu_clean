@@ -80,7 +80,7 @@ Central navigation hub for `documentation/`. All Markdown documents follow [mark
 ## 1. Root architecture & pipeline guides
 
 - [guide-getting-started.md](./guide-getting-started.md) — Practical framework guide: installing via `uv sync`, loading `.tsp` files directly without DuckDB, composing built-in strategies and custom pipelines, adding external strategies/steps without modifying `src/`, running `tsp-benchmark`, and generating styled reports via `tsp-report` / `ReportStyle`.
-- [guide-thesis-reproduction.md](./guide-thesis-reproduction.md) — Isolated reproduction guide for the Master's dissertation Chapter 4 iso-algorithmic study using `benchmark_scripts/configs/chapter4/` and `run_chapter4_benchmark.py`.
+- [guide-thesis-reproduction.md](./guide-thesis-reproduction.md) — Isolated reproduction guide for the Master's dissertation Chapter 4 iso-algorithmic study using `benchmark_scripts/experiments-and-examples/chapter4/` (`configs/` and `run_chapter4_benchmark.py`).
 - [guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md) — Master `Implementation-Ready` architectural blueprint consolidating all eight `src/` packages, layer boundaries, CUDA kernel contracts, GoF patterns, DuckDB schemas, and ADRs.
 - [guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md) — Integrating optional post-mutation and post-generation `LocalSearchStage` passes in the modular Genetic Algorithm pipeline.
 
@@ -96,13 +96,14 @@ See [knowledge-base/README.md](./knowledge-base/README.md) for the full thematic
   + [guide-gpu-vram-guardrails-buffer-pooling.md](./knowledge-base/guide-gpu-vram-guardrails-buffer-pooling.md)
   + [guide-cuda-synchronization-levels.md](./knowledge-base/guide-cuda-synchronization-levels.md) & [analysis-non-power-of-two-blocks.md](./knowledge-base/analysis-non-power-of-two-blocks.md)
   + [guide-cupy-raw-kernels-optimization.md](./knowledge-base/guide-cupy-raw-kernels-optimization.md) & [notes_cupy_amd_rocm_compatibility.md](./knowledge-base/notes_cupy_amd_rocm_compatibility.md)
-- **2-opt parallelization & GPU reductions (8-file suite)**:
+- **2-opt & 3-opt parallelization & GPU reductions (9-file suite)**:
   + [analysis-gpu-2opt-performance-modeling.md](./knowledge-base/analysis-gpu-2opt-performance-modeling.md)
   + [analysis-gpu-2opt-parallel-architectures.md](./knowledge-base/analysis-gpu-2opt-parallel-architectures.md)
   + [analysis-gpu-2opt-reduction-strategies.md](./knowledge-base/analysis-gpu-2opt-reduction-strategies.md)
   + [analysis-gpu-2opt-kernel-benchmarking.md](./knowledge-base/analysis-gpu-2opt-kernel-benchmarking.md)
   + [analysis-gpu-2opt-literature-attribution.md](./knowledge-base/analysis-gpu-2opt-literature-attribution.md)
   + [analysis-gpu-2opt-integration-postmortem.md](./knowledge-base/analysis-gpu-2opt-integration-postmortem.md)
+  + [analysis-gpu-multi-move-conflict-resolution.md](./knowledge-base/analysis-gpu-multi-move-conflict-resolution.md)
   + [analysis-gpu-reduction-patterns.md](./knowledge-base/analysis-gpu-reduction-patterns.md)
   + [analysis-gpu-performance-bottlenecks.md](./knowledge-base/analysis-gpu-performance-bottlenecks.md)
 - **Metaheuristics & software architecture**:

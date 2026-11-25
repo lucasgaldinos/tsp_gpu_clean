@@ -48,7 +48,7 @@ tags:
 
 # Benchmarking System — Comprehensive Documentation
 
-> **System purpose:** Orchestrate generic, reproducible, configuration-driven benchmarks of arbitrary Genetic Algorithm (GA) compositions across `.tsp` corpora (or optional DuckDB stores) with atomic per-repetition checkpoints, pure non-parametric statistical analysis (`src/benchmarking/analysis/`), and decoupled composable report generation (`src/benchmarking/reporting/`, `tsp-report`). Dissertation Chapter 4 presets (`15` TSPLIB95 instances × `4` variants × `30` repetitions) live isolated outside `src/` under `benchmark_scripts/configs/chapter4/`.
+> **System purpose:** Orchestrate generic, reproducible, configuration-driven benchmarks of arbitrary Genetic Algorithm (GA) compositions across `.tsp` corpora (or optional DuckDB stores) with atomic per-repetition checkpoints, pure non-parametric statistical analysis (`src/benchmarking/analysis/`), and decoupled composable report generation (`src/benchmarking/reporting/`, `tsp-report`). Dissertation Chapter 4 presets (`15` TSPLIB95 instances × `4` variants × `30` repetitions) live isolated outside `src/` under `benchmark_scripts/experiments-and-examples/chapter4/`.
 >
 > For low-level symbol contracts, GoF mappings, and ADR citations, see [guide-architecture-benchmarking-cli-and-utils.md](../guide-architecture-benchmarking-cli-and-utils.md).
 
@@ -75,7 +75,7 @@ The benchmarking system measures and compares arbitrary declarative GA configura
 ### 1.2 Architecture
 
 ```text
-src/cli/benchmark.py (tsp-benchmark) & benchmark_scripts/run_chapter4_benchmark.py
+src/cli/benchmark.py (tsp-benchmark) & benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py
   └→ runner/orchestration.py         Preflight validation, problem loading, quarantine, orchestration
        ├→ runner/config_loader.py    JSON config loading, slot/protocol validation, GA instantiation
        ├→ runner/schema_generator.py Reflective Draft 2020-12 JSON Schemas (algorithms + report_style)
@@ -104,7 +104,7 @@ src/cli/report.py (tsp-report)       Standalone checkpoint-to-report CLI (reads 
 
 ### 1.3 Key Defaults & Chapter 4 Study Reference
 
-| Dimension | Generic Framework Default (`tsp-benchmark`) | Isolated Chapter 4 Study (`benchmark_scripts/configs/chapter4/`) |
+| Dimension | Generic Framework Default (`tsp-benchmark`) | Isolated Chapter 4 Study (`benchmark_scripts/experiments-and-examples/chapter4/`) |
 | ----------- | ------------------------------------------- | ---------------------------------------------------------------- |
 | Algorithm variants | Arbitrary declarative JSON variants (`--algorithms-config`) | 4 (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`) |
 | TSPLIB instances | Any `--tsp-dir` / `--tsp-files` (or optional `--db-path`) | 15 (`att48` … `pr1002`, sizes 48–1002) |
@@ -829,7 +829,7 @@ classDiagram
 | ------ | ------ |
 | Generic example configs | `configs/{cpu-operators,local-search-pipelines,gpu-backends,algorithms.full,report-style}.example.json` |
 | Reflective Draft 2020-12 JSON Schemas | `configs/schemas/{algorithms,benchmark,problems,report_style}.schema.json` |
-| Isolated Chapter 4 thesis configs | `benchmark_scripts/configs/chapter4/{algorithms,benchmark,problems,report_style}.json` |
+| Isolated Chapter 4 thesis configs | `benchmark_scripts/experiments-and-examples/chapter4/configs/{algorithms,benchmark,problems,report_style}.json` |
 
 ## Appendix B — Key Formulas Reference
 

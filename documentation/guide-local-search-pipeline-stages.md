@@ -488,7 +488,7 @@ To benchmark any of the built-in stages through [`run_comprehensive_benchmark`](
 
 ### 4.2. Programmatic stage override in a benchmark script
 
-See [`benchmark_scripts/compare_local_search_stages.py`](../benchmark_scripts/compare_local_search_stages.py#L46-L70) for how multiple stages are benchmarked side-by-side without duplicating JSON entries:
+See [`compare_local_search_stages.py`](../benchmark_scripts/experiments-and-examples/chapter4/compare_local_search_stages.py) for how multiple stages are benchmarked side-by-side without duplicating JSON entries:
 
 ```python
 def build_stage_algorithm_configs() -> tuple[dict[str, AlgorithmConfig], list[str]]:

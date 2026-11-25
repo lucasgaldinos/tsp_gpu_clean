@@ -147,7 +147,10 @@ You can add custom operators (e.g., 3-opt, Or-opt, custom mutation) or custom ge
 2. **Runtime registration:** call `register_strategy("MyLocalSearch", MyLocalSearch)` or `register_pipeline_step("MyStep", MyStep)` from `algorithms` in your benchmark script before calling `run_comprehensive_benchmark(...)`.
 3. **Dynamic JSON loading from CLI:** reference any importable Python module directly in your `algorithms.json` via `{"module": "my_ops", "class": "MyLocalSearch", "params": {...}}` and run `tsp-benchmark --algorithms-config my_experiment.json`.
 
-Complete runnable walkthroughs for all three extension patterns live in [documentation/guide-getting-started.md](./documentation/guide-getting-started.md).
+Complete runnable walkthroughs for all three extension patterns — plus a complete side-by-side **JSON-first experiment cookbook** (`algorithms.json`, `benchmark.json`, `problems.json`, `report_style.json`) and Level 1 / Level 2 external script templates — live in [documentation/guide-getting-started.md](./documentation/guide-getting-started.md#7-json-first-experiment-cookbook--external-script-templates).
+
+> [!TIP]
+> **Building your own solver variants or experiments?** Start with the [Getting Started & JSON-First Cookbook](./documentation/guide-getting-started.md), pair it with the [Local Search & Custom Pipeline Stages Guide](./documentation/guide-local-search-pipeline-stages.md), and consult the [Master Architecture Blueprint](./documentation/guide-project-architecture-blueprint.md) and subsystem guides under [Documentation](#documentation) below.
 
 ## CLI Entry Points
 
@@ -176,20 +179,39 @@ Five CLI commands are registered in [pyproject.toml](./pyproject.toml):
 │   ├── protocols/       # PEP 544 strategy protocols, ProblemContext, backend guards
 │   └── utils/           # PhaseTimer, deterministic RNG, route helpers
 ├── configs/             # Generic ready-to-run example configs & Draft 2020-12 JSON Schemas
-├── benchmark_scripts/   # External experiment scripts & thesis Chapter 4 configs (decoupled from src/)
+├── benchmark_scripts/   # Repo doc/thesis checks & experiments-and-examples/ (Chapter 4 + custom studies)
 ├── tests/               # Unit, integration, contract, and validation suites + hermetic TSP fixtures
 └── documentation/       # Getting-started tutorial, thesis reproduction guide, architecture blueprint, KB
 ```
 
 ## Documentation
 
-- [documentation/guide-getting-started.md](./documentation/guide-getting-started.md) — Full framework guide: direct `.tsp` loading, custom strategies & pipelines without editing `src/`, custom CLI benchmarks, and composable reporting with `ReportStyle`.
-- [documentation/guide-project-architecture-blueprint.md](./documentation/guide-project-architecture-blueprint.md) — Implementation-level architecture blueprint across all eight `src/` packages.
-- [documentation/guide-local-search-pipeline-stages.md](./documentation/guide-local-search-pipeline-stages.md) — Deep dive into `LocalSearchStage` semantics and custom pipeline step placement.
-- [documentation/README.md](./documentation/README.md) — Complete documentation catalog (knowledge base, subsystem guides, statistical references).
+### Practical Build, Extension & Reproduction Guides
+
+- [documentation/guide-getting-started.md](./documentation/guide-getting-started.md) — End-to-end framework guide: direct `.tsp` loading without DuckDB, Python GA composition, custom external strategies & pipeline steps without editing `src/`, **4-file JSON-first experiment cookbook**, Level 1 / Level 2 script templates, and composable `tsp-report` styling (`ReportStyle`).
+- [documentation/guide-local-search-pipeline-stages.md](./documentation/guide-local-search-pipeline-stages.md) — Deep dive into `GenerationState`, `GenerationStep`, `LocalSearchStage` semantics (`pre_selection`, `pre_evaluation`, `post_survival`), and custom multi-stage CPU/GPU pipelines.
+- [documentation/guide-thesis-reproduction.md](./documentation/guide-thesis-reproduction.md) — Isolated reproduction guide for the Master's dissertation Chapter 4 iso-algorithmic study and artifact regeneration (`benchmark_scripts/experiments-and-examples/chapter4/`).
+- [src/benchmarking/database/QUICKSTART.md](./src/benchmarking/database/QUICKSTART.md) — Optional DuckDB persistence guide (`tsp-import-checkpoints`, `tsp-validate-db`, schema layout, and SQL queries).
+
+### Architecture Blueprints & Subsystem Guides
+
+- [documentation/guide-project-architecture-blueprint.md](./documentation/guide-project-architecture-blueprint.md) — Master implementation-level architectural blueprint across all eight `src/` packages, CUDA memory models, layer rules, and ADRs.
+- [documentation/analysis/guide-architecture-protocols-and-data-models.md](./documentation/analysis/guide-architecture-protocols-and-data-models.md) — Subsystem guide for `src/protocols/` and `src/data_models/` (`@runtime_checkable` operator protocols, `ProblemContext` lazy caches, VRAM guardrails, `Problem` invariants).
+- [documentation/analysis/guide-architecture-loaders-and-distances.md](./documentation/analysis/guide-architecture-loaders-and-distances.md) — Subsystem guide for `src/loaders/` and `src/distances/` (TSPLIB95 / `routing-data` ingestion and 3-tier CPU/GPU distance engines).
+- [documentation/analysis/guide-architecture-algorithms-and-strategies.md](./documentation/analysis/guide-architecture-algorithms-and-strategies.md) — Subsystem guide for `src/algorithms/` (`GeneticAlgorithm`, `STAGE_SPECS`, 17 `Design B` strategies, and 8 CUDA kernels).
+- [documentation/analysis/guide-architecture-benchmarking-cli-and-utils.md](./documentation/analysis/guide-architecture-benchmarking-cli-and-utils.md) — Subsystem guide for `src/benchmarking/`, `src/cli/`, `src/utils/`, and `configs/schemas/`.
+- [documentation/analysis/benchmarking/analysis-benchmarking-system.md](./documentation/analysis/benchmarking/analysis-benchmarking-system.md) — Benchmarking pipeline diagrams, pure statistical engine vs reporting topology, and checkpoint JSON schema reference.
+
+### Methodology, GPU Optimization & Statistics Guides
+
+- [documentation/knowledge-base/guide-statistical-testing-index.md](./documentation/knowledge-base/guide-statistical-testing-index.md) — Master statistical protocol guide (unconditional Wilcoxon + Hodges–Lehmann CI + Kerby rank-biserial, Holm–Bonferroni, Friedman + Iman–Davenport $F_F$, and Nemenyi CD diagrams).
+- [documentation/knowledge-base/guide-iso-algorithmic-ga-validation.md](./documentation/knowledge-base/guide-iso-algorithmic-ga-validation.md) & [guide-gpu-cpu-comparison-methodology.md](./documentation/knowledge-base/guide-gpu-cpu-comparison-methodology.md) — Controlled CPU vs GPU experimental methodology and parameter parity checks.
+- [documentation/knowledge-base/guide-ga-hyperparameter-tuning.md](./documentation/knowledge-base/guide-ga-hyperparameter-tuning.md) & [guide-construction-heuristics.md](./documentation/knowledge-base/guide-construction-heuristics.md) — Memetic GA parameter sizing and Nearest-Neighbor initialization trade-offs.
+- [documentation/knowledge-base/guide-gpu-vram-guardrails-buffer-pooling.md](./documentation/knowledge-base/guide-gpu-vram-guardrails-buffer-pooling.md) & [guide-cupy-raw-kernels-optimization.md](./documentation/knowledge-base/guide-cupy-raw-kernels-optimization.md) — CUDA/CuPy memory guardrails, buffer pooling, shared-memory tiling, and RawKernel engineering.
+- [documentation/knowledge-base/guide-clean-python-practices.md](./documentation/knowledge-base/guide-clean-python-practices.md) & [documentation/README.md](./documentation/README.md) — Repository Python conventions and the full 59+ guide catalog (knowledge base, critical analyses, and engineering walkthroughs).
 
 ## Thesis Chapter 4 Reproduction
 
-This repository also accompanies a Master's dissertation comparing CPU, hybrid, and full-GPU memetic GA variants across 15 TSPLIB95 instances. All dissertation-specific configs, iso-algorithmic validation checks, and Brazilian Portuguese report styles are isolated **outside `src/`** under `benchmark_scripts/configs/chapter4/` and `benchmark_scripts/run_chapter4_benchmark.py`.
+This repository also accompanies a Master's dissertation comparing CPU, hybrid, and full-GPU memetic GA variants across 15 TSPLIB95 instances. All dissertation-specific scripts, configs, iso-algorithmic validation checks, and Brazilian Portuguese report styles are isolated **outside `src/`** under `benchmark_scripts/experiments-and-examples/chapter4/` (with [`run_chapter4_benchmark.py`](./benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) and `configs/`).
 
 See [documentation/guide-thesis-reproduction.md](./documentation/guide-thesis-reproduction.md) for the complete Chapter 4 reproduction workflow and checkpoint-to-figure regeneration commands.

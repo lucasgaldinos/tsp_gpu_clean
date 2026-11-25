@@ -27,7 +27,7 @@ modifications:
           optional optimal cost), documented acyclic `benchmarking/analysis/` vs
           `benchmarking/reporting/` split (`style.py`, `console.py`, `table_reports.py`,
           `latex_macros.py`, `cd_diagram.py`, `scaling_plots.py`, `generator.py`),
-          relocated Chapter 4 configs under `benchmark_scripts/configs/chapter4/`, added
+          relocated Chapter 4 configs and drivers under `benchmark_scripts/experiments-and-examples/chapter4/`, added
           external custom strategy/step loading, linked `guide-getting-started.md` and
           `guide-thesis-reproduction.md`, and recorded Phase 16 hardening (`DP16-1`, `DP16-2`).
 related_files:
@@ -66,11 +66,11 @@ This Master Blueprint serves as the single authoritative architectural reference
 
 ## 1. Architecture Detection & Analysis
 
-Inspection of [pyproject.toml](../pyproject.toml), `src/`, `configs/`, and `benchmark_scripts/` establishes a hybrid Python/CUDA scientific computing stack targeting Python `>=3.12` and NVIDIA CUDA 12.x (`cupy-cuda12x>=13.6.0`) under `pythonpath = ["src"]` (`DP-3`):
+Inspection of [pyproject.toml](../pyproject.toml), `src/`, `configs/`, and `benchmark_scripts/` establishes a hybrid python/CUDA scientific computing stack targeting python `>=3.12` and NVIDIA CUDA 12.x (`cupy-cuda12x>=13.6.0`) under `pythonpath = ["src"]` (`DP-3`):
 
 | Technology / Layer | Concrete Components & Versions | Architectural Role |
 | :--- | :--- | :--- |
-| **Core Runtime & Typing** | Python `>=3.12`, PEP 544 `Protocol`, PEP 695 `type` aliases & generic syntax | Structural operator contracts, strict `mypy` (`strict = true`), `ruff` linting |
+| **Core Runtime & Typing** | python `>=3.12`, PEP 544 `Protocol`, PEP 695 `type` aliases & generic syntax | Structural operator contracts, strict `mypy` (`strict = true`), `ruff` linting |
 | **Array & GPU Compute** | `numpy>=2.2.6`, `cupy-cuda12x>=13.6.0` (NVRTC JIT `RawKernel`) | Host/device array interchange (`BackendModule`), custom CUDA C++ `.cu`/`.cuh` kernels |
 | **TSPLIB95 ETL & Storage** | `routing-data` (`v0.2.0` Git tag), `duckdb>=1.4.1`, `pandas>=2.3.2` | Corpus parsing (`FormatParser`, `ProblemNormalizer`), direct `.tsp` loading, optional `tsp.duckdb` & `results.duckdb` |
 | **Inference & Reporting** | `scipy>=1.15.3`, `scikit-posthocs>=0.11.4`, `matplotlib>=3.10.6` | Demšar (2006) non-parametric tests, TikZ CD plots, ABNT vector figures, LaTeX tables/macros |
@@ -452,7 +452,7 @@ flowchart LR
 | `src/benchmarking/` | `runner/` (`orchestration`, `algorithm_runner`, `checkpoint_io`, `config_loader`, `schema_generator`), `analysis/` (`cohort`, `statistics`, `stats_utils`, `problem_statistics`, `cohort_analysis`), `reporting/` (`style`, `console`, `table_reports`, `latex_macros`, `cd_diagram`, `scaling_plots`, `generator`), `database/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 | `src/cli/` | 5 entry points (`benchmark.py`, `report.py`, `checkpoints.py`, `tsplib.py`) invoked directly or via `benchmark_scripts/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 
-Outside `src/`, [`configs/`](../configs/cpu-operators.example.json) stores generic example configurations and Draft 2020-12 JSON Schemas (`configs/schemas/`), while `benchmark_scripts/` isolates thesis Chapter 4 configs (`benchmark_scripts/configs/chapter4/`), thesis drivers ([run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py)), and verification gates ([check_docs.py](../benchmark_scripts/check_docs.py), [check_thesis.py](../benchmark_scripts/check_thesis.py)).
+Outside `src/`, [`configs/`](../configs/cpu-operators.example.json) stores generic example configurations and Draft 2020-12 JSON Schemas (`configs/schemas/`), while `benchmark_scripts/` isolates thesis Chapter 4 configs (`benchmark_scripts/experiments-and-examples/chapter4/configs/`), thesis drivers ([run_chapter4_benchmark.py](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)), and verification gates ([check_docs.py](../benchmark_scripts/check_docs.py), [check_thesis.py](../benchmark_scripts/check_thesis.py)).
 
 ---
 
@@ -471,7 +471,7 @@ Dependencies are structured to flow downward from orchestration/CLI into domain 
    - `src/distances/factory.py` and `src/loaders/problem_adapter.py` do **not** exist in the codebase (`pairwise.py` owns distance factories; `tsplib_loader.py` adapts `routing_data`).
    - [`InvalidEdgeTypeError`](../src/data_models/exceptions.py) omits `EUC_3D` and `CEIL_2D` in its error text despite [`VALID_EDGE_TYPES`](../src/data_models/problem.py) supporting 6 types (`DP14-6`).
    - [`metaheuristics/__init__.py`](../src/algorithms/metaheuristics/__init__.py) retains `GeneticAlgorithmBase = GeneticAlgorithm` (re-exported by `algorithms/__init__.py`).
-   - `src/algorithms/archive/` is quarantined from `algorithms.__all__`, `mypy`, and `ruff`, loaded solely via `benchmark_scripts/configs/chapter4/algorithms.archive.json` (`DP10-2`).
+   - `src/algorithms/archive/` is quarantined from `algorithms.__all__`, `mypy`, and `ruff`, loaded solely via `benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.archive.json` (`DP10-2`).
 
 ---
 
@@ -515,7 +515,7 @@ Chunked matrix/candidate construction in [`matrix.py`](../src/distances/matrix.p
 
 ## 9. Technology-Specific Architectural Patterns
 
-- **Python 3.12 Typing & Reflection:** PEP 695 `type` aliases (`types.py`) and generic type-parameter syntax (`_timed_call[**P, R]`) pair with `inspect.signature` + `typing.get_type_hints` in [`schema_generator.py`](../src/benchmarking/runner/schema_generator.py) to auto-generate conditional Draft 2020-12 schemas directly from `STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY`.
+- **python 3.12 Typing & Reflection:** PEP 695 `type` aliases (`types.py`) and generic type-parameter syntax (`_timed_call[**P, R]`) pair with `inspect.signature` + `typing.get_type_hints` in [`schema_generator.py`](../src/benchmarking/runner/schema_generator.py) to auto-generate conditional Draft 2020-12 schemas directly from `STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY`.
 - **CuPy `RawKernel` Cache & SHA-256 Guard (`BUG-58`):** [`load_kernel`](../src/utils/gpu_helpers.py) caches compiled `cp.RawKernel` objects in `lru_cache(maxsize=32)` keyed by file path and invalidates the cache whenever the `.cu` file's SHA-256 digest changes.
 - **CUDA Warp & Shared-Memory Optimizations:**
   - **Format A 1-Warp/Route Order Crossover (`DP11-11`):** [`order_crossover.cu::order_crossover_kernel`](../src/algorithms/strategies/crossover/kernels/order_crossover.cu) assigns 32 threads per route, allocates `1` byte/city/warp in shared memory (`warps_per_block` scaling down from `8` to `1` to support up to $n = 49{,}152$), and compacts `parent2` genes deterministically via `__ballot_sync` and `__popc`.
@@ -542,6 +542,7 @@ Chunked matrix/candidate construction in [`matrix.py`](../src/distances/matrix.p
 ## 11. Testing Architecture
 
 The `tests/` tree mirrors every package in `src/` (`algorithms/`, `benchmarking/`, `cli/`, `data_models/`, `distances/`, `loaders/`, `protocols/`, `utils/`, plus end-to-end `validation/` and hermetic `fixtures/`):
+
 - **Automatic CUDA Test Gating:** [`tests/conftest.py`](../tests/conftest.py) inspects `protocols.backend.gpu_available()` at collection time and automatically marks `@pytest.mark.gpu` tests as skipped on CPU-only runners.
 - **Hermetic Fixtures:** Session-scoped fixtures ingest `tests/fixtures/tsp/` (`att48`, `bayg29`, `berlin52`, `burma14`, `gr17`) into temporary DuckDB databases so tests never depend on external datasets.
 - **Cross-Tier & Bit-Identity Verification:** `tests/distances/` includes [`probe_pairwise.cu`](../tests/distances/kernels/probe_pairwise.cu) to verify bit-exact parity across CUDA Tier 1, vectorized Tier 2, and scalar Tier 3 (`BUG-32`); `tests/algorithms/` enforces CPU/GPU bit-identity on OX, Swap, Inversion, Evaluation, and 2-Opt, plus `STAGE_SPECS` completeness and raw Generation-0 invariants.
@@ -552,12 +553,13 @@ The `tests/` tree mirrors every package in `src/` (`algorithms/`, `benchmarking/
 ## 12. Execution & Runtime Topology
 
 [`pyproject.toml`](../pyproject.toml) exposes five installed console scripts:
+
 - `tsp-benchmark` (`cli.benchmark:main`) $\to$ orchestrates configs (`--algorithms-config` or `--config-dir`, optional `--benchmark-config`/`--problems-config`), pre-flight validation, AOT warm-up, per-repetition atomic JSON checkpoints, and per-problem stats (`--tsp-dir`, `--tsp-files`, or optional `--db-path`); collection-only by default, with opt-in `--reports` and external `--report-style`.
 - `tsp-report` (`cli.report:main`) $\to$ regenerates selectable Markdown/LaTeX tables, `benchmark_macros.tex`, Demšar CD `.tikz` diagrams, and scaling figures directly from `checkpoints/*.json` with optional `--report-style <file.json>` and zero DuckDB dependency.
 - `tsp-import-checkpoints` (`cli.checkpoints:import_main`) & `tsp-validate-db` (`cli.checkpoints:validate_main`) $\to$ optional idempotent checkpoint ingestion into `results.duckdb` and cross-validation (optional `--db2`).
 - `tsp-ingest` (`cli.tsplib:main`) $\to$ validates `.tsp` corpora and optionally ingests them via `routing_data` into `tsp.duckdb`.
 
-Generic ready-to-run examples live directly in `configs/` ([`cpu-operators.example.json`](../configs/cpu-operators.example.json), [`local-search-pipelines.example.json`](../configs/local-search-pipelines.example.json), [`gpu-backends.example.json`](../configs/gpu-backends.example.json), [`algorithms.full.example.json`](../configs/algorithms.full.example.json), [`report-style.example.json`](../configs/report-style.example.json)), validated against `configs/schemas/`. Chapter 4 thesis configs and pt-BR presentation live isolated under `benchmark_scripts/configs/chapter4/` ([`algorithms.json`](../benchmark_scripts/configs/chapter4/algorithms.json), [`benchmark.json`](../benchmark_scripts/configs/chapter4/benchmark.json), [`problems.json`](../benchmark_scripts/configs/chapter4/problems.json), [`report_style.json`](../benchmark_scripts/configs/chapter4/report_style.json), [`algorithms.archive.json`](../benchmark_scripts/configs/chapter4/algorithms.archive.json)), consumed by [run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py) (`DP13-8`).
+Generic ready-to-run examples live directly in `configs/` ([`cpu-operators.example.json`](../configs/cpu-operators.example.json), [`local-search-pipelines.example.json`](../configs/local-search-pipelines.example.json), [`gpu-backends.example.json`](../configs/gpu-backends.example.json), [`algorithms.full.example.json`](../configs/algorithms.full.example.json), [`report-style.example.json`](../configs/report-style.example.json)), validated against `configs/schemas/`. Chapter 4 thesis configs and pt-BR presentation live isolated under `benchmark_scripts/experiments-and-examples/chapter4/configs/` ([`algorithms.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.json), [`benchmark.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/benchmark.json), [`problems.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/problems.json), [`report_style.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/report_style.json), [`algorithms.archive.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.archive.json)), consumed by [run_chapter4_benchmark.py](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) (`DP13-8`).
 
 ---
 
@@ -646,9 +648,10 @@ All identifiers resolve to [table-of-symbols.plan.md](../documents_tcc/plan/tabl
 ## 16. Architecture Governance
 
 Architectural consistency is enforced mechanically before changes land:
-- **Static Quality & Typing:** `rtk .venv/bin/ruff check src tests benchmark_scripts` and `rtk .venv/bin/mypy src tests benchmark_scripts` (`strict = true`, Python 3.12).
+
+- **Static Quality & Typing:** `rtk .venv/bin/ruff check src tests benchmark_scripts` and `rtk .venv/bin/mypy src tests benchmark_scripts` (`strict = true`, python 3.12).
 - **Schema Reflexivity Gate:** `rtk .venv/bin/python -m benchmarking.runner.schema_generator --check` guarantees `configs/schemas/algorithms.schema.json` matches `STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY`.
-- **Documentation & Thesis Drift Gates:** `rtk .venv/bin/python -m benchmark_scripts.check_docs` verifies Python AST & CUDA symbol anchors (`::`), GFM heading slugs, MD056 table parity, registered `DP-*`/`BUG-*` IDs, and absence of dead links or `[[WikiLinks]]`; `benchmark_scripts.check_thesis` validates LaTeX/BibTeX integrity.
+- **Documentation & Thesis Drift Gates:** `rtk .venv/bin/python -m benchmark_scripts.check_docs` verifies python AST & CUDA symbol anchors (`::`), GFM heading slugs, MD056 table parity, registered `DP-*`/`BUG-*` IDs, and absence of dead links or `[[WikiLinks]]`; `benchmark_scripts.check_thesis` validates LaTeX/BibTeX integrity.
 - **Automated Test Suite:** `rtk .venv/bin/pytest -q` (auto-skipping `@pytest.mark.gpu` on CPU-only nodes via [`conftest.py`](../tests/conftest.py)).
 
 ---

@@ -13,7 +13,7 @@ modifications:
 related_files:
   - "[full_gpu_monolithic.py](./full_gpu_monolithic.py)"
   - "[ga_fujimoto_early_stop.cu](./kernels/ga_fujimoto_early_stop.cu)"
-  - "[algorithms.archive.json](../../../benchmark_scripts/configs/chapter4/algorithms.archive.json)"
+  - "[algorithms.archive.json](../../../benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.archive.json)"
 tags:
   - algorithm/archive
   - algorithm/baseline

@@ -14,7 +14,7 @@ related_files:
   - "[cohort_analysis.py::compare_algorithms](../../src/benchmarking/analysis/cohort_analysis.py)"
   - "[problem_statistics.py::analyze_problem](../../src/benchmarking/analysis/problem_statistics.py)"
   - "[scaling_plots.py::generate_scaling_plots](../../src/benchmarking/reporting/scaling_plots.py)"
-  - "[run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py)"
+  - "[run_chapter4_benchmark.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)"
   - "[checkpoint_io.py::CheckpointManager](../../src/benchmarking/runner/checkpoint_io.py)"
   - "[04-resultados.tex](../../documents_tcc/tex/thesis/parts/04-resultados.tex)"
 tags:
@@ -54,13 +54,13 @@ A Fase 14 foi dividida em lotes operacionais. Os **Batches 1 e 2 já foram integ
 ### Batch 1: Infraestrutura de Código, Estatística e Gráficos (`Task 13.17`, `13.22`, `13.24`, `14.2`, `14.3`)
 
 - **Contrato de CLI e Repetições (`Task 13.17`, `BUG-66`, `BUG-67`)**:
-  + Retificada a string de ajuda e docstring de [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py) distinguindo formalmente `--incremental` (adiciona bloco inteiro) de `--no-incremental` (completa até o alvo de repetições).
-  + Alinhadas as menções de repetições à macro unificada `\totalrepeticoes{30}` e à configuração canônica de [benchmark.json](../../benchmark_scripts/configs/chapter4/benchmark.json).
+  + Retificada a string de ajuda e docstring de [run_chapter4_benchmark.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) distinguindo formalmente `--incremental` (adiciona bloco inteiro) de `--no-incremental` (completa até o alvo de repetições).
+  + Alinhadas as menções de repetições à macro unificada `\totalrepeticoes{30}` e à configuração canônica de [benchmark.json](../../benchmark_scripts/experiments-and-examples/chapter4/configs/benchmark.json).
 - **Isolamento de Logging e Idempotência (`Task 13.22`, `BUG-74`)**:
-  + Movida a chamada de `setup_logging()` para **após** `parse_args()` em [run_chapter4_benchmark.py::main](../../benchmark_scripts/run_chapter4_benchmark.py).
+  + Movida a chamada de `setup_logging()` para **após** `parse_args()` em [run_chapter4_benchmark.py::main](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py).
   + Tornada a configuração de handlers idempotente em [logging_config.py](../../src/benchmarking/logging_config.py), garantindo que passagens com `--output-dir` em diretórios temporários criem exatamente um arquivo de log e deixem `results_v4/` 100% intocado.
 - **Delegação da CLI da Tese (`Task 13.24`, `DP13-8`, `BUG-80`)**:
-  + Refatorado [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py) para delegar diretamente à CLI canônica [benchmark.py](../../src/cli/benchmark.py).
+  + Refatorado [run_chapter4_benchmark.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) para delegar diretamente à CLI canônica [benchmark.py](../../src/cli/benchmark.py).
   + Comprovado via `rg -n "ArgumentParser" benchmark_scripts/ src/` que existe **exatamente uma ocorrência** de `ArgumentParser` em todo o código (`src/cli/benchmark.py`).
 - **Generalização Multi-Métrica e Remoção de Estratificação (`Task 14.2`, `DP14-2`, `BUG-92`)**:
   + Encaminhado `baseline_algorithm` em [orchestration.py::run_comprehensive_benchmark](../../src/benchmarking/runner/orchestration.py).
@@ -126,7 +126,7 @@ Abaixo estão os dados consolidados obtidos ao término do Batch 2, que servem d
 1. **Eixo Contínuo Numérico e Faixa IQR (`Task 14.6`)**:
    + Parametrizados `dispersion_metric` (`"iqr" | "std" | "ci"`, padrão `"iqr"`), `x_axis_mode` (`"continuous" | "ordinal"`, padrão `"continuous"`) e `x_tick_mode` (`"instances" | "auto"`, padrão `"instances"`) em [scaling_plots.py::generate_scaling_plots](../../src/benchmarking/reporting/scaling_plots.py) e [scaling_plots.py::_summarize_metric](../../src/benchmarking/reporting/scaling_plots.py).
    + Implementada projeção isotônica (PAVA) com restrição bilateral de bordas (`[left_bound_pts, right_bound_pts]`), medição dinâmica da geometria tipográfica ativa (`Libertinus Serif` ou fallback `DejaVu Serif`) e escalonamento vertical em dois níveis a 45° em [scaling_plots.py::_apply_continuous_instance_ticks](../../src/benchmarking/reporting/scaling_plots.py), além do mapeamento ordinal indexado por nome da instância para preservar instâncias distintas com mesma dimensão $n$ (verificado via SAT em [test_unit_scaling_plots.py::test_continuous_instance_ticks_no_overlap_across_15_cohort_and_ordinal_mode](../../tests/benchmarking/test_unit_scaling_plots.py) e [test_unit_scaling_plots.py::test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties](../../tests/benchmarking/test_unit_scaling_plots.py)).
-   + Configurado [run_chapter4_benchmark.py::generate_thesis_scaling_plots](../../benchmark_scripts/run_chapter4_benchmark.py) para emitir `results_v4/figures/scaling_time_gap.{pdf,svg}` com eixo contínuo em $n$, ticks exatos das instâncias e faixa interquartil (`Faixa IQR ($Q_{25}$–$Q_{75}$, mediana)`).
+   + Configurado [run_chapter4_benchmark.py::generate_thesis_scaling_plots](../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) para emitir `results_v4/figures/scaling_time_gap.{pdf,svg}` com eixo contínuo em $n$, ticks exatos das instâncias e faixa interquartil (`Faixa IQR ($Q_{25}$–$Q_{75}$, mediana)`).
    + Documentados em [04-resultados.tex](../../documents_tcc/tex/thesis/parts/04-resultados.tex) ambos os degraus empíricos com os dados canônicos `n = 30`: (i) queda de *gap* em `berlin52` (`0,04%`–`0,15%`, mediana `0,00%`, `95/120` paradas por `hit_optimal` em `4,6`–`4,8` gerações vs. `4/120` em `eil51`) e piso CUDA (`14,0`–`42,7 ms`, `0,5`–`1,0 ms/geração` em `n < 100`, remetendo às Tabelas `tbl:phase-timings` e `tbl:phase-timings-all`); (ii) redução de tempo total até a parada entre `att532` (`158,24 s` CPU) e `si535` (`84,19 s` CPU, `EXPLICIT` com `30/30` paradas `within_1pct_optimal` em `62,6`–`63,0` gerações).
 
 2. **Automação de Macros LaTeX (`Task 14.7`)**:

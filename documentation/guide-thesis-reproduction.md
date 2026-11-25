@@ -18,12 +18,12 @@ modifications:
       - description: >
           Created dedicated thesis Chapter 4 reproduction guide isolated from
           the generic framework getting-started tutorial, referencing
-          benchmark_scripts/configs/chapter4/ and external report_style.json.
+          benchmark_scripts/experiments-and-examples/chapter4/ and external report_style.json.
 related_files:
   - "[README.md](../README.md)"
   - "[documentation/README.md](./README.md)"
   - "[guide-getting-started.md](./guide-getting-started.md)"
-  - "[run_chapter4_benchmark.py](../benchmark_scripts/run_chapter4_benchmark.py)"
+  - "[run_chapter4_benchmark.py](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)"
   - "[07-apendices.tex](../documents_tcc/tex/thesis/parts/07-apendices.tex)"
 tags:
   - guide/reproduction
@@ -42,34 +42,34 @@ tags:
 
 This guide documents how to reproduce the iso-algorithmic four-variant benchmark study from Chapter 4 of the Master's dissertation (also summarized in [07-apendices.tex](../documents_tcc/tex/thesis/parts/07-apendices.tex)).
 
-All dissertation-specific configuration files, iso-algorithmic contract assertions, and Brazilian Portuguese presentation settings live **strictly outside `src/`** under [`benchmark_scripts/`](../benchmark_scripts/):
+All dissertation-specific configuration files, iso-algorithmic contract assertions, and Brazilian Portuguese presentation settings live **strictly outside `src/`** under [`benchmark_scripts/experiments-and-examples/chapter4/`](../benchmark_scripts/experiments-and-examples/chapter4/):
 
-- [`benchmark_scripts/run_chapter4_benchmark.py`](../benchmark_scripts/run_chapter4_benchmark.py) — Thesis experiment runner wrapping `tsp-benchmark` with preflight iso-algorithmic checks and joint statistical summary logging.
-- [`benchmark_scripts/configs/chapter4/algorithms.json`](../benchmark_scripts/configs/chapter4/algorithms.json) — The four Chapter 4 variants (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`).
-- [`benchmark_scripts/configs/chapter4/benchmark.json`](../benchmark_scripts/configs/chapter4/benchmark.json) — Execution protocol (`repetitions: 30`, adaptive patience $2\sqrt{n}$, adaptive generations $2n\sqrt{n}$, `incremental_runs: false`).
-- [`benchmark_scripts/configs/chapter4/problems.json`](../benchmark_scripts/configs/chapter4/problems.json) — TSPLIB95 instance dimensions and reference optima.
-- [`benchmark_scripts/configs/chapter4/report_style.json`](../benchmark_scripts/configs/chapter4/report_style.json) — Brazilian Portuguese display names, decimal commas (`{,}` / `,`), `\label{tab:chapter4_*}` prefix, and figure axis labels injected externally via `--report-style`.
-- [`benchmark_scripts/configs/chapter4/algorithms.archive.json`](../benchmark_scripts/configs/chapter4/algorithms.archive.json) — Archived monolithic Fujimoto GPU baseline (`FullGPUMonolithic`) kept quarantined from active runs.
+- [`benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py`](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) — Thesis experiment runner wrapping `tsp-benchmark` with preflight iso-algorithmic checks and joint statistical summary logging.
+- [`benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.json) — The four Chapter 4 variants (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`).
+- [`benchmark_scripts/experiments-and-examples/chapter4/configs/benchmark.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/benchmark.json) — Execution protocol (`repetitions: 30`, adaptive patience $2\sqrt{n}$, adaptive generations $2n\sqrt{n}$, `incremental_runs: false`).
+- [`benchmark_scripts/experiments-and-examples/chapter4/configs/problems.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/problems.json) — TSPLIB95 instance dimensions and reference optima.
+- [`benchmark_scripts/experiments-and-examples/chapter4/configs/report_style.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/report_style.json) — Brazilian Portuguese display names, decimal commas (`{,}` / `,`), `\label{tab:chapter4_*}` prefix, and figure axis labels injected externally via `--report-style`.
+- [`benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.archive.json`](../benchmark_scripts/experiments-and-examples/chapter4/configs/algorithms.archive.json) — Archived monolithic Fujimoto GPU baseline (`FullGPUMonolithic`) kept quarantined from active runs.
 
 ## 1. Environment & TSPLIB95 Dataset Setup
 
-1. Install the locked environment (Python `>= 3.12`, `uv`, `git`, and NVIDIA CUDA 12.x driver for the GPU variants):
+1. Install the locked environment (python `>= 3.12`, `uv`, `git`, and NVIDIA CUDA 12.x driver for the GPU variants):
 
 ```bash
 uv sync
 ```
 
-2. Obtain the 15 TSPLIB95 `.tsp` instance files (`att48`, `eil51`, `berlin52`, `gr96`, `kroA100`, `ch150`, `d198`, `pr264`, `lin318`, `pcb442`, `att532`, `si535`, `gr666`, `rat783`, `pr1002`) and place them in `datasets/tsp/`.
+1. Obtain the 15 TSPLIB95 `.tsp` instance files (`att48`, `eil51`, `berlin52`, `gr96`, `kroA100`, `ch150`, `d198`, `pr264`, `lin318`, `pcb442`, `att532`, `si535`, `gr666`, `rat783`, `pr1002`) and place them in `datasets/tsp/`.
 
 > [!NOTE]
-> TSPLIB `.tsp` files are loaded directly by [`run_chapter4_benchmark.py`](../benchmark_scripts/run_chapter4_benchmark.py) via `--tsp-dir datasets/tsp` — pre-ingesting `datasets/tsp.duckdb` is completely optional.
+> TSPLIB `.tsp` files are loaded directly by [`run_chapter4_benchmark.py`](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py) via `--tsp-dir datasets/tsp` — pre-ingesting `datasets/tsp.duckdb` is completely optional.
 
 ## 2. Preflight & Quick Verification (Dry Run)
 
-Verify hardware detection, configuration schema parity, and iso-algorithmic strategy contracts without running any solver or touching `results_v4/`:
+Verify hardware detection, configuration schema parity, and iso-algorithmic strategy contracts without running any solver or touching `benchmark_scripts/experiments-and-examples/chapter4/results/`:
 
 ```bash
-uv run python -m benchmark_scripts.run_chapter4_benchmark \
+uv run python benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py \
   --output-dir /tmp/chapter4_dryrun \
   --dry-run
 ```
@@ -79,7 +79,7 @@ uv run python -m benchmark_scripts.run_chapter4_benchmark \
 ### Quick CPU smoke test on a single instance
 
 ```bash
-uv run python -m benchmark_scripts.run_chapter4_benchmark \
+uv run python benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py \
   --output-dir /tmp/chapter4_smoke \
   --tsp-files tests/fixtures/tsp/berlin52.tsp \
   --algorithms CPU \
@@ -90,10 +90,10 @@ uv run python -m benchmark_scripts.run_chapter4_benchmark \
 ### Full 15-instance x 4-variant x 30-repetition campaign
 
 > [!WARNING]
-> Pass a dedicated `--output-dir` (e.g., `results_repro/`) if you want to preserve the frozen dissertation outputs in `results_v4/`.
+> Pass a dedicated `--output-dir` (e.g., `results_repro/`) if you want to preserve the frozen dissertation outputs in `benchmark_scripts/experiments-and-examples/chapter4/results/`.
 
 ```bash
-uv run python -m benchmark_scripts.run_chapter4_benchmark \
+uv run python benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py \
   --output-dir results_repro \
   --tsp-dir datasets/tsp \
   --no-incremental \
@@ -108,12 +108,12 @@ Because `tsp-report` operates purely on JSON checkpoints and accepts the externa
 
 ```bash
 uv run tsp-report \
-  --checkpoints results_v4/checkpoints \
+  --checkpoints benchmark_scripts/experiments-and-examples/chapter4/results/checkpoints \
   --output-dir /tmp/chapter4_reports \
-  --problems-config benchmark_scripts/configs/chapter4/problems.json \
+  --problems-config benchmark_scripts/experiments-and-examples/chapter4/configs/problems.json \
   --benchmark-name chapter4_validation \
   --baseline CPU \
-  --report-style benchmark_scripts/configs/chapter4/report_style.json \
+  --report-style benchmark_scripts/experiments-and-examples/chapter4/configs/report_style.json \
   --reports all
 ```
 

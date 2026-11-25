@@ -1,3 +1,4 @@
-- create a variant following the json schema
-- implement a 3-opt for local search, out of the main src package for GPU and CPU.
-- implement EAX as crossover operation
+- [ ] Understand how the analysis package works and what can be improved.
+- [ ] create a variant following the json schema.
+- [ ] implement a 3-opt for local search, out of the main src package for GPU and CPU.
+- [ ] implement EAX as crossover operation, also out of main src package and try it with the 3-opt local search.
