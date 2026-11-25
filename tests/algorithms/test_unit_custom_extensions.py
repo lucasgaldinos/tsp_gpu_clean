@@ -290,3 +290,161 @@ def test_json_module_spec_loads_external_strategy_and_pipeline_step(
   )
   with pytest.raises(ValueError, match="not found as a class in module 'user_external_ops'"):
     bad_cfg.instantiate(GAParams())
+
+
+def test_config_relative_py_path_loads_from_hyphenated_experiment_dir(
+  tmp_path: Path,
+  burma14_problem: Problem,
+) -> None:
+  """WHAT: Config-relative `.py` external module loading inside hyphenated experiment directories (`BUG-104`, `DP16-3`).
+
+  WHY: Experiment folders like `experiment-comparing-OX-and-PMX/` contain hyphens that Python's
+  dotted `importlib.import_module` cannot traverse without `PYTHONPATH` workarounds.
+  EXPECTED: `"module": "../my-ops.py"` resolves relative to `algorithms.json`, passes preflight,
+  instantiates both top-level strategies and nested pipeline step strategies, and evolves cleanly.
+  """
+  import json
+
+  from benchmarking.runner.config_loader import (
+    BenchmarkConfig,
+    ProblemConfig,
+    load_algorithms_config,
+    validate_configs,
+  )
+
+  exp_dir = tmp_path / "experiment-comparing-OX-and-PMX"
+  configs_dir = exp_dir / "configs"
+  configs_dir.mkdir(parents=True)
+
+  (exp_dir / "my-ops.py").write_text(
+    textwrap.dedent(
+      """
+      from __future__ import annotations
+      import numpy as np
+      from algorithms.strategies import StrategyBase
+
+      class RelativeShiftMutation(StrategyBase):
+        def __init__(self, shift_by: int = 2, seed: int | None = None) -> None:
+          super().__init__(seed=seed)
+          self.shift_by = shift_by
+
+        def mutate(self, individual, mutation_rate: float, context=None):
+          del context
+          route = np.array(individual, copy=True)
+          if self.rng.random() < mutation_rate:
+            route = np.roll(route, self.shift_by)
+          return route
+
+        def mutate_batch(self, routes, mutation_rate: float, context=None):
+          arr = np.asarray(routes)
+          if arr.ndim == 1:
+            return self.mutate(arr, mutation_rate, context)
+          out = arr.copy()
+          for i in range(out.shape[0]):
+            out[i] = self.mutate(out[i], mutation_rate, context)
+          return out
+
+      class RelativeNoOpSearch(StrategyBase):
+        def improve(self, route, context):
+          del context
+          return np.array(route, copy=True)
+
+        def improve_batch(self, routes, context):
+          del context
+          return np.array(routes, copy=True)
+
+      class RelativeCounterStep:
+        stage_anchor = "post_survival"
+
+        def __init__(self, local_search, evaluation, tag: str = "rel") -> None:
+          self.local_search = local_search
+          self.evaluation = evaluation
+          self.tag = tag
+          self.count = 0
+
+        def run(self, state, timer) -> None:
+          del timer
+          self.count += 1
+          state.population = self.local_search.improve_batch(state.population, state.context)
+      """
+    ),
+    encoding="utf-8",
+  )
+
+  algo_json = configs_dir / "algorithms.json"
+  algo_json.write_text(
+    json.dumps(
+      {
+        "default_params": {"population_size": 10, "mutation_rate": 0.2, "seed": 19},
+        "algorithm_configs": {
+          "RelativeExp": {
+            "metaheuristic": "GeneticAlgorithm",
+            "use_gpu": False,
+            "description": "Loaded via config-relative .py path",
+            "params": {
+              "local_search_stage": "none",
+              "pipeline": [
+                {
+                  "module": "../my-ops.py",
+                  "class": "RelativeCounterStep",
+                  "params": {
+                    "tag": "hyphen-dir",
+                    "local_search": {"module": "../my-ops.py", "class": "RelativeNoOpSearch"},
+                  },
+                }
+              ],
+            },
+            "strategies": {
+              "initialization": {"class": "InitializationRandom"},
+              "selection": {"class": "SelectionTournament", "params": {"k": 3}},
+              "crossover": {"class": "CrossoverOrder"},
+              "mutation": {
+                "module": "../my-ops.py",
+                "class": "RelativeShiftMutation",
+                "params": {"shift_by": 3},
+              },
+              "local_search": {"module": "../my-ops.py", "class": "RelativeNoOpSearch"},
+              "evaluation": {"class": "EvaluationCPUCost"},
+            },
+          }
+        },
+      }
+    ),
+    encoding="utf-8",
+  )
+
+  ga_params, algos = load_algorithms_config(algo_json)
+  warnings = validate_configs(
+    {
+      "ga_params": ga_params,
+      "algorithms": algos,
+      "benchmark": BenchmarkConfig(),
+      "problems": [ProblemConfig("burma14", 3323.0, 14)],
+    }
+  )
+  assert warnings == []
+
+  ga = algos["RelativeExp"].instantiate(ga_params)
+  assert isinstance(ga.mutation, MutationStrategy)
+  assert isinstance(ga.local_search, LocalSearchStrategy)
+  mut_inst: Any = ga.mutation
+  assert mut_inst.shift_by == 3
+
+  context = ProblemContext(burma14_problem, xp=np, seed=19)
+  _, stats = ga.evolve(context=context, customers=list(range(burma14_problem.dimension)), max_generations=3)
+  assert stats["best_fitness"] > 0
+  custom_steps: list[Any] = list(ga.custom_pipeline_steps)
+  assert len(custom_steps) == 1
+  assert custom_steps[0].count == 3
+
+  # Missing relative file reports a clean preflight warning instead of an unhandled crash.
+  algos["RelativeExp"].strategies["mutation"] = {"module": "../does-not-exist.py", "class": "Ghost"}
+  missing_warnings = validate_configs(
+    {
+      "ga_params": ga_params,
+      "algorithms": algos,
+      "benchmark": BenchmarkConfig(),
+      "problems": [ProblemConfig("burma14", 3323.0, 14)],
+    }
+  )
+  assert any("External module file not found" in w for w in missing_warnings)

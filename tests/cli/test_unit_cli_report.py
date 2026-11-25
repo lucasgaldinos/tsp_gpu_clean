@@ -11,7 +11,9 @@ import pytest
 from cli.report import main as report_main
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CHAPTER4_STYLE_PATH = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4" / "report_style.json"
+CHAPTER4_STYLE_PATH = (
+  PROJECT_ROOT / "benchmark_scripts" / "experiments-and-examples" / "chapter4" / "configs" / "report_style.json"
+)
 
 
 def _write_synthetic_checkpoints(ckpt_dir: Path, *, with_optimal: bool) -> None:
@@ -79,8 +81,8 @@ def test_report_cli_help(capsys: pytest.CaptureFixture[str]) -> None:
 def test_report_cli_applies_external_report_style_without_src_hardcoding(tmp_path: Path) -> None:
   """WHAT: Verify `tsp-report --report-style` renders pt-BR thesis labels purely from external JSON.
 
-  WHY: Confirms dissertation formatting is 100% injected from benchmark_scripts/configs/chapter4/
-  with zero Portuguese strings hardcoded inside src/.
+  WHY: Confirms dissertation formatting is 100% injected from
+  benchmark_scripts/experiments-and-examples/chapter4/configs/ with zero Portuguese strings hardcoded inside src/.
   EXPECTED: Tables, macros, CD TikZ diagrams, and PDF/SVG scaling plots carry injected pt-BR labels.
   """
   ckpt_dir = tmp_path / "run" / "checkpoints"

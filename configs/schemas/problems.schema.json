@@ -17,7 +17,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["name", "optimal", "size"],
+        "required": ["name", "size"],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -28,7 +28,7 @@
           "optimal": {
             "type": ["number", "null"],
             "exclusiveMinimum": 0,
-            "description": "Canonical optimal tour cost from TSPLIB95 (or null when unknown); gaps are computed against it when present."
+            "description": "Optional canonical optimal tour cost from TSPLIB95 (`null` or omitted when unknown); gaps are computed against it when present."
           },
           "size": {
             "type": "integer",

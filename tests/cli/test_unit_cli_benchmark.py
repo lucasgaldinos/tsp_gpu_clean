@@ -227,10 +227,16 @@ def test_benchmark_parser_supports_incremental_aliases_and_dry_run(capsys: pytes
 
 
 def _load_chapter4_script() -> Any:
-  """Load `benchmark_scripts/run_chapter4_benchmark.py` without mutating sys.path."""
+  """Load `benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py` without mutating sys.path."""
   import importlib.util
 
-  script_path = Path(__file__).resolve().parents[2] / "benchmark_scripts" / "run_chapter4_benchmark.py"
+  script_path = (
+    Path(__file__).resolve().parents[2]
+    / "benchmark_scripts"
+    / "experiments-and-examples"
+    / "chapter4"
+    / "run_chapter4_benchmark.py"
+  )
   spec = importlib.util.spec_from_file_location("run_chapter4_benchmark", script_path)
   assert spec is not None and spec.loader is not None
   module = importlib.util.module_from_spec(spec)
@@ -243,11 +249,11 @@ def test_chapter4_script_help_and_dry_run_logging_isolation(
   capsys: pytest.CaptureFixture[str],
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """WHAT: run_chapter4_benchmark delegates --help and --dry-run to cli.benchmark without touching results_v4/.
+  """WHAT: run_chapter4_benchmark delegates --help and --dry-run to cli.benchmark without touching chapter4/results/.
 
   WHY: Task 13.17, Task 13.22 (BUG-74), and Task 13.24 (DP13-8 / BUG-80).
   EXPECTED: --help lists full CLI flags including --incremental/--no-incremental and --patience/--seed;
-  --output-dir redirects logging to a single log file with preflight lines and zero files created in results_v4/.
+  --output-dir redirects logging to a single log file with preflight lines and zero files created in chapter4/results/.
   """
   import json
   import subprocess
@@ -272,8 +278,9 @@ def test_chapter4_script_help_and_dry_run_logging_isolation(
   assert "--strategy-param" in help_out
   assert "--dry-run" in help_out
 
-  proc = subprocess.run(
-    [sys.executable, "-m", "benchmark_scripts.run_chapter4_benchmark", "--help"],
+  script_path = repo_root / "benchmark_scripts" / "experiments-and-examples" / "chapter4" / "run_chapter4_benchmark.py"
+  proc = subprocess.run(  # noqa: S603
+    [sys.executable, str(script_path), "--help"],
     cwd=repo_root,
     capture_output=True,
     text=True,
@@ -283,7 +290,7 @@ def test_chapter4_script_help_and_dry_run_logging_isolation(
   assert "--incremental" in proc.stdout
   assert "--no-incremental" in proc.stdout
 
-  # 2. --output-dir + --dry-run redirects log strictly to tmp_path and leaves results_v4/ untouched
+  # 2. --output-dir + --dry-run redirects log strictly to tmp_path and leaves chapter4/results/ untouched
   results_dir = run_chapter4_benchmark.OUTPUT_DIR
   before_snapshot = (
     {p: (p.stat().st_mtime, p.stat().st_size) for p in results_dir.rglob("*")} if results_dir.exists() else {}

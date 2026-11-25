@@ -272,15 +272,58 @@ def test_load_problems_config_requires_problems_array(tmp_path: Path, payload: o
     load_problems_config(tmp_path)
 
 
-def test_load_problems_config_requires_each_field(tmp_path: Path) -> None:
-  """WHAT: A problem entry missing `optimal`.
+@pytest.mark.parametrize(
+  ("entry", "missing_field"),
+  [
+    pytest.param({"size": 14}, "name", id="missing-name"),
+    pytest.param({"name": "burma14"}, "size", id="missing-size"),
+  ],
+)
+def test_load_problems_config_requires_each_field(
+  tmp_path: Path,
+  entry: dict[str, Any],
+  missing_field: str,
+) -> None:
+  """WHAT: A problem entry missing required `name` or `size`.
 
-  WHY: A missing optimal would turn every gap computation into a silent skip.
-  EXPECTED: `ValueError` with the entry index and field name.
+  WHY: Problem identity and dimension are mandatory; `optimal` is optional (`BUG-106`).
+  EXPECTED: `ValueError` with the entry index and missing field name.
   """
-  # Arrange
-  _write_json(tmp_path / "problems.json", {"problems": [{"name": "burma14", "size": 14}]})
+  _write_json(tmp_path / "problems.json", {"problems": [entry]})
 
-  # Act / Assert
-  with pytest.raises(ValueError, match=r"index 0 missing required field: optimal"):
+  with pytest.raises(ValueError, match=rf"index 0 missing required field: {missing_field}"):
     load_problems_config(tmp_path)
+
+
+def test_load_benchmark_and_problems_optional_fields_and_bool_guards(tmp_path: Path) -> None:
+  """WHAT: Omitted `patience` / `optimal` default to `None` and boolean values are rejected (`BUG-106`)."""
+  _write_json(tmp_path / "benchmark.json", {"repetitions": 5})
+  bench = load_benchmark_config(tmp_path)
+  assert bench.repetitions == 5
+  assert bench.patience is None
+  assert bench.max_generations is None
+  assert bench.cpu_size_threshold is None
+
+  for bad_bench in (
+    {"repetitions": True},
+    {"repetitions": 5, "patience": False},
+    {"repetitions": 5, "cpu_size_threshold": True},
+    {"repetitions": 5, "max_generations": True},
+    {"repetitions": 5, "display": {"line_width": True}},
+    {"repetitions": 5, "incremental_runs": "yes"},
+  ):
+    _write_json(tmp_path / "benchmark.json", bad_bench)
+    with pytest.raises(ValueError):
+      load_benchmark_config(tmp_path)
+
+  _write_json(tmp_path / "problems.json", {"problems": [{"name": "custom50", "size": 50}]})
+  probs = load_problems_config(tmp_path)
+  assert probs == [ProblemConfig(name="custom50", optimal=None, size=50)]
+
+  for bad_prob in (
+    {"problems": [{"name": "custom50", "size": True}]},
+    {"problems": [{"name": "custom50", "size": 50, "optimal": False}]},
+  ):
+    _write_json(tmp_path / "problems.json", bad_prob)
+    with pytest.raises(ValueError):
+      load_problems_config(tmp_path)

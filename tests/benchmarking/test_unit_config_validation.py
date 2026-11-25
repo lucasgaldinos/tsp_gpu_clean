@@ -78,6 +78,11 @@ def _mutated_configs(configs: dict[str, Any], case: str) -> dict[str, Any]:
         cpu_config,
         strategies={**cpu_config.strategies, "local_search": {"params": {"max_iterations": -3}}},
       )
+    case "two_opt_zero":
+      mutated["algorithms"]["CPU"] = replace(
+        cpu_config,
+        strategies={**cpu_config.strategies, "local_search": {"params": {"max_iterations": 0}}},
+      )
     case "repetitions_zero":
       mutated["benchmark"] = replace(mutated["benchmark"], repetitions=0)
     case "patience_zero":
@@ -139,7 +144,7 @@ def test_validate_configs_accepts_fixture_configs(fixture_configs: dict[str, Any
     ),
     pytest.param(
       "two_opt_negative",
-      "Invalid max_iterations in CPU.local_search: -3 (must be > 0)",
+      "Invalid max_iterations in CPU.local_search: -3 (must be >= 0)",
       id="two_opt_negative",
     ),
     pytest.param("repetitions_zero", "Invalid repetitions: 0 (must be > 0)", id="repetitions_zero"),
@@ -185,7 +190,7 @@ def test_validate_configs_reports_each_violation(
   assert expected in warnings[0]
 
 
-@pytest.mark.parametrize("case", ["mutation_zero", "mutation_one", "patience_none"])
+@pytest.mark.parametrize("case", ["mutation_zero", "mutation_one", "patience_none", "two_opt_zero"])
 def test_validate_configs_accepts_boundary_values(fixture_configs: dict[str, Any], case: str) -> None:
   """WHAT: Legal boundary values: mutation_rate 0.0/1.0 and patience None.
 
@@ -360,7 +365,7 @@ def test_adaptive_patience_formula(n: int, expected: int) -> None:
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIGS_DIR = PROJECT_ROOT / "configs"
-CHAPTER4_CONFIGS_DIR = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
+CHAPTER4_CONFIGS_DIR = PROJECT_ROOT / "benchmark_scripts" / "experiments-and-examples" / "chapter4" / "configs"
 SCHEMAS_DIR = CONFIGS_DIR / "schemas"
 
 
@@ -475,6 +480,14 @@ def test_problems_schema_rejects_invalid_payloads(
     jsonschema.validate(instance=base, schema=schema)
 
 
+def _collect_schema_error_text(exc: jsonschema.ValidationError) -> str:
+  """Flatten a `ValidationError` and its `oneOf`/`anyOf` sub-errors into searchable text."""
+  parts = [exc.message]
+  for sub in exc.context:
+    parts.append(_collect_schema_error_text(sub))
+  return "\n".join(parts)
+
+
 @pytest.mark.parametrize(
   ("mutation_fn", "error_match"),
   [
@@ -482,7 +495,7 @@ def test_problems_schema_rejects_invalid_payloads(
     (lambda d: d["default_params"].update({"mutation_rate": 1.5}), "1.5 is greater than the maximum of 1"),
     (
       lambda d: d["algorithm_configs"]["CPU"]["strategies"]["selection"].update({"class": "UnknownSelection"}),
-      "is not one of",
+      "is not valid under any of the given schemas",
     ),
     (
       lambda d: d["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"].update({"spurious_arg": 1}),
@@ -501,14 +514,15 @@ def test_algorithms_schema_rejects_invalid_payloads(
   """WHAT: algorithms.schema.json rejects invalid algorithm declarations.
 
   WHY: Task 12.17 — Strategy classes and parameters must be recognized and validated.
-  EXPECTED: jsonschema.ValidationError raised.
+  EXPECTED: jsonschema.ValidationError raised with matching diagnostic context.
   """
   base = json.loads((CHAPTER4_CONFIGS_DIR / "algorithms.json").read_text(encoding="utf-8"))
   mutation_fn(base)
   schema = json.loads((SCHEMAS_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
 
-  with pytest.raises(jsonschema.ValidationError, match=error_match):
+  with pytest.raises(jsonschema.ValidationError) as exc_info:
     jsonschema.validate(instance=base, schema=schema)
+  assert error_match in _collect_schema_error_text(exc_info.value)
 
 
 def test_periodic_local_search_step_schema_validation_with_re_evaluate() -> None:
@@ -571,7 +585,7 @@ def test_periodic_local_search_step_schema_validation_with_re_evaluate() -> None
     ),
     (
       {"interval": 5, "target": "population", "re_evaluate": {"class": "InvalidEvaluator"}},
-      "is not one of",
+      "is not valid under any of the given schemas",
     ),
     (
       {"interval": 5, "target": "invalid_target"},
@@ -598,8 +612,9 @@ def test_periodic_local_search_step_schema_rejects_malformed_params(
     }
   ]
 
-  with pytest.raises(jsonschema.ValidationError, match=error_match):
+  with pytest.raises(jsonschema.ValidationError) as exc_info:
     jsonschema.validate(instance=base, schema=schema)
+  assert error_match in _collect_schema_error_text(exc_info.value)
 
 
 @pytest.mark.parametrize(
@@ -748,3 +763,82 @@ def test_validate_configs_and_instantiate_catch_bad_slots_protocols_and_algo_par
 
   with pytest.raises(ValueError, match="Unknown strategy slot 'cross_over'"):
     cfg.instantiate(GAParams())
+
+
+def test_validate_configs_checks_pipeline_steps_nested_slots_and_modular_params(tmp_path: Path) -> None:
+  """WHAT: Preflight checks external pipeline `GenerationStep` contracts, nested slot protocols, and modular params.
+
+  WHY: BUG-104 & BUG-105 — External pipeline steps lacking `run`/valid `stage_anchor`, wrong-slot
+  nested strategies (`re_evaluate: MutationSwap`), and monolithic-only params on modular `GeneticAlgorithm`
+  must be caught at preflight instead of silently ignored or failing mid-run.
+  """
+  from benchmarking.runner.config_loader import BenchmarkConfig, GAParams
+
+  bad_ops = tmp_path / "bad_steps.py"
+  bad_ops.write_text(
+    (
+      "class MissingRunStep:\n"
+      "  stage_anchor = 'post_survival'\n\n"
+      "class BadAnchorStep:\n"
+      "  stage_anchor = 'not_a_real_anchor'\n"
+      "  def run(self, state, timer):\n"
+      "    del state, timer\n"
+    ),
+    encoding="utf-8",
+  )
+
+  cfg = AlgorithmConfig(
+    name="BrokenPipelineAlg",
+    use_gpu=False,
+    description="Broken pipeline and modular params",
+    source_dir=tmp_path,
+    params={
+      "tournament_size": 5,
+      "pipeline": [
+        {"module": "./bad_steps.py", "class": "MissingRunStep"},
+        {"module": "./bad_steps.py", "class": "BadAnchorStep"},
+        {
+          "class": "PeriodicLocalSearchStep",
+          "params": {
+            "interval": 5,
+            "target": "population",
+            "re_evaluate": {"class": "MutationSwap"},
+          },
+        },
+        {
+          "class": "PostInitLocalSearchStep",
+          "params": {
+            "local_search": {"class": "NonExistentStrategy"},
+          },
+        },
+      ],
+    },
+    strategies={
+      "evaluation": {"class": "EvaluationCPUCost"},
+      "local_search": {"class": "LocalSearchNoOp", "params": {"max_iterations": 0}},
+    },
+  )
+
+  warnings = validate_configs(
+    {
+      "ga_params": GAParams(),
+      "algorithms": {"BrokenPipelineAlg": cfg},
+      "benchmark": BenchmarkConfig(),
+      "problems": [ProblemConfig("p1", 100.0, 10)],
+    }
+  )
+  assert any("unsupported param(s) for modular GeneticAlgorithm" in w and "tournament_size" in w for w in warnings)
+  assert any("callable 'run(state, timer)'" in w for w in warnings)
+  assert any("invalid stage_anchor 'not_a_real_anchor'" in w for w in warnings)
+  assert any("EvaluationStrategy" in w and "re_evaluate" in w for w in warnings)
+  assert any("Unknown strategy class 'NonExistentStrategy'" in w for w in warnings)
+  assert not any("max_iterations" in w for w in warnings)
+
+
+def test_benchmark_and_problems_schemas_accept_omitted_patience_and_optimal() -> None:
+  """WHAT: `benchmark.schema.json` accepts omitted `patience` and `problems.schema.json` omits `optimal` (`BUG-106`)."""
+  bench_schema = json.loads((SCHEMAS_DIR / "benchmark.schema.json").read_text(encoding="utf-8"))
+  jsonschema.validate(instance={"repetitions": 5}, schema=bench_schema)
+
+  prob_schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+  jsonschema.validate(instance={"problems": [{"name": "custom50", "size": 50}]}, schema=prob_schema)

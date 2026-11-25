@@ -1,16 +1,21 @@
-"""Reflective JSON Schema generator for `configs/schemas/algorithms.schema.json`.
+"""Reflective JSON Schema generator for `algorithms.schema.json` and `report_style.schema.json`.
 
-Derives per-class parameter schemas and conditional `allOf` branches directly from
-`STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY` via `inspect.signature`,
-`typing.get_type_hints`, and `typing.get_args` (`BUG-85` / Task 13.27(iv)).
+Derives per-slot protocol-partitioned `oneOf` branches and per-class parameter schemas
+directly from `STRATEGY_REGISTRY`, `PIPELINE_STEP_REGISTRY`, and optional external
+user modules/files via `inspect.signature`, `typing.get_type_hints`, and
+`typing.get_args` (`BUG-85`, `BUG-103`).
 
-Why reflection instead of a hand-maintained lookup table:
-  A single shared `params` object across all 17 strategies and 3 pipeline steps
-  accepted invalid combinations in the schema (e.g. `LocalSearchCPUTwoOpt` with
-  `mode="batch"`) while constructor guards rejected them at runtime. Generating
-  `$defs/params_<snake_name>` and `allOf` `if`/`then` branches from constructor
-  signatures and `Literal` / `TypeAliasType` annotations ensures the schema and
-  runtime share one source of truth.
+Why discriminated `oneOf` per protocol slot instead of one flat `allOf` if/then:
+  1. Partitioning `STRATEGY_REGISTRY` by `@runtime_checkable` PEP 544 slot protocols
+     (`InitializationStrategy`, ..., `EvaluationStrategy`) aligns JSON Schema validation
+     and editor completions with `config_loader.py::_validate_class_spec` (`BUG-101`).
+  2. Mutually exclusive `oneOf` branches (`class: {const: ...}` + `params: {$ref: ...}`,
+     plus a `module + class` external branch) let both Draft 2020-12 validators and
+     `vscode-json-languageservice` narrow slot-specific class names and class-specific
+     constructor parameters directly without negated `if`/`not` guards.
+  3. Passing `--extra-file` / `--extra-module` with `--output` generates an
+     experiment-local schema containing typed `oneOf` branches for custom operators
+     without coupling `configs/schemas/algorithms.schema.json` or `src/` to experiments.
 """
 
 from __future__ import annotations
@@ -19,6 +24,7 @@ import argparse
 import dataclasses
 import inspect
 import json
+import os
 import re
 import sys
 import types
@@ -32,6 +38,7 @@ from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
 from algorithms.strategies import STRATEGY_REGISTRY
 from algorithms.strategies.base import StrategyBase
 from benchmarking.reporting.style import ReportStyle
+from benchmarking.runner.config_loader import is_file_module_ref, load_external_module
 
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 SCHEMA_ID = "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json"
@@ -42,6 +49,25 @@ REPORT_STYLE_SCHEMA_ID = (
 DEFAULT_REPORT_STYLE_SCHEMA_PATH = (
   Path(__file__).resolve().parents[3] / "configs" / "schemas" / "report_style.schema.json"
 )
+
+STRATEGY_SLOT_PROTOCOLS: tuple[tuple[str, type, str], ...] = (
+  ("initialization", _strategy_protocols.InitializationStrategy, "strategy_slot_initialization"),
+  ("selection", _strategy_protocols.SelectionStrategy, "strategy_slot_selection"),
+  ("crossover", _strategy_protocols.CrossoverStrategy, "strategy_slot_crossover"),
+  ("mutation", _strategy_protocols.MutationStrategy, "strategy_slot_mutation"),
+  ("local_search", _strategy_protocols.LocalSearchStrategy, "strategy_slot_local_search"),
+  ("evaluation", _strategy_protocols.EvaluationStrategy, "strategy_slot_evaluation"),
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class ExternalClassSpec:
+  """External custom strategy or pipeline step discovered for an experiment-local schema."""
+
+  module: str
+  class_name: str
+  cls: type
+
 
 # Optional advisory metadata (numeric bounds, $comment, descriptions) overlaid onto
 # reflectively discovered constructor parameters. Never introduces parameter keys
@@ -130,6 +156,12 @@ def param_def_name(class_name: str) -> str:
   return f"params_{camel_to_snake(class_name)}"
 
 
+def ext_param_def_name(module_ref: str, class_name: str) -> str:
+  """Return a collision-free `$defs` key name for an external class's constructor parameters."""
+  mod_slug = re.sub(r"\W+", "_", module_ref).strip("_").lower() or "ext"
+  return f"params_ext_{mod_slug}_{camel_to_snake(class_name)}"
+
+
 def unwrap_type_annotation(annotation: Any) -> Any:
   """Recursively unwrap PEP 695 `TypeAliasType` and `Annotated` type wrappers."""
   while True:
@@ -142,14 +174,26 @@ def unwrap_type_annotation(annotation: Any) -> Any:
     return annotation
 
 
-def _is_strategy_type(tp: Any) -> bool:
-  """Return True when `tp` is a strategy protocol or `StrategyBase` subclass."""
+def _strategy_slot_ref_for_type(tp: Any) -> dict[str, Any] | None:
+  """Return the slot-specific `$ref` schema when `tp` is a strategy protocol or `StrategyBase` subclass."""
   unwrapped = unwrap_type_annotation(tp)
   if not isinstance(unwrapped, type):
-    return False
+    return None
+  matched_defs = [
+    def_name for _, proto, def_name in STRATEGY_SLOT_PROTOCOLS if unwrapped is proto or issubclass(unwrapped, proto)
+  ]
+  if len(matched_defs) == 1:
+    return {"$ref": f"#/$defs/{matched_defs[0]}"}
+  if len(matched_defs) > 1:
+    return {"anyOf": [{"$ref": f"#/$defs/{def_name}"} for def_name in matched_defs]}
   if issubclass(unwrapped, StrategyBase):
-    return True
-  return unwrapped.__module__ == _strategy_protocols.__name__ and bool(getattr(unwrapped, "_is_protocol", False))
+    return {"anyOf": [{"$ref": f"#/$defs/{def_name}"} for _, _, def_name in STRATEGY_SLOT_PROTOCOLS]}
+  return None
+
+
+def _is_strategy_type(tp: Any) -> bool:
+  """Return True when `tp` is a strategy protocol or `StrategyBase` subclass."""
+  return _strategy_slot_ref_for_type(tp) is not None
 
 
 def _find_init_method(cls: type) -> Any:
@@ -205,8 +249,9 @@ def _literal_schema(annotation: Any) -> dict[str, Any]:
 def _single_member_to_schema(annotation: Any) -> dict[str, Any] | None:
   """Map one non-union Python type annotation to a JSON Schema fragment, or `None` for runtime-only types."""
   unwrapped = unwrap_type_annotation(annotation)
-  if _is_strategy_type(unwrapped):
-    return {"$ref": "#/$defs/strategy_slot"}
+  slot_ref = _strategy_slot_ref_for_type(unwrapped)
+  if slot_ref is not None:
+    return slot_ref
 
   origin = get_origin(unwrapped)
   if origin is Literal:
@@ -245,7 +290,15 @@ def annotation_to_json_schema(annotation: Any) -> dict[str, Any]:
     raw_members = [unwrap_type_annotation(member) for member in get_args(unwrapped)]
     non_none = [member for member in raw_members if member is not type(None)]
     if non_none and all(_is_strategy_type(member) for member in non_none):
-      return {"$ref": "#/$defs/strategy_slot"}
+      slot_refs: list[dict[str, Any]] = []
+      for member in non_none:
+        ref_schema = _strategy_slot_ref_for_type(member)
+        if ref_schema is not None and ref_schema not in slot_refs:
+          slot_refs.append(ref_schema)
+      if len(slot_refs) == 1:
+        return slot_refs[0]
+      if slot_refs:
+        return {"anyOf": slot_refs}
 
     member_schemas: list[dict[str, Any]] = []
     for member in raw_members:
@@ -297,75 +350,207 @@ def build_class_params_schema(cls: type) -> dict[str, Any]:
   }
 
 
+def _partition_strategy_registry(strategies: Mapping[str, type]) -> dict[str, dict[str, type]]:
+  """Partition `strategies` into the 6 canonical slots via `@runtime_checkable` PEP 544 protocols."""
+  partitioned: dict[str, dict[str, type]] = {slot_name: {} for slot_name, _, _ in STRATEGY_SLOT_PROTOCOLS}
+  for class_name, cls in sorted(strategies.items(), key=lambda item: item[0]):
+    matched_slots = [slot_name for slot_name, proto, _ in STRATEGY_SLOT_PROTOCOLS if issubclass(cls, proto)]
+    if not matched_slots:
+      raise ValueError(
+        f"Strategy '{class_name}' does not implement any PEP 544 strategy protocol in protocols.algorithm_strategies."
+      )
+    for slot_name in matched_slots:
+      partitioned[slot_name][class_name] = cls
+  return partitioned
+
+
+def _normalize_external_module_ref(
+  raw_ref: str | Path,
+  *,
+  is_file: bool,
+  schema_output_dir: Path | None,
+) -> tuple[str, Path | None]:
+  """Return `(emitted_module_ref, base_dir_for_loading)` for an external module or file argument."""
+  ref_str = str(raw_ref)
+  if is_file or is_file_module_ref(ref_str):
+    resolved = Path(ref_str).resolve()
+    if schema_output_dir is not None:
+      rel = os.path.relpath(resolved, schema_output_dir.resolve()).replace("\\", "/")
+      return rel, schema_output_dir.resolve()
+    return resolved.as_posix(), None
+  return ref_str, None
+
+
+def discover_external_extensions(
+  *,
+  extra_modules: Sequence[str] = (),
+  extra_files: Sequence[str | Path] = (),
+  schema_output_dir: Path | None = None,
+) -> tuple[dict[str, list[ExternalClassSpec]], list[ExternalClassSpec]]:
+  """Import external modules/files and classify their public strategies and pipeline steps.
+
+  Each class defined directly in an imported module (excluding private names, protocols,
+  abstract classes, and `StrategyBase`) is classified via `issubclass` against the 6
+  PEP 544 strategy protocols or by defining a callable `run(state, timer)` method.
+  """
+  external_strategies: dict[str, list[ExternalClassSpec]] = {
+    slot_name: [] for slot_name, _, _ in STRATEGY_SLOT_PROTOCOLS
+  }
+  external_pipeline_steps: list[ExternalClassSpec] = []
+  seen_strategy_keys: set[tuple[str, str, str]] = set()
+  seen_step_keys: set[tuple[str, str]] = set()
+
+  targets: list[tuple[str | Path, bool]] = [
+    *((mod_ref, False) for mod_ref in extra_modules),
+    *((file_path, True) for file_path in extra_files),
+  ]
+
+  for raw_ref, explicit_file in targets:
+    emitted_module, load_base_dir = _normalize_external_module_ref(
+      raw_ref,
+      is_file=explicit_file,
+      schema_output_dir=schema_output_dir,
+    )
+    mod = load_external_module(emitted_module, base_dir=load_base_dir)
+    discovered_count = 0
+
+    for class_name, cls in sorted(inspect.getmembers(mod, inspect.isclass), key=lambda item: item[0]):
+      if class_name.startswith("_") or cls.__module__ != mod.__name__:
+        continue
+      if cls is StrategyBase or inspect.isabstract(cls) or bool(getattr(cls, "_is_protocol", False)):
+        continue
+
+      matched_slots = [slot_name for slot_name, proto, _ in STRATEGY_SLOT_PROTOCOLS if issubclass(cls, proto)]
+      if matched_slots:
+        for slot_name in matched_slots:
+          key = (slot_name, emitted_module, class_name)
+          if key not in seen_strategy_keys:
+            seen_strategy_keys.add(key)
+            external_strategies[slot_name].append(ExternalClassSpec(emitted_module, class_name, cls))
+        discovered_count += 1
+        continue
+
+      if callable(getattr(cls, "run", None)):
+        step_key = (emitted_module, class_name)
+        if step_key not in seen_step_keys:
+          seen_step_keys.add(step_key)
+          external_pipeline_steps.append(ExternalClassSpec(emitted_module, class_name, cls))
+        discovered_count += 1
+
+    if discovered_count == 0:
+      print(
+        f"Warning: no public strategy or GenerationStep classes discovered in '{raw_ref}'.",
+        file=sys.stderr,
+      )
+
+  return external_strategies, external_pipeline_steps
+
+
 def _build_slot_definition(
   registry: Mapping[str, type],
   *,
+  slot_label: str,
   class_description: str,
   params_description: str,
+  external_specs: Sequence[ExternalClassSpec] = (),
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
-  """Build a conditional slot schema (`allOf` if/then) and its `$defs/params_*` definitions."""
+  """Build a mutually exclusive discriminated `oneOf` slot schema and its `$defs/params_*` definitions."""
   sorted_items = sorted(registry.items(), key=lambda item: item[0])
-  all_of_branches: list[dict[str, Any]] = []
+  one_of_branches: list[dict[str, Any]] = []
   param_defs: dict[str, dict[str, Any]] = {}
 
   for class_name, cls in sorted_items:
     def_key = param_def_name(class_name)
     param_defs[def_key] = build_class_params_schema(cls)
-    all_of_branches.append(
+    one_of_branches.append(
       {
-        "if": {
-          "not": {"required": ["module"]},
-          "required": ["class"],
-          "properties": {
-            "class": {
-              "const": class_name,
-            },
+        "title": class_name,
+        "type": "object",
+        "required": ["class"],
+        "additionalProperties": False,
+        "properties": {
+          "class": {
+            "const": class_name,
+            "description": class_description,
           },
-        },
-        "then": {
-          "properties": {
-            "params": {
-              "$ref": f"#/$defs/{def_key}",
-            },
+          "params": {
+            "$ref": f"#/$defs/{def_key}",
+            "description": params_description,
           },
         },
       }
     )
 
-  slot_schema: dict[str, Any] = {
+  sorted_external = sorted(external_specs, key=lambda spec: (spec.module, spec.class_name))
+  for ext_spec in sorted_external:
+    def_key = ext_param_def_name(ext_spec.module, ext_spec.class_name)
+    param_defs[def_key] = build_class_params_schema(ext_spec.cls)
+    one_of_branches.append(
+      {
+        "title": f"{ext_spec.class_name} (external: {ext_spec.module})",
+        "type": "object",
+        "required": ["module", "class"],
+        "additionalProperties": False,
+        "properties": {
+          "module": {
+            "const": ext_spec.module,
+            "description": "External Python module path or config-relative .py file path.",
+          },
+          "class": {
+            "const": ext_spec.class_name,
+            "description": f"External custom {slot_label} class exported by `{ext_spec.module}`.",
+          },
+          "params": {
+            "$ref": f"#/$defs/{def_key}",
+            "description": params_description,
+          },
+        },
+      }
+    )
+
+  generic_external_branch: dict[str, Any] = {
+    "title": f"External custom {slot_label} (module + class)",
     "type": "object",
-    "required": ["class"],
+    "required": ["module", "class"],
     "additionalProperties": False,
     "properties": {
       "module": {
         "type": "string",
         "minLength": 1,
         "description": (
-          "Optional dotted Python module path for loading an external custom class "
-          "outside the built-in registry without modifying src/."
+          "Dotted Python module path or config-relative .py file path for loading an external "
+          "custom class outside the built-in registry without modifying src/."
         ),
       },
       "class": {
         "type": "string",
         "minLength": 1,
-        "description": class_description,
+        "description": f"External custom {slot_label} class name exported by `module`.",
       },
       "params": {
         "type": "object",
-        "description": params_description,
+        "description": "Constructor keyword arguments passed to the external custom class.",
       },
     },
-    "if": {
-      "not": {"required": ["module"]},
-    },
-    "then": {
-      "properties": {
-        "class": {
-          "enum": [class_name for class_name, _ in sorted_items],
-        },
-      },
-    },
-    "allOf": all_of_branches,
+  }
+  if sorted_external:
+    generic_external_branch["not"] = {
+      "anyOf": [
+        {
+          "required": ["module", "class"],
+          "properties": {
+            "module": {"const": ext_spec.module},
+            "class": {"const": ext_spec.class_name},
+          },
+        }
+        for ext_spec in sorted_external
+      ]
+    }
+  one_of_branches.append(generic_external_branch)
+
+  slot_schema: dict[str, Any] = {
+    "type": "object",
+    "oneOf": one_of_branches,
   }
   return slot_schema, param_defs
 
@@ -373,20 +558,35 @@ def _build_slot_definition(
 def generate_algorithms_schema(
   strategy_registry: Mapping[str, type] | None = None,
   pipeline_step_registry: Mapping[str, type] | None = None,
+  *,
+  external_strategies: Mapping[str, Sequence[ExternalClassSpec]] | None = None,
+  external_pipeline_steps: Sequence[ExternalClassSpec] = (),
 ) -> dict[str, Any]:
   """Generate the complete `algorithms.schema.json` document reflectively from registries."""
   strategies = STRATEGY_REGISTRY if strategy_registry is None else strategy_registry
   pipeline_steps = PIPELINE_STEP_REGISTRY if pipeline_step_registry is None else pipeline_step_registry
+  ext_by_slot = external_strategies or {}
 
-  strategy_slot_schema, strategy_param_defs = _build_slot_definition(
-    strategies,
-    class_description="Key of `STRATEGY_REGISTRY`; the slot prefix identifies the stage.",
-    params_description="Constructor keyword arguments validated per selected strategy class via `allOf`.",
-  )
+  partitioned_strategies = _partition_strategy_registry(strategies)
+  strategy_slot_defs: dict[str, dict[str, Any]] = {}
+  strategy_param_defs: dict[str, dict[str, Any]] = {}
+  for slot_name, proto, def_name in STRATEGY_SLOT_PROTOCOLS:
+    slot_schema, slot_params = _build_slot_definition(
+      partitioned_strategies[slot_name],
+      slot_label=f"{slot_name} strategy",
+      class_description=f"Built-in `{proto.__name__}` implementation registered in `STRATEGY_REGISTRY`.",
+      params_description=f"Constructor keyword arguments for this `{slot_name}` strategy class.",
+      external_specs=ext_by_slot.get(slot_name, ()),
+    )
+    strategy_slot_defs[def_name] = slot_schema
+    strategy_param_defs.update(slot_params)
+
   pipeline_step_schema, pipeline_param_defs = _build_slot_definition(
     pipeline_steps,
-    class_description="Key of `PIPELINE_STEP_REGISTRY`.",
-    params_description="Constructor keyword arguments validated per selected pipeline step class via `allOf`.",
+    slot_label="pipeline step",
+    class_description="Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`.",
+    params_description="Constructor keyword arguments for this pipeline step class.",
+    external_specs=external_pipeline_steps,
   )
 
   local_search_stage_schema = annotation_to_json_schema(_protocol_types.LocalSearchStage)
@@ -394,116 +594,133 @@ def generate_algorithms_schema(
     "Where the local-search strategy runs inside the generation pipeline (`LocalSearchStage`)."
   )
 
-  defs: dict[str, Any] = {
-    "algorithm_config": {
-      "type": "object",
-      "required": ["metaheuristic", "use_gpu", "description"],
-      "additionalProperties": False,
-      "properties": {
-        "metaheuristic": {
-          "type": "string",
-          "description": (
-            "Metaheuristic identifier; `GeneticAlgorithm` selects the modular pipeline, "
-            "any other value requires `class_module`/`class_name`."
-          ),
-          "examples": ["GeneticAlgorithm", "GeneticAlgorithmFullGPUMonolithic"],
-        },
-        "use_gpu": {
-          "type": "boolean",
-          "description": (
-            "Whether the variant needs CuPy/CUDA at run time "
-            "(the benchmark skips GPU variants when no device is present)."
-          ),
-        },
-        "description": {
-          "type": "string",
-          "description": "Human-readable label copied into reports.",
-        },
-        "class_module": {
-          "type": "string",
-          "description": "Dotted module path for monolithic variants resolved by `AlgorithmConfig.get_class()`.",
-          "examples": ["algorithms.archive.full_gpu_monolithic"],
-        },
-        "class_name": {
-          "type": "string",
-          "description": "Class name inside `class_module`.",
-          "examples": ["GeneticAlgorithmFullGPUMonolithic"],
-        },
-        "params": {
-          "type": "object",
-          "description": (
-            "Algorithm-level parameters. Modular pipelines accept "
-            "`pipeline`, `local_search_stage`, `population_size`, `mutation_rate` and `seed`."
-          ),
-          "properties": {
-            "pipeline": {
-              "type": "array",
-              "description": "Optional list of generational pipeline step specifications (DP11-6, DP11-10).",
-              "items": {
-                "$ref": "#/$defs/pipeline_step",
-              },
-            },
-            "local_search_stage": {
-              "$ref": "#/$defs/local_search_stage",
-            },
-            "population_size": {
-              "type": "integer",
-              "minimum": 1,
-            },
-            "mutation_rate": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1,
-            },
-            "seed": {
-              "type": "integer",
-            },
-            "tournament_size": {
-              "type": "integer",
-              "minimum": 2,
-              "description": "Monolithic-only alias of the selection tournament size.",
-            },
-            "two_opt_iterations": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "Monolithic-only alias of the 2-opt pass cap.",
+  shared_variant_properties: dict[str, Any] = {
+    "use_gpu": {
+      "type": "boolean",
+      "description": (
+        "Whether the variant needs CuPy/CUDA at run time (the benchmark skips GPU variants when no device is present)."
+      ),
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable label copied into reports.",
+    },
+  }
+  shared_ga_param_properties: dict[str, Any] = {
+    "local_search_stage": {
+      "$ref": "#/$defs/local_search_stage",
+    },
+    "population_size": {
+      "type": "integer",
+      "minimum": 1,
+    },
+    "mutation_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+    },
+    "seed": {
+      "type": "integer",
+    },
+  }
+
+  modular_algorithm_branch: dict[str, Any] = {
+    "title": "Modular GeneticAlgorithm",
+    "type": "object",
+    "required": ["metaheuristic", "use_gpu", "description"],
+    "additionalProperties": False,
+    "properties": {
+      "metaheuristic": {
+        "const": "GeneticAlgorithm",
+        "description": "Selects the modular strategy-driven `GeneticAlgorithm` pipeline.",
+      },
+      **shared_variant_properties,
+      "params": {
+        "type": "object",
+        "description": (
+          "Modular `GeneticAlgorithm` parameters: `pipeline`, `local_search_stage`, "
+          "`population_size`, `mutation_rate`, and `seed`."
+        ),
+        "additionalProperties": False,
+        "properties": {
+          "pipeline": {
+            "type": "array",
+            "description": "Optional list of generational pipeline step specifications (DP11-6, DP11-10).",
+            "items": {
+              "$ref": "#/$defs/pipeline_step",
             },
           },
-          "additionalProperties": False,
+          **shared_ga_param_properties,
         },
-        "strategies": {
-          "type": "object",
-          "description": "Strategy slot -> class + parameters (Design B). Slots omitted from the pipeline stay `None`.",
-          "additionalProperties": False,
-          "properties": {
-            "initialization": {"$ref": "#/$defs/strategy_slot"},
-            "selection": {"$ref": "#/$defs/strategy_slot"},
-            "crossover": {"$ref": "#/$defs/strategy_slot"},
-            "mutation": {"$ref": "#/$defs/strategy_slot"},
-            "local_search": {"$ref": "#/$defs/strategy_slot"},
-            "evaluation": {"$ref": "#/$defs/strategy_slot"},
+      },
+      "strategies": {
+        "type": "object",
+        "description": "Strategy slot -> class + parameters (Design B). Slots omitted from the pipeline stay `None`.",
+        "additionalProperties": False,
+        "properties": {
+          slot_name: {"$ref": f"#/$defs/{def_name}"} for slot_name, _, def_name in STRATEGY_SLOT_PROTOCOLS
+        },
+      },
+    },
+  }
+
+  monolithic_algorithm_branch: dict[str, Any] = {
+    "title": "Monolithic Algorithm Class",
+    "type": "object",
+    "required": ["metaheuristic", "use_gpu", "description", "class_module", "class_name"],
+    "additionalProperties": False,
+    "properties": {
+      "metaheuristic": {
+        "type": "string",
+        "minLength": 1,
+        "not": {"const": "GeneticAlgorithm"},
+        "description": "Non-modular metaheuristic identifier loaded dynamically via `class_module`/`class_name`.",
+        "examples": ["GeneticAlgorithmFullGPUMonolithic"],
+      },
+      **shared_variant_properties,
+      "class_module": {
+        "type": "string",
+        "minLength": 1,
+        "description": (
+          "Dotted module path or config-relative .py file path for monolithic variants "
+          "resolved by `AlgorithmConfig.get_class()`."
+        ),
+        "examples": ["algorithms.archive.full_gpu_monolithic"],
+      },
+      "class_name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Class name inside `class_module`.",
+        "examples": ["GeneticAlgorithmFullGPUMonolithic"],
+      },
+      "params": {
+        "type": "object",
+        "description": "Constructor keyword arguments forwarded to the monolithic algorithm class.",
+        "additionalProperties": True,
+        "properties": {
+          **shared_ga_param_properties,
+          "tournament_size": {
+            "type": "integer",
+            "minimum": 2,
+            "description": "Monolithic-only alias of the selection tournament size.",
+          },
+          "two_opt_iterations": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Monolithic-only alias of the 2-opt pass cap.",
           },
         },
       },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "metaheuristic": {
-                "not": {
-                  "const": "GeneticAlgorithm",
-                },
-              },
-            },
-          },
-          "then": {
-            "required": ["class_module", "class_name"],
-          },
-        },
-      ],
+    },
+  }
+
+  defs: dict[str, Any] = {
+    "algorithm_config": {
+      "type": "object",
+      "oneOf": [modular_algorithm_branch, monolithic_algorithm_branch],
     },
     "local_search_stage": local_search_stage_schema,
-    "strategy_slot": strategy_slot_schema,
+    **strategy_slot_defs,
     "pipeline_step": pipeline_step_schema,
     **strategy_param_defs,
     **pipeline_param_defs,
@@ -515,8 +732,9 @@ def generate_algorithms_schema(
     "title": "Algorithm variants configuration",
     "description": (
       "Declarative GA composition (Design B, DP11-1) or monolithic class loading. "
-      "Every strategy class named here must exist in algorithms.strategies.STRATEGY_REGISTRY, "
-      "and every parameter key must be accepted by the class constructor (DP11-5, BUG-85)."
+      "Built-in strategies and pipeline steps are partitioned by PEP 544 protocol slots and validated "
+      "against constructor signatures via discriminated `oneOf` branches; external custom classes are "
+      "supported via `module` + `class` without modifying src/ (DP11-5, BUG-85, BUG-103)."
     ),
     "type": "object",
     "required": ["default_params", "algorithm_configs"],
@@ -567,11 +785,16 @@ def generate_algorithms_schema(
 def render_algorithms_schema(
   strategy_registry: Mapping[str, type] | None = None,
   pipeline_step_registry: Mapping[str, type] | None = None,
+  *,
+  external_strategies: Mapping[str, Sequence[ExternalClassSpec]] | None = None,
+  external_pipeline_steps: Sequence[ExternalClassSpec] = (),
 ) -> str:
   """Render `generate_algorithms_schema(...)` as deterministic formatted JSON."""
   schema = generate_algorithms_schema(
     strategy_registry=strategy_registry,
     pipeline_step_registry=pipeline_step_registry,
+    external_strategies=external_strategies,
+    external_pipeline_steps=external_pipeline_steps,
   )
   return f"{json.dumps(schema, indent=2)}\n"
 
@@ -697,13 +920,34 @@ def render_report_style_schema() -> str:
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
   parser = argparse.ArgumentParser(
-    description="Generate or verify configs/schemas/{algorithms,report_style}.schema.json"
+    description="Generate or verify algorithms and report_style JSON schemas (with optional external experiment ops)"
   )
   parser.add_argument(
     "--output",
     type=Path,
     default=None,
     help="Target algorithms schema JSON file path (default: configs/schemas/algorithms.schema.json).",
+  )
+  parser.add_argument(
+    "--extra-module",
+    action="append",
+    default=[],
+    metavar="MODULE",
+    help=(
+      "Repeatable dotted Python module (or .py path) exporting custom strategies/pipeline steps "
+      "to include as typed oneOf branches in the generated schema (requires --output)."
+    ),
+  )
+  parser.add_argument(
+    "--extra-file",
+    action="append",
+    type=Path,
+    default=[],
+    metavar="PATH",
+    help=(
+      "Repeatable Python .py file exporting custom strategies/pipeline steps; emits config-relative "
+      "module paths relative to --output's directory (requires --output)."
+    ),
   )
   parser.add_argument(
     "--report-style-output",
@@ -722,9 +966,42 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
   """CLI entry point to write or verify reflective JSON schemas."""
   args = _parse_args(argv)
+  has_extras = bool(args.extra_module or args.extra_file)
+  if has_extras and args.output is None:
+    print(
+      "Error: --extra-file and --extra-module require an explicit --output path so the core "
+      "configs/schemas/algorithms.schema.json stays decoupled from user experiments.",
+      file=sys.stderr,
+    )
+    return 2
+  if has_extras and args.output is not None and args.output.resolve() == DEFAULT_SCHEMA_PATH.resolve():
+    print(
+      f"Error: refusing to write --extra-file/--extra-module classes into core schema {DEFAULT_SCHEMA_PATH}. "
+      "Pass an experiment-local --output path instead.",
+      file=sys.stderr,
+    )
+    return 2
+
+  external_strategies: dict[str, list[ExternalClassSpec]] = {}
+  external_pipeline_steps: list[ExternalClassSpec] = []
+  if has_extras:
+    external_strategies, external_pipeline_steps = discover_external_extensions(
+      extra_modules=args.extra_module,
+      extra_files=args.extra_file,
+      schema_output_dir=args.output.parent if args.output is not None else None,
+    )
+
   targets: list[tuple[Path, str]] = []
   if args.output is not None:
-    targets.append((args.output, render_algorithms_schema()))
+    targets.append(
+      (
+        args.output,
+        render_algorithms_schema(
+          external_strategies=external_strategies or None,
+          external_pipeline_steps=external_pipeline_steps,
+        ),
+      )
+    )
     if args.report_style_output is not None:
       targets.append((args.report_style_output, render_report_style_schema()))
   elif args.report_style_output is not None:

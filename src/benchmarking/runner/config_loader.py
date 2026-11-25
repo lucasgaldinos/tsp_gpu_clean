@@ -22,15 +22,21 @@ Author: GPU Accelerated Routing Optimization Team
 Date: 2025-01-28
 """
 
+import hashlib
 import importlib
+import importlib.util
+import inspect
 import json
+import re
+import sys
+import types
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, TypeAliasType, Union, cast, get_args, get_origin, get_type_hints
 
-from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
+from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY, StageAnchor
 from loaders.tsplib_loader import TsplibIngestionBundle, parse_tsplib_file, resolve_opt_tour_cost
 
 if TYPE_CHECKING:
@@ -78,6 +84,7 @@ class AlgorithmConfig:
   class_name: str | None = None
   params: dict[str, Any] = dc_field(default_factory=dict)
   strategies: dict[str, Any] = dc_field(default_factory=dict)
+  source_dir: Path | None = dc_field(default=None, repr=False, compare=False)
 
   def __post_init__(self) -> None:
     if self.params is None:
@@ -91,7 +98,7 @@ class AlgorithmConfig:
       from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
 
       return GeneticAlgorithm
-    module = importlib.import_module(self.class_module)
+    module = load_external_module(self.class_module, base_dir=self.source_dir)
     return cast("type", getattr(module, self.class_name))
 
   def instantiate(
@@ -135,8 +142,6 @@ class AlgorithmConfig:
         if "selection" in strategy_overrides and "k" in strategy_overrides["selection"]:
           kwargs["tournament_size"] = strategy_overrides["selection"]["k"]
 
-      import inspect
-
       sig: Signature = inspect.signature(cls)
       has_var_kw: bool = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
       if not has_var_kw:
@@ -168,12 +173,23 @@ class AlgorithmConfig:
       if not class_name:
         return None
 
-      target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot)
+      target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot, base_dir=self.source_dir)
+      if slot is not None and registry_name == "strategy":
+        expected_protocol = _slot_protocol_map().get(slot)
+        if expected_protocol is not None and not issubclass(target_cls, expected_protocol):
+          raise ValueError(
+            f"Strategy class '{target_cls.__name__}' does not implement {expected_protocol.__name__} "
+            f"required for slot '{slot}'."
+          )
+      if registry_name == "pipeline step" and not callable(getattr(target_cls, "run", None)):
+        raise ValueError(
+          f"Pipeline step class '{target_cls.__name__}' must define a callable 'run(state, timer)' method."
+        )
+
       params = dict(spec.get("params", {}))
 
-      import inspect
-
       sig: Signature = inspect.signature(target_cls)
+      hints = _resolve_init_type_hints(target_cls)
       has_var_kw: bool = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
 
       if slot and strategy_overrides and slot in strategy_overrides:
@@ -192,8 +208,10 @@ class AlgorithmConfig:
 
       # Resolve nested strategy specifications if provided (registered or external module)
       for k, v in list(params.items()):
-        if isinstance(v, dict) and "class" in v and ("module" in v or v["class"] in STRATEGY_REGISTRY):
-          params[k] = _build_spec(v, STRATEGY_REGISTRY, "strategy")
+        nested_slot = _infer_nested_strategy_slot(k, hints.get(k))
+        if isinstance(v, Mapping) and ("class" in v or "module" in v):
+          if nested_slot is not None or "module" in v or v.get("class") in STRATEGY_REGISTRY:
+            params[k] = _build_spec(dict(v), STRATEGY_REGISTRY, "strategy", slot=nested_slot)
 
       if "seed" in sig.parameters and "seed" not in params:
         params["seed"] = resolved_seed
@@ -304,11 +322,67 @@ class ProblemConfig:
 # =============================================================================
 
 
+_FILE_MODULE_CACHE: dict[tuple[Path, int, int], types.ModuleType] = {}
+
+
+def is_file_module_ref(module_ref: str) -> bool:
+  """Return True when ``module_ref`` specifies a ``.py`` file path instead of a dotted import path."""
+  return module_ref.endswith(".py") or "/" in module_ref or "\\" in module_ref
+
+
+def load_external_module(module_ref: str, *, base_dir: Path | None = None) -> types.ModuleType:
+  """Load a Python module from either a dotted module name or a (config-relative) ``.py`` file path.
+
+  File paths are resolved relative to ``base_dir`` (the directory containing ``algorithms.json``)
+  when not absolute, allowing experiments inside hyphenated directories to reference sibling or
+  parent ``.py`` files without setting ``PYTHONPATH``.
+  """
+  if not is_file_module_ref(module_ref):
+    return importlib.import_module(module_ref)
+
+  candidate = Path(module_ref)
+  if candidate.is_absolute():
+    resolved = candidate.resolve()
+  elif base_dir is not None:
+    resolved = (base_dir / candidate).resolve()
+  else:
+    resolved = candidate.resolve()
+  if not resolved.is_file():
+    raise FileNotFoundError(f"External module file not found: '{module_ref}' (resolved to '{resolved}')")
+
+  stat = resolved.stat()
+  cache_key = (resolved, stat.st_mtime_ns, stat.st_size)
+  cached = _FILE_MODULE_CACHE.get(cache_key)
+  if cached is not None:
+    return cached
+
+  stem_slug = re.sub(r"\W+", "_", resolved.stem).strip("_") or "module"
+  digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:12]
+  mod_name = f"_tsp_external_{stem_slug}_{digest}"
+
+  spec = importlib.util.spec_from_file_location(mod_name, resolved)
+  if spec is None or spec.loader is None:
+    raise ImportError(f"Unable to load Python module specification from '{resolved}'.")
+
+  module = importlib.util.module_from_spec(spec)
+  # Register before execution so `@dataclass` and `typing.get_type_hints` resolve `cls.__module__`.
+  sys.modules[mod_name] = module
+  try:
+    spec.loader.exec_module(module)
+  except Exception:
+    sys.modules.pop(mod_name, None)
+    raise
+
+  _FILE_MODULE_CACHE[cache_key] = module
+  return module
+
+
 def _resolve_class_spec(
   spec: Mapping[str, Any],
   registry: Mapping[str, type],
   registry_name: str,
   slot: str | None = None,
+  base_dir: Path | None = None,
 ) -> type:
   """Resolve a built-in registry or external ``{"module", "class"}`` specification to a class."""
   class_name = spec.get("class")
@@ -320,7 +394,7 @@ def _resolve_class_spec(
   if module_name is not None:
     if not isinstance(module_name, str) or not module_name.strip():
       raise ValueError(f"Invalid 'module' value {module_name!r} for {registry_name} '{class_name}'.")
-    mod = importlib.import_module(module_name)
+    mod = load_external_module(module_name, base_dir=base_dir)
     loaded_cls = getattr(mod, class_name, None)
     if not isinstance(loaded_cls, type):
       raise ValueError(f"External {registry_name} '{class_name}' not found as a class in module '{module_name}'.")
@@ -338,6 +412,12 @@ def _resolve_class_spec(
 VALID_STRATEGY_SLOTS: frozenset[str] = frozenset(
   {"initialization", "selection", "crossover", "mutation", "evaluation", "local_search"}
 )
+
+MODULAR_ALGO_PARAMS: frozenset[str] = frozenset(
+  {"pipeline", "local_search_stage", "population_size", "mutation_rate", "seed"}
+)
+
+VALID_STAGE_ANCHORS: frozenset[str] = frozenset(get_args(getattr(StageAnchor, "__value__", StageAnchor)))
 
 
 def _slot_protocol_map() -> dict[str, type]:
@@ -361,6 +441,77 @@ def _slot_protocol_map() -> dict[str, type]:
   }
 
 
+def _unwrap_annotation(annotation: Any) -> Any:
+  """Unwrap PEP 695 ``TypeAliasType`` and ``Annotated`` wrappers."""
+  while True:
+    if isinstance(annotation, TypeAliasType):
+      annotation = annotation.__value__
+      continue
+    if get_origin(annotation) is Annotated:
+      annotation = get_args(annotation)[0]
+      continue
+    return annotation
+
+
+def _resolve_init_type_hints(cls: type) -> dict[str, Any]:
+  """Resolve ``__init__`` parameter annotations including ``TYPE_CHECKING`` protocol imports."""
+  init_fn: Any = None
+  for base in cls.__mro__:
+    if base is object:
+      continue
+    if "__init__" in base.__dict__:
+      init_fn = base.__dict__["__init__"]
+      break
+  if init_fn is None:
+    return {}
+
+  import protocols.algorithm_strategies as strategy_protocols
+  import protocols.types as protocol_types
+
+  globalns: dict[str, Any] = {
+    "Any": Any,
+    "Sequence": Sequence,
+    "Mapping": Mapping,
+    **vars(protocol_types),
+    **vars(strategy_protocols),
+  }
+  mod = sys.modules.get(cls.__module__)
+  if mod is not None:
+    globalns.update(vars(mod))
+  try:
+    return get_type_hints(init_fn, globalns=globalns, include_extras=True)
+  except Exception:
+    return {}
+
+
+def _infer_nested_strategy_slot(param_name: str, annotation: Any) -> str | None:
+  """Infer the expected strategy slot for a nested parameter from its type hint or canonical name."""
+  slot_protocols = _slot_protocol_map()
+  if annotation is not None and annotation is not inspect.Parameter.empty:
+    unwrapped = _unwrap_annotation(annotation)
+    origin = get_origin(unwrapped)
+    members = (
+      [_unwrap_annotation(m) for m in get_args(unwrapped) if _unwrap_annotation(m) is not type(None)]
+      if origin in (Union, types.UnionType)
+      else [unwrapped]
+    )
+    matched_slots: set[str] = set()
+    for member in members:
+      if not isinstance(member, type):
+        continue
+      for slot_name, proto in slot_protocols.items():
+        if member is proto or issubclass(member, proto):
+          matched_slots.add(slot_name)
+    if len(matched_slots) == 1:
+      return next(iter(matched_slots))
+
+  if param_name in VALID_STRATEGY_SLOTS:
+    return param_name
+  if param_name == "re_evaluate":
+    return "evaluation"
+  return None
+
+
 def _validate_class_spec(
   spec: Mapping[str, Any] | None,
   registry: Mapping[str, type],
@@ -369,20 +520,19 @@ def _validate_class_spec(
   context_label: str,
   slot: str | None = None,
   strategy_registry: Mapping[str, type] | None = None,
+  base_dir: Path | None = None,
 ) -> list[str]:
   """Validate class resolution, slot-protocol conformance, constructor params, and nested specs."""
   if not spec or ("class" not in spec and "module" not in spec):
     return []
-
-  import inspect
 
   if slot is not None and registry_name == "strategy" and slot not in VALID_STRATEGY_SLOTS:
     return [f"{context_label}: unknown strategy slot '{slot}'. Valid slots: {sorted(VALID_STRATEGY_SLOTS)}"]
 
   errors: list[str] = []
   try:
-    target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot)
-  except (ImportError, ValueError, AttributeError) as exc:
+    target_cls = _resolve_class_spec(spec, registry, registry_name, slot=slot, base_dir=base_dir)
+  except (ImportError, ValueError, AttributeError, FileNotFoundError, OSError) as exc:
     return [f"{context_label}: {exc}"]
 
   if slot is not None and registry_name == "strategy":
@@ -393,11 +543,26 @@ def _validate_class_spec(
         f"required for slot '{slot}'"
       )
 
+  if registry_name == "pipeline step":
+    if not callable(getattr(target_cls, "run", None)):
+      errors.append(
+        f"{context_label}: pipeline step class '{target_cls.__name__}' must define a callable "
+        "'run(state, timer)' method"
+      )
+    anchor_attr = getattr(target_cls, "stage_anchor", None)
+    if anchor_attr is not None and not isinstance(anchor_attr, property):
+      if not isinstance(anchor_attr, str) or anchor_attr not in VALID_STAGE_ANCHORS:
+        errors.append(
+          f"{context_label}: pipeline step class '{target_cls.__name__}' has invalid stage_anchor "
+          f"{anchor_attr!r} (expected one of {sorted(VALID_STAGE_ANCHORS)})"
+        )
+
   raw_params = spec.get("params", {})
   if not isinstance(raw_params, Mapping):
     return [f"{context_label}: 'params' must be a mapping, got {type(raw_params).__name__}"]
 
   sig = inspect.signature(target_cls)
+  hints = _resolve_init_type_hints(target_cls)
   has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
   for k, v in raw_params.items():
     if not has_var_kw and k not in sig.parameters:
@@ -405,11 +570,12 @@ def _validate_class_spec(
         f"{context_label}: {registry_name} class '{target_cls.__name__}' does not accept parameter '{k}'. "
         f"Accepted parameters: {list(sig.parameters.keys())}"
       )
+    nested_slot = _infer_nested_strategy_slot(k, hints.get(k))
     if (
       strategy_registry is not None
       and isinstance(v, Mapping)
-      and "class" in v
-      and ("module" in v or v["class"] in strategy_registry)
+      and ("class" in v or "module" in v)
+      and (nested_slot is not None or "module" in v or v.get("class") in strategy_registry)
     ):
       errors.extend(
         _validate_class_spec(
@@ -417,7 +583,9 @@ def _validate_class_spec(
           strategy_registry,
           "strategy",
           context_label=f"{context_label}.params.{k}",
+          slot=nested_slot,
           strategy_registry=strategy_registry,
+          base_dir=base_dir,
         )
       )
   return errors
@@ -468,6 +636,7 @@ def load_algorithms_config(
   if "algorithm_configs" not in data:
     raise ValueError("algorithms.json missing 'algorithm_configs' section")
 
+  source_dir = resolved_path.parent.resolve()
   algorithms = {}
   for name, config_dict in data["algorithm_configs"].items():
     algorithms[name] = AlgorithmConfig(
@@ -479,9 +648,22 @@ def load_algorithms_config(
       description=config_dict.get("description", ""),
       params=config_dict.get("params", {}),
       strategies=config_dict.get("strategies", {}),
+      source_dir=source_dir,
     )
 
   return ga_params, algorithms
+
+
+def _parse_optional_int_field(data: Mapping[str, Any], field_name: str, file_label: str) -> int | None:
+  """Parse an optional integer-or-null field, rejecting booleans and non-integer values."""
+  raw_val = data.get(field_name)
+  if raw_val is None:
+    return None
+  if isinstance(raw_val, bool) or not isinstance(raw_val, int):
+    raise ValueError(
+      f"{file_label} '{field_name}' must be an integer or null, got {type(raw_val).__name__}: {raw_val!r}"
+    )
+  return int(raw_val)
 
 
 def load_benchmark_config(config_path: str | Path) -> BenchmarkConfig:
@@ -503,31 +685,44 @@ def load_benchmark_config(config_path: str | Path) -> BenchmarkConfig:
   with open(resolved_path) as f:
     data = json.load(f)
 
-  required_fields: list[str] = [
-    "repetitions",
-    "patience",
-  ]
-  for field in required_fields:
-    if field not in data:
-      raise ValueError(f"benchmark.json missing required field: {field}")
+  if not isinstance(data, dict):
+    raise ValueError("benchmark.json must contain a JSON object")
 
-  raw_threshold = data.get("cpu_size_threshold")
-  cpu_size_threshold = int(raw_threshold) if raw_threshold is not None else None
+  if "repetitions" not in data:
+    raise ValueError("benchmark.json missing required field: repetitions")
 
-  raw_max_gen = data.get("max_generations")
-  if isinstance(raw_max_gen, bool):
-    raise ValueError(f"benchmark.json 'max_generations' must be an integer or null, got bool: {raw_max_gen!r}")
-  max_generations = int(raw_max_gen) if raw_max_gen is not None else None
+  raw_reps = data["repetitions"]
+  if isinstance(raw_reps, bool) or not isinstance(raw_reps, int):
+    raise ValueError(f"benchmark.json 'repetitions' must be an integer, got {type(raw_reps).__name__}: {raw_reps!r}")
 
-  line_width = data.get("display", {}).get("line_width", 80)
+  patience = _parse_optional_int_field(data, "patience", "benchmark.json")
+  max_generations = _parse_optional_int_field(data, "max_generations", "benchmark.json")
+  cpu_size_threshold = _parse_optional_int_field(data, "cpu_size_threshold", "benchmark.json")
+
+  raw_incremental = data.get("incremental_runs", False)
+  if not isinstance(raw_incremental, bool):
+    raise ValueError(
+      f"benchmark.json 'incremental_runs' must be a boolean, got {type(raw_incremental).__name__}: {raw_incremental!r}"
+    )
+
+  raw_display = data.get("display", {})
+  if raw_display is None:
+    raw_display = {}
+  if not isinstance(raw_display, dict):
+    raise ValueError(f"benchmark.json 'display' must be an object, got {type(raw_display).__name__}")
+  raw_line_width = raw_display.get("line_width", 80)
+  if isinstance(raw_line_width, bool) or not isinstance(raw_line_width, int):
+    raise ValueError(
+      f"benchmark.json 'display.line_width' must be an integer, got {type(raw_line_width).__name__}: {raw_line_width!r}"
+    )
 
   return BenchmarkConfig(
-    repetitions=data["repetitions"],
-    patience=data["patience"],
+    repetitions=int(raw_reps),
+    patience=patience,
     max_generations=max_generations,
     cpu_size_threshold=cpu_size_threshold,
-    incremental_runs=bool(data.get("incremental_runs", False)),
-    line_width=line_width,
+    incremental_runs=raw_incremental,
+    line_width=int(raw_line_width),
   )
 
 
@@ -537,6 +732,7 @@ def load_problems_config(config_path: str | Path) -> list[ProblemConfig]:
 
   The document is an object with a `$schema` reference and a `problems` array, so
   editors validate it against `configs/schemas/problems.schema.json` (`DP11-5`).
+  Each entry requires `name` and `size`; `optimal` is optional and defaults to `None`.
 
   Args:
       config_path: Path to either a configuration directory (containing ``problems.json``)
@@ -561,19 +757,30 @@ def load_problems_config(config_path: str | Path) -> list[ProblemConfig]:
     raise ValueError("problems.json must contain a JSON object with a 'problems' array")
 
   problems = []
-  required_fields: list[str] = ["name", "optimal", "size"]
+  required_fields: list[str] = ["name", "size"]
 
   for idx, problem_dict in enumerate(entries):
+    if not isinstance(problem_dict, dict):
+      raise ValueError(f"Problem at index {idx} must be a JSON object")
     for field in required_fields:
       if field not in problem_dict:
         raise ValueError(f"Problem at index {idx} missing required field: {field}")
 
-    raw_optimal = problem_dict["optimal"]
+    raw_size = problem_dict["size"]
+    if isinstance(raw_size, bool) or not isinstance(raw_size, int):
+      raise ValueError(f"Problem at index {idx} 'size' must be an integer, got {type(raw_size).__name__}: {raw_size!r}")
+
+    raw_optimal = problem_dict.get("optimal")
+    if raw_optimal is not None and (isinstance(raw_optimal, bool) or not isinstance(raw_optimal, (int, float))):
+      raise ValueError(
+        f"Problem at index {idx} 'optimal' must be a number or null, got {type(raw_optimal).__name__}: {raw_optimal!r}"
+      )
+
     problems.append(
       ProblemConfig(
         name=problem_dict["name"],
         optimal=float(raw_optimal) if raw_optimal is not None else None,
-        size=int(problem_dict["size"]),
+        size=int(raw_size),
       )
     )
 
@@ -691,13 +898,26 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   if not (0.0 <= ga_params.mutation_rate <= 1.0):
     warnings.append(f"Invalid mutation_rate: {ga_params.mutation_rate} (must be in [0, 1])")
 
-  from typing import get_args
-
   from protocols.types import LocalSearchStage as _LocalSearchStage
 
   valid_ls_stages: frozenset[str] = frozenset(get_args(getattr(_LocalSearchStage, "__value__", _LocalSearchStage)))
 
   for algo_name, algo_cfg in algorithms.items():
+    is_monolithic = bool(algo_cfg.class_module and algo_cfg.class_name)
+    if bool(algo_cfg.class_module) != bool(algo_cfg.class_name):
+      warnings.append(f"Algorithm '{algo_name}': 'class_module' and 'class_name' must be supplied together")
+    if not is_monolithic and algo_cfg.metaheuristic != "GeneticAlgorithm":
+      warnings.append(
+        f"Algorithm '{algo_name}': metaheuristic '{algo_cfg.metaheuristic}' requires 'class_module' and 'class_name'"
+      )
+    if not is_monolithic:
+      extra_params = sorted(set(algo_cfg.params.keys()) - MODULAR_ALGO_PARAMS)
+      if extra_params:
+        warnings.append(
+          f"Algorithm '{algo_name}': unsupported param(s) for modular GeneticAlgorithm: {extra_params}. "
+          f"Accepted: {sorted(MODULAR_ALGO_PARAMS)}"
+        )
+
     if "population_size" in algo_cfg.params:
       algo_pop = algo_cfg.params["population_size"]
       if isinstance(algo_pop, bool) or not isinstance(algo_pop, int) or algo_pop <= 0:
@@ -718,12 +938,16 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
 
     sel_params = algo_cfg.strategies.get("selection", {}).get("params", {})
     tournament_k = sel_params.get("k")
-    if tournament_k is not None and tournament_k <= 0:
+    if tournament_k is not None and (
+      isinstance(tournament_k, bool) or not isinstance(tournament_k, int) or tournament_k <= 0
+    ):
       warnings.append(f"Invalid k in {algo_name}.selection: {tournament_k} (must be > 0)")
     ls_params = algo_cfg.strategies.get("local_search", {}).get("params", {})
     max_iterations = ls_params.get("max_iterations")
-    if max_iterations is not None and max_iterations <= 0:
-      warnings.append(f"Invalid max_iterations in {algo_name}.local_search: {max_iterations} (must be > 0)")
+    if max_iterations is not None and (
+      isinstance(max_iterations, bool) or not isinstance(max_iterations, int) or max_iterations < 0
+    ):
+      warnings.append(f"Invalid max_iterations in {algo_name}.local_search: {max_iterations} (must be >= 0)")
 
   if benchmark.repetitions <= 0:
     warnings.append(f"Invalid repetitions: {benchmark.repetitions} (must be > 0)")
@@ -756,7 +980,7 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
   for name, algo in algorithms.items():
     try:
       algo.get_class()
-    except (ModuleNotFoundError, AttributeError) as e:
+    except (ModuleNotFoundError, AttributeError, FileNotFoundError, ImportError, OSError) as e:
       warnings.append(f"Algorithm '{name}' class not found: {e}")
       continue
 
@@ -778,6 +1002,7 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
             context_label=f"Algorithm '{name}' slot '{slot}'",
             slot=slot,
             strategy_registry=STRATEGY_REGISTRY,
+            base_dir=algo.source_dir,
           )
         )
 
@@ -797,6 +1022,7 @@ def validate_configs(configs: dict[str, Any]) -> list[str]:
                 "pipeline step",
                 context_label=f"Algorithm '{name}' pipeline[{idx}]",
                 strategy_registry=STRATEGY_REGISTRY,
+                base_dir=algo.source_dir,
               )
             )
 
