@@ -56,7 +56,7 @@ Após a instalação, a reprodução de um experimento não exige a criação pr
   \item
         obter os arquivos \texttt{.tsp} da TSPLIB95 e posicioná-los em um diretório local (como \path{datasets/tsp/}) --- o \emph{framework} lê o formato TSPLIB diretamente via \texttt{--tsp-dir} ou \texttt{--tsp-files}, validando o tipo de distância na entrada e mantendo a pré-ingestão em DuckDB (\texttt{tsp-ingest}) como etapa opcional;
   \item
-        escolher o conjunto de instâncias, as variantes e o número de repetições, a partir dos exemplos genéricos em \path{configs/} ou da configuração dedicada do Capítulo~4 em \path{benchmark_scripts/configs/chapter4/};
+        escolher o conjunto de instâncias, as variantes e o número de repetições, a partir dos exemplos genéricos em \path{configs/} ou da configuração dedicada do Capítulo~4 em \path{benchmark_scripts/experiments-and-examples/chapter4/configs/};
   \item
         executar o orquestrador, que realiza por padrão apenas a coleta de dados e grava um \emph{checkpoint} JSON atômico por par algoritmo--instância após cada repetição, retomando do último ponto consistente em caso de interrupção;
   \item
@@ -67,7 +67,7 @@ Após a instalação, a reprodução de um experimento não exige a criação pr
 
 As sementes são determinísticas: cada repetição usa a semente base somada ao índice da repetição, de modo que a repetição \(r\) de um par pode ser reproduzida isoladamente.
 O pacote instalado registra cinco comandos de linha de comando em \path{pyproject.toml}: \texttt{tsp-benchmark} (coleta configurável a partir de arquivos \texttt{.tsp} ou banco opcional, aceitando arquivos individuais via \texttt{--algorithms-config} ou um diretório via \texttt{--config-dir}, com geração opcional de relatórios via \texttt{--reports}), \texttt{tsp-report} (regeneração autônoma e seletiva de tabelas, macros, diagramas e gráficos a partir de \emph{checkpoints} JSON com estilo externo via \texttt{--report-style}), \texttt{tsp-ingest} (validação e ingestão opcional de diretórios TSPLIB em DuckDB), \texttt{tsp-import-checkpoints} (consolidação idempotente em \path{results.duckdb}) e \texttt{tsp-validate-db} (auditoria de consistência entre o banco e os \emph{checkpoints}).
-Para reproduzir integralmente a coorte do \capref{cap4-resultados}, o diretório \path{benchmark_scripts/} isola fora de \path{src/} o ponto de entrada \path{run_chapter4_benchmark.py} e as configurações em \path{benchmark_scripts/configs/chapter4/} (incluindo \path{report_style.json} com rótulos em português e separador decimal em vírgula).
+Para reproduzir integralmente a coorte do \capref{cap4-resultados}, o diretório \path{benchmark_scripts/experiments-and-examples/chapter4/} isola fora de \path{src/} o ponto de entrada \path{run_chapter4_benchmark.py} e as configurações em \path{configs/} (incluindo \path{report_style.json} com rótulos em português e separador decimal em vírgula).
 Exemplos executáveis de composição de estratégias (inclusive externas ao pacote \path{src/}), uso em Python e linha de comando constam em \path{README.md} e em \path{documentation/guide-getting-started.md}; o roteiro isolado de reprodução do Capítulo~4 consta em \path{documentation/guide-thesis-reproduction.md}.
 Como os tempos absolutos dependem do ambiente de execução, as versões de sistema operacional, biblioteca de GPU, compilador e placa utilizadas na coleta estão documentadas na \secref{sec-31-ambiente-framework}.
 

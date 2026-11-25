@@ -188,7 +188,7 @@ Este é o coração metodológico, e deve usar:
   + `src/protocols`: Definição das interfaces e do padrão `xp` para abstração de backend (NumPy/CuPy), permitindo a execução agnóstica de hardware.
   + `configs`: Arquivos JSON (`algorithms.json`, `benchmark.json`, `problems.json`) que definem a matriz experimental, desacoplando a configuração da lógica.
   + `src/benchmarking`: Lógica desacoplada para orquestração (`runner/orchestration.py`), execução (`runner/algorithm_runner.py`) e coleta de dados (`runner/checkpoint_io.py`).
-  + `benchmark_scripts`: Pontos de entrada experimentais (`run_selected_problems.py`, `run_chapter4_benchmark.py`).
+  + `benchmark_scripts/experiments-and-examples/chapter4/`: Pontos de entrada experimentais (`run_selected_problems.py`, `run_chapter4_benchmark.py`).
 
 >[!caution]
 > deve ser descritivo. Adicionar códigos, a não ser que pseudocódigos em casos pontuai, é expressamente proibido. ccaso seja necessário adicionar códigos, devem estar no apêndice.
@@ -325,7 +325,7 @@ A escolha dos parâmetros foi guiada por recomendações clássicas (e.g., @gold
 
 ### 3.6 Procedimento experimental
 
-Descreve o fluxo de trabalho do framework `src/benchmarking/`, orquestrado pelo script `benchmark_scripts/run_chapter4_benchmark.py`:
+Descreve o fluxo de trabalho do framework `src/benchmarking/`, orquestrado pelo script `benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py`:
 
 1. **Configuração**: Carrega as configurações dos arquivos `benchmark.json`, `algorithms.json` e `problems.json`, definindo a matriz de experimentos.
 2. **Execução**: Para cada problema e cada algoritmo, o `AlgorithmRunner` executa `repetitions` execuções independentes, conforme definido em `benchmark.json` ($n_{reps}$ repetições nas execuções principais desta monografia). A variante CPU é executada apenas para instâncias com $n < 100$ por questões de viabilidade temporal.

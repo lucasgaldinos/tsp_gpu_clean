@@ -151,7 +151,7 @@ Para confirmar estatisticamente essas duas conclusões, aplicaram-se o Eixo~1 (\
   \centering
   \caption{Diagrama de diferença crítica de Demšar (pós-teste de Nemenyi, \(CD = 1{,}211\), \(\alpha = 0{,}05\)) para o \textbf{tempo de execução} nas \totalinstancias\ instâncias: ordenação idêntica em todas elas (\(\chi_F^2 = 45{,}00\), \(p < 0{,}001\))}\label{fig:cd-diagram-time}
   \begin{adjustbox}{max width=\linewidth}
-    \input{../../../results_v4/tables/chapter4_validation_cd_diagram_time.tikz}
+    \input{../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation_cd_diagram_time.tikz}
   \end{adjustbox}
 \end{figure}
 
@@ -159,7 +159,7 @@ Para confirmar estatisticamente essas duas conclusões, aplicaram-se o Eixo~1 (\
   \centering
   \caption{Diagrama de diferença crítica de Demšar (pós-teste de Nemenyi, \(CD = 1{,}211\), \(\alpha = 0{,}05\)) para a \textbf{qualidade da solução (\emph{gap} percentual)}: nenhum par apresenta diferença estatisticamente significativa (\(\chi_F^2 = 2{,}69\), \(F_F(3, 42) = 0{,}8897\), \(p = 0{,}4543\))}\label{fig:cd-diagram-gap}
   \begin{adjustbox}{max width=\linewidth}
-    \input{../../../results_v4/tables/chapter4_validation_cd_diagram_gap.tikz}
+    \input{../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation_cd_diagram_gap.tikz}
   \end{adjustbox}
 \end{figure}
 
@@ -170,7 +170,7 @@ O gráfico confirma visualmente os dois resultados principais: uma separação c
 \begin{figure}[htbp]
   \centering
   \caption{Evolução do tempo total de execução até a parada (escala logarítmica, painel superior) e do \emph{gap} percentual em relação ao ótimo da TSPLIB (painel inferior) conforme o número de cidades \(n\), exibindo a mediana e o intervalo dos \(50\%\) centrais (\(Q_{25}\text{--}Q_{75}\)) nas \totalrepeticoes\ repetições}\label{fig:scaling-time-gap}
-  \includegraphics[width=\linewidth]{../../../results_v4/figures/scaling_time_gap.pdf}
+  \includegraphics[width=\linewidth]{../../../benchmark_scripts/experiments-and-examples/chapter4/results/figures/scaling_time_gap.pdf}
 \end{figure}
 
 Dois comportamentos pontuais na \figref{fig:scaling-time-gap} decorrem diretamente do critério de parada (\(\varepsilon_{\text{alvo}} = 1\%\)) e da dificuldade própria de cada instância:
