@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../configs/schemas/report_style.schema.json",
+  "$schema": "../../../../configs/schemas/report_style.schema.json",
   "display_names": {
     "CPU": "CPU",
     "HybridNaive": "Híbrida Ingênua",

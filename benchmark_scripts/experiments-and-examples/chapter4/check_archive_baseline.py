@@ -20,7 +20,7 @@ from loaders.tsplib_loader import TsplibLoader
 from protocols.backend import cupy_backend, gpu_available
 from protocols.problem_context import ProblemContext
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PROBLEM_PATH = PROJECT_ROOT / "tests/fixtures/tsp/burma14.tsp"
 MAX_GENERATIONS = 10
 PATIENCE = 5

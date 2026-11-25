@@ -12,7 +12,7 @@ Evaluates `CPU`, `HybridNaive`, `HybridOptimized`, and `FullGPUModular` across
 target TSPLIB benchmark instances (`att48`, `bayg29`, `bays29`).
 
 Usage:
-    python -m benchmark_scripts.compare_local_search_stages
+    uv run python benchmark_scripts/experiments-and-examples/chapter4/compare_local_search_stages.py
 """
 
 from __future__ import annotations
@@ -27,8 +27,9 @@ from benchmarking.runner.config_loader import (
 )
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
 
-PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-CONFIG_DIR: Path = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
+SCRIPT_DIR: Path = Path(__file__).resolve().parent
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
+CONFIG_DIR: Path = SCRIPT_DIR / "configs"
 
 # Experiment parameters
 TARGET_PROBLEMS: list[Path] = [

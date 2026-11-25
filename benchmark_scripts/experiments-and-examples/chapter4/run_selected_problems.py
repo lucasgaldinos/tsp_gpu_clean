@@ -7,7 +7,7 @@ Executes the modular benchmark pipeline across the 10 target TSPLIB instances
 spanning all major edge weight formats (`ATT`, `EXPLICIT`, `EUC_2D`, `GEO`).
 
 Usage:
-    python -m benchmark_scripts.run_selected_problems
+    uv run python benchmark_scripts/experiments-and-examples/chapter4/run_selected_problems.py
 """
 
 from __future__ import annotations
@@ -34,8 +34,9 @@ SELECTED_PROBLEMS: tuple[str, ...] = (
 )
 
 # Experiment parameters
-PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
-CONFIG_DIR: Path = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
+SCRIPT_DIR: Path = Path(__file__).resolve().parent
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
+CONFIG_DIR: Path = SCRIPT_DIR / "configs"
 DB_PATH: Path = PROJECT_ROOT / "datasets" / "tsp.duckdb"
 REPETITIONS: int = 5
 CPU_SIZE_THRESHOLD: int = 400

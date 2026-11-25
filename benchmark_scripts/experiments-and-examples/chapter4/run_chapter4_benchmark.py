@@ -35,9 +35,9 @@ without either flag executes the ``--no-incremental`` branch:
                                           or skips/reuses if ``existing_runs >= repetitions``.
 
 Usage:
-    python -m benchmark_scripts.run_chapter4_benchmark
-    python -m benchmark_scripts.run_chapter4_benchmark --no-incremental -r 30
-    python -m benchmark_scripts.run_chapter4_benchmark --dry-run
+    uv run python benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py
+    uv run python benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py --no-incremental -r 30
+    uv run python benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py --dry-run
 """
 
 from __future__ import annotations
@@ -70,12 +70,13 @@ if TYPE_CHECKING:
 # Experiment declaration (thesis-specific presets isolated from `src/`)
 # =============================================================================
 
-PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
-CONFIG_DIR: Path = PROJECT_ROOT / "benchmark_scripts" / "configs" / "chapter4"
+SCRIPT_DIR: Path = Path(__file__).resolve().parent
+PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
+CONFIG_DIR: Path = SCRIPT_DIR / "configs"
 REPORT_STYLE_PATH: Path = CONFIG_DIR / "report_style.json"
 DB_PATH: Path = PROJECT_ROOT / "datasets" / "tsp.duckdb"
 FALLBACK_TSP_DIR: Path = PROJECT_ROOT / "datasets" / "tsp"
-OUTPUT_DIR: Path = PROJECT_ROOT / "results_v4"
+OUTPUT_DIR: Path = SCRIPT_DIR / "results"
 BENCHMARK_NAME: str = "chapter4_validation"
 BASELINE_ALGORITHM: str = "CPU"
 
@@ -214,7 +215,7 @@ def validate_comparison_contract(
   algorithms: Mapping[str, AlgorithmConfig],
   ga_params: GAParams,
 ) -> list[str]:
-  """Check that `benchmark_scripts/configs/chapter4/` still encodes the iso-algorithmic comparison."""
+  """Check that `experiments-and-examples/chapter4/configs/` still encodes the iso-algorithmic comparison."""
   errors: list[str] = []
 
   for slot, variant in COMPARISON_SLOTS.items():

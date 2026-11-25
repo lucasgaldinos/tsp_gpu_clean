@@ -135,13 +135,10 @@ def main() -> None:
     n_val = int(r["n"])
     legacy_ms = LEGACY_GPU_BASELINE_MS.get(n_val, float("nan"))
     legacy_str = f"{legacy_ms:15.3f}" if not np.isnan(legacy_ms) else f"{'N/A':>15}"
-    print(
-      f"{n_val:6d} | {r['cpu_ms']:10.3f} | {legacy_str} | {r['gpu_ms']:18.3f} | {r['speedup']:14.2f}x"
-    )
+    print(f"{n_val:6d} | {r['cpu_ms']:10.3f} | {legacy_str} | {r['gpu_ms']:18.3f} | {r['speedup']:14.2f}x")
   print("-" * 82)
   print(f"DoD Condition beta <= 1.2: {'SATISFIED' if beta_gpu <= 1.2 else 'FAILED'}")
   print(f"Legacy GPU Exponent: beta_legacy ≈ 1.88 (quadratic) -> Optimized: beta_new = {beta_gpu:.4f}")
-
 
 
 if __name__ == "__main__":
