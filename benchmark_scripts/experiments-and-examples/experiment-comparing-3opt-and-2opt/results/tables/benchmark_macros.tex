@@ -1,0 +1,216 @@
+% Auto-generated quantitative benchmark macros (`DP14-5`)
+% Strictly numeric values formatted with configurable decimal separator.
+\newcommand{\benchmarkNumProblems}{9}
+\newcommand{\benchmarkNumAlgorithms}{6}
+\newcommand{\benchmarkBaselineAlgorithm}{TwoOpt\_Batch\_GPU}
+\newcommand{\benchmarkTotalRuns}{540}
+\newcommand{\benchmarkRepetitions}{10}
+
+% Aggregated per-algorithm statistics across evaluated instances
+\newcommand{\meanGapTwoOptBatchGPU}{2.16}
+\newcommand{\stdGapTwoOptBatchGPU}{1.55}
+\newcommand{\meanTimeTwoOptBatchGPU}{1.91}
+\newcommand{\stdTimeTwoOptBatchGPU}{1.82}
+\newcommand{\speedupGeomTwoOptBatchGPU}{1.00}
+\newcommand{\meanGapTwoOptMultiMoveGPU}{1.03}
+\newcommand{\stdGapTwoOptMultiMoveGPU}{0.30}
+\newcommand{\meanTimeTwoOptMultiMoveGPU}{0.74}
+\newcommand{\stdTimeTwoOptMultiMoveGPU}{0.94}
+\newcommand{\speedupGeomTwoOptMultiMoveGPU}{3.54}
+\newcommand{\speedupSampleSizeTwoOptMultiMoveGPU}{9}
+\newcommand{\meanGapThreeOptBatchGPU}{1.82}
+\newcommand{\stdGapThreeOptBatchGPU}{1.11}
+\newcommand{\meanTimeThreeOptBatchGPU}{26.14}
+\newcommand{\stdTimeThreeOptBatchGPU}{25.83}
+\newcommand{\speedupGeomThreeOptBatchGPU}{0.08}
+\newcommand{\speedupSampleSizeThreeOptBatchGPU}{9}
+\newcommand{\meanGapThreeOptMultiMoveGPU}{0.77}
+\newcommand{\stdGapThreeOptMultiMoveGPU}{0.23}
+\newcommand{\meanTimeThreeOptMultiMoveGPU}{7.35}
+\newcommand{\stdTimeThreeOptMultiMoveGPU}{11.98}
+\newcommand{\speedupGeomThreeOptMultiMoveGPU}{0.34}
+\newcommand{\speedupSampleSizeThreeOptMultiMoveGPU}{9}
+\newcommand{\meanGapThreeOptBatchGPUlesscandidates}{1.63}
+\newcommand{\stdGapThreeOptBatchGPUlesscandidates}{0.91}
+\newcommand{\meanTimeThreeOptBatchGPUlesscandidates}{5.87}
+\newcommand{\stdTimeThreeOptBatchGPUlesscandidates}{6.45}
+\newcommand{\speedupGeomThreeOptBatchGPUlesscandidates}{0.40}
+\newcommand{\speedupSampleSizeThreeOptBatchGPUlesscandidates}{9}
+\newcommand{\meanGapThreeOptMultiMoveGPUlesscandidates}{0.88}
+\newcommand{\stdGapThreeOptMultiMoveGPUlesscandidates}{0.17}
+\newcommand{\meanTimeThreeOptMultiMoveGPUlesscandidates}{1.63}
+\newcommand{\stdTimeThreeOptMultiMoveGPUlesscandidates}{2.88}
+\newcommand{\speedupGeomThreeOptMultiMoveGPUlesscandidates}{1.80}
+\newcommand{\speedupSampleSizeThreeOptMultiMoveGPUlesscandidates}{9}
+
+% Pairwise geometric mean speedups (Fleming & Wallace, 1986)
+\newcommand{\speedupTwoOptBatchGPUVsTwoOptMultiMoveGPU}{0.28}
+\newcommand{\speedupTwoOptBatchGPUVsThreeOptBatchGPU}{13.18}
+\newcommand{\speedupTwoOptBatchGPUVsThreeOptMultiMoveGPU}{2.97}
+\newcommand{\speedupTwoOptBatchGPUVsThreeOptBatchGPUlesscandidates}{2.48}
+\newcommand{\speedupTwoOptBatchGPUVsThreeOptMultiMoveGPUlesscandidates}{0.55}
+\newcommand{\speedupTwoOptMultiMoveGPUVsTwoOptBatchGPU}{3.54}
+\newcommand{\speedupTwoOptMultiMoveGPUVsThreeOptBatchGPU}{46.60}
+\newcommand{\speedupTwoOptMultiMoveGPUVsThreeOptMultiMoveGPU}{10.49}
+\newcommand{\speedupTwoOptMultiMoveGPUVsThreeOptBatchGPUlesscandidates}{8.76}
+\newcommand{\speedupTwoOptMultiMoveGPUVsThreeOptMultiMoveGPUlesscandidates}{1.96}
+\newcommand{\speedupThreeOptBatchGPUVsTwoOptBatchGPU}{0.08}
+\newcommand{\speedupThreeOptBatchGPUVsTwoOptMultiMoveGPU}{0.02}
+\newcommand{\speedupThreeOptBatchGPUVsThreeOptMultiMoveGPU}{0.23}
+\newcommand{\speedupThreeOptBatchGPUVsThreeOptBatchGPUlesscandidates}{0.19}
+\newcommand{\speedupThreeOptBatchGPUVsThreeOptMultiMoveGPUlesscandidates}{0.04}
+\newcommand{\speedupThreeOptMultiMoveGPUVsTwoOptBatchGPU}{0.34}
+\newcommand{\speedupThreeOptMultiMoveGPUVsTwoOptMultiMoveGPU}{0.10}
+\newcommand{\speedupThreeOptMultiMoveGPUVsThreeOptBatchGPU}{4.44}
+\newcommand{\speedupThreeOptMultiMoveGPUVsThreeOptBatchGPUlesscandidates}{0.84}
+\newcommand{\speedupThreeOptMultiMoveGPUVsThreeOptMultiMoveGPUlesscandidates}{0.19}
+\newcommand{\speedupThreeOptBatchGPUlesscandidatesVsTwoOptBatchGPU}{0.40}
+\newcommand{\speedupThreeOptBatchGPUlesscandidatesVsTwoOptMultiMoveGPU}{0.11}
+\newcommand{\speedupThreeOptBatchGPUlesscandidatesVsThreeOptBatchGPU}{5.32}
+\newcommand{\speedupThreeOptBatchGPUlesscandidatesVsThreeOptMultiMoveGPU}{1.20}
+\newcommand{\speedupThreeOptBatchGPUlesscandidatesVsThreeOptMultiMoveGPUlesscandidates}{0.22}
+\newcommand{\speedupThreeOptMultiMoveGPUlesscandidatesVsTwoOptBatchGPU}{1.80}
+\newcommand{\speedupThreeOptMultiMoveGPUlesscandidatesVsTwoOptMultiMoveGPU}{0.51}
+\newcommand{\speedupThreeOptMultiMoveGPUlesscandidatesVsThreeOptBatchGPU}{23.78}
+\newcommand{\speedupThreeOptMultiMoveGPUlesscandidatesVsThreeOptMultiMoveGPU}{5.35}
+\newcommand{\speedupThreeOptMultiMoveGPUlesscandidatesVsThreeOptBatchGPUlesscandidates}{4.47}
+
+% Omnibus Friedman / Iman-Davenport & Nemenyi statistics (Gap)
+\newcommand{\friedmanGapN}{9}
+\newcommand{\friedmanGapK}{6}
+\newcommand{\friedmanGapChiSq}{29.95}
+\newcommand{\friedmanGapChiSqExact}{29.9524}
+\newcommand{\friedmanGapChiSqP}{\ensuremath{1.51 \times 10^{-5}}}
+\newcommand{\friedmanGapF}{15.9241}
+\newcommand{\friedmanGapDfOne}{5}
+\newcommand{\friedmanGapDfTwo}{40}
+\newcommand{\friedmanGapP}{\ensuremath{1.27 \times 10^{-8}}}
+\newcommand{\nemenyiGapCD}{2.513}
+\newcommand{\meanRankGapTwoOptBatchGPU}{5.44}
+\newcommand{\meanRankGapTwoOptMultiMoveGPU}{3.33}
+\newcommand{\meanRankGapThreeOptBatchGPU}{4.33}
+\newcommand{\meanRankGapThreeOptMultiMoveGPU}{1.00}
+\newcommand{\meanRankGapThreeOptBatchGPUlesscandidates}{4.11}
+\newcommand{\meanRankGapThreeOptMultiMoveGPUlesscandidates}{2.78}
+\newcommand{\nemenyiGapPTwoOptBatchGPUVsTwoOptMultiMoveGPU}{0.1583}
+\newcommand{\nemenyiGapPTwoOptMultiMoveGPUVsTwoOptBatchGPU}{0.1583}
+\newcommand{\nemenyiGapPTwoOptBatchGPUVsThreeOptBatchGPU}{0.8068}
+\newcommand{\nemenyiGapPThreeOptBatchGPUVsTwoOptBatchGPU}{0.8068}
+\newcommand{\nemenyiGapPTwoOptBatchGPUVsThreeOptMultiMoveGPU}{\ensuremath{6.93 \times 10^{-6}}}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUVsTwoOptBatchGPU}{\ensuremath{6.93 \times 10^{-6}}}
+\newcommand{\nemenyiGapPTwoOptBatchGPUVsThreeOptBatchGPUlesscandidates}{0.6566}
+\newcommand{\nemenyiGapPThreeOptBatchGPUlesscandidatesVsTwoOptBatchGPU}{0.6566}
+\newcommand{\nemenyiGapPTwoOptBatchGPUVsThreeOptMultiMoveGPUlesscandidates}{0.0300}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUlesscandidatesVsTwoOptBatchGPU}{0.0300}
+\newcommand{\nemenyiGapPTwoOptMultiMoveGPUVsThreeOptBatchGPU}{0.8674}
+\newcommand{\nemenyiGapPThreeOptBatchGPUVsTwoOptMultiMoveGPU}{0.8674}
+\newcommand{\nemenyiGapPTwoOptMultiMoveGPUVsThreeOptMultiMoveGPU}{0.0866}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUVsTwoOptMultiMoveGPU}{0.0866}
+\newcommand{\nemenyiGapPTwoOptMultiMoveGPUVsThreeOptBatchGPUlesscandidates}{0.9509}
+\newcommand{\nemenyiGapPThreeOptBatchGPUlesscandidatesVsTwoOptMultiMoveGPU}{0.9509}
+\newcommand{\nemenyiGapPTwoOptMultiMoveGPUVsThreeOptMultiMoveGPUlesscandidates}{0.9888}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUlesscandidatesVsTwoOptMultiMoveGPU}{0.9888}
+\newcommand{\nemenyiGapPThreeOptBatchGPUVsThreeOptMultiMoveGPU}{0.0022}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUVsThreeOptBatchGPU}{0.0022}
+\newcommand{\nemenyiGapPThreeOptBatchGPUVsThreeOptBatchGPUlesscandidates}{0.9999}
+\newcommand{\nemenyiGapPThreeOptBatchGPUlesscandidatesVsThreeOptBatchGPU}{0.9999}
+\newcommand{\nemenyiGapPThreeOptBatchGPUVsThreeOptMultiMoveGPUlesscandidates}{0.4894}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUlesscandidatesVsThreeOptBatchGPU}{0.4894}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUVsThreeOptBatchGPUlesscandidates}{0.0056}
+\newcommand{\nemenyiGapPThreeOptBatchGPUlesscandidatesVsThreeOptMultiMoveGPU}{0.0056}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUVsThreeOptMultiMoveGPUlesscandidates}{0.3331}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUlesscandidatesVsThreeOptMultiMoveGPU}{0.3331}
+\newcommand{\nemenyiGapPThreeOptBatchGPUlesscandidatesVsThreeOptMultiMoveGPUlesscandidates}{0.6566}
+\newcommand{\nemenyiGapPThreeOptMultiMoveGPUlesscandidatesVsThreeOptBatchGPUlesscandidates}{0.6566}
+
+% Omnibus Friedman / Iman-Davenport & Nemenyi statistics (Time)
+\newcommand{\friedmanTimeN}{9}
+\newcommand{\friedmanTimeK}{6}
+\newcommand{\friedmanTimeChiSq}{43.22}
+\newcommand{\friedmanTimeChiSqExact}{43.2222}
+\newcommand{\friedmanTimeChiSqP}{\ensuremath{3.33 \times 10^{-8}}}
+\newcommand{\friedmanTimeF}{194.5000}
+\newcommand{\friedmanTimeDfOne}{5}
+\newcommand{\friedmanTimeDfTwo}{40}
+\newcommand{\friedmanTimeP}{\ensuremath{5.97 \times 10^{-27}}}
+\newcommand{\nemenyiTimeCD}{2.513}
+\newcommand{\meanRankTimeTwoOptBatchGPU}{2.89}
+\newcommand{\meanRankTimeTwoOptMultiMoveGPU}{1.00}
+\newcommand{\meanRankTimeThreeOptBatchGPU}{6.00}
+\newcommand{\meanRankTimeThreeOptMultiMoveGPU}{4.44}
+\newcommand{\meanRankTimeThreeOptBatchGPUlesscandidates}{4.56}
+\newcommand{\meanRankTimeThreeOptMultiMoveGPUlesscandidates}{2.11}
+\newcommand{\nemenyiTimePTwoOptBatchGPUVsTwoOptMultiMoveGPU}{0.2657}
+\newcommand{\nemenyiTimePTwoOptMultiMoveGPUVsTwoOptBatchGPU}{0.2657}
+\newcommand{\nemenyiTimePTwoOptBatchGPUVsThreeOptBatchGPU}{0.0056}
+\newcommand{\nemenyiTimePThreeOptBatchGPUVsTwoOptBatchGPU}{0.0056}
+\newcommand{\nemenyiTimePTwoOptBatchGPUVsThreeOptMultiMoveGPU}{0.4894}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUVsTwoOptBatchGPU}{0.4894}
+\newcommand{\nemenyiTimePTwoOptBatchGPUVsThreeOptBatchGPUlesscandidates}{0.4084}
+\newcommand{\nemenyiTimePThreeOptBatchGPUlesscandidatesVsTwoOptBatchGPU}{0.4084}
+\newcommand{\nemenyiTimePTwoOptBatchGPUVsThreeOptMultiMoveGPUlesscandidates}{0.9509}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUlesscandidatesVsTwoOptBatchGPU}{0.9509}
+\newcommand{\nemenyiTimePTwoOptMultiMoveGPUVsThreeOptBatchGPU}{\ensuremath{2.14 \times 10^{-7}}}
+\newcommand{\nemenyiTimePThreeOptBatchGPUVsTwoOptMultiMoveGPU}{\ensuremath{2.14 \times 10^{-7}}}
+\newcommand{\nemenyiTimePTwoOptMultiMoveGPUVsThreeOptMultiMoveGPU}{0.0013}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUVsTwoOptMultiMoveGPU}{0.0013}
+\newcommand{\nemenyiTimePTwoOptMultiMoveGPUVsThreeOptBatchGPUlesscandidates}{\ensuremath{7.86 \times 10^{-4}}}
+\newcommand{\nemenyiTimePThreeOptBatchGPUlesscandidatesVsTwoOptMultiMoveGPU}{\ensuremath{7.86 \times 10^{-4}}}
+\newcommand{\nemenyiTimePTwoOptMultiMoveGPUVsThreeOptMultiMoveGPUlesscandidates}{0.8068}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUlesscandidatesVsTwoOptMultiMoveGPU}{0.8068}
+\newcommand{\nemenyiTimePThreeOptBatchGPUVsThreeOptMultiMoveGPU}{0.4894}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUVsThreeOptBatchGPU}{0.4894}
+\newcommand{\nemenyiTimePThreeOptBatchGPUVsThreeOptBatchGPUlesscandidates}{0.5733}
+\newcommand{\nemenyiTimePThreeOptBatchGPUlesscandidatesVsThreeOptBatchGPU}{0.5733}
+\newcommand{\nemenyiTimePThreeOptBatchGPUVsThreeOptMultiMoveGPUlesscandidates}{\ensuremath{1.51 \times 10^{-4}}}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUlesscandidatesVsThreeOptBatchGPU}{\ensuremath{1.51 \times 10^{-4}}}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUVsThreeOptBatchGPUlesscandidates}{1.00}
+\newcommand{\nemenyiTimePThreeOptBatchGPUlesscandidatesVsThreeOptMultiMoveGPU}{1.00}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUVsThreeOptMultiMoveGPUlesscandidates}{0.0866}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUlesscandidatesVsThreeOptMultiMoveGPU}{0.0866}
+\newcommand{\nemenyiTimePThreeOptBatchGPUlesscandidatesVsThreeOptMultiMoveGPUlesscandidates}{0.0621}
+\newcommand{\nemenyiTimePThreeOptMultiMoveGPUlesscandidatesVsThreeOptBatchGPUlesscandidates}{0.0621}
+
+% Paired Wilcoxon + Holm-Bonferroni vs baseline (Gap)
+\newcommand{\wilcoxonGapWTwoOptMultiMoveGPU}{0.0}
+\newcommand{\wilcoxonGapPTwoOptMultiMoveGPU}{0.0039}
+\newcommand{\wilcoxonGapPHolmTwoOptMultiMoveGPU}{0.0195}
+\newcommand{\wilcoxonGapEffectTwoOptMultiMoveGPU}{1.00}
+\newcommand{\wilcoxonGapWThreeOptBatchGPU}{9.0}
+\newcommand{\wilcoxonGapPThreeOptBatchGPU}{0.1289}
+\newcommand{\wilcoxonGapPHolmThreeOptBatchGPU}{0.1289}
+\newcommand{\wilcoxonGapEffectThreeOptBatchGPU}{0.60}
+\newcommand{\wilcoxonGapWThreeOptMultiMoveGPU}{0.0}
+\newcommand{\wilcoxonGapPThreeOptMultiMoveGPU}{0.0039}
+\newcommand{\wilcoxonGapPHolmThreeOptMultiMoveGPU}{0.0195}
+\newcommand{\wilcoxonGapEffectThreeOptMultiMoveGPU}{1.00}
+\newcommand{\wilcoxonGapWThreeOptBatchGPUlesscandidates}{5.0}
+\newcommand{\wilcoxonGapPThreeOptBatchGPUlesscandidates}{0.0391}
+\newcommand{\wilcoxonGapPHolmThreeOptBatchGPUlesscandidates}{0.0781}
+\newcommand{\wilcoxonGapEffectThreeOptBatchGPUlesscandidates}{0.78}
+\newcommand{\wilcoxonGapWThreeOptMultiMoveGPUlesscandidates}{1.0}
+\newcommand{\wilcoxonGapPThreeOptMultiMoveGPUlesscandidates}{0.0078}
+\newcommand{\wilcoxonGapPHolmThreeOptMultiMoveGPUlesscandidates}{0.0234}
+\newcommand{\wilcoxonGapEffectThreeOptMultiMoveGPUlesscandidates}{0.96}
+
+% Paired Wilcoxon + Holm-Bonferroni vs baseline (Time)
+\newcommand{\wilcoxonTimeWTwoOptMultiMoveGPU}{0.0}
+\newcommand{\wilcoxonTimePTwoOptMultiMoveGPU}{0.0039}
+\newcommand{\wilcoxonTimePHolmTwoOptMultiMoveGPU}{0.0195}
+\newcommand{\wilcoxonTimeEffectTwoOptMultiMoveGPU}{1.00}
+\newcommand{\wilcoxonTimeWThreeOptBatchGPU}{0.0}
+\newcommand{\wilcoxonTimePThreeOptBatchGPU}{0.0039}
+\newcommand{\wilcoxonTimePHolmThreeOptBatchGPU}{0.0195}
+\newcommand{\wilcoxonTimeEffectThreeOptBatchGPU}{-1.00}
+\newcommand{\wilcoxonTimeWThreeOptMultiMoveGPU}{0.0}
+\newcommand{\wilcoxonTimePThreeOptMultiMoveGPU}{0.0039}
+\newcommand{\wilcoxonTimePHolmThreeOptMultiMoveGPU}{0.0195}
+\newcommand{\wilcoxonTimeEffectThreeOptMultiMoveGPU}{-1.00}
+\newcommand{\wilcoxonTimeWThreeOptBatchGPUlesscandidates}{0.0}
+\newcommand{\wilcoxonTimePThreeOptBatchGPUlesscandidates}{0.0039}
+\newcommand{\wilcoxonTimePHolmThreeOptBatchGPUlesscandidates}{0.0195}
+\newcommand{\wilcoxonTimeEffectThreeOptBatchGPUlesscandidates}{-1.00}
+\newcommand{\wilcoxonTimeWThreeOptMultiMoveGPUlesscandidates}{9.0}
+\newcommand{\wilcoxonTimePThreeOptMultiMoveGPUlesscandidates}{0.1289}
+\newcommand{\wilcoxonTimePHolmThreeOptMultiMoveGPUlesscandidates}{0.1289}
+\newcommand{\wilcoxonTimeEffectThreeOptMultiMoveGPUlesscandidates}{0.60}

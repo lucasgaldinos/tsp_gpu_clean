@@ -1,0 +1,268 @@
+{
+  "$schema": "./algorithms.schema.json",
+  "default_params": {
+    "population_size": 128,
+    "mutation_rate": 0.03,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "TwoOpt_Batch_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU memetic GA with candidate-list single-steepest batched 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "TwoOpt_MultiMove_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU memetic GA with candidate-list disjoint multi-move 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOpt",
+          "params": {
+            "mode": "multi_move",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "ThreeOpt_Batch_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU memetic GA with candidate-list single-steepest batched 3-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "module": "../gpu_three_opt.py",
+          "class": "LocalSearchGPUThreeOpt",
+          "params": {
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "ThreeOpt_MultiMove_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU memetic GA with candidate-list disjoint multi-move 3-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "module": "../gpu_three_opt.py",
+          "class": "LocalSearchGPUThreeOpt",
+          "params": {
+            "mode": "multi_move",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "ThreeOpt_Batch_GPU_less_candidates": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU memetic GA with candidate-list single-steepest batched 3-opt (candidate_k=20, inner_candidate_k=6)",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "module": "../gpu_three_opt.py",
+          "class": "LocalSearchGPUThreeOpt",
+          "params": {
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "inner_candidate_k": 6
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "ThreeOpt_MultiMove_GPU_less_candidates": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Device-resident GPU memetic GA with candidate-list disjoint multi-move 3-opt (candidate_k=20, inner_candidate_k=6)",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUSwap"
+        },
+        "local_search": {
+          "module": "../gpu_three_opt.py",
+          "class": "LocalSearchGPUThreeOpt",
+          "params": {
+            "mode": "multi_move",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "inner_candidate_k": 6
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    }
+  }
+}

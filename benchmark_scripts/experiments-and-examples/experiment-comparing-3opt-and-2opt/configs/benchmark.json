@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../configs/schemas/benchmark.schema.json",
+  "repetitions": 10,
+  "patience": null,
+  "max_generations": null,
+  "cpu_size_threshold": null,
+  "incremental_runs": false,
+  "display": {
+    "line_width": 88
+  }
+}
