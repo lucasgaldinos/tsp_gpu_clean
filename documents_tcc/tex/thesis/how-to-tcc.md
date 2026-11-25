@@ -4,6 +4,24 @@ The tcc composition is giver by the following h2 headers, until the next h1 head
 
 ---
 
+## 0. Compilação do PDF
+
+O build é orquestrado pelo `latexmk` e configurado por [`.latexmkrc`](./.latexmkrc) (LuaLaTeX + Biber). Os comandos abaixo devem ser executados no diretório `documents_tcc/tex/thesis/`, porque o `latexmk` só lê o arquivo de configuração do diretório corrente:
+
+```bash
+cd documents_tcc/tex/thesis
+
+latexmk second_draft.tex        # gera second_draft.pdf (LuaLaTeX + biber + passes necessários)
+latexmk -pvc second_draft.tex   # recompila automaticamente a cada arquivo salvo
+latexmk -c second_draft.tex     # remove auxiliares, mantém second_draft.pdf
+latexmk -C second_draft.tex     # limpeza total, remove também second_draft.pdf
+latexmk -gg second_draft.tex    # equivale a `latexmk -C` seguido de `latexmk`
+```
+
+`latexmk -c` remove `aux`, `bcf`, `bbl`, `blg`, `fdb_latexmk`, `fls`, `log`, `lof`, `lot`, `toc`, `out` e `run.xml`, mas preserva `second_draft.pdf` e o `synctex.gz` (necessário para o salto PDF → fonte no editor). `latexmk -C` remove também esses dois.
+
+---
+
 ## 1. Front matter (pré-textuais)
 
 You already have most of this; main change is updating the **Resumo/Abstract** to the GA+2-opt/TSP scope.
