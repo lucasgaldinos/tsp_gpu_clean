@@ -23,6 +23,7 @@ from protocols.algorithm_strategies import (
 from .base import StrategyBase
 from .crossover import (
   CrossoverGPUOrder,
+  CrossoverGPUPartiallyMapped,
   CrossoverOrder,
   CrossoverPartiallyMapped,
 )
@@ -46,6 +47,7 @@ from .selection import (
 
 STRATEGY_REGISTRY: dict[str, type] = {
   "CrossoverGPUOrder": CrossoverGPUOrder,
+  "CrossoverGPUPartiallyMapped": CrossoverGPUPartiallyMapped,
   "CrossoverOrder": CrossoverOrder,
   "CrossoverPartiallyMapped": CrossoverPartiallyMapped,
   "EvaluationCPUCost": EvaluationCPUCost,
@@ -123,6 +125,7 @@ __all__: list[str] = [
   "PIPELINE_STEP_REGISTRY",
   "STRATEGY_REGISTRY",
   "CrossoverGPUOrder",
+  "CrossoverGPUPartiallyMapped",
   "CrossoverOrder",
   "CrossoverPartiallyMapped",
   "EvaluationCPUCost",
