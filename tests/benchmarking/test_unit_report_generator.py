@@ -15,24 +15,30 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from benchmarking.analysis.report_generator import (
+from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.latex_macros import generate_latex_macros
+from benchmarking.reporting.style import (
+  DEFAULT_SIZE_THRESHOLDS,
+  ReportStyle,
+  categorize_by_size,
+  load_report_style,
+  parse_report_artifacts,
+  size_category_labels,
+)
+from benchmarking.reporting.table_reports import (
   _PHASE_NAMES,
-  LARGE_SIZE_LABEL,
-  MEDIUM_SIZE_LABEL,
-  MEDIUM_SIZE_MAX,
-  SMALL_SIZE_LABEL,
-  SMALL_SIZE_MAX,
-  _categorize_by_size,
   _compute_table2_stats,
   _compute_table3_size_category_winners,
   _generate_table3_latex,
   _generate_table3_markdown,
   _has_phase_timings,
-  generate_latex_macros,
-  generate_result_tables,
+  generate_latex_tables,
+  generate_markdown_tables,
 )
-from benchmarking.analysis.stats_utils import resolve_baseline_algorithm
 from benchmarking.runner.config_loader import ProblemConfig
+
+SMALL_SIZE_LABEL, MEDIUM_SIZE_LABEL, LARGE_SIZE_LABEL = size_category_labels(DEFAULT_SIZE_THRESHOLDS)
 
 if TYPE_CHECKING:
   from pathlib import Path
@@ -485,29 +491,24 @@ def test_table3_partial_coverage_cannot_beat_full_coverage() -> None:
   assert winners_none[0]["best_time"] is None
 
   # Rendering checks: both Markdown and LaTeX must render '—'
-  md_lines = _generate_table3_markdown(all_results_partial, problem_configs, ["CPU", "FullGPU"])
+  default_style = ReportStyle()
+  md_lines = _generate_table3_markdown(all_results_partial, problem_configs, ["CPU", "FullGPU"], default_style)
   md_table = "\n".join(md_lines)
   assert "—" in md_table
   assert "None" not in md_table
   assert "inf" not in md_table
 
-  tex_lines = _generate_table3_latex(all_results_partial, problem_configs, ["CPU", "FullGPU"])
+  tex_lines = _generate_table3_latex(all_results_partial, problem_configs, ["CPU", "FullGPU"], default_style)
   tex_table = "\n".join(tex_lines)
   assert "—" in tex_table
   assert "None" not in tex_table
   assert "inf" not in tex_table
+  assert "\\label{tab:size_categories}" in tex_table
 
 
-def test_size_category_boundaries_match_table3_3_spec() -> None:
-  """WHAT: Boundary sizes n in {99, 100, 101, 399, 400, 401} map to Table 3.3 strata.
-
-  WHY: Task 13.16 (DP13-7 / BUG-65) — Canonical boundaries are n <= 100 (Small),
-  100 < n <= 400 (Medium), and n > 400 (Large), so kroA100 (n=100) stays Small
-  and lin318 (n=318) / rd400 (n=400) stay Medium.
-  EXPECTED: 99, 100 -> Small; 101, 399, 400 -> Medium; 401 -> Large.
-  """
-  assert SMALL_SIZE_MAX == 100
-  assert MEDIUM_SIZE_MAX == 400
+def test_size_category_boundaries_default_and_configurable() -> None:
+  """WHAT: Default (100, 400) and custom size_thresholds map instances accurately into strata."""
+  assert DEFAULT_SIZE_THRESHOLDS == (100, 400)
   assert SMALL_SIZE_LABEL == "Small (n≤100)"
   assert MEDIUM_SIZE_LABEL == "Medium (100<n≤400)"
   assert LARGE_SIZE_LABEL == "Large (n>400)"
@@ -516,10 +517,15 @@ def test_size_category_boundaries_match_table3_3_spec() -> None:
   problem_configs = [ProblemConfig(name=f"p_{n}", optimal=100.0, size=n) for n in boundary_sizes]
   problem_names = [cfg.name for cfg in problem_configs]
 
-  categories = _categorize_by_size(problem_names, problem_configs)
+  categories = categorize_by_size(problem_names, problem_configs)
   assert categories[SMALL_SIZE_LABEL] == ["p_99", "p_100"]
   assert categories[MEDIUM_SIZE_LABEL] == ["p_101", "p_399", "p_400"]
   assert categories[LARGE_SIZE_LABEL] == ["p_401"]
+
+  custom_categories = categorize_by_size(problem_names, problem_configs, size_thresholds=(50, 150))
+  assert custom_categories["Small (n≤50)"] == []
+  assert custom_categories["Medium (50<n≤150)"] == ["p_99", "p_100", "p_101"]
+  assert custom_categories["Large (n>150)"] == ["p_399", "p_400", "p_401"]
 
   all_results: dict[str, dict[str, dict[str, Any]]] = {
     name: {
@@ -551,8 +557,7 @@ def test_generate_result_tables_emits_both_gap_and_time_cd_diagrams(tmp_path: Pa
     for p in ("p1", "p2", "p3", "p4")
   }
   problem_configs = [
-    ProblemConfig(name=p, optimal=100.0, size=50 + i * 20)
-    for i, p in enumerate(("p1", "p2", "p3", "p4"))
+    ProblemConfig(name=p, optimal=100.0, size=50 + i * 20) for i, p in enumerate(("p1", "p2", "p3", "p4"))
   ]
 
   generate_result_tables(
@@ -614,11 +619,11 @@ def test_generate_result_tables_emits_gap_cd_with_incomplete_problem_and_no_mean
   assert "N = 2 instances" in gap_tikz.read_text(encoding="utf-8")
 
 
-def test_generate_latex_macros_exports_ptbr_quantitative_commands_and_edge_cases(tmp_path: Path) -> None:
-  """WHAT: generate_result_tables and generate_latex_macros emit strictly numeric pt-BR LaTeX macros.
+def test_generate_latex_macros_neutral_default_and_custom_separator(tmp_path: Path) -> None:
+  """WHAT: generate_result_tables and generate_latex_macros default to '.' and honor ReportStyle separators.
 
-  WHY: Task 14.7 (DP14-5) — Automate export of global means, SDs, geometric speedups, Friedman/Iman-Davenport,
-  Nemenyi CD, and Wilcoxon+Holm macros in pt-BR comma format (`{,}`) without prose or hardcoded variant names.
+  WHY: Neutral English '.' decimal default keeps src/ thesis-free while ReportStyle(decimal_separator="{,}")
+  supports localized LaTeX documents without hardcoding presets inside src/.
   """
   # 1. Multi-problem, 3-algorithm cohort with consistent speedup ordering (Gamma > Beta > Alpha)
   all_results: dict[str, dict[str, dict[str, Any]]] = {
@@ -676,39 +681,40 @@ def test_generate_latex_macros_exports_ptbr_quantitative_commands_and_edge_cases
   assert "\\newcommand{\\benchmarkTotalRuns}{360}" in content
   assert "\\newcommand{\\benchmarkRepetitions}{30}" in content
 
-  # Aggregated means & geometric speedups in pt-BR comma format (`{,}`)
-  assert "\\newcommand{\\meanGapAlphaOne}{1{,}25}" in content
-  assert "\\newcommand{\\speedupGeomBetaTwo}{2{,}00}" in content
-  assert "\\newcommand{\\speedupGeomGamma}{10{,}00}" in content
-  assert "\\newcommand{\\speedupGammaVsBetaTwo}{5{,}00}" in content
+  # Aggregated means & geometric speedups in neutral dot format ('.')
+  assert "\\newcommand{\\meanGapAlphaOne}{1.25}" in content
+  assert "\\newcommand{\\speedupGeomBetaTwo}{2.00}" in content
+  assert "\\newcommand{\\speedupGeomGamma}{10.00}" in content
+  assert "\\newcommand{\\speedupGammaVsBetaTwo}{5.00}" in content
 
   # Friedman / Iman-Davenport & Nemenyi CD + mean ranks
   assert "\\newcommand{\\friedmanTimeF}{\\ensuremath{\\infty}}" in content
   assert "\\newcommand{\\friedmanTimeP}{\\ensuremath{< 10^{-6}}}" in content
-  assert "\\newcommand{\\meanRankTimeGamma}{1{,}00}" in content
-  assert "\\newcommand{\\meanRankTimeAlphaOne}{3{,}00}" in content
+  assert "\\newcommand{\\meanRankTimeGamma}{1.00}" in content
+  assert "\\newcommand{\\meanRankTimeAlphaOne}{3.00}" in content
   assert "\\newcommand{\\nemenyiTimeCD}{" in content
   assert "\\newcommand{\\friedmanGapF}{" in content
 
   # Wilcoxon + step-down Holm vs baseline
-  assert "\\newcommand{\\wilcoxonGapWGamma}{0{,}0}" in content
+  assert "\\newcommand{\\wilcoxonGapWGamma}{0.0}" in content
   assert "\\newcommand{\\wilcoxonTimePHolmGamma}{" in content
 
-  # 2. Configurable dot decimal separator & edge cases (empty, N=1, k=2)
-  dot_path = generate_latex_macros(
+  # 2. Custom comma decimal separator via ReportStyle & edge cases (empty, N=1, k=2)
+  comma_style = ReportStyle(decimal_separator="{,}")
+  comma_path = generate_latex_macros(
     all_results=all_results,
     problem_configs=problem_configs,
-    output_dir=tmp_path / "dot_macros",
+    output_dir=tmp_path / "comma_macros",
     baseline_algorithm="Alpha_1",
-    decimal_separator=".",
+    style=comma_style,
   )
-  dot_content = dot_path.read_text(encoding="utf-8")
-  assert "\\newcommand{\\speedupGeomGamma}{10.00}" in dot_content
+  comma_content = comma_path.read_text(encoding="utf-8")
+  assert "\\newcommand{\\speedupGeomGamma}{10{,}00}" in comma_content
 
   single_prob = {"only": {"A": {"mean_gap": 0.5, "mean_time": 4.0}, "B": {"mean_gap": 0.5, "mean_time": 2.0}}}
   single_path = generate_latex_macros(single_prob, [], tmp_path / "single_macros", baseline_algorithm="A")
   single_text = single_path.read_text(encoding="utf-8")
-  assert "\\newcommand{\\speedupBVsA}{2{,}00}" in single_text
+  assert "\\newcommand{\\speedupBVsA}{2.00}" in single_text
   assert "\\friedman" not in single_text
 
   with pytest.raises(ValueError, match="empty"):
@@ -734,8 +740,257 @@ def test_generate_latex_macros_exports_ptbr_quantitative_commands_and_edge_cases
   cost_path = generate_latex_macros(cost_only, [], tmp_path / "cost_only_macros", baseline_algorithm="AlgA")
   cost_txt = cost_path.read_text(encoding="utf-8")
   assert "\\newcommand{\\benchmarkTotalRuns}{80}" in cost_txt
-  assert "\\newcommand{\\meanCostAlgA}{200{,}00}" in cost_txt
-  assert "\\newcommand{\\speedupGeomAlgB}{2{,}00}" in cost_txt
+  assert "\\newcommand{\\meanCostAlgA}{200.00}" in cost_txt
+  assert "\\newcommand{\\speedupGeomAlgB}{2.00}" in cost_txt
   assert "\\newcommand{\\friedmanGapN}{2}" in cost_txt
-  assert "\\newcommand{\\wilcoxonGapPAlgB}{1{,}00}" in cost_txt
+  assert "\\newcommand{\\wilcoxonGapPAlgB}{1.00}" in cost_txt
 
+
+def test_composable_report_artifacts_and_external_style(tmp_path: Path) -> None:
+  """WHAT: Independent report generators, selective facade artifacts, and ReportStyle injection."""
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    "p1": {
+      "VarA": {"mean_cost": 100.0, "std_cost": 1.0, "mean_gap": 1.0, "mean_time": 2.0},
+      "VarB": {"mean_cost": 99.0, "std_cost": 0.5, "mean_gap": 0.0, "mean_time": 1.0},
+    },
+  }
+  problem_configs = [ProblemConfig(name="p1", optimal=99.0, size=50)]
+  custom_style = ReportStyle(
+    display_names={"VarA": "Baseline Alpha", "VarB": "Fast Beta"},
+    latex_label_prefix="custom_",
+    size_thresholds=(40, 120),
+  )
+
+  # 1. Standalone markdown-only and latex-only generators
+  md_only = generate_markdown_tables(
+    all_results,
+    problem_configs,
+    tmp_path / "standalone_md",
+    benchmark_name="solo",
+    style=custom_style,
+  )
+  assert md_only.is_file()
+  assert not (tmp_path / "standalone_md" / "solo.tex").exists()
+  md_text = md_only.read_text(encoding="utf-8")
+  assert "Baseline Alpha" in md_text
+  assert "Fast Beta" in md_text
+
+  tex_only = generate_latex_tables(
+    all_results,
+    problem_configs,
+    tmp_path / "standalone_tex",
+    benchmark_name="solo",
+    style=custom_style,
+  )
+  assert tex_only.is_file()
+  tex_text = tex_only.read_text(encoding="utf-8")
+  assert "\\label{tab:custom_summary}" in tex_text
+  assert "\\label{tab:custom_algorithm_comparison}" in tex_text
+  assert "Fast Beta" in tex_text
+
+  # 2. Selective artifacts on facade
+  partial_out = generate_result_tables(
+    all_results,
+    problem_configs,
+    tmp_path / "selective" / "tables",
+    benchmark_name="sel",
+    style=custom_style,
+    artifacts=("markdown",),
+  )
+  assert set(partial_out.keys()) == {"markdown"}
+  assert (tmp_path / "selective" / "tables" / "sel.md").is_file()
+  assert not (tmp_path / "selective" / "tables" / "sel.tex").exists()
+  assert not (tmp_path / "selective" / "tables" / "benchmark_macros.tex").exists()
+  assert not (tmp_path / "selective" / "figures").exists()
+
+  # 3. Empty artifacts emits nothing
+  assert generate_result_tables(all_results, problem_configs, tmp_path / "empty_art", artifacts=()) == {}
+
+  # 4. parse_report_artifacts & load_report_style validation
+  assert parse_report_artifacts(None, default=()) == ()
+  assert parse_report_artifacts(["none"], default=("markdown",)) == ()
+  assert parse_report_artifacts(["markdown", "plots", "markdown"], default=()) == ("markdown", "plots")
+  with pytest.raises(ValueError, match="Cannot combine 'none'"):
+    parse_report_artifacts(["none", "markdown"], default=())
+  with pytest.raises(ValueError, match="Unsupported report artifact"):
+    parse_report_artifacts(["bogus"], default=())
+
+  bad_style = tmp_path / "bad_style.json"
+  bad_style.write_text('{"unknown_key": true}', encoding="utf-8")
+  with pytest.raises(ValueError, match="Unknown key"):
+    load_report_style(bad_style)
+
+  bad_bool_style = tmp_path / "bad_bool_style.json"
+  bad_bool_style.write_text('{"plot_decimal_comma": "false"}', encoding="utf-8")
+  with pytest.raises(ValueError, match="must be a boolean"):
+    load_report_style(bad_bool_style)
+
+
+def test_generate_result_tables_computes_omnibus_once_per_metric(
+  tmp_path: Path,
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: Emitting all 5 report artifacts computes Friedman/Nemenyi at most once per metric (2 total).
+
+  WHY: Regression test eliminating the prior 3x-4x recomputation across aggregate_statistics,
+  latex_macros, and cd_diagram, and proving precomputed `analysis=` incurs zero extra calls.
+  """
+  import benchmarking.analysis.cohort_analysis as cohort_analysis_mod
+  from benchmarking.analysis.statistics import run_friedman_nemenyi_analysis as real_fn
+
+  call_count = 0
+
+  def spy_omnibus(*args: Any, **kwargs: Any) -> Any:
+    nonlocal call_count
+    call_count += 1
+    return real_fn(*args, **kwargs)
+
+  monkeypatch.setattr(cohort_analysis_mod, "run_friedman_nemenyi_analysis", spy_omnibus)
+
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    "p1": {
+      "AlgA": {
+        "mean_gap": 1.0,
+        "std_gap": 0.1,
+        "mean_cost": 101.0,
+        "std_cost": 1.0,
+        "mean_time": 10.0,
+        "std_time": 0.2,
+      },
+      "AlgB": {"mean_gap": 1.5, "std_gap": 0.1, "mean_cost": 101.5, "std_cost": 1.0, "mean_time": 4.0, "std_time": 0.1},
+      "AlgC": {
+        "mean_gap": 2.0,
+        "std_gap": 0.1,
+        "mean_cost": 102.0,
+        "std_cost": 1.0,
+        "mean_time": 1.0,
+        "std_time": 0.05,
+      },
+    },
+    "p2": {
+      "AlgA": {
+        "mean_gap": 1.2,
+        "std_gap": 0.1,
+        "mean_cost": 202.4,
+        "std_cost": 1.0,
+        "mean_time": 20.0,
+        "std_time": 0.4,
+      },
+      "AlgB": {"mean_gap": 1.4, "std_gap": 0.1, "mean_cost": 202.8, "std_cost": 1.0, "mean_time": 6.0, "std_time": 0.2},
+      "AlgC": {"mean_gap": 2.1, "std_gap": 0.1, "mean_cost": 204.2, "std_cost": 1.0, "mean_time": 2.0, "std_time": 0.1},
+    },
+    "p3": {
+      "AlgA": {
+        "mean_gap": 0.9,
+        "std_gap": 0.1,
+        "mean_cost": 302.7,
+        "std_cost": 1.0,
+        "mean_time": 30.0,
+        "std_time": 0.5,
+      },
+      "AlgB": {"mean_gap": 1.6, "std_gap": 0.1, "mean_cost": 304.8, "std_cost": 1.0, "mean_time": 9.0, "std_time": 0.3},
+      "AlgC": {"mean_gap": 2.2, "std_gap": 0.1, "mean_cost": 306.6, "std_cost": 1.0, "mean_time": 3.0, "std_time": 0.1},
+    },
+  }
+  problem_configs = [
+    ProblemConfig(name="p1", optimal=100.0, size=50),
+    ProblemConfig(name="p2", optimal=200.0, size=100),
+    ProblemConfig(name="p3", optimal=300.0, size=300),
+  ]
+
+  generated = generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "all" / "tables",
+    benchmark_name="single_pass",
+    baseline_algorithm="AlgA",
+  )
+  assert set(generated.keys()) == {"markdown", "latex", "macros", "cd", "plots"}
+  assert call_count == 2  # Exactly once for quality + once for time
+
+  # Passing a precomputed CohortAnalysis incurs zero additional omnibus runs across all renderers
+  precomputed = cohort_analysis_mod.analyze_cohort(all_results, problem_configs, baseline_algorithm="AlgA")
+  assert call_count == 4
+  generate_result_tables(
+    all_results=all_results,
+    problem_configs=problem_configs,
+    output_dir=tmp_path / "precomputed" / "tables",
+    benchmark_name="precomputed",
+    baseline_algorithm="AlgA",
+    analysis=precomputed,
+  )
+  assert call_count == 4
+
+
+def test_table1_fallback_respects_algorithm_order_and_precomputed_analysis_drives_table3_and_plots(
+  tmp_path: Path,
+) -> None:
+  """WHAT: Table 1 fallback uses `algorithm_order`, and `analysis=` drives Table 3 and plots.
+
+  WHY: BUG-99 — Alphabetical dict keys previously overrode `ReportStyle.algorithm_order` for
+  Table 1 fallback baselines, and passing `problem_configs=[]` or `all_results={}` with a
+  precomputed `CohortAnalysis` produced an empty Table 3 and failed scaling-plot generation.
+  """
+  from benchmarking.analysis.cohort_analysis import analyze_cohort
+  from benchmarking.reporting.style import ReportStyle
+  from benchmarking.reporting.table_reports import (
+    _compute_baseline_times,
+    _compute_table1_rows,
+    _compute_table3_size_category_winners,
+  )
+
+  # Alphabetical keys place FullGPUModular before HybridNaive, opposite of style.algorithm_order
+  all_results: dict[str, dict[str, dict[str, Any]]] = {
+    "small50": {
+      "CPU": {"problem_size": 50, "mean_cost": 100.0, "std_cost": 1.0, "mean_gap": 1.0, "mean_time": 10.0},
+      "FullGPUModular": {"problem_size": 50, "mean_cost": 100.5, "std_cost": 1.0, "mean_gap": 1.5, "mean_time": 0.5},
+      "HybridNaive": {"problem_size": 50, "mean_cost": 100.2, "std_cost": 1.0, "mean_gap": 1.2, "mean_time": 2.0},
+    },
+    "large500": {
+      "FullGPUModular": {"problem_size": 500, "mean_cost": 500.0, "std_cost": 2.0, "mean_gap": 2.0, "mean_time": 1.0},
+      "HybridNaive": {"problem_size": 500, "mean_cost": 502.0, "std_cost": 2.0, "mean_gap": 2.4, "mean_time": 4.0},
+    },
+  }
+  style = ReportStyle(algorithm_order=("CPU", "HybridNaive", "FullGPUModular"))
+  analysis = analyze_cohort(
+    all_results,
+    problem_configs=[],
+    baseline_algorithm="CPU",
+    algorithm_order=style.algorithm_order,
+  )
+
+  # 1. Table 1 fallback baseline on large500 must be HybridNaive (not FullGPUModular)
+  base_times = _compute_baseline_times(analysis.cohort, "CPU")
+  assert base_times["large500"] == pytest.approx(4.0)
+  rows, has_fallback = _compute_table1_rows(analysis.cohort, "CPU", base_times)
+  assert has_fallback is True
+  large_rows = {r.algorithm: r for r in rows if r.problem == "large500"}
+  assert large_rows["HybridNaive"].is_baseline is True
+  assert large_rows["HybridNaive"].speedup == pytest.approx(1.0)
+  assert large_rows["FullGPUModular"].is_baseline is False
+  assert large_rows["FullGPUModular"].speedup == pytest.approx(4.0)
+
+  # 2. Table 3 uses derived cohort.problem_configs even when caller passes empty all_results/problem_configs
+  winners = _compute_table3_size_category_winners(
+    all_results={},
+    problem_configs=[],
+    algorithm_names=list(analysis.cohort.algorithms),
+    cohort=analysis.cohort,
+  )
+  assert {w["category"] for w in winners} == {"Small (n≤100)", "Large (n>400)"}
+
+  # 3. generate_result_tables works across all 5 artifacts (including plots and Table 3) with analysis= only
+  generated = generate_result_tables(
+    all_results={},
+    problem_configs=[],
+    output_dir=tmp_path / "tables",
+    benchmark_name="from_analysis_only",
+    include_size_category_table=True,
+    style=style,
+    analysis=analysis,
+  )
+  assert generated["markdown"]
+  assert generated["plots"]
+  md_text = generated["markdown"][0].read_text(encoding="utf-8")
+  assert "Table 3" in md_text
+  assert "| Large (n>400) |" in md_text

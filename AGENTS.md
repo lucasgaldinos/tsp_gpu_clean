@@ -128,9 +128,11 @@ Applies to every task in this repository.
 11. **Stable references.** Anchor to names, not lines: `[two_opt.py::TwoOpt._compute_gain](path)`
     for code, `[file.md §Heading](path#heading)` for Markdown, `[file.tex §label](path#label)`
     for LaTeX. The `::` separator is the pytest node-ID idiom and works for `.py`, `.cu`,
-    and `.cuh`; it is validated by `benchmark_scripts.check_docs`. `#L<line>` is allowed only
-    for targets with no nameable unit (logs, generated tables, frozen audit snapshots).
-    Line numbers drift with every refactor; symbols do not.
+    and `.cuh`; it is validated by `benchmark_scripts.check_docs` (use `check_docs` for
+    Markdown, plans, walkthroughs, and Python/CUDA docstrings; use `benchmark_scripts.check_thesis`
+    for LaTeX `.tex` and BibTeX `refs.bib` integrity under `documents_tcc/tex/thesis/`).
+    `#L<line>` is allowed only for targets with no nameable unit (logs, generated tables,
+    frozen audit snapshots). Line numbers drift with every refactor; symbols do not.
 12. **Prose language.** English is the default for agent-facing files (`AGENTS.md`,
     `.agents/**`, `.github/**`) and for `documentation/knowledge-base/**`. Brazilian
     Portuguese is mandatory for `documents_tcc/**` and `documentation/walkthroughs/**`.

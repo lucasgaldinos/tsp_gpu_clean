@@ -9,7 +9,7 @@ O código está dividido em pacotes com responsabilidades separadas:
 
 \begin{itemize}
   \item
-        \textbf{carregamento:} lê instâncias da TSPLIB e do banco de dados, valida o tipo de peso de aresta e verifica a consistência dimensional das coordenadas (2D ou 3D);
+        \textbf{carregamento:} lê instâncias da TSPLIB e do banco de dados, valida o formato de distância e verifica a consistência dimensional das coordenadas (2D ou 3D);
   \item
         \textbf{distâncias:} constrói e armazena as matrizes de distância, com arredondamento e conversão para inteiros de 32 bits segundo a convenção da TSPLIB;
   \item
@@ -41,44 +41,49 @@ Isso permite reimportar toda a pasta de resultados depois de uma recoleta sem li
 \section{Telemetria por fase}\label{apendice-telemetria}
 
 Cada repetição registra o tempo de oito etapas do ciclo evolutivo --- inicialização, seleção, cruzamento, mutação, avaliação, busca local, sobrevivência e sincronização com a CPU ---, além do volume transferido em cada direção entre CPU e GPU e do número de lançamentos de \emph{kernel}.
-Os tempos são medidos no relógio da CPU, o que inclui o custo de lançamento das operações assíncronas e é a métrica relevante para comparar variantes do ponto de vista de quem executa o algoritmo; a medição por eventos no dispositivo existe como opção, mas impõe uma barreira de sincronização a cada chamada e por isso não é usada na coleta.
+Os tempos são medidos no relógio da CPU, o que inclui o custo de lançamento das operações assíncronas e é a métrica relevante para comparar variantes do ponto de vista de quem executa o algoritmo; a medição por eventos no dispositivo existe como opção, mas obriga a CPU a parar e aguardar a GPU ao final de cada chamada, distorcendo o tempo total, e por isso não é usada na coleta.
 O total das etapas é comparado ao tempo total de execução de cada configuração, e a diferença residual mede o custo que não é atribuído a nenhuma etapa isolada.
 
 \section{Roteiro de reprodução}\label{apendice-reproducao}
 
-A reprodução de um experimento segue cinco passos:
+O código-fonte completo do \emph{framework}, os \emph{kernels} CUDA e os \emph{scripts} de coleta e análise estão disponíveis no repositório público do projeto em \url{https://github.com/lucasgaldinos/tsp_gpu_clean}.
+Para preparar o ambiente de execução, exigem-se \texttt{Python} \(\ge 3{,}12\), as ferramentas \texttt{uv} e \texttt{git} e, para as variantes aceleradas em GPU, uma placa NVIDIA com suporte a CUDA de \emph{Compute Capability} \(\ge 5{,}0\) acompanhada de \emph{driver} compatível com o CUDA Toolkit 12.x (a variante \texttt{CPU} executa sem GPU).
+Todas as dependências declaradas em \path{pyproject.toml} e fixadas em \path{uv.lock} --- incluindo os pacotes numéricos e de GPU da \tabref{tbl:software-specs}, os pacotes auxiliares de análise e visualização (\texttt{pandas}, \texttt{matplotlib}), a biblioteca pública de leitura de instâncias TSPLIB95 (\texttt{routing-data} v0.2.0, obtida automaticamente pelo \texttt{uv} via Git) e o grupo de validação (\texttt{pytest}, \texttt{mypy}, \texttt{ruff}, \texttt{jsonschema}) --- são instaladas de forma reproduzível com o comando \texttt{uv sync} na raiz do repositório.
+
+Após a instalação, a reprodução de um experimento não exige a criação prévia de banco de dados e segue cinco passos:
 
 \begin{enumerate}
   \item
-        obter as instâncias da TSPLIB e carregá-las no banco de instâncias, que valida formato e tipo de peso de aresta na entrada;
+        obter os arquivos \texttt{.tsp} da TSPLIB95 e posicioná-los em um diretório local (como \path{datasets/tsp/}) --- o \emph{framework} lê o formato TSPLIB diretamente via \texttt{--tsp-dir} ou \texttt{--tsp-files}, validando o tipo de distância na entrada e mantendo a pré-ingestão em DuckDB (\texttt{tsp-ingest}) como etapa opcional;
   \item
-        escolher o conjunto de instâncias, as variantes e o número de repetições;
+        escolher o conjunto de instâncias, as variantes e o número de repetições, a partir dos exemplos genéricos em \path{configs/} ou da configuração dedicada do Capítulo~4 em \path{benchmark_scripts/experiments-and-examples/chapter4/configs/};
   \item
-        executar o orquestrador, que grava um arquivo por par algoritmo--instância e retoma do último ponto em caso de interrupção;
+        executar o orquestrador, que realiza por padrão apenas a coleta de dados e grava um \emph{checkpoint} JSON atômico por par algoritmo--instância após cada repetição, retomando do último ponto consistente em caso de interrupção;
   \item
-        consolidar os resultados no banco de resultados;
+        gerar --- ou regenerar posteriormente sem reexecutar os algoritmos --- as estatísticas por instância, tabelas, macros quantitativas, diagramas de diferença crítica e gráficos vetoriais diretamente a partir dos \emph{checkpoints} JSON, injetando o estilo de apresentação desejado via arquivo \texttt{--report-style};
   \item
-        gerar as tabelas e os diagramas a partir do banco consolidado.
+        opcionalmente, consolidar os \emph{checkpoints} no banco DuckDB de resultados e verificar a consistência entre o banco e os arquivos JSON de origem.
 \end{enumerate}
 
 As sementes são determinísticas: cada repetição usa a semente base somada ao índice da repetição, de modo que a repetição \(r\) de um par pode ser reproduzida isoladamente.
-No diretório \path{benchmark_scripts/} do repositório, essas etapas são acionadas por três pontos de entrada principais: \path{run_chapter4_benchmark.py} (orquestração da coleta e geração das tabelas e gráficos), \path{import_checkpoints.py} (consolidação no DuckDB) e \path{validate_consistency.py} (verificação de consistência entre os arquivos de saída e o banco).
+O pacote instalado registra cinco comandos de linha de comando em \path{pyproject.toml}: \texttt{tsp-benchmark} (coleta configurável a partir de arquivos \texttt{.tsp} ou banco opcional, aceitando arquivos individuais via \texttt{--algorithms-config} ou um diretório via \texttt{--config-dir}, com geração opcional de relatórios via \texttt{--reports}), \texttt{tsp-report} (regeneração autônoma e seletiva de tabelas, macros, diagramas e gráficos a partir de \emph{checkpoints} JSON com estilo externo via \texttt{--report-style}), \texttt{tsp-ingest} (validação e ingestão opcional de diretórios TSPLIB em DuckDB), \texttt{tsp-import-checkpoints} (consolidação idempotente em \path{results.duckdb}) e \texttt{tsp-validate-db} (auditoria de consistência entre o banco e os \emph{checkpoints}).
+Para reproduzir integralmente a coorte do \capref{cap4-resultados}, o diretório \path{benchmark_scripts/experiments-and-examples/chapter4/} isola fora de \path{src/} o ponto de entrada \path{run_chapter4_benchmark.py} e as configurações em \path{configs/} (incluindo \path{report_style.json} com rótulos em português e separador decimal em vírgula).
+Exemplos executáveis de composição de estratégias (inclusive externas ao pacote \path{src/}), uso em Python e linha de comando constam em \path{README.md} e em \path{documentation/guide-getting-started.md}; o roteiro isolado de reprodução do Capítulo~4 consta em \path{documentation/guide-thesis-reproduction.md}.
 Como os tempos absolutos dependem do ambiente de execução, as versões de sistema operacional, biblioteca de GPU, compilador e placa utilizadas na coleta estão documentadas na \secref{sec-31-ambiente-framework}.
 
-\section{Tabela integral de resultados nas \totalinstancias\ instâncias}\label{apendice-resultados}
+\section{Tabelas integrais de resultados nas \totalinstancias\ instâncias}\label{apendice-resultados}
 
-Para reprodutibilidade e inspeção completa do conjunto experimental (\totalinstancias\ instâncias \(\times\) \(\totalvariantes\) variantes, \(\totalrepeticoes\) repetições pareadas com sementes \(\sementeinicial\) a \(\sementefinal\)), a \tabref{tbl:results-all-instances}, a \tabref{tbl:phase-timings-all} e a \tabref{tbl:transfers-launches-all} reúnem os resultados agregados, a divisão temporal em oito etapas e os volumes de transferência PCIe e lançamentos de \emph{kernel} de todas as instâncias avaliadas, ordenadas por dimensão \(n_{coords}\).
+Para reprodutibilidade e inspeção completa do conjunto experimental (\totalinstancias\ instâncias \(\times\) \(\totalvariantes\) variantes, \(\totalrepeticoes\) repetições pareadas com sementes \(\sementeinicial\) a \(\sementefinal\)), a \tabref{tbl:results-all-instances}, a \tabref{tbl:phase-timings-all}, a \tabref{tbl:transfers-launches-all} e a \tabref{tbl:axis1-wilcoxon} reúnem os resultados agregados, a divisão temporal em oito etapas, os volumes de transferência PCIe e lançamentos de \emph{kernel}, e a síntese consolidada das comparações pareadas do Eixo~1 (\secref{sec-341-eixo1}) em todas as instâncias avaliadas.
 
-{\small
-\setlength{\tabcolsep}{3pt}
+\begin{tabelapadrao}
 \begin{longtable}[]{@{}
-    >{\raggedright\arraybackslash}p{0.11\linewidth}
-    >{\centering\arraybackslash}p{0.06\linewidth}
-    >{\raggedright\arraybackslash}p{0.23\linewidth}
-    >{\centering\arraybackslash}p{0.20\linewidth}
-    >{\centering\arraybackslash}p{0.09\linewidth}
-    >{\centering\arraybackslash}p{0.10\linewidth}
-    >{\centering\arraybackslash}p{0.10\linewidth}@{}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.11}}
+    >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.07}}
+    >{\raggedright\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.24}}
+    >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.26}}
+    >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.10}}
+    >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.11}}
+    >{\centering\arraybackslash}p{(\linewidth - 12\tabcolsep) * \real{0.11}}@{}}
   \caption{Resultados completos por instância para todas as \totalinstancias\ instâncias da TSPLIB (\(\totalrepeticoes\) repetições por célula)}\label{tbl:results-all-instances} \\
   \toprule
   Instância         & \(n_{coords}\) & Algoritmo         & Custo médio (\(\pm \sigma\))  & \emph{Gap} médio (\%) & Tempo médio (s) & Ganho de perf.    \\
@@ -165,10 +170,10 @@ Para reprodutibilidade e inspeção completa do conjunto experimental (\totalins
                     & 1002           & Híbrida Otimizada & \(263288{,}90 \pm 954{,}07\)   & \(1{,}64\)            & \(25{,}55\)     & \(26{,}72\times\)  \\*
                     & 1002           & Totalmente em GPU & \(263409{,}57 \pm 1121{,}29\)  & \(1{,}68\)            & \(14{,}03\)     & \(48{,}66\times\)  \\
 \end{longtable}
-}
+\notatabela{Médias sobre as \totalrepeticoes\ repetições. Os ganhos de velocidade (\textit{Ganho de perf.}) foram calculados a partir dos tempos médios exatos antes do arredondamento a duas casas decimais (por exemplo, em \texttt{att48}, \(1{,}432937\,\text{s} / 0{,}014023\,\text{s} \approx 102{,}18\times\)).}
+\end{tabelapadrao}
 
-{\footnotesize
-\setlength{\tabcolsep}{3.0pt}
+\begin{tabeladensa}
 \begin{longtable}[]{@{}llrccccccccc@{}}
   \caption{Divisão percentual integral do tempo médio de execução entre as oito etapas para todas as \totalinstancias\ instâncias (\(\%\) do tempo total)}\label{tbl:phase-timings-all} \\
   \toprule
@@ -256,11 +261,11 @@ Para reprodutibilidade e inspeção completa do conjunto experimental (\totalins
                      & Híbrida Otimizada & 25548,3  & 0,0 & 0,5 & 40,7 & 0,4  & 0,8 & 56,6 & 0,8  & 0,1  & 99,9  \\*
                      & Totalmente em GPU & 14027,6  & 0,1 & 0,8 & 0,9  & 1,1  & 0,3 & 0,7  & 1,2  & 94,8 & 99,8  \\
 \end{longtable}
-\noindent\textit{Nota:} Participações percentuais por etapa e coluna \textit{Total} expressas em \% do tempo médio de execução (\textit{Tempo}); \textit{Inic.}: inicialização, \textit{Sel.}: seleção, \textit{Cruz.}: cruzamento, \textit{Mut.}: mutação, \textit{Aval.}: avaliação, \textit{BL}: busca local \(2\)-opt, \textit{Sobr.}: sobrevivência, \textit{Sinc.}: sincronização CPU--GPU. Pequenas diferenças abaixo de \(100\%\) correspondem ao tempo residual fora das etapas cronometradas (\secref{apendice-telemetria}); execuções abaixo de \(100\)\,ms sofrem influência do custo fixo de lançamento de \emph{kernels} (\(\approx 0{,}5\text{--}1{,}0\)\,ms).
-}
+\notatabela{Participações percentuais por etapa e coluna \textit{Total} expressas em \% do tempo médio de execução (\textit{Tempo}); \textit{Inic.}: inicialização, \textit{Sel.}: seleção, \textit{Cruz.}: cruzamento, \textit{Mut.}: mutação, \textit{Aval.}: avaliação, \textit{BL}: busca local \(2\)-opt, \textit{Sobr.}: sobrevivência, \textit{Sinc.}: sincronização CPU--GPU. Na variante Totalmente em GPU, as colunas \textit{Sel.}, \textit{Cruz.}, \textit{Mut.}, \textit{Aval.} e \textit{BL} medem apenas o tempo gasto pela CPU no enfileiramento assíncrono de \emph{kernels}, acumulando-se o tempo real de execução em GPU integralmente na coluna \textit{Sinc.}; logo, essa medição via relógio de CPU não separa internamente o tempo em GPU entre \(2\)-opt e cruzamento OX.
+Pequenas diferenças abaixo de \(100\%\) correspondem ao tempo residual fora das etapas cronometradas (\secref{apendice-telemetria}); execuções abaixo de \(100\)\,ms sofrem influência do custo fixo de lançamento de \emph{kernels} (\(\approx 0{,}5\text{--}1{,}0\)\,ms).}
+\end{tabeladensa}
 
-{\footnotesize
-\setlength{\tabcolsep}{4.5pt}
+\begin{tabeladensa}
 \begin{longtable}[]{@{}llrrrr@{}}
   \caption{Volume médio integral de transferências pelo barramento PCIe e lançamentos de \emph{kernel} por repetição nas \totalinstancias\ instâncias}\label{tbl:transfers-launches-all} \\
   \toprule
@@ -278,7 +283,7 @@ Para reprodutibilidade e inspeção completa do conjunto experimental (\totalins
                     & Totalmente em GPU & \(0{,}13\)      & \(0{,}00\)   & \(0{,}13\)      & \(62\)          \\
   \midrule
   \textbf{eil51}    & Híbrida Ingênua   & \(0{,}33\)      & \(0{,}27\)   & \(0{,}59\)      & \(13\,141\)     \\*
-                    & Híbrida Otimizada & \(0{,}62\)      & \(0{,}28\)   & \(0{,}90\)      & \(58\)          \\*
+                    & Híbrida Otimizada & \(0{,}62\)      & \(0{,}28\)   & \(0{,}90\)      & \(57\)          \\*
                     & Totalmente em GPU & \(0{,}14\)      & \(0{,}00\)   & \(0{,}14\)      & \(71\)          \\
   \midrule
   \textbf{berlin52} & Híbrida Ingênua   & \(0{,}31\)      & \(0{,}26\)   & \(0{,}57\)      & \(12\,373\)     \\*
@@ -311,7 +316,7 @@ Para reprodutibilidade e inspeção completa do conjunto experimental (\totalins
   \midrule
   \textbf{pcb442}   & Híbrida Ingênua   & \(208{,}30\)    & \(76{,}39\)  & \(284{,}69\)    & \(432\,043\)    \\*
                     & Híbrida Otimizada & \(155{,}60\)    & \(76{,}73\)  & \(232{,}34\)    & \(1\,857\)      \\*
-                    & Totalmente em GPU & \(4{,}58\)      & \(0{,}00\)   & \(4{,}58\)      & \(2\,179\)      \\
+                    & Totalmente em GPU & \(4{,}58\)      & \(0{,}00\)   & \(4{,}58\)      & \(2\,178\)      \\
   \midrule
   \textbf{att532}   & Híbrida Ingênua   & \(297{,}18\)    & \(96{,}53\)  & \(393{,}72\)    & \(453\,632\)    \\*
                     & Híbrida Otimizada & \(197{,}05\)    & \(96{,}90\)  & \(293{,}95\)    & \(1\,950\)      \\*
@@ -333,12 +338,35 @@ Para reprodutibilidade e inspeção completa do conjunto experimental (\totalins
                     & Híbrida Otimizada & \(1\,099{,}67\) & \(544{,}34\) & \(1\,644{,}02\) & \(5\,825\)      \\*
                     & Totalmente em GPU & \(18{,}69\)     & \(0{,}00\)   & \(18{,}69\)     & \(6\,880\)      \\
 \end{longtable}
-\noindent\textit{Nota:} Médias sobre as \totalrepeticoes\ repetições (a variante CPU realiza \(0{,}00\)\,MB de transferência PCIe e \(0\) lançamentos de \emph{kernel}). Eventuais diferenças de \(0{,}01\)\,MB no total decorrem do arredondamento a duas casas decimais.
-}
+\notatabela{Médias sobre as \totalrepeticoes\ repetições (a variante CPU realiza \(0{,}00\)\,MB de transferência PCIe e \(0\) lançamentos de \emph{kernel}).
+Eventuais diferenças de \(0{,}01\)\,MB no total decorrem do arredondamento a duas casas decimais. Na Híbrida Otimizada e na Totalmente em GPU, o contador em software da telemetria acrescenta \(8\,n_{coords}^2\) bytes (\(8{,}03\)\,MB em \texttt{pr1002}) pela recontagem do ponteiro compartilhado da matriz \(D\) em VRAM (\secref{sec-44-decomposicao-fases}).}
+\end{tabeladensa}
 
-\section{Pseudocódigos de referência dos algoritmos clássicos}\label{apendice-pseudocodigos}
+\begin{table}[htbp]
+  \centering
+  \caption{Síntese consolidada do Eixo 1 estatístico: testes pareados de Wilcoxon com ajuste de Holm--Bonferroni sobre as \totalrepeticoes\ sementes em cada uma das \totalinstancias\ instâncias (\(\alpha = 0{,}05\))}\label{tbl:axis1-wilcoxon}
+  \begin{tabeladensa}
+    \begin{tabular}{@{}lccccc@{}}
+      \toprule
+      Par de variantes & \multicolumn{2}{c}{Tempo de execução} & \multicolumn{3}{c}{Qualidade (\emph{gap} / custo)} \\
+      \cmidrule(lr){2-3} \cmidrule(lr){4-6}
+      & Sig. & Máx.\ \(p_{\text{Holm}}\) & Sig. & Mín.\ \(p_{\text{Holm}}\) & Inst.\ c/ empates \\
+      \midrule
+      CPU vs.\ Híbrida Ingênua               & \(15/15\) & \(1{,}12 \times 10^{-8}\) & \(0/15\) & \(0{,}3751\) & \(7\) (\(0\) totais)  \\
+      CPU vs.\ Híbrida Otimizada             & \(15/15\) & \(1{,}12 \times 10^{-8}\) & \(0/15\) & \(0{,}3751\) & \(7\) (\(0\) totais)  \\
+      CPU vs.\ Totalmente em GPU             & \(15/15\) & \(1{,}12 \times 10^{-8}\) & \(0/15\) & \(0{,}3418\) & \(3\) (\(0\) totais)  \\
+      Híbrida Ingênua vs.\ Híbrida Otimizada & \(15/15\) & \(1{,}12 \times 10^{-8}\) & \(0/15\) & \(1{,}0000\) & \(15\) (\(15\) totais) \\
+      Híbrida Ingênua vs.\ Totalmente em GPU & \(15/15\) & \(1{,}12 \times 10^{-8}\) & \(0/15\) & \(0{,}4301\) & \(6\) (\(0\) totais)  \\
+      Híbrida Otimizada vs.\ Totalmente em GPU & \(15/15\) & \(2{,}05 \times 10^{-7}\) & \(0/15\) & \(0{,}4301\) & \(6\) (\(0\) totais)  \\
+      \bottomrule
+    \end{tabular}
+  \end{tabeladensa}
+  \notatabela{\textit{Sig.}: número de instâncias (de \totalinstancias) com \(p_{\text{Holm}} < 0{,}05\); \textit{Máx.\ \(p_{\text{Holm}}\)}: maior valor-\(p\) ajustado observado entre as \totalinstancias\ instâncias no tempo; \textit{Mín.\ \(p_{\text{Holm}}\)}: menor valor-\(p\) ajustado observado entre as \totalinstancias\ instâncias na qualidade; \textit{Inst.\ c/ empates}: instâncias com ao menos uma diferença nula no custo entre sementes pareadas (em parênteses, instâncias com todas as \totalrepeticoes\ diferenças nulas, indicando identidade bit a bit).}
+\end{table}
 
-Esta seção reúne os pseudocódigos de referência discutidos no \capref{cap2-revisao-bibliografica}: a busca local \(2\)-opt limitada sob critério \emph{best-improvement} (\algref{alg:2opt-limited}), a estrutura geral de um Algoritmo Genético (\algref{alg:ga-high-level}) e a especificação completa do ciclo evolutivo adotado neste trabalho com elitismo, seleção por torneio, cruzamento por ordem (OX) e mutação por troca (\algref{alg:ga-complete}).
+\section{Pseudocódigos de referência dos algoritmos}\label{apendice-pseudocodigos}
+
+Esta seção reúne os dois pseudocódigos de referência discutidos no \capref{cap2-revisao-bibliografica} e no \capref{cap3-materiais-metodos}: a busca local \(2\)-opt limitada sob critério \emph{best-improvement} (\algref{alg:2opt-limited}) e o ciclo memético completo AG+\(2\)-opt efetivamente estudado neste trabalho, integrando seleção por torneio, cruzamento por ordem (OX), mutação por troca, refinamento \(2\)-opt pós-mutação e seleção de sobreviventes elitista \((\mu + \lambda)\) (\algref{alg:ga-complete}).
 
 Esses pseudocódigos preservam a forma didática clássica da literatura e diferem da implementação efetivamente executada nos experimentos nos pontos de engenharia descritos no \capref{cap3-materiais-metodos}: na busca local \(2\)-opt, o laço exaustivo sobre todos os pares \((i, j)\) do \algref{alg:2opt-limited} é restringido à lista pré-computada de \(k_{\text{viz}} = \kviz\) vizinhos mais próximos (\secref{sec-321-ga-base}); as matrizes de distância e as rotas são representadas em inteiros de \(32\) bits (\texttt{int32}); a linha de base em CPU emprega vetorização em NumPy; e as variantes em GPU paralelizam os operadores em \emph{kernels} CUDA utilizando uma janela de memória compartilhada de até \(2048\) cidades por bloco (\secref{sec-311-hardware-software} e \secref{sec-322-variantes}).
 
@@ -372,48 +400,39 @@ Esses pseudocódigos preservam a forma didática clássica da literatura e difer
 \end{algorithm}
 
 \begin{algorithm}[H]
-  \caption{Fluxo geral do Algoritmo Genético}\label{alg:ga-high-level}
-  Gerar população inicial \(P(0)\) aleatoriamente\;
-  \While{critério de parada não satisfeito}{
-    Selecionar pais da população\;
-    Produzir descendentes a partir dos pais selecionados\;
-    Mutar os indivíduos\;
-    Expandir a população adicionando os descendentes\;
-    Reduzir a população expandida\;
-  }
-  \KwRetornar{o melhor indivíduo encontrado}\;
-\end{algorithm}
-
-\begin{algorithm}[H]
-  \caption{Algoritmo genético com elitismo, seleção por torneio, cruzamento OX e mutação por troca}\label{alg:ga-complete}
-  \KwEntrada{tamanho da população \(n_{pop}\), tamanho do torneio \(\tau_{\text{trnmt}}\), taxa de cruzamento \(p_c\), taxa de mutação \(p_{\text{mut}}\)}
-  \KwSaida{melhor solução encontrada}
-  Inicializar população \(P(0)\) aleatoriamente com \(n_{pop}\) indivíduos\;
-  Avaliar a aptidão \(f(x)\) de todos os indivíduos em \(P(0)\)\;
+  \caption{Algoritmo memético AG+\(2\)-opt com seleção por torneio, cruzamento OX, mutação por troca e sobrevivência elitista \((\mu + \lambda)\)}\label{alg:ga-complete}
+  \KwEntrada{tamanho da população \(n_{pop}\) (par), tamanho do torneio \(\tau_{\text{trnmt}}\), taxa de cruzamento \(p_c\), taxa de mutação \(p_{\text{mut}}\), limite de varreduras \(\kappa\), lista de candidatos \(k_{\text{viz}}\), critérios de parada (\(\varepsilon_{\text{alvo}}, G_{\text{estag}}, G_{\max}\))}
+  \KwSaida{melhor circuito encontrado}
+  Inicializar população \(P(0)\) aleatoriamente com \(n_{pop}\) permutações válidas\;
+  Avaliar o custo \(f(x)\) de todas as rotas em \(P(0)\)\;
   \(t \gets 0\)\;
-  \While{\textbf{não} \texttt{condição\_de\_parada}}{
-    \(P_{\mathrm{nova}} \gets \emptyset\)\;
-    \tcp{Elitismo: preservar o(s) melhor(es) indivíduo(s)}
-    Adicionar o melhor indivíduo de \(P(t)\) a \(P_{\mathrm{nova}}\)\;
-    \While{\(\lvert P_{\mathrm{nova}}\rvert < n_{pop}\)}{
+  \(\texttt{estagnação} \gets 0\)\;
+  \While{\(\text{gap}(P(t)) > \varepsilon_{\text{alvo}}\) \textbf{e} \(\texttt{estagnação} < G_{\text{estag}}\) \textbf{e} \(t < G_{\max}\)}{
+    \(P_{\mathrm{desc}} \gets \emptyset\)\;
+    \For{\(k \gets 1\) \KwAte \(n_{pop}/2\)}{
       \tcp{Seleção por torneio de tamanho \(\tau_{\text{trnmt}}\)}
       \texttt{pai1} \(\gets\) \texttt{SeleçãoPorTorneio}(\(P(t), \tau_{\text{trnmt}}\))\;
       \texttt{pai2} \(\gets\) \texttt{SeleçãoPorTorneio}(\(P(t), \tau_{\text{trnmt}}\))\;
-      \tcp{Cruzamento}
+      \tcp{Cruzamento por ordem (OX) gerando dois descendentes com mesmos pontos de corte}
       \eIf{\(\operatorname{aleatório}() < p_c\)}{
-        \texttt{filho} \(\gets\) \texttt{CruzamentoOX}(\texttt{pai1}, \texttt{pai2})\;
+        \((\texttt{filho1}, \texttt{filho2}) \gets \texttt{CruzamentoOX}(\texttt{pai1}, \texttt{pai2})\)\;
       }{
-        \texttt{filho} \(\gets\) \texttt{pai1}\;
+        \((\texttt{filho1}, \texttt{filho2}) \gets (\texttt{pai1}, \texttt{pai2})\)\;
       }
-      \tcp{Mutação}
-      \If{\(\operatorname{aleatório}() < p_{\text{mut}}\)}{
-        \texttt{MutaçãoPorTroca}(\texttt{filho})\;
+      \tcp{Mutação por troca (\emph{swap}) e busca local \(2\)-opt pós-mutação}
+      \For{\(\texttt{filho} \in \{\texttt{filho1}, \texttt{filho2}\}\)}{
+        \If{\(\operatorname{aleatório}() < p_{\text{mut}}\)}{
+          \texttt{MutaçãoPorTroca}(\texttt{filho})\;
+        }
+        \texttt{filho} \(\gets\) \texttt{BuscaLocal2opt}(\texttt{filho}, \(\kappa, k_{\text{viz}}\))\;
+        Adicionar \texttt{filho} a \(P_{\mathrm{desc}}\)\;
       }
-      Adicionar \texttt{filho} a \(P_{\mathrm{nova}}\)\;
     }
-    \(P(t+1) \gets P_{\mathrm{nova}}\)\;
-    Avaliar a aptidão \(f(x)\) de \(P(t+1)\)\;
+    Avaliar o custo \(f(x)\) de todas as rotas em \(P_{\mathrm{desc}}\)\;
+    \tcp{Seleção de sobreviventes elitista determinística \((\mu + \lambda)\) com \(\mu = \lambda = n_{pop}\)}
+    \(P(t+1) \gets\) \(n_{pop}\) rotas de menor custo em \(P(t) \cup P_{\mathrm{desc}}\)\;
+    Atualizar \(\texttt{estagnação}\) (zera se o melhor custo melhorou; senão incrementa \(1\))\;
     \(t \gets t + 1\)\;
   }
-  \KwRetornar{melhor indivíduo de \(P(t)\)}\;
+  \KwRetornar{melhor circuito de \(P(t)\)}\;
 \end{algorithm}

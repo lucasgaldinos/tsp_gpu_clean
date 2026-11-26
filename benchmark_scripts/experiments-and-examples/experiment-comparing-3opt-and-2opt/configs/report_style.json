@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../configs/schemas/report_style.schema.json",
+  "display_names": {
+    "TwoOpt_Batch_GPU": "2-opt Batch (GPU)",
+    "TwoOpt_MultiMove_GPU": "2-opt Multi-Move (GPU)",
+    "ThreeOpt_Batch_GPU": "3-opt Batch (GPU)",
+    "ThreeOpt_MultiMove_GPU": "3-opt Multi-Move (GPU)",
+    "ThreeOpt_Batch_GPU_less_candidates": "3-opt Batch k=20/6 (GPU)",
+    "ThreeOpt_MultiMove_GPU_less_candidates": "3-opt Multi-Move k=20/6 (GPU)"
+  },
+  "algorithm_order": [
+    "TwoOpt_Batch_GPU",
+    "TwoOpt_MultiMove_GPU",
+    "ThreeOpt_Batch_GPU",
+    "ThreeOpt_MultiMove_GPU",
+    "ThreeOpt_Batch_GPU_less_candidates",
+    "ThreeOpt_MultiMove_GPU_less_candidates"
+  ],
+  "decimal_separator": ".",
+  "cd_decimal_sep": ".",
+  "plot_decimal_comma": false,
+  "size_thresholds": [
+    100,
+    400
+  ],
+  "show_size_guides": true
+}

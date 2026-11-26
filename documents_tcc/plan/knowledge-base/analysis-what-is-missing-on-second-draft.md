@@ -25,7 +25,7 @@ modifications:
           `Task 13.30`, módulo de escalonamento da `Task 13.28` e correção já aplicada da
           remissão em `03-materiais-metodos.tex`).
 related_files:
-  - "[chapter4_validation.md](../../../results_v4/tables/chapter4_validation.md)"
+  - "[chapter4_validation.md](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation.md)"
   - "[scaling_plots.py](../../../src/benchmarking/analysis/scaling_plots.py)"
   - "[04-resultados.tex](../../tex/thesis/parts/04-resultados.tex)"
   - "[report_generator.py](../../../src/benchmarking/analysis/report_generator.py)"
@@ -56,7 +56,7 @@ pendência está reconciliado na Seção 5.
 ### 1.1. Diferenças entre a prévia parcial (6 repetições) e os dados finais (30 repetições)
 
 Quando o Capítulo 4 foi atualizado (2026-11-16), o checkpoint
-[pr1002_CPU.json](../../../results_v4/checkpoints/pr1002_CPU.json) continha apenas 6
+[pr1002_CPU.json](../../../benchmark_scripts/experiments-and-examples/chapter4/results/checkpoints/pr1002_CPU.json) continha apenas 6
 repetições ($740{,}06\,\text{s}$, *gap* de $1{,}69\%$). Com as 30 repetições consolidadas,
 os valores definitivos mudaram nos seguintes pontos:
 
@@ -89,14 +89,14 @@ os valores definitivos mudaram nos seguintes pontos:
 O processo iniciado em 2026-11-16 às 17:32 — **antes** da conclusão das `Task 13.16` e `Task 13.28` — terminou às 03:16:35 de 2026-11-17 executando a versão antiga de [report_generator.py](../../../src/benchmarking/analysis/report_generator.py) que estava carregada em memória. Consequências:
 
 1. **Gráfico de escalonamento (`fig:scaling-time-gap`) desatualizado e incompleto.**
-   Os arquivos [scaling_time_gap.pdf](../../../results_v4/tables/scaling_time_gap.pdf) e [scaling_time_gap.png](../../../results_v4/tables/scaling_time_gap.png) têm timestamp de `2026-11-16 18:33:00` — antes do término de `rat783_CPU` (21:35) e de `pr1002_CPU` (03:16).
+   Os arquivos [scaling_time_gap.pdf](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/scaling_time_gap.pdf) e [scaling_time_gap.png](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/scaling_time_gap.png) têm timestamp de `2026-11-16 18:33:00` — antes do término de `rat783_CPU` (21:35) e de `pr1002_CPU` (03:16).
    Três problemas:
    + **Curva da CPU truncada:** a curva azul termina em $n = 783$ (`rat783`) e não possui o ponto $n = 1002$ (`pr1002`), além de usar dados parciais em `rat783`.
    + **Rótulos em inglês:** os títulos, eixos e legendas em [scaling_plots.py](../../../src/benchmarking/analysis/scaling_plots.py) estão em inglês (`Execution Time (s)`, `Optimality Gap (%)`, `Execution Time and Solution Quality Scaling vs. Problem Dimension`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`), enquanto a dissertação exige português brasileiro (`Tempo de Execução (s)`, `Gap de Otimalidade (%)`, `Dimensão do Problema (n)`, `Híbrida Ingênua`, `Híbrida Otimizada`, `Totalmente em GPU`).
    + **Degrau em $n = 535$:** entre `att532` ($158{,}06\,\text{s}$, *gap* $1{,}10\%$) e `si535` ($84{,}39\,\text{s}$, *gap* $0{,}92\%$) há uma queda vertical acentuada em todas as quatro curvas, porque `si535` converge cedo com variância mínima ($\sigma = 0{,}05\%$). O comportamento merece explicação na Seção 4.3.
 
 2. **Tabelas de `results_v4/tables/` com estratos antigos.**
-   A `Table 3` de [chapter4_validation.md](../../../results_v4/tables/chapter4_validation.md) ainda usa os estratos `Small (n<100)`, `Medium (100≤n<300)` e `Large (n≥300)`. Reexecutar `generate_result_tables` com o código atual regenera `chapter4_validation.{md,tex}`, `chapter4_validation_cd_diagram.tikz` e `scaling_time_gap.{pdf,png}` com as fronteiras corretas ($n \le 100$, $100 < n \le 400$, $n > 400$) e os 15 pontos de CPU.
+   A `Table 3` de [chapter4_validation.md](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation.md) ainda usa os estratos `Small (n<100)`, `Medium (100≤n<300)` e `Large (n≥300)`. Reexecutar `generate_result_tables` com o código atual regenera `chapter4_validation.{md,tex}`, `chapter4_validation_cd_diagram.tikz` e `scaling_time_gap.{pdf,png}` com as fronteiras corretas ($n \le 100$, $100 < n \le 400$, $n > 400$) e os 15 pontos de CPU.
 
 3. **Consolidação no DuckDB (`Task 12.4`).** Falta rodar o importador [import_checkpoints.py](../../../src/benchmarking/database/import_checkpoints.py) sobre `results_v4/checkpoints/` para materializar `results_v4/results.duckdb`, que ainda não existe.
 
@@ -117,13 +117,13 @@ O processo iniciado em 2026-11-16 às 17:32 — **antes** da conclusão das `Tas
 ### 3.2. Tabelas e análises de alto valor ainda não exploradas
 
 1. **Tabela completa das 15 instâncias.** A Tabela 4.1 (`tbl:results-detailed`) de [04-resultados.tex](../../documents_tcc/tex/parts/04-resultados.tex) exibe apenas `berlin52`, `kroA100` e `pr1002`, enquanto a introdução promete *"anexos com tabelas completas de resultados"*. As 15 instâncias cabem na própria Tabela 4.1 (que já usa `longtable`, ocupando ~1,5 página) ou em tabela no Apêndice.
-2. **Decomposição temporal em 8 fases (achado de Amdahl no `CX` vs. `LS`).** O fluxograma metodológico (`fig:results-flowchart`) e o Apêndice A destacam a telemetria de 8 fases (`Init`, `Sel`, `CX`, `Mut`, `Eval`, `LS`, `Surv`, `Host Sync`), mas os Capítulos 4 e 5 ainda não apresentam os números medidos. A `Table 4` de [chapter4_validation.md](../../../results_v4/tables/chapter4_validation.md) explica mecanicamente cada ganho:
+2. **Decomposição temporal em 8 fases (achado de Amdahl no `CX` vs. `LS`).** O fluxograma metodológico (`fig:results-flowchart`) e o Apêndice A destacam a telemetria de 8 fases (`Init`, `Sel`, `CX`, `Mut`, `Eval`, `LS`, `Surv`, `Host Sync`), mas os Capítulos 4 e 5 ainda não apresentam os números medidos. A `Table 4` de [chapter4_validation.md](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation.md) explica mecanicamente cada ganho:
    + **CPU:** `LS` consome de **96,3% a 98,7%** do tempo de parede; `CX` apenas 1,2% a 3,5%.
    + **Híbrida Ingênua:** `LS` (incluindo as 256 transferências PCIe individuais por geração) consome **85,9% a 89,8%**, e `CX` sobe para 9,2% a 13,1%.
    + **Híbrida Otimizada (achado de Amdahl clássico):** com o 2-opt em lote na GPU, a fração de `LS` despenca para **17,6% a 55,1%** e o **cruzamento OX sequencial na CPU vira o novo gargalo dominante**, consumindo de 42,1% (`pr1002`) a 74,0% (`eil51`) do tempo total.
    + **Totalmente em GPU (`FullGPUModular`):** migrar `CX`, `Sel` e `Mut` para kernels CUDA residentes na VRAM elimina o gargalo do OX na CPU (daí o ganho adicional de ~3,1× sobre a Híbrida Otimizada).
      Como os kernels são enfileirados de forma assíncrona em microssegundos, entre **41,2% e 94,5%** do tempo de relógio medido no host recai em `Host Sync`, a barreira onde a CPU aguarda a fila assíncrona da GPU terminar a geração para avaliar o critério de parada.
-3. **Inclusão do diagrama de diferença crítica de Demšar.** O TikZ preliminar foi gerado em [chapter4_validation_cd_diagram.tikz](../../../results_v4/archive/pre_n30_trim/chapter4_validation_cd_diagram.tikz) ($CD = 1{,}211$, barra horizontal única conectando as quatro variantes na métrica de *gap*, postos médios de 2,30 a 3,00; posteriormente substituído pelos diagramas duplos [chapter4_validation_cd_diagram_gap.tikz](../../../results_v4/tables/chapter4_validation_cd_diagram_gap.tikz) e [chapter4_validation_cd_diagram_time.tikz](../../../results_v4/tables/chapter4_validation_cd_diagram_time.tikz) após `Task 14.1`/`Task 14.2`).
+3. **Inclusão do diagrama de diferença crítica de Demšar.** O TikZ preliminar foi gerado em [chapter4_validation_cd_diagram.tikz](../../../benchmark_scripts/experiments-and-examples/chapter4/results/archive/pre_n30_trim/chapter4_validation_cd_diagram.tikz) ($CD = 1{,}211$, barra horizontal única conectando as quatro variantes na métrica de *gap*, postos médios de 2,30 a 3,00; posteriormente substituído pelos diagramas duplos [chapter4_validation_cd_diagram_gap.tikz](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation_cd_diagram_gap.tikz) e [chapter4_validation_cd_diagram_time.tikz](../../../benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation_cd_diagram_time.tikz) após `Task 14.1`/`Task 14.2`).
     Os números já são citados em prosa na Seção 4.3, mas a figura não está embutida em `04-resultados.tex`. Um segundo painel para o ranqueamento de **tempo** (postos médios 1,00 Totalmente em GPU, 2,00 Híbrida Otimizada, 3,00 Híbrida Ingênua, 4,00 CPU) é opcional.
 
 ---

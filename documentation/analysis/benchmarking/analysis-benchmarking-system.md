@@ -16,7 +16,18 @@ modifications:
       - description: >
           Standardized documentation with YAML frontmatter, verified code fences,
           and updated source references to current repository layout.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Synchronized overview, sequence/flowchart/class diagrams, config loading,
+          statistical pipeline, reporting topology, module inventory, formulas, and
+          checkpoint schema with the decoupled `runner`/`analysis`/`reporting`/`database`
+          architecture, `tsp-benchmark`/`tsp-report` CLIs, `DP13-3`/`DP13-4`, and
+          Phase 16 hardening (`DP16-1`, `DP16-2`, `BUG-96`–`BUG-102`).
 related_files:
+  - "[guide-architecture-benchmarking-cli-and-utils.md](../guide-architecture-benchmarking-cli-and-utils.md)"
+  - "[guide-getting-started.md](../../guide-getting-started.md)"
+  - "[guide-thesis-reproduction.md](../../guide-thesis-reproduction.md)"
   - "[analysis-algorithm-comparison.md](../comparative/analysis-algorithm-comparison.md)"
   - "[analysis-ga-module-interactions.md](../algorithms/analysis-ga-module-interactions.md)"
   - "[analysis-genetic-algorithm-hybrid-optimized.md](../algorithms/analysis-genetic-algorithm-hybrid-optimized.md)"
@@ -35,12 +46,11 @@ tags:
   - notes/profiling
 ---
 
-# Benchmarking V2 System — Comprehensive Documentation
+# Benchmarking System — Comprehensive Documentation
 
-> **System purpose:** Orchestrate rigorous, reproducible benchmarks of four Genetic Algorithm
-> variants (CPU, HybridNaive, HybridOptimized, FullGPU) across 38 TSPLIB instances with
-> 30 repetitions per configuration, followed by multi-level statistical analysis and
-> automated report generation.
+> **System purpose:** Orchestrate generic, reproducible, configuration-driven benchmarks of arbitrary Genetic Algorithm (GA) compositions across `.tsp` corpora (or optional DuckDB stores) with atomic per-repetition checkpoints, pure non-parametric statistical analysis (`src/benchmarking/analysis/`), and decoupled composable report generation (`src/benchmarking/reporting/`, `tsp-report`). Dissertation Chapter 4 presets (`15` TSPLIB95 instances × `4` variants × `30` repetitions) live isolated outside `src/` under `benchmark_scripts/experiments-and-examples/chapter4/`.
+>
+> For low-level symbol contracts, GoF mappings, and ADR citations, see [guide-architecture-benchmarking-cli-and-utils.md](../guide-architecture-benchmarking-cli-and-utils.md).
 
 ---
 
@@ -60,38 +70,50 @@ tags:
 
 ### 1.1 Purpose
 
-The benchmarking system measures and compares four GPU-acceleration strategies for the Genetic Algorithm (GA) applied to the Travelling Salesman Problem (TSP). It collects execution time, solution quality, convergence behaviour, and GPU transfer metrics, then applies a rigorous statistical testing pipeline to determine whether observed differences are statistically significant.
+The benchmarking system measures and compares arbitrary declarative GA configurations (CPU, hybrid, full-GPU, or external user strategies/pipeline steps) on TSP instances. Collection (`tsp-benchmark`) is strictly separated from report rendering (`tsp-report`): collection emits atomic per-repetition JSON checkpoints and per-problem statistics, while pure analysis builds single-pass `ProblemAnalysis` / `CohortAnalysis` / `OmnibusTestResult` snapshots consumed once by pure report renderers parameterized with an external `ReportStyle`.
 
 ### 1.2 Architecture
 
 ```text
-run_chapter4_benchmark.py          CLI entry point (argument parsing, environment validation)
-  └→ orchestration.py              Main coordinator — drives the full pipeline
-       ├→ config_loader.py         Load & validate JSON configs (algorithms, benchmark, problems)
-       ├→ algorithm_runner.py      Execute individual algorithm repetitions with adaptive scaling
-       ├→ checkpoint_io.py         Atomic checkpoint save / load / resume / incremental
-       ├→ statistics.py            Core statistical primitives (Shapiro-Wilk, t-test, Wilcoxon,
-       │                           Cohen's d, Friedman, Nemenyi, Holm-Bonferroni, bootstrap CI)
-       ├→ problem_statistics.py    Per-problem statistical analysis across algorithms
-       ├→ aggregate_statistics.py  Cross-problem stratified analysis (small+all vs GPU-only)
-       └→ report_generator.py     Markdown + LaTeX table generation (3 table types)
+src/cli/benchmark.py (tsp-benchmark) & benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py
+  └→ runner/orchestration.py         Preflight validation, problem loading, quarantine, orchestration
+       ├→ runner/config_loader.py    JSON config loading, slot/protocol validation, GA instantiation
+       ├→ runner/schema_generator.py Reflective Draft 2020-12 JSON Schemas (algorithms + report_style)
+       ├→ runner/algorithm_runner.py Isolated AOT warmup, sequential seeds, ddof=1 telemetry & summaries
+       ├→ runner/checkpoint_io.py    Atomic save, nullable raw_gaps validation, drift checks, quarantine
+       ├→ analysis/                  Pure statistical computation (zero I/O or console logging)
+       │    ├→ cohort.py             BenchmarkCohort, complete-case matrices, paired geometric speedups
+       │    ├→ statistics.py         Unconditional Wilcoxon, Hodges-Lehmann CI, Kerby r_rb,
+       │    │                        Friedman + Iman-Davenport F_F + Nemenyi (OmnibusTestResult)
+       │    ├→ stats_utils.py        Holm-Bonferroni step-down, Nemenyi CD, finite_metric, baseline
+       │    ├→ problem_statistics.py analyze_problem() -> ProblemAnalysis (cost & time)
+       │    └→ cohort_analysis.py    analyze_cohort() -> CohortAnalysis, compare_algorithms()
+       ├→ reporting/                 Pure formatters & console logger (zero statistical test execution)
+       │    ├→ style.py              External ReportStyle contract, load_report_style, size strata
+       │    ├→ console.py            log_problem_analysis(), log_cohort_analysis()
+       │    ├→ table_reports.py      Markdown & LaTeX Tables 1-4 (per-problem, aggregate, strata, phases)
+       │    ├→ latex_macros.py       Quantitative LaTeX \newcommand macro exporter
+       │    ├→ cd_diagram.py         Demšar Critical Difference TikZ exporter
+       │    ├→ scaling_plots.py      Dual-panel PDF/SVG scaling figures (time + gap/cost)
+       │    └→ generator.py          Single-pass generate_result_tables() facade
+       └→ database/ (optional)       DuckDB natural-key upsert (tsp-import-checkpoints) & full-table
+                                     consistency audit (tsp-validate-db / compare_databases)
+
+src/cli/report.py (tsp-report)       Standalone checkpoint-to-report CLI (reads checkpoints/*.json only)
 ```
 
-### 1.3 Key Numbers
+### 1.3 Key Defaults & Chapter 4 Study Reference
 
-| Dimension | Value |
-| ----------- | ------- |
-| Algorithm variants | 4 (CPU, HybridNaive, HybridOptimized, FullGPU) |
-| TSPLIB instances | 38 (eil51 … pr1002, sizes 51–1002) |
-| Default repetitions | 30 per algorithm per problem |
-| GA population size | 256 |
-| Mutation rate | 0.02 |
-| Tournament size | 5 |
-| 2-opt iterations | 10 |
-| Base seed | 42 |
-| CPU size threshold | 100 (CPU algorithm only runs on problems with n ≤ 100) |
-| Max generations | adaptive: `2 × n × √n` |
-| Early-stop patience | adaptive: `2 × √n` |
+| Dimension | Generic Framework Default (`tsp-benchmark`) | Isolated Chapter 4 Study (`benchmark_scripts/experiments-and-examples/chapter4/`) |
+| ----------- | ------------------------------------------- | ---------------------------------------------------------------- |
+| Algorithm variants | Arbitrary declarative JSON variants (`--algorithms-config`) | 4 (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`) |
+| TSPLIB instances | Any `--tsp-dir` / `--tsp-files` (or optional `--db-path`) | 15 (`att48` … `pr1002`, sizes 48–1002) |
+| Repetitions | `10` (`BenchmarkConfig` default) | `30` per algorithm per instance (`seeds 42..71`) |
+| GA population / mutation | `256` / `0.02` (`GAParams` default) | `256` / `0.02`, tournament `k=5`, 2-opt `max_iterations=10`, `candidate_k=20` |
+| Base seed | `42` | `42` |
+| CPU size threshold | `None` (all variants run on every instance) | `null` (full 4-variant coverage on all 15 instances, `DP13-1`) |
+| Max generations / patience | Adaptive `2 × n × √n` / `2 × √n` (overridable) | Adaptive `2 × n × √n` / `2 × √n` |
+| Default report emission | Collection-only (`--reports none`; regenerate via `tsp-report`) | Regenerated via `tsp-report --report-style .../report_style.json` |
 
 ### 1.4 Adaptive Scaling Formulas
 
@@ -194,37 +216,33 @@ patience(n) = 2 × √n
 sequenceDiagram
     autonumber
 
-    participant CLI as CLI<br/>(run_chapter4_benchmark.py)
-    participant Orch as Orchestrator<br/>(orchestration.py)
-    participant CfgL as ConfigLoader<br/>(config_loader.py)
-    participant CkptM as CheckpointManager<br/>(checkpoint_io.py)
-    participant Runner as AlgorithmRunner<br/>(algorithm_runner.py)
-    participant Algo as Algorithm<br/>(GA variant)
-    participant Stats as StatisticalAnalyzer<br/>(statistics.py)
-    participant PStats as ProblemStats<br/>(problem_statistics.py)
-    participant AggStats as AggregateStats<br/>(aggregate_statistics.py)
-    participant Report as ReportGenerator<br/>(report_generator.py)
+    participant CLI as CLI<br/>(tsp-benchmark / tsp-report)
+    participant Orch as Orchestrator<br/>(runner/orchestration.py)
+    participant CfgL as ConfigLoader<br/>(runner/config_loader.py)
+    participant CkptM as CheckpointManager<br/>(runner/checkpoint_io.py)
+    participant Runner as AlgorithmRunner<br/>(runner/algorithm_runner.py)
+    participant Algo as Algorithm<br/>(GeneticAlgorithm)
+    participant Stats as StatisticalAnalyzer<br/>(analysis/statistics.py)
+    participant PStats as ProblemAnalysis<br/>(analysis/problem_statistics.py)
+    participant Cohort as CohortAnalysis<br/>(analysis/cohort_analysis.py)
+    participant Report as Reporting<br/>(reporting/generator.py + console.py)
 
-    %% ── Phase 1: Initialisation ──────────────────────────
+    %% ── Phase 1: Initialisation & Preflight ──────────────
     rect rgb(240, 248, 255)
-        Note over CLI,Report: Phase 1 — Initialisation
-        CLI->>CLI: parse_arguments()
-        CLI->>CLI: setup_logging(INFO)
-        CLI->>CLI: validate_environment()<br/>check configs, database, output dirs
-
+        Note over CLI,Report: Phase 1 — Initialisation & Preflight
+        CLI->>CLI: parse_args() + setup_benchmark_logging()
         CLI->>+Orch: run_comprehensive_benchmark(args)
-        Orch->>+CfgL: load_all_configs(config_dir)
-        CfgL->>CfgL: load_algorithms_config()<br/>→ GAParams + Dict[str, AlgorithmConfig]
-        CfgL->>CfgL: load_benchmark_config()<br/>→ BenchmarkConfig
-        CfgL->>CfgL: load_problems_config()<br/>→ List[ProblemConfig] (38 items)
-        CfgL->>CfgL: validate_configs() → warnings
+        Orch->>+CfgL: resolve_benchmark_configs(...)
+        CfgL->>CfgL: load_algorithms_config() -> GAParams + AlgorithmConfig
+        CfgL->>CfgL: load_benchmark_config() + load_problems_config() / build_problem_configs_from_tsp_files()
         CfgL-->>-Orch: configs dict
 
+        Orch->>Orch: _run_preflight(): validate_configs (slots, protocols, params),<br/>GPU probe, validate_existing_checkpoints (allow_corrupt=not dry_run)
         Orch->>Orch: _log_benchmark_configuration()
         Orch->>+CkptM: CheckpointManager(checkpoint_dir, problem_stats_dir)
         CkptM->>CkptM: ensure_directories()
         CkptM-->>-Orch: manager instance
-        Orch->>CkptM: count_completed_checkpoints(problems, algorithms, reps)
+        Orch->>CkptM: count_completed_checkpoints(...)
         CkptM-->>Orch: (completed, total) — progress summary
         Orch->>Stats: StatisticalAnalyzer(alpha=0.05)
     end
@@ -318,85 +336,47 @@ sequenceDiagram
             end
 
             %% ── Per-problem statistics ──
-            Orch->>+PStats: perform_statistical_analysis(<br/>  problem_name, optimal_cost,<br/>  results, analyzer)
+            Orch->>+PStats: analyze_problem(problem_name, optimal_cost, results, analyzer)
 
-            PStats->>Stats: friedman_test(cost_arrays) [k ≥ 3]
-            Stats-->>PStats: {statistic, p_value, significant}
+            PStats->>Stats: run_friedman_nemenyi_analysis() [cost & time, k >= 3, N >= 2]
+            Stats-->>PStats: OmnibusTestResult (chi2_F, F_F, mean_ranks, CD, cliques)
 
-            opt Friedman significant (p < 0.05)
-                PStats->>Stats: nemenyi_posthoc(cost_arrays, names)
-                Stats-->>PStats: {p_values_matrix, significant_pairs,<br/>  critical_distance, mean_ranks}
+            loop All C(k,2) algorithm pairs (cost & time)
+                PStats->>Stats: paired_comparison(data_a, data_b)<br/>Unconditional Wilcoxon zsplit + descriptive Shapiro-Wilk<br/>+ Hodges-Lehmann CI + Kerby rank-biserial r_rb
             end
 
-            loop All algorithm pairs
-                PStats->>Stats: test_normality(data_a) → Shapiro-Wilk
-                PStats->>Stats: test_normality(data_b) → Shapiro-Wilk
+            PStats->>Stats: holm_bonferroni_correction(p_values, alpha=analyzer.alpha)
+            Stats-->>PStats: monotonic step-down adjusted p-values
+            PStats-->>-Orch: ProblemAnalysis snapshot
 
-                alt Both normal (p ≥ 0.05)
-                    PStats->>Stats: paired t-test
-                else At least one non-normal
-                    PStats->>Stats: Wilcoxon signed-rank test
-                end
-
-                PStats->>Stats: cohens_d(data_a, data_b)
-                PStats->>Stats: 95% CI (t-distribution)
-            end
-
-            PStats->>Stats: holm_bonferroni_correction(p_values)
-            Stats-->>PStats: corrected p-values + significance flags
-
-            PStats-->>-Orch: problem_stats dict
-
-            Orch->>Orch: _save_problem_statistics_file(problem_stats)
+            Orch->>Report: log_problem_analysis(problem_analysis)
+            Orch->>CkptM: save_problem_statistics(problem_analysis.to_dict())
         end
     end
 
     %% ── Phase 3: Cross-Problem Analysis ──────────────────
     rect rgb(245, 255, 245)
-        Note over CLI,Report: Phase 3 — Cross-Problem Stratified Analysis
+        Note over CLI,Report: Phase 3 — Single-Pass Cross-Problem Cohort Analysis
 
-        Orch->>+AggStats: perform_cross_problem_analysis_stratified(<br/>  all_results, problem_configs,<br/>  analyzer, cpu_threshold=100)
-
-        Note over AggStats: STRATUM 1 — Small problems (n < 100)<br/>All 4 algorithms (CPU + GPU)
-        AggStats->>Stats: friedman_test(4 cost arrays × 6 problems)
-        Stats-->>AggStats: Friedman result
-        opt Friedman significant
-            AggStats->>Stats: nemenyi_posthoc(cost_arrays, names)
-            Stats-->>AggStats: pairwise significance
-        end
-
-        Note over AggStats: STRATUM 2 — All 38 problems<br/>GPU-only: HybridNaive, HybridOptimized, FullGPU
-        AggStats->>Stats: friedman_test(3 cost arrays × 38 problems)
-        Stats-->>AggStats: Friedman result
-        opt Friedman significant
-            AggStats->>Stats: nemenyi_posthoc(cost_arrays, names)
-            Stats-->>AggStats: pairwise significance
-        end
-
-        AggStats->>AggStats: Compute geometric mean speedups<br/>per algorithm pair across problems
-        AggStats->>AggStats: Compute summary statistics<br/>(mean gap, std gap per algorithm)
-        AggStats-->>-Orch: aggregate_stats dict
+        Orch->>+Cohort: analyze_cohort(all_results, problem_configs, baseline, algorithm_order)
+        Cohort->>Stats: run_friedman_nemenyi_analysis() [quality & time, k >= 3, N >= 2]
+        Stats-->>Cohort: quality_omnibus & time_omnibus (OmnibusTestResult)
+        Cohort->>Stats: wilcoxon_paired_summary() [1-vs-baseline, 1e-10 abs tol] + Holm
+        Cohort->>Cohort: Compute BenchmarkCohort aggregates & Fleming-Wallace geomean speedups
+        Cohort-->>-Orch: CohortAnalysis immutable snapshot
+        Orch->>Report: log_cohort_analysis(cohort_analysis)
     end
 
-    %% ── Phase 4: Report Generation ──────────────────────
+    %% ── Phase 4: Composable Report Generation (opt-in or via tsp-report) ──
     rect rgb(255, 245, 245)
-        Note over CLI,Report: Phase 4 — Report Generation
+        Note over CLI,Report: Phase 4 — Composable Reporting (opt-in --reports or standalone tsp-report)
 
-        Orch->>+Report: generate_result_tables(<br/>  all_results, problem_configs, output_dir)
-
-        Report->>Report: Table 1 — Summary by Problem<br/>(Problem | Algo | Mean Cost | Std | Gap% | Time | Speedup)
-        Report->>Report: _generate_table1_markdown()
-        Report->>Report: _generate_table1_latex()
-
-        Report->>Report: Table 2 — Algorithm Comparison<br/>(Algo | Mean Gap% | Std Gap | Mean Time | Std Time | Avg Speedup)
-        Report->>Report: _generate_table2_markdown()
-        Report->>Report: _generate_table2_latex()
-
-        Report->>Report: Table 3 — Best by Size Category<br/>(Category | Problem | Best Algo | Gap% | Time | Speedup)
-        Report->>Report: _generate_table3_markdown()
-        Report->>Report: _generate_table3_latex()
-
-        Report-->>-Orch: (files written to results_v3/tables/)
+        Orch->>+Report: generate_result_tables(analysis=cohort_analysis, style=ReportStyle, artifacts=...)
+        Report->>Report: markdown / latex -> Tables 1-4 (problem, aggregate, optional strata, 8-phase telemetry)
+        Report->>Report: macros -> benchmark_macros.tex (from CohortAnalysis directly)
+        Report->>Report: cd -> *_cd_diagram_{gap,time}.tikz (from OmnibusTestResult)
+        Report->>Report: plots -> scaling_time_gap.{pdf,svg} (time + gap or cost fallback)
+        Report-->>-Orch: written artifact paths dict
     end
 
     Orch-->>-CLI: all_results dict
@@ -523,122 +503,82 @@ flowchart TD
 
 ## 4. Statistical Analysis Flowchart
 
-### 4.1 Per-Problem Analysis Pipeline
+### 4.1 Per-Problem Analysis Pipeline (`problem_statistics.py::analyze_problem`)
 
 ```mermaid
 flowchart TD
     Input([Per-problem analysis<br/>problem_name + optimal_cost +<br/>algorithm_results dict])
 
-    Input --> ExtractCosts["Extract raw_costs array<br/>per algorithm<br/>(filter NaN)"]
-    ExtractCosts --> CountAlgos{Number of<br/>algorithms ≥ 3?}
+    Input --> Extract["Extract paired raw_costs & raw_times<br/>(guard min_len >= 2)"]
+    Extract --> CountAlgos{k >= 3 algorithms<br/>and N >= 2 runs?}
 
-    %% ── Friedman Test ──
-    CountAlgos -- Yes --> Friedman["Friedman Test<br/>(non-parametric k-sample)<br/>H₀: All algorithms equivalent<br/>χ² statistic"]
-    CountAlgos -- No --> SkipFriedman["Skip Friedman test<br/>(need k ≥ 3 related samples)"]
-    SkipFriedman --> Pairwise
-
-    Friedman --> FriedSig{p-value < α<br/>(α = 0.05)?}
-
-    FriedSig -- Yes --> Nemenyi["Nemenyi Post-Hoc Test<br/>CD = q_α × √(k·(k+1) / (6·n))<br/>Significant if |rank_i − rank_j| > CD"]
-    Nemenyi --> NemResult["Output:<br/>• p-values matrix (k × k)<br/>• significant pairs<br/>• critical distance<br/>• mean ranks per algorithm"]
-    NemResult --> Pairwise
-
-    FriedSig -- No --> FriedNS["No significant global<br/>difference detected"]
-    FriedNS --> Pairwise
+    %% ── Friedman + Iman-Davenport + Nemenyi ──
+    CountAlgos -- Yes --> Omnibus["run_friedman_nemenyi_analysis()<br/>Friedman chi2_F + Iman-Davenport F_F<br/>Nemenyi CD = (q_Tukey / sqrt(2)) * sqrt(k(k+1)/(6N))<br/>Output: OmnibusTestResult (low_power if N < 5)"]
+    CountAlgos -- No --> SkipOmnibus["Omnibus skipped (need k >= 3, N >= 2)"]
+    Omnibus --> Pairwise
+    SkipOmnibus --> Pairwise
 
     %% ── Pairwise Comparisons ──
-    Pairwise["Begin pairwise comparisons<br/>for all C(k,2) algorithm pairs"]
-
+    Pairwise["Unconditional paired comparisons (DP13-4)<br/>for all C(k,2) pairs across cost & time"]
     Pairwise --> PairLoop
 
     subgraph PairLoop [For each algorithm pair A vs B]
         direction TB
-        NormA["Shapiro-Wilk test on data_A<br/>H₀: data_A is normally distributed<br/>p_A = shapiro(data_A)"]
-        NormB["Shapiro-Wilk test on data_B<br/>H₀: data_B is normally distributed<br/>p_B = shapiro(data_B)"]
-        NormA --> NormCheck{Both normal?<br/>p_A ≥ 0.05 AND<br/>p_B ≥ 0.05}
-        NormB --> NormCheck
+        Norm["Descriptive Shapiro-Wilk on A & B<br/>((nan, False) if n < 3 or zero variance;<br/>never used for test selection)"]
+        Wilcoxon["Unconditional Wilcoxon signed-rank<br/>zero_method='zsplit', exact small-n p = 2^-(n-1)<br/>no_test_needed only if all |d_i| < 1e-10"]
+        EffectSize["Kerby rank-biserial correlation<br/>r_rb = (W+ - W-) / (W+ + W-) in [-1, 1]"]
+        EffectSize --> Interpret{"Interpret |r_rb| (correlation scale)"}
 
-        NormCheck -- Yes --> TTest["Paired t-test<br/>(parametric)<br/>scipy.stats.ttest_rel()"]
-        NormCheck -- No --> Wilcoxon["Wilcoxon signed-rank<br/>(non-parametric)<br/>scipy.stats.wilcoxon()"]
+        Interpret --> |"< 0.1"| Neg["negligible"]
+        Interpret --> |"0.1 - 0.3"| Sml["small"]
+        Interpret --> |"0.3 - 0.5"| Med["medium"]
+        Interpret --> |">= 0.5"| Lrg["large"]
 
-        TTest --> EffectSize
-        Wilcoxon --> EffectSize
-
-        EffectSize["Cohen's d effect size<br/>d = (μ_A − μ_B) / σ_pooled<br/>σ_pooled = √((σ_A² + σ_B²) / 2)"]
-        EffectSize --> Interpret{"Interpret |d|"}
-
-        Interpret --> |"< 0.2"| Neg["Negligible"]
-        Interpret --> |"0.2 – 0.5"| Sml["Small"]
-        Interpret --> |"0.5 – 0.8"| Med["Medium"]
-        Interpret --> |"≥ 0.8"| Lrg["Large"]
-
+        CI95["Distribution-free Hodges-Lehmann 95% CIs<br/>(marginal A, marginal B, difference;<br/>(nan, nan) when 2^-(n-1) > alpha)"]
+        Norm --> Wilcoxon --> EffectSize
         Neg --> CI95
         Sml --> CI95
         Med --> CI95
         Lrg --> CI95
-
-        CI95["95% Confidence Interval<br/>for mean difference<br/>(t-distribution based)"]
-        CI95 --> PairResult["Output per pair:<br/>test_used, p_value,<br/>cohens_d, CI_95,<br/>normality p-values,<br/>effect interpretation"]
     end
 
-    PairResult --> CollectP["Collect all pairwise p-values"]
-    CollectP --> HolmBonf
+    CI95 --> HolmBonf
 
     %% ── Multiple Comparison Correction ──
-    subgraph HolmBonf [Holm-Bonferroni Correction]
+    subgraph HolmBonf [Monotonic Step-Down Holm-Bonferroni]
         direction TB
-        Sort["1. Sort p-values ascending<br/>p₁ ≤ p₂ ≤ … ≤ p_m"]
-        Sort --> Compare["2. For i = 1 to m:<br/>threshold_i = α / (m − i + 1)"]
-        Compare --> Reject{"p_i ≤ threshold_i?"}
-        Reject -- Yes --> RejectH0["Reject H₀_i<br/>(significant difference)"]
-        RejectH0 --> NextI["Continue to i + 1"]
-        NextI --> Reject
-        Reject -- No --> StopReject["Stop rejecting<br/>All remaining H₀ retained"]
+        Sort["1. Sort p-values ascending<br/>p_1 <= p_2 <= ... <= p_m"]
+        Sort --> Compare["2. Adjusted p_adj_i = max_{j<=i} min(1, (m-j+1)*p_j)<br/>Reject iff p_adj_i <= analyzer.alpha"]
     end
 
-    HolmBonf --> Output([Per-problem statistics output:<br/>• Friedman test result<br/>• Nemenyi post-hoc (if applicable)<br/>• Pairwise comparisons with<br/>  corrected p-values<br/>• Effect sizes and CIs])
+    HolmBonf --> Output([ProblemAnalysis snapshot:<br/>• cost & time OmnibusTestResult<br/>• PairwiseComparisonRecord list<br/>• Serializable via .to_dict()])
     style Output fill:#e8f5e9,stroke:#2e7d32
 ```
 
-### 4.2 Cross-Problem Stratified Analysis
+### 4.2 Cross-Problem Cohort Analysis (`cohort_analysis.py::analyze_cohort`)
 
 ```mermaid
 flowchart TD
-    AggInput([Cross-problem analysis<br/>all_results across 38 problems])
+    AggInput([Cross-problem analysis<br/>all_results + optional problem_configs])
 
-    AggInput --> Partition["Partition problems by size"]
+    AggInput --> Cohort["Build BenchmarkCohort once<br/>• derive_problem_configs from metadata<br/>• quality_metric_key: mean_gap if all present else mean_cost"]
+    Cohort --> Complete["Complete-case matrix M in R^{N x k}<br/>(all algorithms with finite entries across common problems)"]
 
-    Partition --> S1Def["STRATUM 1<br/>Small problems: n < 100<br/>6 problems × 4 algorithms<br/>(CPU + HybridNaive +<br/>HybridOptimized + FullGPU)"]
+    Complete --> Check{k >= 3 and N >= 2?}
+    Check -- Yes --> Omnibus["Single-pass OmnibusTestResult<br/>for quality & time (chi2_F, F_F,<br/>mean_ranks, Nemenyi CD, cliques, low_power)"]
+    Check -- No --> NoOmnibus["Omnibus None (insufficient k or N)"]
 
-    Partition --> S2Def["STRATUM 2<br/>All 38 problems × 3 algorithms<br/>GPU-only: HybridNaive +<br/>HybridOptimized + FullGPU"]
+    Cohort --> Baseline["1-vs-Baseline Wilcoxon + Holm<br/>scale-invariant wilcoxon_paired_summary (1e-10 abs tol)"]
+    Cohort --> Speedup["Fleming & Wallace (1986) paired geometric mean speedup<br/>geomean = exp(mean(ln(t_base_i / t_alg_i)))"]
+    Cohort --> Strata["Optional stratum breakdown<br/>(full cohort vs subset coverage)"]
 
-    %% ── Stratum 1 ──
-    S1Def --> S1Check{≥ 3 algorithms<br/>AND ≥ 3 problems?}
-    S1Check -- No --> S1Skip["Stratum 1 skipped"]
-    S1Check -- Yes --> S1Build["Build mean-cost vectors<br/>per algorithm across<br/>small problems"]
-    S1Build --> S1Friedman["Friedman test<br/>(4 algorithms × 6 problems)"]
-    S1Friedman --> S1Sig{Significant?}
-    S1Sig -- Yes --> S1Nemenyi["Nemenyi post-hoc<br/>→ pairwise differences"]
-    S1Sig -- No --> S1NS["No global difference<br/>among all 4 algorithms"]
-    S1Nemenyi --> S1Out["Stratum 1 output"]
-    S1NS --> S1Out
+    Omnibus --> FinalAgg
+    NoOmnibus --> FinalAgg
+    Baseline --> FinalAgg
+    Speedup --> FinalAgg
+    Strata --> FinalAgg
 
-    %% ── Stratum 2 ──
-    S2Def --> S2Build["Build mean-cost vectors<br/>per GPU algorithm across<br/>all 38 problems"]
-    S2Build --> S2Friedman["Friedman test<br/>(3 algorithms × 38 problems)"]
-    S2Friedman --> S2Sig{Significant?}
-    S2Sig -- Yes --> S2Nemenyi["Nemenyi post-hoc<br/>→ pairwise differences"]
-    S2Sig -- No --> S2NS["No global difference<br/>among GPU algorithms"]
-    S2Nemenyi --> S2Out
-    S2NS --> S2Out
-
-    S2Out --> Speedup["Geometric mean speedup<br/>per algorithm pair:<br/>geomean = exp(mean(ln(sᵢ)))"]
-    Speedup --> Summary["Summary statistics:<br/>mean gap ± std per algorithm<br/>across all applicable problems"]
-
-    S1Out --> FinalAgg
-    Summary --> FinalAgg
-
-    FinalAgg([Aggregate output dict:<br/>• stratum1_small_problems<br/>• stratum2_all_gpu_problems<br/>• summary_statistics<br/>• cpu_threshold, total_problems])
+    FinalAgg([Immutable CohortAnalysis snapshot:<br/>reused once by console, tables,<br/>LaTeX macros, CD diagrams, and plots])
     style FinalAgg fill:#e8f5e9,stroke:#2e7d32
 ```
 
@@ -648,82 +588,21 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([load_all_configs<br/>config_dir path])
+    Start([resolve_benchmark_configs<br/>--algorithms-config / --config-dir / overrides])
 
-    Start --> LoadAlgo["load_algorithms_config(config_dir)"]
-    Start --> LoadBench["load_benchmark_config(config_dir)"]
-    Start --> LoadProb["load_problems_config(config_dir)"]
+    Start --> LoadAlgo["load_algorithms_config()<br/>GAParams + Dict[str, AlgorithmConfig]"]
+    Start --> LoadBench["load_benchmark_config()<br/>optional BenchmarkConfig (neutral defaults)"]
+    Start --> LoadProb["load_problems_config() or<br/>build_problem_configs_from_tsp_files()<br/>(optimal: float | None)"]
 
-    %% ── Algorithms Config ──
-    subgraph AlgoLoad [algorithms.json Loading]
-        direction TB
-        A1["Read algorithms.json"]
-        A1 --> A2["Parse ga_params section →<br/>GAParams dataclass:<br/>• population_size: 256<br/>• mutation_rate: 0.02<br/>• tournament_size: 5<br/>• two_opt_iterations: 10<br/>• seed: 42"]
-        A2 --> A3["Parse algorithm_configs section →<br/>Dict[str, AlgorithmConfig]"]
-        A3 --> A4["For each algorithm entry:<br/>AlgorithmConfig(<br/>  name, class_module,<br/>  class_name, use_gpu,<br/>  description)"]
-        A4 --> A5["AlgorithmConfig.get_class()<br/>→ dynamic import via<br/>importlib.import_module()"]
-    end
+    LoadAlgo --> Validate["validate_configs(configs)"]
+    LoadBench --> Validate
+    LoadProb --> Validate
 
-    LoadAlgo --> A1
-
-    %% ── Benchmark Config ──
-    subgraph BenchLoad [benchmark.json Loading]
-        direction TB
-        B1["Read benchmark.json"]
-        B1 --> B2["Parse → BenchmarkConfig:<br/>• repetitions: 15 (default)<br/>• patience: null (→ adaptive)<br/>• cpu_size_threshold: 100<br/>• skip_cpu_default: false<br/>• incremental_runs: false<br/>• line_width: 80"]
-        B2 --> B3["Properties:<br/>separator = '=' × line_width<br/>short_sep = '-' × line_width"]
-    end
-
-    LoadBench --> B1
-
-    %% ── Problems Config ──
-    subgraph ProbLoad [problems.json Loading]
-        direction TB
-        P1["Read problems.json"]
-        P1 --> P2["Parse JSON array (38 entries)"]
-        P2 --> P3["For each entry →<br/>ProblemConfig(name, optimal, size)"]
-        P3 --> P4["Return List[ProblemConfig]<br/>ordered by file order"]
-    end
-
-    LoadProb --> P1
-
-    %% ── Validation ──
-    A5 --> Validate
-    B3 --> Validate
-    P4 --> Validate
-
-    Validate["validate_configs(configs)"]
-    Validate --> V1{"population_size > 0?"}
-    V1 -- No --> Warn1["Warning: Invalid population_size"]
-    V1 -- Yes --> V2{"0 ≤ mutation_rate ≤ 1?"}
-    V2 -- No --> Warn2["Warning: Invalid mutation_rate"]
-    V2 -- Yes --> V3{"tournament_size > 0?"}
-    V3 -- No --> Warn3["Warning: Invalid tournament_size"]
-    V3 -- Yes --> V4{"All problem sizes > 0?"}
-    V4 -- No --> Warn4["Warning: Invalid problem size"]
-    V4 -- Yes --> V5{"No duplicate problem names?"}
-    V5 -- No --> Warn5["Warning: Duplicate problems"]
-    V5 -- Yes --> Valid
-
-    Warn1 --> Valid
-    Warn2 --> Valid
-    Warn3 --> Valid
-    Warn4 --> Valid
-    Warn5 --> Valid
-
-    Valid([Validated configs dict:<br/>• ga_params: GAParams<br/>• algorithms: Dict[str, AlgorithmConfig]<br/>• benchmark: BenchmarkConfig<br/>• problems: List[ProblemConfig]])
+    Validate --> V1["Check GAParams + per-algorithm params<br/>(population_size > 0, mutation_rate in [0,1],<br/>local_search_stage in LocalSearchStage)"]
+    V1 --> V2["Check VALID_STRATEGY_SLOTS keys<br/>+ PEP 544 @runtime_checkable protocol<br/>conformance (issubclass per slot)"]
+    V2 --> V3["Check BenchmarkConfig + ProblemConfig<br/>(size > 0, positive optimal if non-null,<br/>no duplicate problem names)"]
+    V3 --> Valid([Validated configs dict + preflight GPU & checkpoint checks])
     style Valid fill:#e8f5e9,stroke:#2e7d32
-
-    %% ── Algorithm Selection per Problem ──
-    subgraph AlgoSelect [_determine_problem_algorithms]
-        direction TB
-        D1{"problem_size ≤<br/>cpu_size_threshold?"}
-        D1 -- Yes --> D2["All algorithms:<br/>CPU + HybridNaive +<br/>HybridOptimized + FullGPU"]
-        D1 -- No --> D3["GPU only:<br/>HybridNaive +<br/>HybridOptimized + FullGPU"]
-        D4{"--skip-cpu flag set?"}
-        D4 -- Yes --> D5["Remove CPU from list"]
-        D4 -- No --> D6["Keep algorithm list as-is"]
-    end
 ```
 
 ---
@@ -732,68 +611,28 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([generate_result_tables<br/>all_results, problem_configs,<br/>output_dir])
+    Start([generate_result_tables<br/>analysis=CohortAnalysis, style=ReportStyle,<br/>artifacts=subset of ALL_REPORT_ARTIFACTS])
 
-    Start --> Baseline["_get_baseline_algorithm(names)<br/>Priority: HybridNaive > first available"]
-    Baseline --> Categorize["_categorize_by_size(problem_configs)<br/>Small: n < 100<br/>Medium: 100 ≤ n < 300<br/>Large: n ≥ 300"]
+    Start --> Cohort["Reuse precomputed CohortAnalysis<br/>(or compute once via analyze_cohort)<br/>Pass cohort.results & cohort.problem_configs"]
 
-    Categorize --> T1
-    Categorize --> T2
-    Categorize --> T3
+    Cohort --> MD["markdown -> table_reports.py<br/>Tables 1, 2, optional 3, optional 4 (8-phase)"]
+    Cohort --> TEX["latex -> table_reports.py<br/>booktabs Tables 1-4 w/ escape_latex_identifier"]
+    Cohort --> MAC["macros -> latex_macros.py<br/>benchmark_macros.tex (reads CohortAnalysis directly)"]
+    Cohort --> CD["cd -> cd_diagram.py<br/>*_cd_diagram_{gap,time}.tikz (coord-ID deduplicated)"]
+    Cohort --> PLT["plots -> scaling_plots.py<br/>scaling_time_gap.{pdf,svg} (time + gap or cost)"]
 
-    %% ── Table 1 ──
-    subgraph T1 [Table 1 — Summary Statistics by Problem]
-        direction TB
-        T1a["For each problem (38):"]
-        T1a --> T1b["For each algorithm run on it:"]
-        T1b --> T1c["Row: Problem | Algorithm |<br/>Mean Cost | Std Dev |<br/>Gap (%) | Mean Time (s) | Speedup"]
-        T1c --> T1d["Speedup = baseline_time / algo_time"]
-        T1d --> T1md["_generate_table1_markdown()<br/>→ chapter4_validation_table1.md"]
-        T1d --> T1tex["_generate_table1_latex()<br/>→ chapter4_validation_table1.tex"]
-    end
+    Style["External ReportStyle (--report-style JSON)<br/>display_names, algorithm_order, decimal_separator,<br/>latex_label_prefix, size_thresholds, axis labels"] -.-> MD
+    Style -.-> TEX
+    Style -.-> MAC
+    Style -.-> CD
+    Style -.-> PLT
 
-    %% ── Table 2 ──
-    subgraph T2 [Table 2 — Algorithm Performance Comparison]
-        direction TB
-        T2a["Aggregate across all problems<br/>per algorithm"]
-        T2a --> T2b["Calculate:<br/>• Mean of mean gaps<br/>• Std of gaps<br/>• Mean of mean times<br/>• Std of times<br/>• Average speedup"]
-        T2b --> T2md["_generate_table2_markdown()<br/>→ chapter4_validation_table2.md"]
-        T2b --> T2tex["_generate_table2_latex()<br/>→ chapter4_validation_table2.tex"]
-    end
-
-    %% ── Table 3 ──
-    subgraph T3 [Table 3 — Best Algorithm by Size Category]
-        direction TB
-        T3a["For each size category<br/>(Small, Medium, Large):"]
-        T3a --> T3b["For each problem in category:"]
-        T3b --> T3c["Find algorithm with<br/>lowest mean_gap"]
-        T3c --> T3d["Row: Size Category | Problem |<br/>Best Algorithm | Gap (%) |<br/>Time (s) | Speedup"]
-        T3d --> T3md["_generate_table3_markdown()<br/>→ chapter4_validation_table3.md"]
-        T3d --> T3tex["_generate_table3_latex()<br/>→ chapter4_validation_table3.tex"]
-    end
-
-    T1md --> Output
-    T1tex --> Output
-    T2md --> Output
-    T2tex --> Output
-    T3md --> Output
-    T3tex --> Output
-
-    Output(["6 files written to<br/>results_v3/tables/<br/>• table1.md + table1.tex<br/>• table2.md + table2.tex<br/>• table3.md + table3.tex"])
-    style Output fill:#e8f5e9,stroke:#2e7d32
-
-    %% ── LaTeX Features ──
-    subgraph LaTeX [LaTeX Table Features]
-        direction LR
-        L1["booktabs package<br/>(toprule, midrule, bottomrule)"]
-        L2["siunitx for number<br/>formatting"]
-        L3["Escaped special chars<br/>(%, &, _)"]
-        L4["Caption and label<br/>for cross-referencing"]
-    end
-
-    T1tex -.-> LaTeX
-    T2tex -.-> LaTeX
-    T3tex -.-> LaTeX
+    MD --> Out(["Written to <output_dir>/tables/ & <output_dir>/figures/"])
+    TEX --> Out
+    MAC --> Out
+    CD --> Out
+    PLT --> Out
+    style Out fill:#e8f5e9,stroke:#2e7d32
 ```
 
 ---
@@ -882,77 +721,63 @@ classDiagram
     }
 
     class CheckpointIO {
-        +save_checkpoint(filepath, results, atomic)
         +save_checkpoint_atomic(filepath, results)
         +load_checkpoint(filepath) Dict
+        +quarantine_checkpoint(filepath) Path
         +is_valid_checkpoint(filepath, reps) bool
         +can_resume_checkpoint(filepath, reps) bool
         +get_remaining_repetitions(filepath, reps) int
-        +numpy_to_json_converter(obj)
+        +validate_existing_checkpoints(...) List
+        +save_problem_statistics(...)
     }
 
     class StatisticalAnalyzer {
         +alpha: float = 0.05
         +test_normality(data) Tuple~float_bool~
+        +compute_hodges_lehmann(values, confidence) Tuple
+        +rank_biserial_correlation(a, b) float
         +paired_comparison(a, b, label, metric) StatisticalSummary
-        +cohens_d(a, b) float
-        +bootstrap_ci(data, func, level, n) Tuple
+        +wilcoxon_paired_summary(a, b) Tuple
         +holm_bonferroni_correction(pvals, alpha) List
         +friedman_test(data_sets) Dict
         +nemenyi_posthoc(data_sets, names) Dict
     }
 
-    class StatisticalSummary {
-        +comparison_label: str
-        +metric_name: str
-        +sample_size: int
-        +mean_a: float
-        +mean_b: float
-        +std_a: float
-        +std_b: float
-        +ci_95_a: Tuple
-        +ci_95_b: Tuple
-        +mean_difference: float
-        +ci_95_difference: Tuple
-        +p_value: float
-        +effect_size: float
-        +test_used: str
-        +normality_p_value_a: float
-        +normality_p_value_b: float
-        +is_normal: bool
-        +get_speedup() float
-        +is_significant(alpha) bool
+    class ProblemAnalysis {
+        +problem_name: str
+        +optimal_cost: Optional~float~
+        +rows: Tuple
+        +cost_omnibus: Optional~OmnibusTestResult~
+        +time_omnibus: Optional~OmnibusTestResult~
+        +to_dict() Dict
     }
 
-    class ProblemStatistics {
-        +perform_statistical_analysis(problem, optimal, results, analyzer) Dict
-    }
-
-    class AggregateStatistics {
-        +perform_cross_problem_analysis_stratified(results, configs, analyzer, threshold) Dict
+    class CohortAnalysis {
+        +cohort: BenchmarkCohort
+        +baseline_algorithm: str
+        +per_algorithm: Tuple
+        +baseline_speedups: Dict
+        +quality_omnibus: Optional~OmnibusTestResult~
+        +time_omnibus: Optional~OmnibusTestResult~
     }
 
     class ReportGenerator {
-        +generate_result_tables(results, configs, output_dir)
-        -_get_baseline_algorithm(names) str
-        -_get_problem_size(name, configs) int
-        -_categorize_by_size(configs) Dict
-        -_generate_table1_markdown()
-        -_generate_table1_latex()
-        -_generate_table2_markdown()
-        -_generate_table2_latex()
-        -_generate_table3_markdown()
-        -_generate_table3_latex()
+        +generate_result_tables(all_results, problem_configs, output_dir, style, artifacts, analysis)
+        +generate_markdown_tables(...)
+        +generate_latex_tables(...)
+        +generate_latex_macros(...)
+        +export_cd_diagram_tikz(omnibus, ...)
+        +generate_scaling_plots(...)
     }
 
     %% ── Relationships ──
     CLI --> Orchestrator : calls run_comprehensive_benchmark
-    Orchestrator --> ConfigLoader : loads configuration
+    Orchestrator --> ConfigLoader : loads & validates configs
     Orchestrator --> CheckpointManager : manages checkpoints
     Orchestrator --> AlgorithmRunner : executes algorithms
-    Orchestrator --> ProblemStatistics : per-problem analysis
-    Orchestrator --> AggregateStatistics : cross-problem analysis
-    Orchestrator --> ReportGenerator : generates tables
+    Orchestrator --> ProblemAnalysis : analyze_problem()
+    Orchestrator --> CohortAnalysis : analyze_cohort()
+    Orchestrator --> ReportGenerator : opt-in generate_result_tables()
 
     ConfigLoader --> GAParams : creates
     ConfigLoader --> AlgorithmConfig : creates
@@ -962,35 +787,49 @@ classDiagram
     CheckpointManager --> CheckpointIO : delegates I/O
     AlgorithmRunner --> CheckpointIO : saves results
 
-    ProblemStatistics --> StatisticalAnalyzer : uses for tests
-    AggregateStatistics --> StatisticalAnalyzer : uses for tests
-    StatisticalAnalyzer --> StatisticalSummary : produces
+    ProblemAnalysis --> StatisticalAnalyzer : uses for tests
+    CohortAnalysis --> StatisticalAnalyzer : uses for tests
+    ReportGenerator --> CohortAnalysis : renders precomputed snapshot
 ```
 
 ---
 
 ## Appendix A — File Locations
 
-| Module | Path | Lines |
+| Layer / Module | Path | Lines |
 | -------- | ------ | ------- |
-| CLI Entry | `benchmark_scripts/run_chapter4_benchmark.py` | ~61 |
-| Orchestration | `src/benchmarking/runner/orchestration.py` | ~549 |
-| Config Loader | `src/benchmarking/runner/config_loader.py` | ~735 |
-| Algorithm Runner | `src/benchmarking/runner/algorithm_runner.py` | ~319 |
-| Checkpoint I/O | `src/benchmarking/runner/checkpoint_io.py` | ~363 |
-| Statistics | `src/benchmarking/analysis/statistics.py` | ~457 |
-| Problem Statistics | `src/benchmarking/analysis/problem_statistics.py` | ~398 |
-| Aggregate Statistics | `src/benchmarking/analysis/aggregate_statistics.py` | ~388 |
-| Report Generator | `src/benchmarking/analysis/report_generator.py` | ~532 |
-| Stats Utilities | `src/benchmarking/analysis/stats_utils.py` | ~146 |
+| Benchmark CLI | `src/cli/benchmark.py` | 354 |
+| Report CLI | `src/cli/report.py` | 255 |
+| Checkpoints & DB CLI | `src/cli/checkpoints.py` | 106 |
+| TSPLIB CLI | `src/cli/tsplib.py` | 104 |
+| Orchestration | `src/benchmarking/runner/orchestration.py` | 824 |
+| Config Loader | `src/benchmarking/runner/config_loader.py` | 947 |
+| Schema Generator | `src/benchmarking/runner/schema_generator.py` | 751 |
+| Algorithm Runner | `src/benchmarking/runner/algorithm_runner.py` | 568 |
+| Checkpoint I/O | `src/benchmarking/runner/checkpoint_io.py` | 933 |
+| Core Statistics | `src/benchmarking/analysis/statistics.py` | 809 |
+| Stats Utilities | `src/benchmarking/analysis/stats_utils.py` | 125 |
+| Cohort Model | `src/benchmarking/analysis/cohort.py` | 382 |
+| Problem Analysis | `src/benchmarking/analysis/problem_statistics.py` | 459 |
+| Cohort Analysis | `src/benchmarking/analysis/cohort_analysis.py` | 368 |
+| Report Style | `src/benchmarking/reporting/style.py` | 278 |
+| Console Reporter | `src/benchmarking/reporting/console.py` | 263 |
+| Table Reports | `src/benchmarking/reporting/table_reports.py` | 853 |
+| LaTeX Macros | `src/benchmarking/reporting/latex_macros.py` | 294 |
+| CD Diagrams | `src/benchmarking/reporting/cd_diagram.py` | 227 |
+| Scaling Plots | `src/benchmarking/reporting/scaling_plots.py` | 856 |
+| Report Facade | `src/benchmarking/reporting/generator.py` | 189 |
+| DB Operations (optional) | `src/benchmarking/database/db_operations.py` | 689 |
+| DB Importer (optional) | `src/benchmarking/database/import_checkpoints.py` | 312 |
+| DB Consistency (optional) | `src/benchmarking/database/validate_consistency.py` | 285 |
 
-**Config files:**
+**Configuration & schema files:**
 
-| File | Path |
+| Purpose | Path |
 | ------ | ------ |
-| algorithms.json | `configs/algorithms.json` |
-| benchmark.json | `configs/benchmark.json` |
-| problems.json | `configs/problems.json` |
+| Generic example configs | `configs/{cpu-operators,local-search-pipelines,gpu-backends,algorithms.full,report-style}.example.json` |
+| Reflective Draft 2020-12 JSON Schemas | `configs/schemas/{algorithms,benchmark,problems,report_style}.schema.json` |
+| Isolated Chapter 4 thesis configs | `benchmark_scripts/experiments-and-examples/chapter4/configs/{algorithms,benchmark,problems,report_style}.json` |
 
 ## Appendix B — Key Formulas Reference
 
@@ -998,13 +837,14 @@ classDiagram
 | --------- | ------------ | --------- |
 | Adaptive generations | `2 × n × √n` | Scale computation budget with problem size |
 | Adaptive patience | `2 × √n` | Scale early-stop stagnation window |
-| Optimality gap | `(cost − optimal) / optimal × 100` | Solution quality vs known optimum (%) |
-| Improvement | `(initial − final) / initial × 100` | GA improvement over initial solution (%) |
-| Cohen's d | `(μ_A − μ_B) / √((σ_A² + σ_B²) / 2)` | Standardised effect size between algorithms |
-| Holm-Bonferroni | `α / (m − i + 1)` for sorted p_i | Adjusted significance threshold |
-| Nemenyi CD | `q_α × √(k(k+1) / (6n))` | Critical distance for rank differences |
-| Geometric mean speedup | `exp(mean(ln(s_1), …, ln(s_n)))` | Aggregate speedup across problems |
-| Bootstrap CI | Percentile method, 10 000 resamples | Non-parametric confidence intervals |
+| Optimality gap | `(cost − optimal) / optimal × 100` (or `null` when `optimal` is unknown) | Solution quality vs known optimum (%) |
+| Improvement | `(initial − final) / initial × 100` | GA improvement over raw generation-0 solution (%) |
+| Kerby rank-biserial $r_{\text{rb}}$ | `(W+ − W−) / (W+ + W−)` (cutoffs `0.1 / 0.3 / 0.5`) | Non-parametric matched-pairs effect size (`DP13-4`) |
+| Hodges–Lehmann CI | Order statistics of Walsh averages `(v_i + v_j) / 2` (`NaN` if `2^-(n-1) > α`) | Distribution-free location & difference CI |
+| Holm-Bonferroni | `p_adj_i = max_{j<=i} min(1, (m − j + 1) · p_j)` | Monotonic step-down family-wise adjustment (`BUG-46`) |
+| Iman–Davenport $F_F$ | `((N − 1) · χ²_F) / (N(k − 1) − χ²_F)` with `df1 = k − 1, df2 = (k − 1)(N − 1)` | Less conservative Friedman omnibus correction (`DP13-3`) |
+| Nemenyi CD | `(q_Tukey / √2) × √(k(k+1) / (6N))` | Critical distance for all-vs-all rank differences (`BUG-47`) |
+| Geometric mean speedup | `exp(mean(ln(t_base_i / t_alg_i)))` | Fleming & Wallace (1986) paired aggregate speedup (`BUG-34`) |
 
 ## Appendix C — Checkpoint JSON Schema
 
@@ -1013,10 +853,11 @@ classDiagram
   "algorithm": "string",
   "problem_name": "string",
   "problem_size": "int",
-  "optimal_cost": "float",
+  "optimal_cost": "float | null",
   "backend": "CPU | GPU",
   "repetitions": "int",
   "successful_runs": "int",
+  "max_generations_configured": "int",
 
   "mean_time": "float", "std_time": "float",
   "min_time": "float",  "max_time": "float",
@@ -1024,7 +865,7 @@ classDiagram
   "mean_cost": "float", "std_cost": "float",
   "best_cost": "float", "worst_cost": "float",
 
-  "mean_gap": "float",  "std_gap": "float",  "best_gap": "float",
+  "mean_gap": "float | null",  "std_gap": "float | null",  "best_gap": "float | null",
   "mean_initial_cost": "float", "std_initial_cost": "float",
   "mean_improvement": "float",
 
@@ -1033,20 +874,34 @@ classDiagram
 
   "mean_h2d_mb": "float", "mean_d2h_mb": "float",
   "total_transfer_mb": "float", "mean_kernels": "float",
+  "mean_phase_timings": {"phase": "float"},
+  "phase_share_pct": {"phase": "float"},
+  "phase_share_cv_pct": {"phase": "float"},
 
   "raw_times": ["float"],
   "raw_costs": ["float"],
   "raw_initial_costs": ["float"],
-  "raw_gaps": ["float"],
+  "raw_gaps": ["float | null (or null array when optimal_cost is null)"],
   "raw_generations": ["int"],
   "raw_stop_reasons": ["string"],
   "raw_seeds": ["int"],
+  "raw_phase_timings": [{"phase": {"total_ms": "float", "calls": "int"}}],
 
+  "strategies": {
+    "initialization": "string",
+    "selection": "string",
+    "crossover": "string",
+    "mutation": "string",
+    "local_search": "string",
+    "evaluation": "string"
+  },
   "algorithm_config": {
     "population_size": "int",
     "mutation_rate": "float",
-    "tournament_size": "int",
-    "two_opt_iterations": "int"
+    "seed": "int",
+    "local_search_stage": "string",
+    "strategy_params": {"slot": {"class": "string", "...": "params"}},
+    "pipeline": [{"class": "string", "params": {}}]
   },
   "timestamp": "ISO 8601"
 }

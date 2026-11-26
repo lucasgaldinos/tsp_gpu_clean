@@ -1,0 +1,291 @@
+{
+  "problem_info": {
+    "name": "pr264",
+    "size": 264,
+    "optimal_cost": 49135.0,
+    "problem_id": 14,
+    "tsplib_name": "pr264",
+    "problem_type": "TSP",
+    "dimension": 264,
+    "edge_type": "EUC_2D",
+    "edge_weight_type": "EUC_2D",
+    "edge_weight_format": null,
+    "is_symmetric": true,
+    "comment": "264-city problem (Padberg/Rinaldi)",
+    "capacity": null,
+    "has_coordinates": true,
+    "has_display_coords": false,
+    "has_explicit_matrix": false,
+    "has_solution": false,
+    "source_file": "datasets_raw/problems/tsp/pr264.tsp",
+    "file_checksum": "af8238a6cc962d77d50d4d8b3f0c9099fe972f7858994ef8cf4ccb2d31b2e6c0"
+  },
+  "algorithms": {
+    "OX_GPU": {
+      "mean_time": 0.7545492631000494,
+      "std_time": 0.1990966953153541,
+      "mean_initial_cost": 1019488.5666666667,
+      "std_initial_cost": 16124.721244708084,
+      "mean_cost": 172918.86666666667,
+      "std_cost": 15025.51824049348,
+      "mean_gap": 251.92605406872218,
+      "std_gap": 30.580071721773646,
+      "mean_generations": 637.5,
+      "std_generations": 148.19622360119428,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 133.3578103000491,
+          "calls": 637.5,
+          "mean_ms": 0.2091887220392927
+        },
+        "evaluation": {
+          "total_ms": 50.44262903234085,
+          "calls": 638.5,
+          "mean_ms": 0.07900176825738582
+        },
+        "host_sync": {
+          "total_ms": 98.21368253387845,
+          "calls": 970.8,
+          "mean_ms": 0.10116778176130867
+        },
+        "initialization": {
+          "total_ms": 1.722460566634254,
+          "calls": 1.0,
+          "mean_ms": 1.722460566634254
+        },
+        "mutation": {
+          "total_ms": 161.20674739998626,
+          "calls": 637.5,
+          "mean_ms": 0.2528733292548804
+        },
+        "selection": {
+          "total_ms": 111.94622886649388,
+          "calls": 637.5,
+          "mean_ms": 0.1756019276337159
+        },
+        "survival": {
+          "total_ms": 178.70915406620043,
+          "calls": 637.5,
+          "mean_ms": 0.28032808480972615
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 17.625665919401186,
+        "evaluation": 6.674211997910615,
+        "host_sync": 13.206032455836155,
+        "initialization": 0.2510756185591943,
+        "mutation": 21.298856329095603,
+        "selection": 14.812345886450544,
+        "survival": 23.62054758947844
+      },
+      "phase_share_cv_pct": {
+        "crossover": 1.2610940501385939,
+        "evaluation": 0.9836130437993168,
+        "host_sync": 6.603313395217588,
+        "initialization": 69.99285627148716,
+        "mutation": 1.6410128262546206,
+        "selection": 0.962009756564141,
+        "survival": 1.325093294360172
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "none",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchNoOp",
+            "max_iterations": 0
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchNoOp",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "PMX_GPU": {
+      "mean_time": 1.7118807751999763,
+      "std_time": 0.5590778044401911,
+      "mean_initial_cost": 1019488.5666666667,
+      "std_initial_cost": 16124.721244708084,
+      "mean_cost": 376069.4666666667,
+      "std_cost": 31010.235586883617,
+      "mean_gap": 665.3800074624336,
+      "std_gap": 63.11231420959318,
+      "mean_generations": 1450.8333333333333,
+      "std_generations": 406.26991905189925,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 314.02921323501687,
+          "calls": 1450.8333333333333,
+          "mean_ms": 0.21644747609535914
+        },
+        "evaluation": {
+          "total_ms": 117.74273360089562,
+          "calls": 1451.8333333333333,
+          "mean_ms": 0.08109934583921177
+        },
+        "host_sync": {
+          "total_ms": 171.8824307694831,
+          "calls": 1877.2333333333333,
+          "mean_ms": 0.09156156974065545
+        },
+        "initialization": {
+          "total_ms": 1.8805341333366716,
+          "calls": 1.0,
+          "mean_ms": 1.8805341333366716
+        },
+        "mutation": {
+          "total_ms": 380.8863165681487,
+          "calls": 1450.8333333333333,
+          "mean_ms": 0.26252933939217604
+        },
+        "selection": {
+          "total_ms": 262.31573933426563,
+          "calls": 1450.8333333333333,
+          "mean_ms": 0.1808034963820326
+        },
+        "survival": {
+          "total_ms": 420.1346516328916,
+          "calls": 1450.8333333333333,
+          "mean_ms": 0.2895816093965939
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 18.30574888168887,
+        "evaluation": 6.867959769556512,
+        "host_sync": 10.210294282023398,
+        "initialization": 0.12112546728887318,
+        "mutation": 22.20247706340247,
+        "selection": 15.294380161884083,
+        "survival": 24.48675491931994
+      },
+      "phase_share_cv_pct": {
+        "crossover": 0.8026837956894181,
+        "evaluation": 0.5877256410527039,
+        "host_sync": 6.094202089183068,
+        "initialization": 65.99737138616597,
+        "mutation": 0.9179329224232159,
+        "selection": 0.7535902150704245,
+        "survival": 0.9441060253460212
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "none",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUPartiallyMapped",
+            "module": "../gpu_pmx_crossover.py"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchNoOp",
+            "max_iterations": 0
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUPartiallyMapped",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchNoOp",
+        "evaluation": "EvaluationGPUCost"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "pr264",
+    "optimal_cost": 49135.0,
+    "baseline_algorithm": "OX_GPU",
+    "pairwise_comparisons": [
+      {
+        "comparison": "OX_GPU vs PMX_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 1.862645149230957e-09,
+        "mean_difference": -203150.6,
+        "ci_95_lower": -215599.0,
+        "ci_95_upper": -191262.5,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.01852063463573543,
+        "normality_p_value_b": 0.05984740504489972,
+        "effect_interpretation": "large"
+      }
+    ],
+    "pairwise_comparisons_time": [
+      {
+        "comparison": "OX_GPU vs PMX_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 8.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 4.6566128730773926e-08,
+        "mean_difference": -0.9573315120999268,
+        "ci_95_lower": -1.1780159959998855,
+        "ci_95_upper": -0.7082821379999586,
+        "effect_size": -0.9655913978494624,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 30,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.22151455311361362,
+        "normality_p_value_b": 0.1427250949922506,
+        "effect_interpretation": "large"
+      }
+    ]
+  }
+}

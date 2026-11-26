@@ -1,0 +1,162 @@
+{
+  "$schema": "./algorithms.schema.json",
+  "default_params": {
+    "population_size": 512,
+    "mutation_rate": 0.2,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "OX_GPU_Random": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Tuned pure GPU GA (no 2-opt): random init, k=3 tournament, CUDA OX, 20% inversion mutation",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "PMX_GPU_Random": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Tuned pure GPU GA (no 2-opt): random init, k=3 tournament, CUDA PMX, 20% inversion mutation",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "module": "../gpu_pmx_crossover.py",
+          "class": "CrossoverGPUPartiallyMapped"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "OX_GPU_NN": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Tuned pure GPU GA (no 2-opt): nearest-neighbor init (k=20), k=3 tournament, CUDA OX, 20% inversion",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationNearestNeighbor",
+          "params": {
+            "k": 20,
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    },
+    "PMX_GPU_NN": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Tuned pure GPU GA (no 2-opt): nearest-neighbor init (k=20), k=3 tournament, CUDA PMX, 20% inversion",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationNearestNeighbor",
+          "params": {
+            "k": 20,
+            "return_gpu": true
+          }
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "module": "../gpu_pmx_crossover.py",
+          "class": "CrossoverGPUPartiallyMapped"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "return_gpu": true
+          }
+        }
+      }
+    }
+  }
+}

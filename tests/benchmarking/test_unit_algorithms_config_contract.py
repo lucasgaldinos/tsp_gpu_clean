@@ -21,20 +21,37 @@ from algorithms.strategies import STRATEGY_REGISTRY
 from algorithms.strategies.local_search import TwoOptCPUMode, TwoOptGPUMode
 from benchmarking.runner.config_loader import load_algorithms_config
 from benchmarking.runner.schema_generator import (
+  DEFAULT_SCHEMA_PATH,
+  STRATEGY_SLOT_PROTOCOLS,
   generate_algorithms_schema,
   render_algorithms_schema,
   resolve_init_hints,
   unwrap_type_annotation,
 )
+from benchmarking.runner.schema_generator import (
+  main as schema_generator_main,
+)
 from protocols.types import LocalSearchStage
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = PROJECT_ROOT / "configs"
-PROD_ALGORITHMS_JSON = PROJECT_ROOT / "configs" / "algorithms.json"
+CHAPTER4_CONFIG_DIR = PROJECT_ROOT / "benchmark_scripts" / "experiments-and-examples" / "chapter4" / "configs"
+PROD_ALGORITHMS_JSON = CHAPTER4_CONFIG_DIR / "algorithms.json"
 FIXTURE_ALGORITHMS_JSON = PROJECT_ROOT / "tests" / "fixtures" / "configs" / "algorithms.json"
 SCHEMA_DIR = CONFIG_DIR / "schemas"
 SCHEMA_NAMES: tuple[str, ...] = ("algorithms.schema.json", "benchmark.schema.json", "problems.schema.json")
-CONFIG_NAMES: tuple[str, ...] = ("algorithms.json", "algorithms.archive.json", "benchmark.json", "problems.json")
+CHAPTER4_CONFIG_NAMES: tuple[str, ...] = (
+  "algorithms.json",
+  "algorithms.archive.json",
+  "benchmark.json",
+  "problems.json",
+)
+EXAMPLE_ALGORITHM_CONFIGS: tuple[str, ...] = (
+  "algorithms.full.example.json",
+  "cpu-operators.example.json",
+  "local-search-pipelines.example.json",
+  "gpu-backends.example.json",
+)
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 
 
@@ -91,9 +108,7 @@ def test_algorithms_json_structural_parity() -> None:
 
     for slot, p_slot_cfg in prod_strats.items():
       f_slot_cfg = fix_strats[slot]
-      assert p_slot_cfg.get("class") == f_slot_cfg.get("class"), (
-        f"Strategy class mismatch in {variant_name}.{slot}"
-      )
+      assert p_slot_cfg.get("class") == f_slot_cfg.get("class"), f"Strategy class mismatch in {variant_name}.{slot}"
       p_slot_params = p_slot_cfg.get("params") or {}
       f_slot_params = f_slot_cfg.get("params") or {}
       assert set(p_slot_params.keys()) == set(f_slot_params.keys()), (
@@ -147,89 +162,153 @@ def test_schema_documents_exist_as_draft_2020_12() -> None:
 
 
 def test_every_config_declares_a_schema_path() -> None:
-  """WHAT: The `$schema` key of each production configuration file.
+  """WHAT: The `$schema` key of every example and Chapter-4 configuration file.
 
   WHY: Without it the editor cannot resolve completions or flag unknown keys.
-  EXPECTED: A relative `./schemas/<name>.schema.json` reference pointing at an existing file.
+  EXPECTED: Every relative `$schema` reference points to an existing schema file under `configs/schemas/`.
   """
-  for config_name in CONFIG_NAMES:
-    config = json.loads((CONFIG_DIR / config_name).read_text(encoding="utf-8"))
+  for config_name in EXAMPLE_ALGORITHM_CONFIGS:
+    config_path = CONFIG_DIR / config_name
+    config = json.loads(config_path.read_text(encoding="utf-8"))
     schema_ref = config["$schema"]
     assert isinstance(schema_ref, str) and schema_ref.startswith("./schemas/"), (
       f"{config_name} must reference ./schemas/, got {schema_ref!r}"
     )
-    assert (CONFIG_DIR / schema_ref).is_file(), f"{config_name} references a missing schema"
+    assert (config_path.parent / schema_ref).resolve().is_file(), f"{config_name} references a missing schema"
+
+  for config_name in CHAPTER4_CONFIG_NAMES:
+    config_path = CHAPTER4_CONFIG_DIR / config_name
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    schema_ref = config["$schema"]
+    assert isinstance(schema_ref, str) and "configs/schemas/" in schema_ref, (
+      f"{config_name} must reference configs/schemas/, got {schema_ref!r}"
+    )
+    assert (config_path.parent / schema_ref).resolve().is_file(), f"{config_name} references a missing schema"
 
 
-def test_example_config_instantiates_every_variant() -> None:
-  """WHAT: `configs/algorithms.full.example.json` loaded through the real loader.
+def test_example_configs_instantiate_every_variant() -> None:
+  """WHAT: All generic `configs/*.example.json` algorithm configs loaded through the real loader.
 
-  WHY: The example is the human-facing catalogue of every `Design B` class, mode and
-  knob; it is only useful while it still instantiates (`DP11-5`).
-  EXPECTED: At least six variants, all strategy classes in `STRATEGY_REGISTRY`, every
-  variant builds a `GeneticAlgorithm` without raising, and all five modes appear.
+  WHY: Example configs are the user-facing showcase of Design B strategies, modes, and
+  composable pipelines; every shipped example must stay schema-valid and instantiable.
   """
-  ga_params, algorithms = load_algorithms_config(CONFIG_DIR, config_name="algorithms.full.example.json")
+  schema = json.loads((SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
 
-  assert len(algorithms) >= 6
-  modes: set[str] = set()
-  for name, cfg in algorithms.items():
-    for slot, spec in cfg.strategies.items():
-      assert spec["class"] in STRATEGY_REGISTRY, f"unknown class in {name}.{slot}"
-      mode = (spec.get("params") or {}).get("mode")
-      if mode is not None:
-        modes.add(str(mode))
-    assert cfg.instantiate(ga_params) is not None, f"variant {name} failed to instantiate"
+  for example_name in EXAMPLE_ALGORITHM_CONFIGS:
+    example_path = CONFIG_DIR / example_name
+    jsonschema.validate(instance=json.loads(example_path.read_text(encoding="utf-8")), schema=schema)
+    ga_params, algorithms = load_algorithms_config(example_path)
+    assert len(algorithms) >= 3, f"{example_name} should showcase at least 3 variants"
+    for name, cfg in algorithms.items():
+      for slot, spec in cfg.strategies.items():
+        assert spec["class"] in STRATEGY_REGISTRY, f"unknown class in {example_name}:{name}.{slot}"
+      assert cfg.instantiate(ga_params) is not None, f"{example_name}:{name} failed to instantiate"
 
+  _, full_algorithms = load_algorithms_config(CONFIG_DIR, config_name="algorithms.full.example.json")
+  assert len(full_algorithms) >= 6
+  modes = {
+    str((spec.get("params") or {}).get("mode"))
+    for cfg in full_algorithms.values()
+    for spec in cfg.strategies.values()
+    if (spec.get("params") or {}).get("mode") is not None
+  }
   assert modes == {"best", "first", "multi_move", "batch", "naive"}
 
 
-def _extract_allof_branch_map(slot_schema: dict[str, Any]) -> dict[str, str]:
-  """Map each `allOf` branch's `class.const` value to its referenced `$defs` key."""
+def _extract_oneof_builtin_branch_map(slot_schema: dict[str, Any]) -> dict[str, str]:
+  """Map each built-in `oneOf` branch's `class.const` value to its referenced `$defs` key."""
   branch_map: dict[str, str] = {}
-  for branch in slot_schema["allOf"]:
-    assert branch["if"]["required"] == ["class"]
-    class_name = branch["if"]["properties"]["class"]["const"]
-    ref = branch["then"]["properties"]["params"]["$ref"]
+  generic_external_count = 0
+  for branch in slot_schema["oneOf"]:
+    props = branch["properties"]
+    if "module" in props:
+      assert branch["required"] == ["module", "class"]
+      assert branch["additionalProperties"] is False
+      if "const" not in props["module"]:
+        generic_external_count += 1
+      continue
+    assert branch["required"] == ["class"]
+    assert branch["additionalProperties"] is False
+    class_name = props["class"]["const"]
+    ref = props["params"]["$ref"]
     assert ref.startswith("#/$defs/")
     branch_map[class_name] = ref.removeprefix("#/$defs/")
+  assert generic_external_count == 1
   return branch_map
 
 
+def _all_error_messages(exc: jsonschema.ValidationError) -> str:
+  """Collect top-level and nested `oneOf`/`anyOf` sub-error messages for diagnostic assertions."""
+  messages = [exc.message]
+  for sub in exc.context:
+    messages.append(_all_error_messages(sub))
+  return "\n".join(messages)
+
+
 def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> None:
-  """WHAT: Reflective drift contract between registries and `algorithms.schema.json` (BUG-85).
+  """WHAT: Reflective drift contract between registries and `algorithms.schema.json` (BUG-85, BUG-103).
 
   WHY: Hand-maintained schemas drift silently when new strategies or `Literal` modes are added,
-  leaving unregistered or invalid params unconstrained (`Task 13.27(iv)`).
+  and a single flat `strategy_slot` fails to partition strategies by PEP 544 protocol slots.
   EXPECTED:
-    (a) `len(allOf)` in `strategy_slot` == `len(STRATEGY_REGISTRY)` (17) and in
-        `pipeline_step` == `len(PIPELINE_STEP_REGISTRY)` (3);
+    (a) 6 per-slot `strategy_slot_*` `$defs` partition `STRATEGY_REGISTRY` (18) via `oneOf`,
+        and `pipeline_step` covers `PIPELINE_STEP_REGISTRY` (3) via `oneOf` (no legacy `strategy_slot`);
     (b) every `$defs/params_*` key set equals the constructor signature parameters;
     (c) every `Literal`-derived `enum` matches `typing.get_args`;
-    (d) committed `configs/schemas/algorithms.schema.json` equals generator output.
+    (d) nested pipeline strategy refs point to protocol-specific slots;
+    (e) committed `configs/schemas/algorithms.schema.json` equals generator output.
   """
   committed_text = (SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8")
   committed_schema = json.loads(committed_text)
   generated_schema = generate_algorithms_schema()
 
-  # (d) Committed schema is byte-for-byte identical to generator output.
+  # (e) Committed schema is byte-for-byte identical to generator output.
   assert committed_schema == generated_schema
   assert committed_text == render_algorithms_schema()
 
   defs = committed_schema["$defs"]
+  assert "strategy_slot" not in defs
 
-  # (a) Branch coverage across both registries.
-  strategy_slot = defs["strategy_slot"]
-  pipeline_step = defs["pipeline_step"]
-  assert len(strategy_slot["allOf"]) == len(STRATEGY_REGISTRY) == 17
-  assert len(pipeline_step["allOf"]) == len(PIPELINE_STEP_REGISTRY) == 3
+  # (a) Per-slot protocol-partitioned `oneOf` coverage across all 6 strategy slots + pipeline steps.
+  strategy_branches: dict[str, str] = {}
+  for slot_name, proto, def_name in STRATEGY_SLOT_PROTOCOLS:
+    slot_def = defs[def_name]
+    slot_branch_map = _extract_oneof_builtin_branch_map(slot_def)
+    expected_slot_classes = {name for name, cls in STRATEGY_REGISTRY.items() if issubclass(cls, proto)}
+    assert set(slot_branch_map.keys()) == expected_slot_classes, f"Slot mismatch for {slot_name}"
+    assert len(slot_def["oneOf"]) == len(expected_slot_classes) + 1
+    strategy_branches.update(slot_branch_map)
 
-  strategy_branches = _extract_allof_branch_map(strategy_slot)
-  pipeline_branches = _extract_allof_branch_map(pipeline_step)
   assert set(strategy_branches.keys()) == set(STRATEGY_REGISTRY.keys())
+  assert len(strategy_branches) == len(STRATEGY_REGISTRY) == 18
+
+  pipeline_step = defs["pipeline_step"]
+  pipeline_branches = _extract_oneof_builtin_branch_map(pipeline_step)
   assert set(pipeline_branches.keys()) == set(PIPELINE_STEP_REGISTRY.keys())
-  assert set(strategy_slot["properties"]["class"]["enum"]) == set(STRATEGY_REGISTRY.keys())
-  assert set(pipeline_step["properties"]["class"]["enum"]) == set(PIPELINE_STEP_REGISTRY.keys())
+  assert len(pipeline_step["oneOf"]) == len(PIPELINE_STEP_REGISTRY) + 1
+
+  # (d) Nested pipeline step strategy refs target protocol-specific slots.
+  assert defs["params_elite_only_local_search_step"]["properties"]["local_search"]["$ref"] == (
+    "#/$defs/strategy_slot_local_search"
+  )
+  assert defs["params_elite_only_local_search_step"]["properties"]["evaluation"]["$ref"] == (
+    "#/$defs/strategy_slot_evaluation"
+  )
+  assert defs["params_periodic_local_search_step"]["properties"]["local_search"]["$ref"] == (
+    "#/$defs/strategy_slot_local_search"
+  )
+  assert defs["params_periodic_local_search_step"]["properties"]["re_evaluate"]["$ref"] == (
+    "#/$defs/strategy_slot_evaluation"
+  )
+  assert defs["params_post_init_local_search_step"]["properties"]["local_search"]["$ref"] == (
+    "#/$defs/strategy_slot_local_search"
+  )
+  assert defs["params_post_init_local_search_step"]["properties"]["evaluation"]["$ref"] == (
+    "#/$defs/strategy_slot_evaluation"
+  )
+
+  # Modular vs. monolithic discriminated `oneOf` on `algorithm_config`.
+  assert len(defs["algorithm_config"]["oneOf"]) == 2
 
   # (b) & (c) Constructor parameter fidelity and Literal enum parity across all 20 classes.
   for registry, branch_map in (
@@ -269,12 +348,12 @@ def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> 
 def test_schema_generator_reflects_synthetic_strategy_without_manual_table_edits(
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """WHAT: Reflexivity check with a temporary synthetic strategy in `STRATEGY_REGISTRY`.
+  """WHAT: Reflexivity check with a temporary synthetic `LocalSearchStrategy` in `STRATEGY_REGISTRY`.
 
-  WHY: Proves `schema_generator` inspects registries dynamically rather than reading
-  a hardcoded class-to-params lookup table (`Task 13.27(iv)`).
-  EXPECTED: Registering a synthetic class emits a new `allOf` branch and `$defs`
-  schema matching its `__init__` parameters and `Literal` enum.
+  WHY: Proves `schema_generator` inspects registries and PEP 544 protocols dynamically rather than
+  reading a hardcoded lookup table (`Task 13.27(iv)`, `BUG-103`).
+  EXPECTED: Registering a synthetic `LocalSearchStrategy` emits a `oneOf` branch strictly under
+  `strategy_slot_local_search` (not other slots) with `$defs` matching its `__init__` params.
   """
 
   class SyntheticThreeOptPreview:
@@ -290,13 +369,21 @@ def test_schema_generator_reflects_synthetic_strategy_without_manual_table_edits
       self.tolerance = tolerance
       self.dry_run = dry_run
 
+    def improve(self, route: Any, context: Any) -> Any:
+      del context
+      return route
+
+    def improve_batch(self, routes: Any, context: Any) -> Any:
+      del context
+      return routes
+
   monkeypatch.setitem(STRATEGY_REGISTRY, "SyntheticThreeOptPreview", SyntheticThreeOptPreview)
 
   schema = generate_algorithms_schema()
-  strategy_slot = schema["$defs"]["strategy_slot"]
-  assert len(strategy_slot["allOf"]) == len(STRATEGY_REGISTRY)
-  branch_map = _extract_allof_branch_map(strategy_slot)
+  ls_slot = schema["$defs"]["strategy_slot_local_search"]
+  branch_map = _extract_oneof_builtin_branch_map(ls_slot)
   assert "SyntheticThreeOptPreview" in branch_map
+  assert "SyntheticThreeOptPreview" not in _extract_oneof_builtin_branch_map(schema["$defs"]["strategy_slot_mutation"])
 
   def_key = branch_map["SyntheticThreeOptPreview"]
   param_def = schema["$defs"][def_key]
@@ -307,7 +394,7 @@ def test_schema_generator_reflects_synthetic_strategy_without_manual_table_edits
   assert param_def["properties"]["tolerance"] == {"type": ["number", "null"]}
   assert param_def["properties"]["dry_run"] == {"type": "boolean"}
 
-  base_cfg = json.loads((CONFIG_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  base_cfg = json.loads(PROD_ALGORITHMS_JSON.read_text(encoding="utf-8"))
   base_cfg["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
     "class": "SyntheticThreeOptPreview",
     "params": {"acceptance": "greedy", "max_passes": 4, "tolerance": 0.01, "dry_run": True},
@@ -320,34 +407,31 @@ def test_schema_generator_reflects_synthetic_strategy_without_manual_table_edits
 
 
 def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_candidate_k() -> None:
-  """WHAT: Per-class `mode` enum separation and `candidate_k: 0` acceptance (`BUG-85`).
+  """WHAT: Per-class `mode` enum separation, per-slot protocol isolation, and `candidate_k: 0` (`BUG-85`, `BUG-103`).
 
-  WHY: Before `Task 13.27(iv)`, `algorithms.schema.json` shared one `mode` enum across
-  CPU and GPU 2-opt and forbade `candidate_k: 0`, inverting runtime acceptance.
-  EXPECTED:
-    - `LocalSearchCPUTwoOpt` with `mode: "batch"` fails `jsonschema.validate`;
-    - `LocalSearchGPUTwoOpt` with `mode: "best"` fails `jsonschema.validate`;
-    - `LocalSearchCPUTwoOpt` with `mode: "best"` and `candidate_k: 0` passes `jsonschema.validate`;
-    - `PostInitLocalSearchStep` with `interval: 5` fails `jsonschema.validate`.
+  WHY: Ensures invalid backend modes, wrong-slot classes, monolithic keys on modular variants,
+  and unknown built-in classes all fail JSON Schema validation while external `module` specs pass.
   """
   schema = json.loads((SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
-  base = json.loads((CONFIG_DIR / "algorithms.json").read_text(encoding="utf-8"))
+  base = json.loads(PROD_ALGORITHMS_JSON.read_text(encoding="utf-8"))
 
   bad_cpu = json.loads(json.dumps(base))
   bad_cpu["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"] = {
     "max_iterations": 10,
     "mode": "batch",
   }
-  with pytest.raises(jsonschema.ValidationError, match="is not one of"):
+  with pytest.raises(jsonschema.ValidationError) as cpu_exc:
     jsonschema.validate(instance=bad_cpu, schema=schema)
+  assert "is not one of" in _all_error_messages(cpu_exc.value)
 
   bad_gpu = json.loads(json.dumps(base))
   bad_gpu["algorithm_configs"]["HybridOptimized"]["strategies"]["local_search"]["params"] = {
     "max_iterations": 10,
     "mode": "best",
   }
-  with pytest.raises(jsonschema.ValidationError, match="is not one of"):
+  with pytest.raises(jsonschema.ValidationError) as gpu_exc:
     jsonschema.validate(instance=bad_gpu, schema=schema)
+  assert "is not one of" in _all_error_messages(gpu_exc.value)
 
   valid_cpu = json.loads(json.dumps(base))
   valid_cpu["algorithm_configs"]["CPU"]["strategies"]["local_search"]["params"] = {
@@ -361,5 +445,143 @@ def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_cand
   bad_step["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
     {"class": "PostInitLocalSearchStep", "params": {"interval": 5}},
   ]
-  with pytest.raises(jsonschema.ValidationError, match="Additional properties are not allowed"):
+  with pytest.raises(jsonschema.ValidationError) as step_exc:
     jsonschema.validate(instance=bad_step, schema=schema)
+  assert "Additional properties are not allowed" in _all_error_messages(step_exc.value)
+
+  # Wrong-slot strategy in top-level slot AND inside nested pipeline step param (BUG-103).
+  wrong_slot = json.loads(json.dumps(base))
+  wrong_slot["algorithm_configs"]["CPU"]["strategies"]["crossover"] = {"class": "MutationSwap"}
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=wrong_slot, schema=schema)
+
+  wrong_nested_slot = json.loads(json.dumps(base))
+  wrong_nested_slot["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {
+      "class": "PeriodicLocalSearchStep",
+      "params": {"interval": 5, "target": "population", "re_evaluate": {"class": "MutationSwap"}},
+    }
+  ]
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=wrong_nested_slot, schema=schema)
+
+  # Monolithic-only keys rejected on modular GeneticAlgorithm (BUG-105).
+  monolithic_leak = json.loads(json.dumps(base))
+  monolithic_leak["algorithm_configs"]["CPU"]["params"]["tournament_size"] = 5
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=monolithic_leak, schema=schema)
+
+  external_cfg = json.loads(json.dumps(base))
+  external_cfg["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
+    "module": "my_custom_ops.local_search",
+    "class": "CustomOrOptSearch",
+    "params": {"window_size": 3, "custom_flag": True},
+  }
+  external_cfg["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {
+      "module": "my_custom_ops.steps",
+      "class": "CustomDiversityStep",
+      "params": {"every_n_generations": 5},
+    }
+  ]
+  jsonschema.validate(instance=external_cfg, schema=schema)
+
+  unknown_builtin = json.loads(json.dumps(base))
+  unknown_builtin["algorithm_configs"]["CPU"]["strategies"]["local_search"] = {
+    "class": "CustomOrOptSearch",
+  }
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=unknown_builtin, schema=schema)
+
+
+def test_schema_generator_extra_file_emits_typed_external_oneof_and_guards_core_schema(
+  tmp_path: Path,
+) -> None:
+  """WHAT: Experiment-local schema generation via `--extra-file` + `--output` (`BUG-103`, `DP16-3`).
+
+  WHY: Custom experiment operators in hyphenated folders need typed slot/param IntelliSense
+  without polluting `configs/schemas/algorithms.schema.json`.
+  EXPECTED:
+    - Refuses `--extra-file` without `--output` or targeting `DEFAULT_SCHEMA_PATH` (exit code 2);
+    - Emits config-relative `"module": "../my-ops.py"` typed `oneOf` branches in the matching slot
+      only, rejects unknown params on discovered external classes, and keeps generic fallback working.
+  """
+  exp_dir = tmp_path / "experiment-comparing-OX-and-PMX"
+  configs_dir = exp_dir / "configs"
+  configs_dir.mkdir(parents=True)
+  ops_file = exp_dir / "my-ops.py"
+  ops_file.write_text(
+    (
+      "from __future__ import annotations\n"
+      "from typing import Any, Literal\n"
+      "from algorithms.strategies import StrategyBase\n\n"
+      "class CustomShiftMutation(StrategyBase):\n"
+      "  def __init__(\n"
+      "    self,\n"
+      "    shift_span: int = 2,\n"
+      "    direction: Literal['left', 'right'] = 'left',\n"
+      "    seed: int | None = None,\n"
+      "  ) -> None:\n"
+      "    super().__init__(seed=seed)\n"
+      "    self.shift_span = shift_span\n"
+      "    self.direction = direction\n"
+      "  def mutate(self, individual: Any, mutation_rate: float, context: Any = None) -> Any:\n"
+      "    return individual\n"
+      "  def mutate_batch(self, routes: Any, mutation_rate: float, context: Any = None) -> Any:\n"
+      "    return routes\n\n"
+      "class CustomAuditStep:\n"
+      "  stage_anchor = 'post_survival'\n"
+      "  def __init__(self, every: int = 4) -> None:\n"
+      "    self.every = every\n"
+      "  def run(self, state: Any, timer: Any) -> None:\n"
+      "    del state, timer\n"
+    ),
+    encoding="utf-8",
+  )
+
+  # Guard: cannot target core schema with --extra-file.
+  assert schema_generator_main(["--extra-file", str(ops_file)]) == 2
+  assert schema_generator_main(["--extra-file", str(ops_file), "--output", str(DEFAULT_SCHEMA_PATH)]) == 2
+
+  local_schema_path = configs_dir / "algorithms.schema.json"
+  assert schema_generator_main(["--extra-file", str(ops_file), "--output", str(local_schema_path)]) == 0
+  assert schema_generator_main(["--extra-file", str(ops_file), "--output", str(local_schema_path), "--check"]) == 0
+
+  local_schema = json.loads(local_schema_path.read_text(encoding="utf-8"))
+  mut_branches = local_schema["$defs"]["strategy_slot_mutation"]["oneOf"]
+  custom_mut = [b for b in mut_branches if b["properties"].get("class", {}).get("const") == "CustomShiftMutation"]
+  assert len(custom_mut) == 1
+  assert custom_mut[0]["properties"]["module"] == {
+    "const": "../my-ops.py",
+    "description": "External Python module path or config-relative .py file path.",
+  }
+  # Must NOT leak into unrelated slots.
+  cx_branches = local_schema["$defs"]["strategy_slot_crossover"]["oneOf"]
+  assert not any(b["properties"].get("class", {}).get("const") == "CustomShiftMutation" for b in cx_branches)
+
+  base = json.loads(PROD_ALGORITHMS_JSON.read_text(encoding="utf-8"))
+  valid_ext = json.loads(json.dumps(base))
+  valid_ext["algorithm_configs"]["CPU"]["strategies"]["mutation"] = {
+    "module": "../my-ops.py",
+    "class": "CustomShiftMutation",
+    "params": {"shift_span": 4, "direction": "right"},
+  }
+  valid_ext["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
+    {"module": "../my-ops.py", "class": "CustomAuditStep", "params": {"every": 2}}
+  ]
+  jsonschema.validate(instance=valid_ext, schema=local_schema)
+
+  # Typo on discovered external class MUST fail (not silently fall back to generic branch).
+  typo_ext = json.loads(json.dumps(valid_ext))
+  typo_ext["algorithm_configs"]["CPU"]["strategies"]["mutation"]["params"] = {"shfit_span": 4}
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=typo_ext, schema=local_schema)
+
+  # Unrelated ad-hoc external class still passes via the generic fallback branch.
+  adhoc_ext = json.loads(json.dumps(base))
+  adhoc_ext["algorithm_configs"]["CPU"]["strategies"]["mutation"] = {
+    "module": "other_pkg.ops",
+    "class": "AdHocMutation",
+    "params": {"anything": True},
+  }
+  jsonschema.validate(instance=adhoc_ext, schema=local_schema)

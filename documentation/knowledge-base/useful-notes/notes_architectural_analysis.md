@@ -159,7 +159,7 @@ Three further limitations compounded it:
 $n \approx 800$, and lost by 3.6× at $n = 2000$; the power fit gave CPU $\propto n^{0.87}$
 and GPU $\propto n^{1.88}$, proving an asymptotic cause rather than a constant factor.
 After: 26 parity cases ($n \in \{52, 100, 200, 500, 1000, 2000\}$) are bit-identical, and
-`benchmark_scripts/crossover_scaling_sweep.py --smoke` reports $\beta_{\text{GPU}} \approx 0.0114$
+`benchmark_scripts/experiments-and-examples/chapter4/crossover_scaling_sweep.py --smoke` reports $\beta_{\text{GPU}} \approx 0.0114$
 with a $101.46\times$ gain at $n = 2000$. Treat that exponent as evidence that the curve is
 no longer quadratic — at these sizes it is dominated by fixed launch overhead — not as a
 predictive constant; the full sweep remains the reference for the Chapter 4 curve.
@@ -569,7 +569,7 @@ rtk .venv/bin/python -m pytest tests/algorithms/strategies/selection tests/algor
   tests/algorithms/strategies/evaluation tests/algorithms/strategies/local_search -q
 
 # Crossover scaling curve (beta_GPU and speedup at n = 2000)
-rtk .venv/bin/python benchmark_scripts/crossover_scaling_sweep.py --smoke
+rtk .venv/bin/python benchmark_scripts/experiments-and-examples/chapter4/crossover_scaling_sweep.py --smoke
 ```
 
 ---

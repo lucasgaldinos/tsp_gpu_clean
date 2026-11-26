@@ -1,49 +1,72 @@
-"""Statistical analysis, aggregation, and report generation (`src.benchmarking.analysis`)."""
+"""Pure statistical analysis package for benchmark evaluation (`src.benchmarking.analysis`).
 
-from benchmarking.analysis.aggregate_statistics import (
-  compare_algorithms,
-  compare_algorithms_by_group,
-  perform_cross_problem_analysis_stratified,
+Contains strictly statistical computation and immutable analytical snapshots with zero
+rendering or console-formatting side effects. Presentation, console formatting, tables,
+LaTeX macros, TikZ CD diagrams, and Matplotlib plots live in ``benchmarking.reporting``.
+"""
+
+from benchmarking.analysis.cohort import (
+  AlgorithmAggregate,
+  BenchmarkCohort,
+  SpeedupSummary,
+  derive_problem_configs,
+  resolve_algorithm_names,
 )
-from benchmarking.analysis.cd_diagram import (
-  CDResults,
-  compute_cd_diagram_data,
-  export_cd_diagram_tikz,
+from benchmarking.analysis.cohort_analysis import (
+  BaselineWilcoxonComparison,
+  CohortAnalysis,
+  StratumAnalysis,
+  analyze_cohort,
+  compare_algorithms,
 )
 from benchmarking.analysis.problem_statistics import (
-  holm_bonferroni_correction,
-  perform_statistical_analysis,
+  AlgorithmProblemRow,
+  PairwiseComparisonRecord,
+  ProblemAnalysis,
+  analyze_problem,
 )
-from benchmarking.analysis.report_generator import generate_latex_macros, generate_result_tables
-from benchmarking.analysis.statistics import StatisticalAnalyzer, StatisticalSummary
+from benchmarking.analysis.statistics import (
+  OmnibusTestResult,
+  StatisticalAnalyzer,
+  StatisticalSummary,
+  compute_iman_davenport_f,
+  compute_mean_ranks,
+  interpret_rank_biserial,
+  run_friedman_nemenyi_analysis,
+)
 from benchmarking.analysis.stats_utils import (
-  adjusted_r2,
-  calculate_aic_bic,
-  calculate_r2,
-  loocv_regression,
-  mean_absolute_error,
-  mean_absolute_percentage_error,
-  root_mean_squared_error,
+  compute_nemenyi_critical_distance,
+  finite_metric,
+  geometric_mean_ratios,
+  holm_bonferroni_correction,
+  resolve_baseline_algorithm,
 )
 
 __all__ = [
-  "CDResults",
+  "AlgorithmAggregate",
+  "AlgorithmProblemRow",
+  "BaselineWilcoxonComparison",
+  "BenchmarkCohort",
+  "CohortAnalysis",
+  "OmnibusTestResult",
+  "PairwiseComparisonRecord",
+  "ProblemAnalysis",
+  "SpeedupSummary",
   "StatisticalAnalyzer",
   "StatisticalSummary",
-  "adjusted_r2",
-  "calculate_aic_bic",
-  "calculate_r2",
+  "StratumAnalysis",
+  "analyze_cohort",
+  "analyze_problem",
   "compare_algorithms",
-  "compare_algorithms_by_group",
-  "compute_cd_diagram_data",
-  "export_cd_diagram_tikz",
-  "generate_latex_macros",
-  "generate_result_tables",
+  "compute_iman_davenport_f",
+  "compute_mean_ranks",
+  "compute_nemenyi_critical_distance",
+  "derive_problem_configs",
+  "finite_metric",
+  "geometric_mean_ratios",
   "holm_bonferroni_correction",
-  "loocv_regression",
-  "mean_absolute_error",
-  "mean_absolute_percentage_error",
-  "perform_cross_problem_analysis_stratified",
-  "perform_statistical_analysis",
-  "root_mean_squared_error",
+  "interpret_rank_biserial",
+  "resolve_algorithm_names",
+  "resolve_baseline_algorithm",
+  "run_friedman_nemenyi_analysis",
 ]

@@ -25,6 +25,13 @@ modifications:
           labeled all 4 algorithms (HybridOpt, FullGPU, HybridNaive, CPU) with exact ticks,
           clique bars (CD = 0.761, N=38), added warning regarding scipy studentized_range
           scaling convention (division by sqrt(2)), and synchronized related_files.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Replaced drifted `#L358-L450` anchor with symbol anchors to
+          `statistics.py::run_friedman_nemenyi_analysis`, `OmnibusTestResult`, and
+          `reporting/cd_diagram.py::export_cd_diagram_tikz`, documenting the unified
+          `k >= 3, N >= 2` domain with explicit `low_power` (`N < 5`) flag.
 related_files:
   - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
   - "[analysis-complete-statistical-results.md](./analysis-complete-statistical-results.md)"
@@ -524,7 +531,7 @@ A Critical Difference (CD) diagram visualizes the results of the Demšar protoco
 
 ## 4. Implementation Recipe for Algorithmic Benchmarks
 
-The repository provides production implementations of the Friedman omnibus test and Nemenyi post-hoc ranking in [statistics.py](../../src/benchmarking/analysis/statistics.py#L358-L450). Below is a self-contained reference script demonstrating the mathematical calculation of the Demšar protocol:
+The repository provides production implementations of the Friedman omnibus test, Iman–Davenport $F_F$ correction, and Nemenyi post-hoc ranking in [`statistics.py::run_friedman_nemenyi_analysis`](../../src/benchmarking/analysis/statistics.py) (returning an immutable [`statistics.py::OmnibusTestResult`](../../src/benchmarking/analysis/statistics.py) over the exact Iman–Davenport domain $k \ge 3, N \ge 2$ with explicit `low_power = (N < 5)` and `omnibus_significant` flags) and pure TikZ rendering in [`cd_diagram.py::export_cd_diagram_tikz`](../../src/benchmarking/reporting/cd_diagram.py). Below is a self-contained reference script demonstrating the mathematical calculation of the Demšar protocol:
 
 ```python
 """Demšar (2006) Two-Tier Statistical Protocol for Metaheuristics."""

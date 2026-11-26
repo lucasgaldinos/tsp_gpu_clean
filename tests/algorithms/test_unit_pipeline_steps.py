@@ -814,3 +814,92 @@ def test_example_config_never_combines_pipeline_and_local_search_stage() -> None
     )
 
 
+def test_shared_gpu_distance_matrix_is_counted_once_across_strategies(burma14_problem: Problem) -> None:
+  """WHAT: shared context GPU buffers are never double- or triple-counted (`BUG-95`).
+
+  WHY: Previously, `EvaluationGPUCost._distance_operands`, `LocalSearchGPUTwoOpt._operands.resolve`
+  and `GeneticAlgorithm._collect_strategy_metrics` each added `d_distances.nbytes` for the same
+  cached `ProblemContext._gpu_distances` handle, inflating `h2d_bytes` by `+8 * n^2` bytes.
+  EXPECTED: When two strategies resolve operands from the same context, only the first physical
+  upload increments `h2d_bytes`, and `_collect_strategy_metrics` reports `1x` (never `3x`).
+  """
+  from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
+  from algorithms.strategies.local_search.two_opt import _DistanceOperandCache
+
+  class _FakeGPUContext:
+    def __init__(self, problem: Problem) -> None:
+      self.problem = problem
+      self.h2d_bytes: int = 0
+      self._gpu_distances: np.ndarray | None = None
+
+    def get_gpu_distance_operands(self, n: int, max_matrix_dimension: int | None = None) -> tuple[Any, Any, int]:
+      _ = max_matrix_dimension
+      if self._gpu_distances is None:
+        self._gpu_distances = np.zeros((n, n), dtype=np.int32)
+        self.h2d_bytes += int(self._gpu_distances.nbytes)
+      return self._gpu_distances, 0, 0
+
+  n = burma14_problem.dimension
+  matrix_bytes = n * n * 4
+  fake_ctx = _FakeGPUContext(burma14_problem)
+
+  evaluator = EvaluationGPUCost()
+  two_opt_cache = _DistanceOperandCache()
+
+  evaluator._distance_operands(fake_ctx, n)  # type: ignore[arg-type]
+  _, two_opt_uploaded = two_opt_cache.resolve(fake_ctx, n, max_matrix_dimension=None)  # type: ignore[arg-type]
+
+  assert evaluator.h2d_bytes == matrix_bytes
+  assert two_opt_uploaded == 0
+
+  ga = _make_ga([])
+  ga.evaluation = evaluator
+  ga._collect_strategy_metrics(fake_ctx)  # type: ignore[arg-type]
+  assert ga.h2d_bytes == matrix_bytes
+
+
+@pytest.mark.gpu
+def test_gpu_shared_distance_matrix_counted_once_end_to_end() -> None:
+  """WHAT: GPU end-to-end check that `EvaluationGPUCost` + `LocalSearchGPUTwoOpt` charge `D` once (`BUG-95`).
+
+  WHY: Verifies real `ProblemContext.h2d_bytes` with CuPy on an EXPLICIT matrix so both strategies
+  sharing one `ProblemContext` report exactly `1x` matrix upload + `1x` candidate-list upload.
+  """
+  from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
+  from algorithms.strategies.local_search.two_opt import LocalSearchGPUTwoOpt
+  from data_models.problem import Problem
+  from protocols.backend import require_gpu
+
+  cp = require_gpu()
+  n = 20
+  rng = np.random.default_rng(7)
+  raw = rng.integers(1, 50, size=(n, n), dtype=np.int32)
+  dist = np.triu(raw, 1)
+  dist = dist + dist.T
+  problem = Problem(
+    name="bug95_explicit_20",
+    problem_type="TSP",
+    dimension=n,
+    coordinates=None,
+    edge_type="EXPLICIT",
+    distances=dist,
+  )
+  ctx = ProblemContext(problem, xp=cp, seed=42)
+
+  evaluator = EvaluationGPUCost(return_gpu=True)
+  local_search = LocalSearchGPUTwoOpt(max_iterations=1, mode="batch", candidate_k=5)
+
+  routes_gpu = cp.asarray(np.stack([np.arange(n, dtype=np.int32) for _ in range(4)]), dtype=cp.int32)
+  evaluator.evaluate_batch(routes_gpu, ctx)
+  local_search.improve_batch(routes_gpu, ctx)
+
+  expected_matrix = n * n * 4
+  expected_candidates = n * 5 * 4
+  assert evaluator.h2d_bytes == expected_matrix
+  assert local_search.h2d_bytes == expected_candidates
+
+  ga = _make_ga([])
+  ga.evaluation = evaluator
+  ga.local_search = local_search
+  ga._collect_strategy_metrics(ctx)
+  assert ga.h2d_bytes == expected_matrix + expected_candidates

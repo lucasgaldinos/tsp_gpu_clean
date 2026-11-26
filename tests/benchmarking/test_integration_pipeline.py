@@ -9,16 +9,16 @@ import numpy as np
 import pytest
 
 from benchmarking import (
+  ProblemAnalysis,
   ProblemConfig,
   StatisticalAnalyzer,
+  analyze_cohort,
   build_problem_configs_from_duckdb,
   build_problem_configs_from_tsp_files,
   compare_algorithms,
-  compare_algorithms_by_group,
   generate_result_tables,
   load_all_configs,
   load_problems_config,
-  perform_cross_problem_analysis_stratified,
   run_comprehensive_benchmark,
   validate_configs,
 )
@@ -206,6 +206,7 @@ def test_run_comprehensive_benchmark_fixture(
     repetitions=1,
     skip_cpu=False,
     benchmark_name="gr17_smoke",
+    reports=("markdown", "latex"),
   )
   assert "gr17" in results
   assert "CPU" in results["gr17"]
@@ -247,15 +248,20 @@ def test_run_comprehensive_benchmark_forwards_baseline_algorithm(
   gr17_path: Path = fixture_tsp_dir / "gr17.tsp"
   bayg29_path: Path = fixture_tsp_dir / "bayg29.tsp"
   with (
-    patch("benchmarking.runner.orchestration.perform_statistical_analysis") as mock_stat,
-    patch("benchmarking.runner.orchestration.perform_cross_problem_analysis_stratified") as mock_cross,
+    patch("benchmarking.runner.orchestration.analyze_problem") as mock_stat,
+    patch("benchmarking.runner.orchestration.analyze_cohort") as mock_cross,
+    patch("benchmarking.runner.orchestration.log_problem_analysis"),
+    patch("benchmarking.runner.orchestration.log_cohort_analysis"),
   ):
-    mock_stat.return_value = {
-      "problem_name": "gr17",
-      "optimal_cost": 2085.0,
-      "baseline_algorithm": "CustomBaseline",
-    }
-    mock_cross.return_value = {}
+    mock_stat.return_value = ProblemAnalysis(
+      problem_name="gr17",
+      optimal_cost=2085.0,
+      baseline_algorithm="CustomBaseline",
+      algorithms=("CPU",),
+      alpha=0.05,
+      insufficient_data=True,
+    )
+    mock_cross.return_value = None
     run_comprehensive_benchmark(
       config_dir=fixture_config_dir,
       output_dir=tmp_path,
@@ -274,9 +280,8 @@ def test_run_comprehensive_benchmark_forwards_baseline_algorithm(
     assert cross_kwargs.get("baseline_algorithm") == "CustomBaseline"
 
 
-
-def test_compare_algorithms_and_grouping() -> None:
-  """Verify compare_algorithms, grouping, and stratified cross-problem analysis."""
+def test_compare_algorithms_and_stratified_cohort_analysis() -> None:
+  """Verify compare_algorithms and stratified CohortAnalysis."""
   all_results = {
     "gr17": {
       "CPU": {"mean_gap": 0.5, "mean_time": 1.0, "edge_type": "EXPLICIT"},
@@ -306,7 +311,7 @@ def test_compare_algorithms_and_grouping() -> None:
   algorithms: list[str] = ["CPU", "HybridNaive", "HybridOptimized", "FullGPUMonolithic"]
 
   analyzer = StatisticalAnalyzer()
-  res: dict[str, Any] | None = compare_algorithms(
+  res = compare_algorithms(
     all_results=all_results,
     problems=problems,
     algorithms=algorithms,
@@ -315,89 +320,75 @@ def test_compare_algorithms_and_grouping() -> None:
     label="Test Comparison",
   )
   assert res is not None
-  assert res["problems"] == problems
-  assert res["algorithms"] == algorithms
-  assert res["n_problems"] == 3
-  assert res["n_algorithms"] == 4
-  assert res["friedman_test"]["statistic"] >= 0.0
-  assert 0.0 <= res["friedman_test"]["p_value"] <= 1.0
-  # Geometric mean of the literal baseline/algo mean_time ratios for each algorithm.
-  assert res["speedups"]["HybridNaive"] == pytest.approx(1.0)
-  assert res["speedups"]["FullGPUMonolithic"] == pytest.approx(22.2398, rel=1e-4)
-  assert res["speedups"]["HybridOptimized"] == pytest.approx(9.2276, rel=1e-4)
+  assert list(res.problems) == problems
+  assert list(res.algorithms) == algorithms
+  assert res.omnibus is not None
+  assert res.omnibus.n_blocks == 3
+  assert res.omnibus.k_algorithms == 4
+  assert res.omnibus.chi2_stat >= 0.0
+  assert 0.0 <= res.omnibus.chi2_pvalue <= 1.0
+  assert res.speedups["HybridNaive"].geomean == pytest.approx(1.0)
+  assert res.speedups["FullGPUMonolithic"].geomean == pytest.approx(22.2398, rel=1e-4)
+  assert res.speedups["HybridOptimized"].geomean == pytest.approx(9.2276, rel=1e-4)
 
-  # Degenerate: less than 3 problems or algorithms returns None
-  assert compare_algorithms(all_results, ["gr17"], algorithms, analyzer) is None
-  assert compare_algorithms(all_results, problems, ["CPU", "FullGPUMonolithic"], analyzer) is None
+  # Degenerate: < 2 problems or < 3 algorithms returns None
+  assert compare_algorithms(all_results, ["gr17"], algorithms, analyzer=analyzer) is None
+  assert compare_algorithms(all_results, problems, ["CPU", "FullGPUMonolithic"], analyzer=analyzer) is None
 
-  # Grouping test
   p_configs: list[ProblemConfig] = [
     ProblemConfig(name="gr17", optimal=2085.0, size=17),
     ProblemConfig(name="gr21", optimal=2707.0, size=21),
     ProblemConfig(name="gr24", optimal=1272.0, size=24),
     ProblemConfig(name="berlin52", optimal=7542.0, size=52),
   ]
-  group_res: dict[str, Any] = compare_algorithms_by_group(
-    all_results=all_results,
-    problem_configs=p_configs,
-    group_key="edge_type",
-    analyzer=analyzer,
-  )
-  assert set(group_res) == {"EXPLICIT", "EUC_2D"}
-  explicit_group: dict[str, Any] | None = group_res["EXPLICIT"]
-  assert explicit_group is not None
-  assert explicit_group["n_problems"] == 3
-  assert explicit_group["n_algorithms"] == 4
-  assert set(explicit_group["problems"]) == {"gr17", "gr21", "gr24"}
-  # berlin52 is the only EUC_2D problem, so that group cannot reach the 3-problem minimum.
-  assert group_res["EUC_2D"] is None
 
   # Stratified cross-problem analysis
-  strat_res: dict[str, Any] = perform_cross_problem_analysis_stratified(
-    all_results=all_results,
-    problem_configs=p_configs,
-    analyzer=analyzer,
+  strat_res = analyze_cohort(
+    all_results,
+    p_configs,
+    alpha=analyzer.alpha,
     cpu_threshold=30,
   )
-  assert strat_res["cpu_threshold"] == 30
-  assert strat_res["total_problems"] == 4
-  assert strat_res["total_algorithms"] == 4
+  assert strat_res.cpu_threshold == 30
+  assert len(strat_res.cohort.problems) == 4
+  assert len(strat_res.cohort.algorithms) == 4
+  assert len(strat_res.strata) == 2
 
-  stratum1: dict[str, Any] | None = strat_res["stratum1_small_problems"]
-  assert stratum1 is not None
-  assert stratum1["n_problems"] == 3
-  assert stratum1["n_algorithms"] == 4
-  assert set(stratum1["problems"]) == {"gr17", "gr21", "gr24"}
+  stratum1 = strat_res.strata[0]
+  assert stratum1.omnibus is not None
+  assert stratum1.omnibus.n_blocks == 3
+  assert stratum1.omnibus.k_algorithms == 4
+  assert set(stratum1.problems) == {"gr17", "gr21", "gr24"}
 
-  stratum2: dict[str, Any] | None = strat_res["stratum2_all_gpu_problems"]
-  assert stratum2 is not None
-  assert stratum2["n_problems"] == 4
-  assert stratum2["n_algorithms"] == 3
-  assert stratum2["algorithms"] == ["HybridNaive", "HybridOptimized", "FullGPUMonolithic"]
-  assert stratum2["speedups"]["HybridNaive"] == pytest.approx(1.0)
-  assert stratum2["speedups"]["FullGPUMonolithic"] == pytest.approx(22.8999, rel=1e-4)
-  assert stratum2["speedups"]["HybridOptimized"] == pytest.approx(9.4149, rel=1e-4)
+  stratum2 = strat_res.strata[1]
+  assert stratum2.omnibus is not None
+  assert stratum2.omnibus.n_blocks == 4
+  assert stratum2.omnibus.k_algorithms == 3
+  assert list(stratum2.algorithms) == ["HybridNaive", "HybridOptimized", "FullGPUMonolithic"]
+  assert stratum2.speedups["HybridNaive"].geomean == pytest.approx(1.0)
+  assert stratum2.speedups["FullGPUMonolithic"].geomean == pytest.approx(22.8999, rel=1e-4)
+  assert stratum2.speedups["HybridOptimized"].geomean == pytest.approx(9.4149, rel=1e-4)
 
-  # Unified cross-problem analysis with cpu_threshold=None (no stratification split, both gap and time)
-  strat_res_none: dict[str, Any] = perform_cross_problem_analysis_stratified(
-    all_results=all_results,
-    problem_configs=p_configs,
-    analyzer=analyzer,
+  # Unified cross-problem analysis with cpu_threshold=None
+  strat_res_none = analyze_cohort(
+    all_results,
+    p_configs,
+    alpha=analyzer.alpha,
     cpu_threshold=None,
     baseline_algorithm="CPU",
   )
-  assert strat_res_none["stratified"] is False
-  assert strat_res_none["cpu_threshold"] is None
-  assert strat_res_none["baseline_algorithm"] == "CPU"
-  assert strat_res_none["gap_comparison"] is not None
-  assert strat_res_none["gap_comparison"]["n_problems"] == 3
-  assert strat_res_none["time_comparison"] is not None
-  assert strat_res_none["time_comparison"]["n_problems"] == 3
-  assert strat_res_none["time_comparison"]["speedups"]["CPU"] == pytest.approx(1.0)
+  assert strat_res_none.strata == ()
+  assert strat_res_none.cpu_threshold is None
+  assert strat_res_none.baseline_algorithm == "CPU"
+  assert strat_res_none.quality_omnibus is not None
+  assert strat_res_none.quality_omnibus.n_blocks == 3
+  assert strat_res_none.time_omnibus is not None
+  assert strat_res_none.time_omnibus.n_blocks == 3
+  assert strat_res_none.baseline_speedups["CPU"].geomean == pytest.approx(1.0)
 
   # CPU covers only the three small problems; FullGPU covers all four.
-  assert strat_res["summary_statistics"]["CPU"]["n_problems"] == 3
-  assert strat_res["summary_statistics"]["FullGPUMonolithic"]["n_problems"] == 4
+  assert strat_res.per_algorithm["CPU"].n_problems == 3
+  assert strat_res.per_algorithm["FullGPUMonolithic"].n_problems == 4
 
 
 def test_seed_override_drives_repetition_seeds(fixture_config_dir: Path, fixture_tsp_dir: Path, tmp_path: Path) -> None:
@@ -605,7 +596,7 @@ def test_run_comprehensive_benchmark_rejects_dimension_mismatch(
       config_dir=fixture_config_dir,
       output_dir=tmp_path,
       db_path=fixture_duckdb_path,
-      fallback_tsp_dir=fixture_tsp_dir,
+      tsp_dir=fixture_tsp_dir,
       problem_configs=[ProblemConfig(name="gr17", optimal=2085.0, size=999)],
       algorithms=["CPU"],
       repetitions=1,

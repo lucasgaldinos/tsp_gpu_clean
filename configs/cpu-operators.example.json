@@ -1,0 +1,115 @@
+{
+  "$schema": "./schemas/algorithms.schema.json",
+  "default_params": {
+    "population_size": 128,
+    "mutation_rate": 0.05,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "PureGA_OX_Swap": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Pure CPU GA with random init, tournament selection, Order Crossover (OX), and swap mutation",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationSwap"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "PureGA_PMX_Inversion": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Pure CPU GA with roulette-wheel selection, PMX crossover, and inversion mutation",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationRandom",
+          "params": {
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionRouletteWheel"
+        },
+        "crossover": {
+          "class": "CrossoverPartiallyMapped"
+        },
+        "mutation": {
+          "class": "MutationInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    },
+    "Memetic_NN_TwoOptBest": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": false,
+      "description": "Memetic CPU GA with nearest-neighbor warm start, inversion mutation, and candidate-list 2-opt",
+      "params": {
+        "local_search_stage": "post_mutation"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationNearestNeighbor",
+          "params": {
+            "k": 5,
+            "return_gpu": false
+          }
+        },
+        "selection": {
+          "class": "SelectionTournament",
+          "params": {
+            "k": 5
+          }
+        },
+        "crossover": {
+          "class": "CrossoverOrder"
+        },
+        "mutation": {
+          "class": "MutationInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchCPUTwoOpt",
+          "params": {
+            "mode": "best",
+            "max_iterations": 10,
+            "candidate_k": 20
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationCPUCost"
+        }
+      }
+    }
+  }
+}

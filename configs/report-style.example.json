@@ -1,0 +1,23 @@
+{
+  "$schema": "./schemas/report_style.schema.json",
+  "display_names": {
+    "PureGA_OX_Swap": "Pure GA (OX + Swap)",
+    "PureGA_PMX_Inversion": "Pure GA (PMX + Inversion)",
+    "Memetic_NN_TwoOptBest": "Memetic GA (NN + 2-opt)"
+  },
+  "decimal_separator": ".",
+  "cd_decimal_sep": ".",
+  "plot_decimal_comma": false,
+  "latex_label_prefix": "demo_",
+  "size_thresholds": [100, 400],
+  "show_size_guides": true,
+  "cd_quality_label": "Optimality Gap",
+  "cd_cost_label": "Mean Tour Cost",
+  "cd_time_label": "Wall Time",
+  "cd_rank_label": "Average rank",
+  "plot_title": "Execution Time and Quality Scaling vs. Problem Size",
+  "plot_time_ylabel": "Execution Time (s)",
+  "plot_gap_ylabel": "Optimality Gap (%)",
+  "plot_cost_ylabel": "Mean Tour Cost",
+  "plot_xlabel": "Problem Dimension ($n$)"
+}

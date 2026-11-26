@@ -17,7 +17,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["name", "optimal", "size"],
+        "required": ["name", "size"],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -26,9 +26,9 @@
             "examples": ["berlin52", "att532", "si535", "gr666"]
           },
           "optimal": {
-            "type": "number",
+            "type": ["number", "null"],
             "exclusiveMinimum": 0,
-            "description": "Canonical optimal tour cost from TSPLIB95; every gap is computed against it."
+            "description": "Optional canonical optimal tour cost from TSPLIB95 (`null` or omitted when unknown); gaps are computed against it when present."
           },
           "size": {
             "type": "integer",

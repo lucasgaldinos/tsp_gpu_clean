@@ -14,9 +14,11 @@ from benchmarking.runner.checkpoint_io import (
   get_remaining_repetitions,
   is_valid_checkpoint,
   load_checkpoint,
+  load_checkpoints_dir,
   numpy_to_json_converter,
   save_checkpoint,
   save_checkpoint_atomic,
+  save_problem_statistics,
 )
 from benchmarking.runner.config_loader import (
   AlgorithmConfig,
@@ -29,6 +31,7 @@ from benchmarking.runner.config_loader import (
   load_all_configs,
   load_benchmark_config,
   load_problems_config,
+  resolve_benchmark_configs,
   validate_configs,
 )
 from benchmarking.runner.orchestration import run_comprehensive_benchmark
@@ -53,12 +56,14 @@ __all__: list[str] = [
   "load_all_configs",
   "load_benchmark_config",
   "load_checkpoint",
+  "load_checkpoints_dir",
   "load_problems_config",
   "numpy_to_json_converter",
+  "resolve_benchmark_configs",
   "run_comprehensive_benchmark",
   "run_single_algorithm",
   "save_checkpoint",
   "save_checkpoint_atomic",
+  "save_problem_statistics",
   "validate_configs",
 ]
-

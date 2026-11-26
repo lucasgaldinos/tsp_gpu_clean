@@ -4,6 +4,24 @@ The tcc composition is giver by the following h2 headers, until the next h1 head
 
 ---
 
+## 0. Compilação do PDF
+
+O build é orquestrado pelo `latexmk` e configurado por [`.latexmkrc`](./.latexmkrc) (LuaLaTeX + Biber). Os comandos abaixo devem ser executados no diretório `documents_tcc/tex/thesis/`, porque o `latexmk` só lê o arquivo de configuração do diretório corrente:
+
+```bash
+cd documents_tcc/tex/thesis
+
+latexmk second_draft.tex        # gera second_draft.pdf (LuaLaTeX + biber + passes necessários)
+latexmk -pvc second_draft.tex   # recompila automaticamente a cada arquivo salvo
+latexmk -c second_draft.tex     # remove auxiliares, mantém second_draft.pdf
+latexmk -C second_draft.tex     # limpeza total, remove também second_draft.pdf
+latexmk -gg second_draft.tex    # equivale a `latexmk -C` seguido de `latexmk`
+```
+
+`latexmk -c` remove `aux`, `bcf`, `bbl`, `blg`, `fdb_latexmk`, `fls`, `log`, `lof`, `lot`, `toc`, `out` e `run.xml`, mas preserva `second_draft.pdf` e o `synctex.gz` (necessário para o salto PDF → fonte no editor). `latexmk -C` remove também esses dois.
+
+---
+
 ## 1. Front matter (pré-textuais)
 
 You already have most of this; main change is updating the **Resumo/Abstract** to the GA+2-opt/TSP scope.
@@ -188,7 +206,7 @@ Este é o coração metodológico, e deve usar:
   + `src/protocols`: Definição das interfaces e do padrão `xp` para abstração de backend (NumPy/CuPy), permitindo a execução agnóstica de hardware.
   + `configs`: Arquivos JSON (`algorithms.json`, `benchmark.json`, `problems.json`) que definem a matriz experimental, desacoplando a configuração da lógica.
   + `src/benchmarking`: Lógica desacoplada para orquestração (`runner/orchestration.py`), execução (`runner/algorithm_runner.py`) e coleta de dados (`runner/checkpoint_io.py`).
-  + `benchmark_scripts`: Pontos de entrada experimentais (`run_selected_problems.py`, `run_chapter4_benchmark.py`).
+  + `benchmark_scripts/experiments-and-examples/chapter4/`: Pontos de entrada experimentais (`run_selected_problems.py`, `run_chapter4_benchmark.py`).
 
 >[!caution]
 > deve ser descritivo. Adicionar códigos, a não ser que pseudocódigos em casos pontuai, é expressamente proibido. ccaso seja necessário adicionar códigos, devem estar no apêndice.
@@ -325,7 +343,7 @@ A escolha dos parâmetros foi guiada por recomendações clássicas (e.g., @gold
 
 ### 3.6 Procedimento experimental
 
-Descreve o fluxo de trabalho do framework `src/benchmarking/`, orquestrado pelo script `benchmark_scripts/run_chapter4_benchmark.py`:
+Descreve o fluxo de trabalho do framework `src/benchmarking/`, orquestrado pelo script `benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py`:
 
 1. **Configuração**: Carrega as configurações dos arquivos `benchmark.json`, `algorithms.json` e `problems.json`, definindo a matriz de experimentos.
 2. **Execução**: Para cada problema e cada algoritmo, o `AlgorithmRunner` executa `repetitions` execuções independentes, conforme definido em `benchmark.json` ($n_{reps}$ repetições nas execuções principais desta monografia). A variante CPU é executada apenas para instâncias com $n < 100$ por questões de viabilidade temporal.

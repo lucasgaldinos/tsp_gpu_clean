@@ -31,7 +31,9 @@ from loaders import (
   TsplibLoader,
   bundle_to_problem,
   ingest_tsplib_directory_to_duckdb,
+  load_tsplib_file,
   parse_tsplib_file,
+  resolve_opt_tour_cost,
 )
 from protocols.backend import cupy_backend, gpu_available
 from protocols.problem_context import ProblemContext
@@ -67,6 +69,35 @@ def test_parse_and_bundle_to_problem(fixture_tsp_dir: Path) -> None:
   assert problem_exp.dimension == 17
   assert problem_exp.distances is not None
   assert problem_exp.distances.shape == (17, 17)
+
+  direct_problem: Problem = load_tsplib_file(fixture_tsp_dir / "berlin52.tsp")
+  assert direct_problem.name == "berlin52"
+  assert direct_problem.dimension == 52
+  assert direct_problem.distances is not None
+  assert direct_problem.distances.shape == (52, 52)
+
+
+def test_resolve_opt_tour_cost_uses_canonical_geo_distances(fixture_tsp_dir: Path, tmp_path: Path) -> None:
+  """Verify `resolve_opt_tour_cost` returns `None` when absent and computes canonical GEO cost when present."""
+  burma_copy = tmp_path / "burma14.tsp"
+  burma_copy.write_text((fixture_tsp_dir / "burma14.tsp").read_text(encoding="utf-8"), encoding="utf-8")
+  assert resolve_opt_tour_cost(burma_copy) is None
+
+  # Known canonical optimal tour for burma14 (1-based TSPLIB IDs, optimal cost = 3323)
+  opt_tour_nodes = [1, 2, 14, 3, 4, 5, 12, 6, 13, 7, 11, 8, 9, 10]
+  tour_text = "\n".join(
+    ["NAME : burma14.opt.tour", "TYPE : TOUR", "DIMENSION : 14", "TOUR_SECTION", *map(str, opt_tour_nodes), "-1", "EOF"]
+  )
+  (tmp_path / "burma14.opt.tour").write_text(tour_text + "\n", encoding="utf-8")
+  resolved = resolve_opt_tour_cost(burma_copy)
+  assert resolved is not None
+  assert resolved > 0
+  # Matches canonical Problem distance matrix (including BUG-32 GEO truncation patch)
+  prob = load_tsplib_file(burma_copy)
+  assert prob.distances is not None
+  zero_based = [n - 1 for n in opt_tour_nodes]
+  expected_cost = sum(int(prob.distances[zero_based[i], zero_based[(i + 1) % 14]]) for i in range(14))
+  assert resolved == float(expected_cost)
 
 
 def test_database_loader_fallback_and_duckdb_ingestion(tmp_path: Path, fixture_tsp_dir: Path) -> None:

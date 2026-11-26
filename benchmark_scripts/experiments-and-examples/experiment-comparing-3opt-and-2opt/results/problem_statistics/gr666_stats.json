@@ -1,0 +1,1550 @@
+{
+  "problem_info": {
+    "name": "gr666",
+    "size": 666,
+    "optimal_cost": 294358.0,
+    "problem_id": 92,
+    "tsplib_name": "gr666",
+    "problem_type": "TSP",
+    "dimension": 666,
+    "edge_type": "GEO",
+    "edge_weight_type": "GEO",
+    "edge_weight_format": null,
+    "is_symmetric": true,
+    "comment": "666 cities around the world (Groetschel)",
+    "capacity": null,
+    "has_coordinates": true,
+    "has_display_coords": false,
+    "has_explicit_matrix": false,
+    "has_solution": false,
+    "source_file": "datasets_raw/problems/tsp/gr666.tsp",
+    "file_checksum": "9d34da64cbbf6de6e3488b8cd9aa8cc05672fcf78d97a23ac31ee2cec531e6cb"
+  },
+  "algorithms": {
+    "TwoOpt_Batch_GPU": {
+      "mean_time": 2.4478278774999125,
+      "std_time": 0.8531205331276714,
+      "mean_initial_cost": 4847364.3,
+      "std_initial_cost": 30507.883870129917,
+      "mean_cost": 304893.9,
+      "std_cost": 7450.142824134314,
+      "mean_gap": 3.5792810115573546,
+      "std_gap": 2.5309802431509634,
+      "mean_generations": 236.5,
+      "std_generations": 91.74390685186916,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 64.74082129916496,
+          "calls": 236.5,
+          "mean_ms": 0.27374554460534867
+        },
+        "evaluation": {
+          "total_ms": 21.996233200661663,
+          "calls": 237.5,
+          "mean_ms": 0.09261571873962805
+        },
+        "host_sync": {
+          "total_ms": 2066.8015584034947,
+          "calls": 369.7,
+          "mean_ms": 5.590482981886651
+        },
+        "initialization": {
+          "total_ms": 3.4730882003714214,
+          "calls": 1.0,
+          "mean_ms": 3.4730882003714214
+        },
+        "local_search": {
+          "total_ms": 52.317392497934634,
+          "calls": 236.5,
+          "mean_ms": 0.2212151902661084
+        },
+        "mutation": {
+          "total_ms": 75.32317909935955,
+          "calls": 236.5,
+          "mean_ms": 0.31849124354908903
+        },
+        "selection": {
+          "total_ms": 66.2064449983518,
+          "calls": 236.5,
+          "mean_ms": 0.27994268498246005
+        },
+        "survival": {
+          "total_ms": 84.80509989913116,
+          "calls": 236.5,
+          "mean_ms": 0.3585839319202163
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 2.619803810253562,
+        "evaluation": 0.8934602496132742,
+        "host_sync": 84.55975048601617,
+        "initialization": 0.15310528583553942,
+        "local_search": 2.1191131920923993,
+        "mutation": 3.0489415290372444,
+        "selection": 2.678837236969252,
+        "survival": 3.431898940448008
+      },
+      "phase_share_cv_pct": {
+        "crossover": 4.0431734123877225,
+        "evaluation": 3.0385737024729873,
+        "host_sync": 0.686934211921518,
+        "initialization": 28.8786471656789,
+        "local_search": 3.5671080812462215,
+        "mutation": 3.7588558634748996,
+        "selection": 5.361174138465414,
+        "survival": 3.9119565096613926
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "TwoOpt_MultiMove_GPU": {
+      "mean_time": 0.9091522471002463,
+      "std_time": 0.464669336544522,
+      "mean_initial_cost": 4847364.3,
+      "std_initial_cost": 30507.883870129917,
+      "mean_cost": 297585.5,
+      "std_cost": 502.4036115404515,
+      "mean_gap": 1.0964539778093343,
+      "std_gap": 0.17067775006639924,
+      "mean_generations": 99.2,
+      "std_generations": 57.385247813934434,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 28.312139899935573,
+          "calls": 99.2,
+          "mean_ms": 0.2854046360880602
+        },
+        "evaluation": {
+          "total_ms": 10.164678696673946,
+          "calls": 100.2,
+          "mean_ms": 0.10144389916840264
+        },
+        "host_sync": {
+          "total_ms": 739.2200480013344,
+          "calls": 158.0,
+          "mean_ms": 4.678607898742623
+        },
+        "initialization": {
+          "total_ms": 3.762307699980738,
+          "calls": 1.0,
+          "mean_ms": 3.762307699980738
+        },
+        "local_search": {
+          "total_ms": 23.28260269969178,
+          "calls": 99.2,
+          "mean_ms": 0.23470365624689293
+        },
+        "mutation": {
+          "total_ms": 32.707858097455755,
+          "calls": 99.2,
+          "mean_ms": 0.3297163114662878
+        },
+        "selection": {
+          "total_ms": 29.294667302747257,
+          "calls": 99.2,
+          "mean_ms": 0.29530914619704896
+        },
+        "survival": {
+          "total_ms": 37.07487819592643,
+          "calls": 99.2,
+          "mean_ms": 0.3737386914911938
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 3.0032483085346633,
+        "evaluation": 1.1068993660988449,
+        "host_sync": 81.86301967845722,
+        "initialization": 0.5206542433376138,
+        "local_search": 2.4778888069031124,
+        "mutation": 3.4676505177520864,
+        "selection": 3.0567827056920245,
+        "survival": 3.9274625788580075
+      },
+      "phase_share_cv_pct": {
+        "crossover": 9.663476834034025,
+        "evaluation": 6.344994670116792,
+        "host_sync": 1.937556477636139,
+        "initialization": 58.408712206510174,
+        "local_search": 10.147710510235141,
+        "mutation": 9.778848417018406,
+        "selection": 13.918680961674534,
+        "survival": 9.963938172220695
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUTwoOpt",
+            "mode": "multi_move",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "max_shared_tour_cities": 11520,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUTwoOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "ThreeOpt_Batch_GPU": {
+      "mean_time": 41.918019394600016,
+      "std_time": 7.276634790425675,
+      "mean_initial_cost": 4847364.3,
+      "std_initial_cost": 30507.883870129917,
+      "mean_cost": 303426.5,
+      "std_cost": 2142.32123589759,
+      "mean_gap": 3.080772392800603,
+      "std_gap": 0.727794466567102,
+      "mean_generations": 193.4,
+      "std_generations": 36.6763623544587,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 56.65496440051356,
+          "calls": 193.4,
+          "mean_ms": 0.2929419048630484
+        },
+        "evaluation": {
+          "total_ms": 19.21845489723637,
+          "calls": 194.4,
+          "mean_ms": 0.09886036469771795
+        },
+        "host_sync": {
+          "total_ms": 41569.60764480427,
+          "calls": 257.8,
+          "mean_ms": 161.2475083196442
+        },
+        "initialization": {
+          "total_ms": 3.9052169000569847,
+          "calls": 1.0,
+          "mean_ms": 3.9052169000569847
+        },
+        "local_search": {
+          "total_ms": 54.1890655984389,
+          "calls": 193.4,
+          "mean_ms": 0.28019165252553724
+        },
+        "mutation": {
+          "total_ms": 64.32925239914766,
+          "calls": 193.4,
+          "mean_ms": 0.3326228148870096
+        },
+        "selection": {
+          "total_ms": 66.93955909904616,
+          "calls": 193.4,
+          "mean_ms": 0.3461197471512211
+        },
+        "survival": {
+          "total_ms": 72.40713400096865,
+          "calls": 193.4,
+          "mean_ms": 0.3743905584331368
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 0.13484531966884372,
+        "evaluation": 0.045826571560818034,
+        "host_sync": 99.17053552821831,
+        "initialization": 0.009843745989894926,
+        "local_search": 0.12907598563131403,
+        "mutation": 0.15302531326590296,
+        "selection": 0.15892840513803683,
+        "survival": 0.17225882543414112
+      },
+      "phase_share_cv_pct": {
+        "crossover": 3.878044679438486,
+        "evaluation": 3.0253087451473566,
+        "host_sync": 0.031337679110126485,
+        "initialization": 56.9051189231182,
+        "local_search": 4.8519326429064185,
+        "mutation": 3.8730902065922064,
+        "selection": 4.286317836398439,
+        "survival": 4.066168797368508
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUThreeOpt",
+            "module": "../gpu_three_opt.py",
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "max_shared_tour_cities": 4096,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUThreeOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "ThreeOpt_MultiMove_GPU": {
+      "mean_time": 5.6885550227998465,
+      "std_time": 0.6042951501112158,
+      "mean_initial_cost": 4847364.3,
+      "std_initial_cost": 30507.883870129917,
+      "mean_cost": 297093.3,
+      "std_cost": 225.60981558631016,
+      "mean_gap": 0.9292426229285429,
+      "std_gap": 0.07664470324785132,
+      "mean_generations": 20.5,
+      "std_generations": 3.3082388735465345,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 5.896645500797604,
+          "calls": 20.5,
+          "mean_ms": 0.28764124394134655
+        },
+        "evaluation": {
+          "total_ms": 2.8309454010013724,
+          "calls": 21.5,
+          "mean_ms": 0.1316718791163429
+        },
+        "host_sync": {
+          "total_ms": 5648.508715299431,
+          "calls": 41.5,
+          "mean_ms": 136.10864374215495
+        },
+        "initialization": {
+          "total_ms": 4.084345199771633,
+          "calls": 1.0,
+          "mean_ms": 4.084345199771633
+        },
+        "local_search": {
+          "total_ms": 5.825797000761668,
+          "calls": 20.5,
+          "mean_ms": 0.28418521954934967
+        },
+        "mutation": {
+          "total_ms": 6.762667199473071,
+          "calls": 20.5,
+          "mean_ms": 0.32988620485234493
+        },
+        "selection": {
+          "total_ms": 5.99128800095059,
+          "calls": 20.5,
+          "mean_ms": 0.29225795126588244
+        },
+        "survival": {
+          "total_ms": 7.381017098850862,
+          "calls": 20.5,
+          "mean_ms": 0.3600496145780908
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 0.10314865956947912,
+        "evaluation": 0.04982895398766668,
+        "host_sync": 99.29724142916675,
+        "initialization": 0.07339613690435338,
+        "local_search": 0.10186645812593582,
+        "mutation": 0.11823858298298831,
+        "selection": 0.10484293644662583,
+        "survival": 0.1291175215042037
+      },
+      "phase_share_cv_pct": {
+        "crossover": 5.519585004461018,
+        "evaluation": 7.091163665603226,
+        "host_sync": 0.04882387419804576,
+        "initialization": 60.2981186574234,
+        "local_search": 7.363664442441123,
+        "mutation": 6.535125862371712,
+        "selection": 5.01217447629346,
+        "survival": 5.45429980664275
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUThreeOpt",
+            "module": "../gpu_three_opt.py",
+            "mode": "multi_move",
+            "max_iterations": 10,
+            "candidate_k": 20,
+            "max_shared_tour_cities": 4096,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUThreeOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "ThreeOpt_Batch_GPU_less_candidates": {
+      "mean_time": 9.48127546350006,
+      "std_time": 2.4490967593965847,
+      "mean_initial_cost": 4847364.3,
+      "std_initial_cost": 30507.883870129917,
+      "mean_cost": 301473.2,
+      "std_cost": 2982.5666351874406,
+      "mean_gap": 2.4171926701499538,
+      "std_gap": 1.0132446324500919,
+      "mean_generations": 226.7,
+      "std_generations": 60.65210447938124,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 63.80636789617711,
+          "calls": 226.7,
+          "mean_ms": 0.28145729111679363
+        },
+        "evaluation": {
+          "total_ms": 22.226016900822287,
+          "calls": 227.7,
+          "mean_ms": 0.09761096574801181
+        },
+        "host_sync": {
+          "total_ms": 9091.930411083376,
+          "calls": 291.8,
+          "mean_ms": 31.158089140107524
+        },
+        "initialization": {
+          "total_ms": 3.4664767001231667,
+          "calls": 1.0,
+          "mean_ms": 3.4664767001231667
+        },
+        "local_search": {
+          "total_ms": 63.26143760488776,
+          "calls": 226.7,
+          "mean_ms": 0.279053540383272
+        },
+        "mutation": {
+          "total_ms": 73.2345757951407,
+          "calls": 226.7,
+          "mean_ms": 0.3230462099476873
+        },
+        "selection": {
+          "total_ms": 69.65718191313499,
+          "calls": 226.7,
+          "mean_ms": 0.3072659105122849
+        },
+        "survival": {
+          "total_ms": 82.1579563042178,
+          "calls": 226.7,
+          "mean_ms": 0.3624082765955792
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 0.6706786235249418,
+        "evaluation": 0.2339148083607047,
+        "host_sync": 95.9037833126237,
+        "initialization": 0.03953200499594834,
+        "local_search": 0.6652926781235279,
+        "mutation": 0.7703410078785475,
+        "selection": 0.7312932921524569,
+        "survival": 0.8637669213663977
+      },
+      "phase_share_cv_pct": {
+        "crossover": 3.0999340373989375,
+        "evaluation": 2.5056231755934433,
+        "host_sync": 0.13517496118470795,
+        "initialization": 49.371423522389016,
+        "local_search": 2.805115657444016,
+        "mutation": 2.613080361714546,
+        "selection": 6.116231543834116,
+        "survival": 2.6314326681224665
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUThreeOpt",
+            "module": "../gpu_three_opt.py",
+            "mode": "batch",
+            "max_iterations": 10,
+            "candidate_k": 6,
+            "max_shared_tour_cities": 4096,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUThreeOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    },
+    "ThreeOpt_MultiMove_GPU_less_candidates": {
+      "mean_time": 1.419950108300327,
+      "std_time": 0.9883002554592355,
+      "mean_initial_cost": 4847364.3,
+      "std_initial_cost": 30507.883870129917,
+      "mean_cost": 297145.2,
+      "std_cost": 132.2042191291774,
+      "mean_gap": 0.9468742143919989,
+      "std_gap": 0.04491273181947744,
+      "mean_generations": 31.8,
+      "std_generations": 25.10334196432375,
+      "success_rate": 1.0,
+      "backend": "GPU",
+      "mean_phase_timings": {
+        "crossover": {
+          "total_ms": 9.330523199241725,
+          "calls": 31.8,
+          "mean_ms": 0.2934126792214379
+        },
+        "evaluation": {
+          "total_ms": 4.106025800865609,
+          "calls": 32.8,
+          "mean_ms": 0.1251837134410247
+        },
+        "host_sync": {
+          "total_ms": 1359.89857850509,
+          "calls": 56.9,
+          "mean_ms": 23.89979927073972
+        },
+        "initialization": {
+          "total_ms": 3.3136661011667456,
+          "calls": 1.0,
+          "mean_ms": 3.3136661011667456
+        },
+        "local_search": {
+          "total_ms": 9.437654805515194,
+          "calls": 31.8,
+          "mean_ms": 0.2967815976577105
+        },
+        "mutation": {
+          "total_ms": 10.678574199118884,
+          "calls": 31.8,
+          "mean_ms": 0.3358042200980781
+        },
+        "selection": {
+          "total_ms": 9.406965196103556,
+          "calls": 31.8,
+          "mean_ms": 0.29581651560074074
+        },
+        "survival": {
+          "total_ms": 11.939390402767458,
+          "calls": 31.8,
+          "mean_ms": 0.37545252838891374
+        }
+      },
+      "phase_share_pct": {
+        "crossover": 0.6443185407943213,
+        "evaluation": 0.3014154717492843,
+        "host_sync": 95.78355467887955,
+        "initialization": 0.2828191897542921,
+        "local_search": 0.6587749643550529,
+        "mutation": 0.7386360807997592,
+        "selection": 0.6385522401390012,
+        "survival": 0.8223116113637359
+      },
+      "phase_share_cv_pct": {
+        "crossover": 5.390402279674329,
+        "evaluation": 12.296010713261728,
+        "host_sync": 0.24753412894627522,
+        "initialization": 42.49952392245773,
+        "local_search": 6.806994483351995,
+        "mutation": 5.2557512077560045,
+        "selection": 7.482238921999127,
+        "survival": 6.248743000586795
+      },
+      "algorithm_config": {
+        "population_size": 128,
+        "mutation_rate": 0.03,
+        "seed": 42,
+        "local_search_stage": "post_mutation",
+        "strategy_params": {
+          "initialization": {
+            "class": "InitializationRandom",
+            "return_gpu": true
+          },
+          "selection": {
+            "class": "SelectionGPUTournament",
+            "k": 5
+          },
+          "crossover": {
+            "class": "CrossoverGPUOrder"
+          },
+          "mutation": {
+            "class": "MutationGPUSwap"
+          },
+          "local_search": {
+            "class": "LocalSearchGPUThreeOpt",
+            "module": "../gpu_three_opt.py",
+            "mode": "multi_move",
+            "max_iterations": 10,
+            "candidate_k": 6,
+            "max_shared_tour_cities": 4096,
+            "threads_per_block": 256
+          },
+          "evaluation": {
+            "class": "EvaluationGPUCost",
+            "return_gpu": true,
+            "threads_per_block": 256
+          }
+        }
+      },
+      "strategies": {
+        "initialization": "InitializationRandom",
+        "selection": "SelectionGPUTournament",
+        "crossover": "CrossoverGPUOrder",
+        "mutation": "MutationGPUSwap",
+        "local_search": "LocalSearchGPUThreeOpt",
+        "evaluation": "EvaluationGPUCost"
+      }
+    }
+  },
+  "statistical_tests": {
+    "problem_name": "gr666",
+    "optimal_cost": 294358.0,
+    "baseline_algorithm": "TwoOpt_Batch_GPU",
+    "friedman_test": {
+      "statistic": 41.25714285714284,
+      "p_value": 8.32480047848873e-08,
+      "statistic_f": 42.47058823529401,
+      "df1": 5,
+      "df2": 45,
+      "p_value_f": 6.037105343147694e-16,
+      "significant": true,
+      "post_hoc_required": true,
+      "low_power": false
+    },
+    "nemenyi_posthoc": {
+      "critical_distance": 2.3842346119852027,
+      "mean_ranks": {
+        "TwoOpt_Batch_GPU": 5.2,
+        "TwoOpt_MultiMove_GPU": 2.9,
+        "ThreeOpt_Batch_GPU": 5.2,
+        "ThreeOpt_MultiMove_GPU": 1.4,
+        "ThreeOpt_Batch_GPU_less_candidates": 4.5,
+        "ThreeOpt_MultiMove_GPU_less_candidates": 1.8
+      },
+      "algorithm_names": [
+        "TwoOpt_Batch_GPU",
+        "TwoOpt_MultiMove_GPU",
+        "ThreeOpt_Batch_GPU",
+        "ThreeOpt_MultiMove_GPU",
+        "ThreeOpt_Batch_GPU_less_candidates",
+        "ThreeOpt_MultiMove_GPU_less_candidates"
+      ],
+      "omnibus_significant": true,
+      "significant_pairs": [
+        {
+          "algorithm_i": "TwoOpt_Batch_GPU",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU",
+          "p_value": 8.159126655382654e-05,
+          "rank_difference": 3.8000000000000003
+        },
+        {
+          "algorithm_i": "TwoOpt_Batch_GPU",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU_less_candidates",
+          "p_value": 0.0006869342380005916,
+          "rank_difference": 3.4000000000000004
+        },
+        {
+          "algorithm_i": "ThreeOpt_Batch_GPU",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU",
+          "p_value": 8.159126655382654e-05,
+          "rank_difference": 3.8000000000000003
+        },
+        {
+          "algorithm_i": "ThreeOpt_Batch_GPU",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU_less_candidates",
+          "p_value": 0.0006869342380005916,
+          "rank_difference": 3.4000000000000004
+        },
+        {
+          "algorithm_i": "ThreeOpt_MultiMove_GPU",
+          "algorithm_j": "ThreeOpt_Batch_GPU_less_candidates",
+          "p_value": 0.0028970209035945604,
+          "rank_difference": 3.1
+        },
+        {
+          "algorithm_i": "ThreeOpt_Batch_GPU_less_candidates",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU_less_candidates",
+          "p_value": 0.01581588830927938,
+          "rank_difference": 2.7
+        }
+      ]
+    },
+    "pairwise_comparisons": [
+      {
+        "comparison": "TwoOpt_Batch_GPU vs TwoOpt_MultiMove_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 7308.4,
+        "ci_95_lower": 1742.5,
+        "ci_95_upper": 12573.5,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07539912646187397,
+        "normality_p_value_b": 0.004068723367671686,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_Batch_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 22.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.625,
+        "mean_difference": 1467.4,
+        "ci_95_lower": -3811.0,
+        "ci_95_upper": 6610.0,
+        "effect_size": 0.2,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07539912646187397,
+        "normality_p_value_b": 0.1061102030637548,
+        "effect_interpretation": "small",
+        "p_value_corrected": 0.83203125,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 7800.6,
+        "ci_95_lower": 2854.5,
+        "ci_95_upper": 12915.0,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07539912646187397,
+        "normality_p_value_b": 0.011805295369852838,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 16.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.275390625,
+        "mean_difference": 3420.7,
+        "ci_95_lower": -1957.5,
+        "ci_95_upper": 8619.0,
+        "effect_size": 0.41818181818181815,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07539912646187397,
+        "normality_p_value_b": 0.26811998015055166,
+        "effect_interpretation": "medium",
+        "p_value_corrected": 0.826171875,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 7748.7,
+        "ci_95_lower": 2461.5,
+        "ci_95_upper": 12879.0,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.07539912646187397,
+        "normality_p_value_b": 0.1478541924557566,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_Batch_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -5841.0,
+        "ci_95_lower": -7347.0,
+        "ci_95_upper": -4331.0,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.004068723367671686,
+        "normality_p_value_b": 0.1061102030637548,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_MultiMove_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 3.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.009765625,
+        "mean_difference": 492.2,
+        "ci_95_lower": 58.5,
+        "ci_95_upper": 908.0,
+        "effect_size": 0.8909090909090909,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.004068723367671686,
+        "normality_p_value_b": 0.011805295369852838,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.048828125,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 1.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.00390625,
+        "mean_difference": -3887.7,
+        "ci_95_lower": -6495.5,
+        "ci_95_upper": -1613.5,
+        "effect_size": -0.9636363636363636,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.004068723367671686,
+        "normality_p_value_b": 0.26811998015055166,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 1.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.00390625,
+        "mean_difference": 440.3,
+        "ci_95_lower": 84.0,
+        "ci_95_upper": 819.5,
+        "effect_size": 0.9636363636363636,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.004068723367671686,
+        "normality_p_value_b": 0.1478541924557566,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 6333.2,
+        "ci_95_lower": 4806.5,
+        "ci_95_upper": 7680.0,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.1061102030637548,
+        "normality_p_value_b": 0.011805295369852838,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 9.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.064453125,
+        "mean_difference": 1953.3,
+        "ci_95_lower": -227.0,
+        "ci_95_upper": 4682.0,
+        "effect_size": 0.6727272727272727,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.1061102030637548,
+        "normality_p_value_b": 0.26811998015055166,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.2578125,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 6281.3,
+        "ci_95_lower": 4531.0,
+        "ci_95_upper": 7783.5,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.1061102030637548,
+        "normality_p_value_b": 0.1478541924557566,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_MultiMove_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -4379.9,
+        "ci_95_lower": -6749.0,
+        "ci_95_upper": -2385.5,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.011805295369852838,
+        "normality_p_value_b": 0.26811998015055166,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_MultiMove_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 19.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.416015625,
+        "mean_difference": -51.9,
+        "ci_95_lower": -293.5,
+        "ci_95_upper": 131.5,
+        "effect_size": -0.3090909090909091,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.011805295369852838,
+        "normality_p_value_b": 0.1478541924557566,
+        "effect_interpretation": "medium",
+        "p_value_corrected": 0.83203125,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU_less_candidates vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "cost",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 4328.0,
+        "ci_95_lower": 2209.5,
+        "ci_95_upper": 6662.5,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.26811998015055166,
+        "normality_p_value_b": 0.1478541924557566,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      }
+    ],
+    "friedman_test_time": {
+      "statistic": 47.08571428571429,
+      "p_value": 5.4573949492623e-09,
+      "statistic_f": 145.41176470588252,
+      "df1": 5,
+      "df2": 45,
+      "p_value_f": 1.3413437504224564e-26,
+      "significant": true,
+      "post_hoc_required": true,
+      "low_power": false
+    },
+    "nemenyi_posthoc_time": {
+      "critical_distance": 2.3842346119852027,
+      "mean_ranks": {
+        "TwoOpt_Batch_GPU": 2.8,
+        "TwoOpt_MultiMove_GPU": 1.5,
+        "ThreeOpt_Batch_GPU": 6.0,
+        "ThreeOpt_MultiMove_GPU": 4.0,
+        "ThreeOpt_Batch_GPU_less_candidates": 5.0,
+        "ThreeOpt_MultiMove_GPU_less_candidates": 1.7
+      },
+      "algorithm_names": [
+        "TwoOpt_Batch_GPU",
+        "TwoOpt_MultiMove_GPU",
+        "ThreeOpt_Batch_GPU",
+        "ThreeOpt_MultiMove_GPU",
+        "ThreeOpt_Batch_GPU_less_candidates",
+        "ThreeOpt_MultiMove_GPU_less_candidates"
+      ],
+      "omnibus_significant": true,
+      "significant_pairs": [
+        {
+          "algorithm_i": "TwoOpt_Batch_GPU",
+          "algorithm_j": "ThreeOpt_Batch_GPU",
+          "p_value": 0.0018210404826943805,
+          "rank_difference": 3.2
+        },
+        {
+          "algorithm_i": "TwoOpt_MultiMove_GPU",
+          "algorithm_j": "ThreeOpt_Batch_GPU",
+          "p_value": 1.120261772014075e-06,
+          "rank_difference": 4.5
+        },
+        {
+          "algorithm_i": "TwoOpt_MultiMove_GPU",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU",
+          "p_value": 0.03345160120657653,
+          "rank_difference": 2.5
+        },
+        {
+          "algorithm_i": "TwoOpt_MultiMove_GPU",
+          "algorithm_j": "ThreeOpt_Batch_GPU_less_candidates",
+          "p_value": 0.00041238580166447214,
+          "rank_difference": 3.5
+        },
+        {
+          "algorithm_i": "ThreeOpt_Batch_GPU",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU_less_candidates",
+          "p_value": 4.096782232454466e-06,
+          "rank_difference": 4.3
+        },
+        {
+          "algorithm_i": "ThreeOpt_Batch_GPU_less_candidates",
+          "algorithm_j": "ThreeOpt_MultiMove_GPU_less_candidates",
+          "p_value": 0.0011270573273619577,
+          "rank_difference": 3.3
+        }
+      ]
+    },
+    "pairwise_comparisons_time": [
+      {
+        "comparison": "TwoOpt_Batch_GPU vs TwoOpt_MultiMove_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 1.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.00390625,
+        "mean_difference": 1.5386756303996663,
+        "ci_95_lower": 0.707678104498882,
+        "ci_95_upper": 2.3823179979990527,
+        "effect_size": 0.9636363636363636,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.19378301773511303,
+        "normality_p_value_b": 0.08921995849150599,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_Batch_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -39.470191517100105,
+        "ci_95_lower": -44.99624566749935,
+        "ci_95_upper": -33.84406806049901,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.19378301773511303,
+        "normality_p_value_b": 0.36781659409035344,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -3.240727145299934,
+        "ci_95_lower": -4.103240495001955,
+        "ci_95_upper": -2.2766002514999855,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.19378301773511303,
+        "normality_p_value_b": 0.2238402329786789,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -7.033447586000148,
+        "ci_95_lower": -8.80361690150221,
+        "ci_95_upper": -5.205877360000159,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.19378301773511303,
+        "normality_p_value_b": 0.16219751221742973,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 7.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.037109375,
+        "mean_difference": 1.0278777691995855,
+        "ci_95_lower": 0.3734220379992621,
+        "ci_95_upper": 1.8651185224989604,
+        "effect_size": 0.7454545454545455,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.19378301773511303,
+        "normality_p_value_b": 9.396906705438091e-07,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.07421875,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_Batch_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -41.00886714749977,
+        "ci_95_lower": -47.132867569000155,
+        "ci_95_upper": -34.65105858949937,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.08921995849150599,
+        "normality_p_value_b": 0.36781659409035344,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_MultiMove_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -4.7794027756996,
+        "ci_95_lower": -5.311482114499995,
+        "ci_95_upper": -4.253734465499292,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.08921995849150599,
+        "normality_p_value_b": 0.2238402329786789,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -8.572123216399813,
+        "ci_95_lower": -10.359315152000818,
+        "ci_95_upper": -6.761092685999756,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.08921995849150599,
+        "normality_p_value_b": 0.16219751221742973,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "TwoOpt_MultiMove_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 15.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.232421875,
+        "mean_difference": -0.5107978612000806,
+        "ci_95_lower": -1.6665969965006298,
+        "ci_95_upper": 0.13700477399925148,
+        "effect_size": -0.45454545454545453,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.08921995849150599,
+        "normality_p_value_b": 9.396906705438091e-07,
+        "effect_interpretation": "medium",
+        "p_value_corrected": 0.232421875,
+        "significant_after_correction": false
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 36.22946437180017,
+        "ci_95_lower": 30.560431031000007,
+        "ci_95_upper": 41.55554683400078,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.36781659409035344,
+        "normality_p_value_b": 0.2238402329786789,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 32.436743931099954,
+        "ci_95_lower": 26.695687866002118,
+        "ci_95_upper": 37.60515944749932,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.36781659409035344,
+        "normality_p_value_b": 0.16219751221742973,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 40.49806928629969,
+        "ci_95_lower": 34.33982354099862,
+        "ci_95_upper": 46.61020293000183,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.36781659409035344,
+        "normality_p_value_b": 9.396906705438091e-07,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_MultiMove_GPU vs ThreeOpt_Batch_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": -3.7927204407002137,
+        "ci_95_lower": -5.831059412500508,
+        "ci_95_upper": -1.7532810419997986,
+        "effect_size": -1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.2238402329786789,
+        "normality_p_value_b": 0.16219751221742973,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_MultiMove_GPU vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 4.2686049144995195,
+        "ci_95_lower": 3.042872984998212,
+        "ci_95_upper": 5.03301448899856,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.2238402329786789,
+        "normality_p_value_b": 9.396906705438091e-07,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      },
+      {
+        "comparison": "ThreeOpt_Batch_GPU_less_candidates vs ThreeOpt_MultiMove_GPU_less_candidates",
+        "metric_name": "time",
+        "test_used": "wilcoxon_signed_rank",
+        "test_statistic": 0.0,
+        "df1": null,
+        "df2": null,
+        "p_value": 0.001953125,
+        "mean_difference": 8.061325355199733,
+        "ci_95_lower": 6.043917176999457,
+        "ci_95_upper": 10.066487963500549,
+        "effect_size": 1.0,
+        "test_justification": "demsar2006_wilcoxon_default",
+        "zero_differences_count": 0,
+        "effective_sample_size": 10,
+        "insufficient_power_warning": false,
+        "normality_p_value_a": 0.16219751221742973,
+        "normality_p_value_b": 9.396906705438091e-07,
+        "effect_interpretation": "large",
+        "p_value_corrected": 0.029296875,
+        "significant_after_correction": true
+      }
+    ]
+  }
+}

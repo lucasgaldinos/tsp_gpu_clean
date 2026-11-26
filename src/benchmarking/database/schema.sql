@@ -30,12 +30,12 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     -- ========================================================================
     problem_name VARCHAR NOT NULL,
     problem_size INTEGER NOT NULL,
-    optimal_cost DOUBLE NOT NULL,
+    optimal_cost DOUBLE,
     
     -- ========================================================================
     -- Algorithm Identification
     -- ========================================================================
-    algorithm VARCHAR NOT NULL,         -- "CPU", "HybridNaive", "HybridOptimized", "FullGPUModular", "FullGPUMonolithic"
+    algorithm VARCHAR NOT NULL,         -- Canonical algorithm variant key from algorithms.json
     backend VARCHAR NOT NULL,           -- "CPU" or "GPU"
     
     -- ========================================================================
@@ -65,11 +65,11 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     std_initial_cost DOUBLE,
     
     -- ========================================================================
-    -- Aggregate Statistics: Gap from Optimal (percentage)
+    -- Aggregate Statistics: Gap from Optimal (percentage; NULL when unknown)
     -- ========================================================================
-    mean_gap DOUBLE NOT NULL,           -- Average % above optimal
-    std_gap DOUBLE NOT NULL,
-    best_gap DOUBLE NOT NULL,           -- Best % above optimal (often 0.0)
+    mean_gap DOUBLE,                    -- Average % above optimal
+    std_gap DOUBLE,
+    best_gap DOUBLE,                    -- Best % above optimal (often 0.0)
     mean_improvement DOUBLE,            -- % improvement from initial to final
     
     -- ========================================================================
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     -- ========================================================================
     raw_times DOUBLE[] NOT NULL,        -- [run1_time, run2_time, ...]
     raw_costs DOUBLE[] NOT NULL,        -- [run1_cost, run2_cost, ...]
-    raw_gaps DOUBLE[] NOT NULL,         -- [run1_gap, run2_gap, ...]
+    raw_gaps DOUBLE[],                  -- [run1_gap, run2_gap, ...] or NULL when optimal unknown
     raw_initial_costs DOUBLE[],         -- Initial costs before optimization
     raw_generations INTEGER[],          -- Generations taken per run
     raw_stop_reasons VARCHAR[],         -- Stop reason per run ("completed", "optimal reached", etc.)
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
 -- ============================================================================
 
 -- Index 1: Most common query pattern - filter by problem AND algorithm
--- Usage: SELECT * FROM benchmark_runs WHERE problem_name = 'berlin52' AND algorithm = 'HybridOptimized';
+-- Usage: SELECT * FROM benchmark_runs WHERE problem_name = 'berlin52' AND algorithm = 'MemeticGA';
 CREATE INDEX IF NOT EXISTS idx_problem_algorithm 
 ON benchmark_runs(problem_name, algorithm);
 

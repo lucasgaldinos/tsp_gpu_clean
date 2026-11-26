@@ -1,0 +1,191 @@
+% 3 Opt Vs 2 Opt - Auto-generated
+% Generated: 2026-11-24 16:11:20
+% Compile with: pdflatex 3_opt_vs_2_opt.tex
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{booktabs}  % Professional tables
+\usepackage{multirow}  % Row spanning
+\usepackage{geometry}  % Page margins
+\usepackage{caption}   % Better captions
+\geometry{margin=1in}
+\captionsetup{font=small,labelfont=bf}
+
+\title{3 Opt Vs 2 Opt}
+\date{November 24, 2026}
+\author{Automated Benchmark Report}
+
+\begin{document}
+\maketitle
+
+\section{Summary Statistics by Problem}
+
+\begin{table}[htbp]
+\centering
+\caption{Summary Statistics by Problem. Speedup relative to baseline algorithm (2-opt Batch (GPU)).}
+\label{tab:summary}
+\begin{tabular}{llrrrrr}
+\toprule
+Problem & Algorithm & Mean Cost & Std Dev & Gap (\%) & Time (s) & Speedup \\
+\midrule
+\multirow{6}{*}{att532} & 2-opt Batch (GPU) &  28083.40 &  112.44 &    1.44 &     2.30 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &  27954.90 &   22.74 &    0.97 &     0.51 & 4.51$\times$ \\
+                     & 3-opt Batch (GPU) &  28264.60 &  177.71 &    2.09 &    27.39 & 0.08$\times$ \\
+                     & 3-opt Multi-Move (GPU) &  27920.60 &   32.24 &    0.85 &     3.61 & 0.64$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &  28115.30 &  138.95 &    1.55 &     5.56 & 0.41$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &  27924.70 &   26.92 &    0.86 &     0.62 & 3.69$\times$ \\
+\midrule
+\multirow{6}{*}{d198} & 2-opt Batch (GPU) &  15915.80 &   12.99 &    0.86 &     0.13 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &  15906.20 &   18.94 &    0.80 &     0.04 & 3.34$\times$ \\
+                     & 3-opt Batch (GPU) &  15858.10 &   33.06 &    0.49 &     1.30 & 0.10$\times$ \\
+                     & 3-opt Multi-Move (GPU) &  15846.00 &   20.83 &    0.42 &     0.51 & 0.25$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &  15883.50 &   39.18 &    0.66 &     0.21 & 0.61$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &  15872.00 &   30.34 &    0.58 &     0.08 & 1.63$\times$ \\
+\midrule
+\multirow{6}{*}{gr666} & 2-opt Batch (GPU) & 304893.90 & 7450.14 &    3.58 &     2.45 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) & 297585.50 &  502.40 &    1.10 &     0.91 & 2.69$\times$ \\
+                     & 3-opt Batch (GPU) & 303426.50 & 2142.32 &    3.08 &    41.92 & 0.06$\times$ \\
+                     & 3-opt Multi-Move (GPU) & 297093.30 &  225.61 &    0.93 &     5.69 & 0.43$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates & 301473.20 & 2982.57 &    2.42 &     9.48 & 0.26$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 297145.20 &  132.20 &    0.95 &     1.42 & 1.72$\times$ \\
+\midrule
+\multirow{6}{*}{lin318} & 2-opt Batch (GPU) &  42527.30 &  121.76 &    1.19 &     0.59 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &  42398.00 &   55.61 &    0.88 &     0.12 & 4.76$\times$ \\
+                     & 3-opt Batch (GPU) &  42542.30 &  132.80 &    1.22 &     8.01 & 0.07$\times$ \\
+                     & 3-opt Multi-Move (GPU) &  42393.40 &   39.61 &    0.87 &     1.45 & 0.40$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &  42550.10 &  120.45 &    1.24 &     1.69 & 0.35$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &  42400.70 &   33.11 &    0.88 &     0.28 & 2.08$\times$ \\
+\midrule
+\multirow{6}{*}{pcb442} & 2-opt Batch (GPU) &  51696.30 &  231.57 &    1.81 &     1.42 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &  51259.00 &   21.10 &    0.95 &     0.27 & 5.23$\times$ \\
+                     & 3-opt Batch (GPU) &  51499.90 &  197.49 &    1.42 &    13.90 & 0.10$\times$ \\
+                     & 3-opt Multi-Move (GPU) &  51219.90 &   43.80 &    0.87 &     2.29 & 0.62$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &  51609.80 &  313.80 &    1.64 &     2.94 & 0.48$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &  51238.70 &   54.02 &    0.91 &     0.41 & 3.43$\times$ \\
+\midrule
+\multirow{6}{*}{pr1002} & 2-opt Batch (GPU) & 270554.90 & 6212.52 &    4.44 &     5.32 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) & 263363.10 & 1160.17 &    1.67 &     2.65 & 2.01$\times$ \\
+                     & 3-opt Batch (GPU) & 267395.40 & 1365.01 &    3.22 &    79.14 & 0.07$\times$ \\
+                     & 3-opt Multi-Move (GPU) & 261805.20 &  375.96 &    1.07 &    38.30 & 0.14$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates & 266513.30 & 1464.79 &    2.88 &    19.25 & 0.28$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 262051.80 &  602.05 &    1.16 &     9.11 & 0.58$\times$ \\
+\midrule
+\multirow{6}{*}{pr264} & 2-opt Batch (GPU) &  49520.60 &   92.65 &    0.78 &     0.25 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &  49462.80 &   93.37 &    0.67 &     0.07 & 3.78$\times$ \\
+                     & 3-opt Batch (GPU) &  49520.10 &  512.13 &    0.78 &     3.17 & 0.08$\times$ \\
+                     & 3-opt Multi-Move (GPU) &  49345.90 &  132.16 &    0.43 &     0.82 & 0.31$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &  49382.50 &   90.16 &    0.50 &     0.38 & 0.66$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &  49450.80 &   92.10 &    0.64 &     0.12 & 2.05$\times$ \\
+\midrule
+\multirow{6}{*}{rat783} & 2-opt Batch (GPU) &   9197.30 &  355.75 &    4.44 &     4.14 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &   8921.30 &   33.15 &    1.31 &     1.94 & 2.14$\times$ \\
+                     & 3-opt Batch (GPU) &   9089.30 &   53.62 &    3.22 &    47.84 & 0.09$\times$ \\
+                     & 3-opt Multi-Move (GPU) &   8889.30 &    8.77 &    0.95 &    10.07 & 0.41$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &   9060.50 &   48.56 &    2.89 &    11.73 & 0.35$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &   8892.40 &    2.12 &    0.98 &     2.09 & 1.98$\times$ \\
+\midrule
+\multirow{6}{*}{si535} & 2-opt Batch (GPU) &  48904.00 &   30.33 &    0.94 &     0.65 & 1.00$\times$ \\
+                     & 2-opt Multi-Move (GPU) &  48900.30 &   29.99 &    0.93 &     0.12 & 5.29$\times$ \\
+                     & 3-opt Batch (GPU) &  48857.00 &   36.31 &    0.84 &    12.60 & 0.05$\times$ \\
+                     & 3-opt Multi-Move (GPU) &  48737.10 &  105.51 &    0.59 &     3.47 & 0.19$\times$ \\
+                     & ThreeOpt\_Batch\_GPU\_less\_candidates &  48884.50 &   30.10 &    0.90 &     1.60 & 0.41$\times$ \\
+                     & ThreeOpt\_MultiMove\_GPU\_less\_candidates &  48912.00 &   12.07 &    0.95 &     0.56 & 1.15$\times$ \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to 2-opt Batch (GPU).}
+\end{table}
+\clearpage
+
+\section{Algorithm Performance Comparison}
+
+\begin{table}[htbp]
+\centering
+\caption{Algorithm Performance Comparison Across All Problems (aggregated statistics)}
+\label{tab:algorithm_comparison}
+\begin{tabular}{lrrrrr}
+\toprule
+Algorithm & Mean Gap (\%) & Std Gap & Mean Time (s) & Std Time & Avg Speedup \\
+\midrule
+2-opt Batch (GPU) &     2.16 &    1.55 &     1.91 &     1.82 & 1.00$\times$ \\
+2-opt Multi-Move (GPU) &     1.03 &    0.30 &     0.74 &     0.94 & 3.54$\times$ ($n=9$) \\
+3-opt Batch (GPU) &     1.82 &    1.11 &    26.14 &    25.83 & 0.08$\times$ ($n=9$) \\
+3-opt Multi-Move (GPU) &     0.77 &    0.23 &     7.35 &    11.98 & 0.34$\times$ ($n=9$) \\
+ThreeOpt\_Batch\_GPU\_less\_candidates &     1.63 &    0.91 &     5.87 &     6.45 & 0.40$\times$ ($n=9$) \\
+ThreeOpt\_MultiMove\_GPU\_less\_candidates &     0.88 &    0.17 &     1.63 &     2.88 & 1.80$\times$ ($n=9$) \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textit{Note:} Speedup calculated relative to 2-opt Batch (GPU).}
+\end{table}
+\clearpage
+
+
+\begin{table}[htbp]
+\centering
+\caption{Average Phase Timings, Relative Share, and Dispersion (\% $\pm$ CV \%)}
+\label{tab:phase_timings}
+\begin{tabular}{llrccccccccr}
+\toprule
+Problem & Algorithm & Wall (ms) & Init & Sel & CX & Mut & Eval & LS & Surv & Host Sync & Sum/Wall \\
+\midrule
+att532 & 2-opt Batch (GPU) & 2296.1 & 0.2\% (49\%) & 3.0\% (10\%) & 2.9\% (5\%) & 3.4\% (5\%) & 1.0\% (5\%) & 2.4\% (6\%) & 3.9\% (5\%) & 82.7\% (1\%) & 99.5\% \\
+att532 & 2-opt Multi-Move (GPU) & 508.6 & 0.8\% (41\%) & 3.1\% (9\%) & 3.1\% (7\%) & 3.7\% (15\%) & 1.3\% (13\%) & 2.6\% (14\%) & 4.2\% (17\%) & 80.5\% (3\%) & 99.4\% \\
+att532 & 3-opt Batch (GPU) & 27389.3 & 0.0\% (51\%) & 0.2\% (10\%) & 0.2\% (8\%) & 0.2\% (8\%) & 0.1\% (7\%) & 0.2\% (7\%) & 0.2\% (8\%) & 99.0\% (0\%) & 100.0\% \\
+att532 & 3-opt Multi-Move (GPU) & 3606.4 & 0.1\% (39\%) & 0.1\% (6\%) & 0.1\% (6\%) & 0.1\% (6\%) & 0.1\% (8\%) & 0.1\% (9\%) & 0.1\% (6\%) & 99.2\% (0\%) & 100.0\% \\
+att532 & ThreeOpt\_Batch\_GPU\_less\_candidates & 5562.3 & 0.1\% (42\%) & 0.8\% (12\%) & 0.7\% (9\%) & 0.8\% (9\%) & 0.3\% (7\%) & 0.7\% (8\%) & 0.9\% (9\%) & 95.5\% (0\%) & 99.9\% \\
+att532 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 621.8 & 0.6\% (28\%) & 0.7\% (9\%) & 0.7\% (11\%) & 0.8\% (12\%) & 0.4\% (10\%) & 0.7\% (16\%) & 0.8\% (12\%) & 95.2\% (0\%) & 99.8\% \\
+d198 & 2-opt Batch (GPU) & 127.1 & 1.6\% (42\%) & 5.5\% (14\%) & 6.0\% (14\%) & 6.6\% (12\%) & 2.3\% (13\%) & 4.8\% (14\%) & 8.8\% (44\%) & 63.4\% (2\%) & 98.9\% \\
+d198 & 2-opt Multi-Move (GPU) & 38.1 & 4.2\% (30\%) & 6.9\% (11\%) & 7.4\% (12\%) & 8.4\% (13\%) & 3.7\% (11\%) & 6.6\% (18\%) & 9.3\% (12\%) & 51.8\% (11\%) & 98.4\% \\
+d198 & 3-opt Batch (GPU) & 1304.0 & 0.1\% (43\%) & 0.3\% (11\%) & 0.3\% (13\%) & 0.3\% (14\%) & 0.1\% (12\%) & 0.3\% (12\%) & 0.3\% (12\%) & 98.3\% (0\%) & 99.9\% \\
+d198 & 3-opt Multi-Move (GPU) & 506.6 & 0.4\% (34\%) & 0.4\% (15\%) & 0.4\% (17\%) & 0.5\% (19\%) & 0.3\% (17\%) & 0.5\% (63\%) & 0.4\% (12\%) & 97.0\% (1\%) & 99.9\% \\
+d198 & ThreeOpt\_Batch\_GPU\_less\_candidates & 209.5 & 1.0\% (44\%) & 1.7\% (13\%) & 1.6\% (11\%) & 1.8\% (12\%) & 0.8\% (19\%) & 1.6\% (15\%) & 3.4\% (126\%) & 87.8\% (4\%) & 99.6\% \\
+d198 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 77.8 & 1.9\% (30\%) & 1.9\% (13\%) & 1.9\% (10\%) & 2.0\% (10\%) & 1.2\% (8\%) & 1.9\% (16\%) & 2.1\% (13\%) & 86.6\% (1\%) & 99.5\% \\
+gr666 & 2-opt Batch (GPU) & 2447.8 & 0.2\% (29\%) & 2.7\% (5\%) & 2.6\% (4\%) & 3.0\% (4\%) & 0.9\% (3\%) & 2.1\% (4\%) & 3.4\% (4\%) & 84.6\% (1\%) & 99.5\% \\
+gr666 & 2-opt Multi-Move (GPU) & 909.2 & 0.5\% (58\%) & 3.1\% (14\%) & 3.0\% (10\%) & 3.5\% (10\%) & 1.1\% (6\%) & 2.5\% (10\%) & 3.9\% (10\%) & 81.9\% (2\%) & 99.4\% \\
+gr666 & 3-opt Batch (GPU) & 41918.0 & 0.0\% (57\%) & 0.2\% (4\%) & 0.1\% (4\%) & 0.2\% (4\%) & 0.0\% (3\%) & 0.1\% (5\%) & 0.2\% (4\%) & 99.2\% (0\%) & 100.0\% \\
+gr666 & 3-opt Multi-Move (GPU) & 5688.6 & 0.1\% (60\%) & 0.1\% (5\%) & 0.1\% (6\%) & 0.1\% (7\%) & 0.0\% (7\%) & 0.1\% (7\%) & 0.1\% (5\%) & 99.3\% (0\%) & 100.0\% \\
+gr666 & ThreeOpt\_Batch\_GPU\_less\_candidates & 9481.3 & 0.0\% (49\%) & 0.7\% (6\%) & 0.7\% (3\%) & 0.8\% (3\%) & 0.2\% (3\%) & 0.7\% (3\%) & 0.9\% (3\%) & 95.9\% (0\%) & 99.9\% \\
+gr666 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 1420.0 & 0.3\% (42\%) & 0.6\% (7\%) & 0.6\% (5\%) & 0.7\% (5\%) & 0.3\% (12\%) & 0.7\% (7\%) & 0.8\% (6\%) & 95.8\% (0\%) & 99.9\% \\
+lin318 & 2-opt Batch (GPU) & 585.6 & 0.4\% (60\%) & 3.8\% (7\%) & 4.2\% (7\%) & 4.9\% (7\%) & 1.5\% (9\%) & 3.4\% (7\%) & 5.4\% (7\%) & 75.6\% (2\%) & 99.3\% \\
+lin318 & 2-opt Multi-Move (GPU) & 122.9 & 1.4\% (35\%) & 3.8\% (8\%) & 3.9\% (6\%) & 4.6\% (7\%) & 1.8\% (6\%) & 3.3\% (4\%) & 5.0\% (6\%) & 75.6\% (2\%) & 99.2\% \\
+lin318 & 3-opt Batch (GPU) & 8008.7 & 0.0\% (39\%) & 0.2\% (13\%) & 0.2\% (9\%) & 0.2\% (8\%) & 0.1\% (6\%) & 0.2\% (8\%) & 0.2\% (9\%) & 98.8\% (0\%) & 100.0\% \\
+lin318 & 3-opt Multi-Move (GPU) & 1447.7 & 0.1\% (27\%) & 0.2\% (5\%) & 0.2\% (5\%) & 0.2\% (4\%) & 0.1\% (7\%) & 0.2\% (5\%) & 0.2\% (3\%) & 98.8\% (0\%) & 100.0\% \\
+lin318 & ThreeOpt\_Batch\_GPU\_less\_candidates & 1685.3 & 0.1\% (60\%) & 1.0\% (9\%) & 0.9\% (9\%) & 1.0\% (10\%) & 0.3\% (9\%) & 0.9\% (10\%) & 1.2\% (8\%) & 94.3\% (0\%) & 99.8\% \\
+lin318 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 281.2 & 0.9\% (48\%) & 1.1\% (10\%) & 1.1\% (13\%) & 1.3\% (13\%) & 0.6\% (16\%) & 1.1\% (14\%) & 1.3\% (13\%) & 92.2\% (1\%) & 99.7\% \\
+pcb442 & 2-opt Batch (GPU) & 1421.8 & 0.2\% (54\%) & 3.8\% (7\%) & 3.8\% (4\%) & 4.5\% (4\%) & 1.3\% (4\%) & 3.1\% (7\%) & 5.0\% (5\%) & 77.6\% (1\%) & 99.3\% \\
+pcb442 & 2-opt Multi-Move (GPU) & 272.1 & 1.0\% (24\%) & 3.8\% (6\%) & 4.0\% (4\%) & 4.6\% (5\%) & 1.5\% (4\%) & 3.3\% (7\%) & 5.0\% (4\%) & 76.1\% (1\%) & 99.2\% \\
+pcb442 & 3-opt Batch (GPU) & 13902.4 & 0.0\% (35\%) & 0.3\% (9\%) & 0.2\% (7\%) & 0.3\% (7\%) & 0.1\% (5\%) & 0.2\% (6\%) & 0.3\% (7\%) & 98.5\% (0\%) & 100.0\% \\
+pcb442 & 3-opt Multi-Move (GPU) & 2290.5 & 0.1\% (39\%) & 0.2\% (4\%) & 0.2\% (5\%) & 0.2\% (5\%) & 0.1\% (5\%) & 0.2\% (5\%) & 0.2\% (4\%) & 98.8\% (0\%) & 100.0\% \\
+pcb442 & ThreeOpt\_Batch\_GPU\_less\_candidates & 2936.1 & 0.1\% (68\%) & 1.2\% (12\%) & 1.1\% (11\%) & 1.2\% (11\%) & 0.4\% (11\%) & 1.0\% (12\%) & 1.3\% (11\%) & 93.5\% (1\%) & 99.8\% \\
+pcb442 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 414.0 & 0.7\% (32\%) & 1.0\% (7\%) & 1.0\% (8\%) & 1.2\% (9\%) & 0.5\% (10\%) & 1.1\% (12\%) & 1.3\% (10\%) & 93.0\% (1\%) & 99.8\% \\
+pr1002 & 2-opt Batch (GPU) & 5316.1 & 0.1\% (40\%) & 1.5\% (7\%) & 1.6\% (7\%) & 1.9\% (7\%) & 0.6\% (6\%) & 1.3\% (8\%) & 2.1\% (7\%) & 90.6\% (1\%) & 99.7\% \\
+pr1002 & 2-opt Multi-Move (GPU) & 2645.0 & 0.2\% (35\%) & 2.0\% (7\%) & 2.1\% (5\%) & 2.5\% (5\%) & 0.7\% (3\%) & 1.7\% (5\%) & 2.8\% (5\%) & 87.7\% (1\%) & 99.6\% \\
+pr1002 & 3-opt Batch (GPU) & 79139.8 & 0.0\% (41\%) & 0.1\% (9\%) & 0.1\% (7\%) & 0.1\% (7\%) & 0.0\% (6\%) & 0.1\% (7\%) & 0.1\% (7\%) & 99.4\% (0\%) & 100.0\% \\
+pr1002 & 3-opt Multi-Move (GPU) & 38301.6 & 0.0\% (68\%) & 0.1\% (22\%) & 0.1\% (16\%) & 0.1\% (16\%) & 0.0\% (6\%) & 0.1\% (16\%) & 0.1\% (16\%) & 99.3\% (0\%) & 100.0\% \\
+pr1002 & ThreeOpt\_Batch\_GPU\_less\_candidates & 19249.2 & 0.0\% (45\%) & 0.6\% (5\%) & 0.5\% (3\%) & 0.6\% (3\%) & 0.2\% (3\%) & 0.5\% (3\%) & 0.6\% (3\%) & 96.9\% (0\%) & 99.9\% \\
+pr1002 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 9106.2 & 0.1\% (67\%) & 0.6\% (9\%) & 0.5\% (4\%) & 0.6\% (4\%) & 0.2\% (2\%) & 0.5\% (4\%) & 0.7\% (4\%) & 96.8\% (0\%) & 99.9\% \\
+pr264 & 2-opt Batch (GPU) & 248.8 & 1.0\% (55\%) & 4.9\% (11\%) & 5.0\% (14\%) & 5.6\% (10\%) & 1.8\% (10\%) & 4.0\% (10\%) & 6.3\% (10\%) & 70.4\% (4\%) & 99.0\% \\
+pr264 & 2-opt Multi-Move (GPU) & 65.8 & 2.6\% (33\%) & 4.9\% (11\%) & 4.9\% (9\%) & 5.3\% (9\%) & 2.4\% (10\%) & 3.8\% (11\%) & 5.8\% (10\%) & 69.2\% (4\%) & 98.9\% \\
+pr264 & 3-opt Batch (GPU) & 3172.8 & 0.1\% (60\%) & 0.2\% (35\%) & 0.2\% (28\%) & 0.3\% (28\%) & 0.1\% (20\%) & 0.2\% (29\%) & 0.3\% (28\%) & 98.6\% (0\%) & 100.0\% \\
+pr264 & 3-opt Multi-Move (GPU) & 815.4 & 0.2\% (60\%) & 0.2\% (8\%) & 0.2\% (11\%) & 0.2\% (9\%) & 0.1\% (16\%) & 0.2\% (10\%) & 0.2\% (12\%) & 98.6\% (0\%) & 100.0\% \\
+pr264 & ThreeOpt\_Batch\_GPU\_less\_candidates & 377.4 & 0.5\% (50\%) & 1.2\% (9\%) & 1.2\% (8\%) & 1.4\% (7\%) & 0.6\% (13\%) & 1.2\% (8\%) & 1.5\% (6\%) & 92.1\% (1\%) & 99.7\% \\
+pr264 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 121.3 & 1.6\% (42\%) & 1.3\% (9\%) & 1.3\% (9\%) & 1.4\% (14\%) & 0.9\% (12\%) & 1.3\% (12\%) & 1.5\% (10\%) & 90.4\% (1\%) & 99.7\% \\
+rat783 & 2-opt Batch (GPU) & 4141.7 & 0.1\% (51\%) & 1.7\% (6\%) & 1.8\% (5\%) & 2.2\% (5\%) & 0.6\% (3\%) & 1.5\% (5\%) & 2.4\% (5\%) & 89.3\% (1\%) & 99.7\% \\
+rat783 & 2-opt Multi-Move (GPU) & 1939.3 & 0.2\% (25\%) & 2.0\% (8\%) & 2.1\% (4\%) & 2.5\% (4\%) & 0.8\% (4\%) & 1.8\% (5\%) & 2.8\% (5\%) & 87.4\% (1\%) & 99.6\% \\
+rat783 & 3-opt Batch (GPU) & 47836.1 & 0.0\% (33\%) & 0.2\% (8\%) & 0.1\% (8\%) & 0.2\% (7\%) & 0.0\% (6\%) & 0.1\% (7\%) & 0.2\% (7\%) & 99.2\% (0\%) & 100.0\% \\
+rat783 & 3-opt Multi-Move (GPU) & 10072.6 & 0.0\% (33\%) & 0.1\% (31\%) & 0.1\% (24\%) & 0.1\% (23\%) & 0.0\% (13\%) & 0.1\% (22\%) & 0.1\% (24\%) & 99.3\% (0\%) & 100.0\% \\
+rat783 & ThreeOpt\_Batch\_GPU\_less\_candidates & 11726.9 & 0.0\% (43\%) & 0.7\% (8\%) & 0.6\% (5\%) & 0.7\% (5\%) & 0.2\% (4\%) & 0.6\% (6\%) & 0.8\% (5\%) & 96.2\% (0\%) & 99.9\% \\
+rat783 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 2089.4 & 0.2\% (53\%) & 0.6\% (15\%) & 0.6\% (9\%) & 0.7\% (9\%) & 0.2\% (6\%) & 0.6\% (10\%) & 0.7\% (10\%) & 96.3\% (0\%) & 99.9\% \\
+si535 & 2-opt Batch (GPU) & 647.3 & 0.4\% (36\%) & 2.3\% (7\%) & 2.5\% (3\%) & 3.0\% (2\%) & 1.0\% (4\%) & 2.1\% (3\%) & 3.4\% (3\%) & 84.8\% (1\%) & 99.5\% \\
+si535 & 2-opt Multi-Move (GPU) & 122.5 & 2.8\% (54\%) & 2.4\% (10\%) & 2.5\% (8\%) & 2.9\% (8\%) & 1.4\% (12\%) & 2.2\% (15\%) & 3.1\% (8\%) & 82.1\% (3\%) & 99.5\% \\
+si535 & 3-opt Batch (GPU) & 12601.3 & 0.0\% (38\%) & 0.1\% (3\%) & 0.1\% (4\%) & 0.1\% (5\%) & 0.0\% (6\%) & 0.1\% (8\%) & 0.1\% (5\%) & 99.5\% (0\%) & 100.0\% \\
+si535 & 3-opt Multi-Move (GPU) & 3465.5 & 0.1\% (25\%) & 0.1\% (6\%) & 0.1\% (8\%) & 0.1\% (7\%) & 0.1\% (9\%) & 0.1\% (11\%) & 0.1\% (8\%) & 99.4\% (0\%) & 100.0\% \\
+si535 & ThreeOpt\_Batch\_GPU\_less\_candidates & 1595.3 & 0.2\% (42\%) & 0.6\% (4\%) & 0.6\% (4\%) & 0.7\% (4\%) & 0.3\% (8\%) & 0.6\% (6\%) & 0.8\% (5\%) & 96.1\% (0\%) & 99.9\% \\
+si535 & ThreeOpt\_MultiMove\_GPU\_less\_candidates & 563.3 & 0.7\% (33\%) & 0.7\% (7\%) & 0.7\% (8\%) & 0.8\% (6\%) & 0.4\% (9\%) & 0.7\% (11\%) & 0.9\% (7\%) & 95.0\% (0\%) & 99.8\% \\
+\bottomrule
+\end{tabular}
+\vspace{0.5em}
+{\small \textbf{Warning:} Executions with mean runtime $< 100$\,ms exhibit elevated relative host synchronization and dispatch overhead. Phase shares for sub-100\,ms runs should be interpreted with caution.}
+\end{table}
+
+\end{document}

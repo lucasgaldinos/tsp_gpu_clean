@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/report_style.schema.json",
+  "title": "Benchmark report presentation style configuration",
+  "description": "External presentation settings injected via --report-style or load_report_style(). Generated reflectively from benchmarking.reporting.style.ReportStyle so schema and runtime validation stay locked to a single source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference used by editors for completion and validation."
+    },
+    "display_names": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Optional mapping from canonical JSON algorithm keys to rendered table/figure labels."
+    },
+    "decimal_separator": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Decimal separator used in quantitative LaTeX macros (e.g., '.' or '{,}')."
+    },
+    "cd_decimal_sep": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Decimal separator used in Dem\u0161ar Critical Difference TikZ diagrams (e.g., '.' or ',')."
+    },
+    "plot_decimal_comma": {
+      "type": "boolean",
+      "description": "Format Matplotlib y-axis gap/cost tick labels with decimal commas when true."
+    },
+    "latex_label_prefix": {
+      "type": "string",
+      "description": "Optional prefix inserted into LaTeX \\label{tab:<prefix>...} identifiers."
+    },
+    "size_thresholds": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "integer",
+          "minimum": 2
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2,
+      "description": "Two-element [small_max, medium_max] stratum cutoffs satisfying 0 < small_max < medium_max."
+    },
+    "show_size_guides": {
+      "type": "boolean",
+      "description": "Draw vertical problem-size stratum guides on scaling plots when true."
+    },
+    "cd_quality_label": {
+      "type": "string",
+      "description": "Metric label for optimality-gap Dem\u0161ar Critical Difference diagrams."
+    },
+    "cd_cost_label": {
+      "type": "string",
+      "description": "Fallback metric label for cost Dem\u0161ar CD diagrams when reference optima are absent."
+    },
+    "cd_time_label": {
+      "type": "string",
+      "description": "Metric label for execution-time Dem\u0161ar Critical Difference diagrams."
+    },
+    "cd_rank_label": {
+      "type": "string",
+      "description": "Axis label placed at the right end of Dem\u0161ar CD rank axes."
+    },
+    "plot_title": {
+      "type": "string",
+      "description": "Main suptitle rendered above the dual-panel scaling figure."
+    },
+    "plot_time_ylabel": {
+      "type": "string",
+      "description": "Y-axis label for the top (execution time) scaling panel."
+    },
+    "plot_gap_ylabel": {
+      "type": "string",
+      "description": "Y-axis label for the bottom (optimality gap) scaling panel."
+    },
+    "plot_cost_ylabel": {
+      "type": "string",
+      "description": "Fallback y-axis label for the bottom panel when reference optima are absent."
+    },
+    "plot_xlabel": {
+      "type": "string",
+      "description": "Shared x-axis label for problem dimension n."
+    },
+    "plot_band_label": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional legend label for the empirical dispersion band (null uses metric default)."
+    },
+    "algorithm_order": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional explicit algorithm ordering applied across tables, macros, CD diagrams, and plots."
+    }
+  }
+}

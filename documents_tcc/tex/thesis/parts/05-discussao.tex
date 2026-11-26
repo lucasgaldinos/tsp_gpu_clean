@@ -1,17 +1,17 @@
 \chapter{Discussão}\label{sec:discussao}
 
 Este capítulo interpreta os resultados apresentados no \capref{cap4-resultados} à luz da questão de pesquisa inicial na \secref{sec-12-problema-de-pesquisa} e das taxonomias de paralelização discutidas na \secref{sec-26-gpu-metaheuristicas}.
-A discussão está organizada em cinco partes: síntese dos achados e análise de memória; comparação com o estado da arte; limitações e ameaças à validade; implicações práticas para o projeto de algoritmos de roteamento em GPU; e o uso de GPUs na Pesquisa Operacional e em aplicações de Engenharia.
+A discussão está organizada em quatro partes: síntese dos achados e análise de memória; comparação com o estado da arte; limitações e ameaças à validade; e implicações práticas e diretrizes para o uso de GPUs na Pesquisa Operacional e na Engenharia.
 
 \section{Síntese da pesquisa}\label{sec-51-sintese-achados}
 
 A questão principal desta pesquisa investiga como comparar, de forma justa, o impacto de diferentes estratégias de paralelização em GPU sobre o desempenho de um algoritmo memético para o TSP (\secref{sec-12-problema-de-pesquisa}).
-Os resultados do \capref{cap4-resultados} respondem a essa questão em duas frentes complementares: manter todo o ciclo evolutivo na VRAM produz os menores tempos em todas as \totalinstancias\ instâncias --- alcançando ganho médio geométrico de \(71{,}03\times\) sobre a CPU, frente a \(23{,}86\times\) da Híbrida Otimizada e \(4{,}57\times\) da Híbrida Ingênua (\tabref{tbl:results-aggregated}) ---, enquanto a qualidade das soluções permanece estatisticamente equivalente entre as quatro variantes sob os mesmos parâmetros de busca local (\(\kappa = \maxpassadas\) e \(k_{\text{viz}} = \kviz\), \secref{sec-43-analise-agregada}).
+Os resultados do \capref{cap4-resultados} respondem a essa questão em duas frentes complementares: manter todo o ciclo evolutivo na VRAM produz os menores tempos em todas as \totalinstancias\ instâncias --- alcançando ganho médio geométrico de \(71{,}03\times\) sobre a CPU, frente a \(23{,}86\times\) da Híbrida Otimizada e \(4{,}57\times\) da Híbrida Ingênua (\tabref{tbl:results-aggregated}) ---, enquanto a qualidade das soluções não apresenta diferença estatisticamente significativa entre as quatro variantes sob os mesmos parâmetros de busca local (\(\kappa = \maxpassadas\) e \(k_{\text{viz}} = \kviz\), \secref{sec-43-analise-agregada}).
 Na prática, portanto, a escolha entre as arquiteturas não envolve perda de acurácia, mas sim o equilíbrio entre velocidade de execução e consumo de memória na GPU.
 
 O principal fator físico por trás das diferenças de tempo observadas na \tabref{tbl:phase-timings} e na \tabref{tbl:transfers-launches} é o contraste entre a largura de banda interna da VRAM (\(\approx 112\)\,GB/s) e a do barramento PCIe (\(\approx 16\)\,GB/s, \secref{sec-311-hardware-software}): mover dados pelo barramento custa cerca de sete vezes mais do que acessá-los dentro da placa, além da sobrecarga de cada lançamento de \emph{kernel}.
 Por isso, na Híbrida Ingênua o excesso de travessias individuais desperdiça parte do ganho da GPU, enquanto a Híbrida Otimizada (\secref{sec-322-variantes}) reduz os lançamentos em mais de duas ordens de grandeza (\tabref{tbl:transfers-launches}) e passa a ser limitada pelo cruzamento em CPU (\secref{sec-44-decomposicao-fases}).
-Por fim, a variante Totalmente em GPU elimina essas travessias por geração e concentra o processamento na VRAM; ainda assim, nas maiores instâncias avaliadas (como \texttt{pr1002}), em que a própria busca local em GPU volta a consumir a maior parte do tempo, o ganho adicional sobre a Híbrida Otimizada naturalmente se estreita.
+Por fim, a variante Totalmente em GPU elimina a transferência de matrizes de rotas por geração e concentra o processamento na VRAM; ainda assim, nas maiores instâncias avaliadas (como \texttt{pr1002}), em que a própria busca local em GPU volta a consumir a maior parte do tempo, o ganho adicional sobre a Híbrida Otimizada naturalmente se estreita.
 
 Além do tempo de execução, o \textbf{comportamento de memória} forma um segundo eixo estrutural de análise, resumido na \tabref{tbl:memory-axis}.
 No conjunto avaliado neste trabalho (até \(\maiorinstancia\) cidades, consumindo cerca de \(6\) a \(7\)\,MB na VRAM), todas as instâncias cabem com ampla folga nos \(4\)\,GB da placa (\secref{sec-311-hardware-software}).
@@ -19,40 +19,39 @@ Contudo, ao extrapolar para problemas muito maiores, a literatura de roteamento 
 Nesse regime, estratégias que mantêm dados residentes aceleram o acesso, mas exigem equilibrar desempenho e memória --- havendo alternativas dentro da própria GPU para contornar esse limite, ainda que geralmente menos eficientes em tempo.
 
 \begin{table}[htbp]
-  \centering
-  \caption{Eixo de memória e comunicação por variante (análise estrutural, não medida experimental)}\label{tbl:memory-axis}
-  {\small
-    \renewcommand{\arraystretch}{1.25}
-    \begin{tabular}{@{}
-        >{\raggedright\arraybackslash}p{0.22\linewidth}
-        >{\raggedright\arraybackslash}p{0.37\linewidth}
-        >{\raggedright\arraybackslash}p{0.35\linewidth}@{}}
-      \toprule
-      Variante                   & Perfil de transferência por geração                                                & Estado residente na GPU                                    \\
-      \midrule
-      \textbf{CPU}               & Nenhuma                                                                            & Nenhum                                                     \\
-      \specialrule{0.25pt}{3pt}{3pt}
-      \textbf{Híbrida Ingênua}   & \(O(n_{coords})\) por circuito \(C_m\), ida e volta                                & Apenas o circuito \(C_m\) em execução                      \\
-      \specialrule{0.25pt}{3pt}{3pt}
-      \textbf{Híbrida Otimizada} & \(O(n_{pop} \cdot n_{coords})\) por geração (matriz \(P(t)\))                      & Matriz \(P(t)\) avaliada na geração                        \\
-      \specialrule{0.25pt}{3pt}{3pt}
-      \textbf{Totalmente em GPU} & \(O(n_{coords}^2)\) uma única vez, na inicialização                                & População \(P(t)\) e matriz \(D\) completas                \\
-      \bottomrule
-    \end{tabular}
-  }
+      \centering
+      \caption{Eixo de memória e comunicação por variante (análise estrutural, não medida experimental)}\label{tbl:memory-axis}
+      \begin{tabelapadrao}
+            \begin{tabular}{@{}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2200}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4200}}
+                        >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3600}}@{}}
+                  \toprule
+                  Variante                   & Perfil de transferência por geração                                                                                                                                                                           & Estado residente na GPU                                    \\
+                  \midrule
+                  \textbf{CPU}               & Nenhuma                                                                                                                                                                                                       & Nenhum                                                     \\
+                  \sepitem
+                  \textbf{Híbrida Ingênua}   & \(\mathcal{O}(n_{coords}^2 + n_{pop}\,n_{coords})\) por geração (reenvio de \(D\) e de cada circuito \(C_m\), ida e volta)                                                                                    & Matriz \(D\), lista \(N_k\) e circuito \(C_m\) em execução \\
+                  \sepitem
+                  \textbf{Híbrida Otimizada} & \(\mathcal{O}(n_{pop}\,n_{coords})\) por geração (\(P(t)\) enviada \(2\times\) \(\mathit{H2D}\) --- \(2\)-opt e avaliação --- e retornada \(1\times\) \(\mathit{D2H}\))                                       & Matriz \(D\), lista \(N_k\) e matriz \(P(t)\) na geração   \\
+                  \sepitem
+                  \textbf{Totalmente em GPU} & \(\mathcal{O}(n_{coords}^2 + n_{pop}\,n_{coords})\) na inicialização; \(\mathcal{O}(n_{pop})\) por geração (\(\approx 11{,}26\)\,KB de sorteios aleatórios \(\mathit{H2D}\); \(0{,}00\)\,MB \(\mathit{D2H}\)) & População \(P(t)\), matriz \(D\) e lista \(N_k\) completos \\
+                  \bottomrule
+            \end{tabular}
+      \end{tabelapadrao}
 \end{table}
 
 Esse limite de memória, porém, pode ser contornado em problemas maiores por técnicas já conhecidas na literatura:
 
 \begin{itemize}
-  \item
-        \textbf{Armazenamento triangular compactado:} explora a simetria do TSP para guardar apenas \(n(n-1)/2\) distâncias, reduzindo o espaço pela metade;
-  \item
-        \textbf{Recálculo de distâncias sob demanda:} evita materializar a matriz completa, trocando uso de memória por operações aritméticas durante a busca;
-  \item
-        \textbf{Particionamento da vizinhança (\emph{neighbourhood splitting}):} divide os movimentos avaliados por vez quando a busca \(k\)-opt excede a memória disponível \autocite{schulz2013gpu};
-  \item
-        \textbf{Transferência em blocos:} envia fatias dos dados para a GPU quando o estado completo da instância não cabe simultaneamente na VRAM.
+      \item
+            \textbf{Armazenamento triangular compactado:} explora a simetria do TSP para guardar apenas \(n_{coords}(n_{coords}-1)/2\) distâncias, reduzindo o espaço pela metade;
+      \item
+            \textbf{Recálculo de distâncias sob demanda:} evita materializar a matriz completa, trocando uso de memória por operações aritméticas durante a busca; isso, no entanto, tende a penalizar o tempo de execução;
+      \item
+            \textbf{Particionamento da vizinhança (\emph{neighbourhood splitting}):} divide os movimentos avaliados por vez quando a busca \(k\)-opt excede a memória disponível \autocite{schulz2013gpu};
+      \item
+            \textbf{Transferência em blocos:} envia fatias dos dados para a GPU quando o estado completo da instância não cabe simultaneamente na VRAM.
 \end{itemize}
 
 \section{Comparação com o estado da arte}\label{sec-52-comparacao-estado-arte}
@@ -64,7 +63,7 @@ O AG+\(2\)-opt avaliado neste trabalho adota operadores clássicos justamente pa
 O foco, portanto, está na comparação justa entre variantes do mesmo algoritmo, e não na disputa por poder máximo de refinamento contra resolvedores especializados que empregam buscas locais de profundidade variável e operadores avançados de reconexão de arestas.
 Trabalhos futuros podem investigar a adaptação desses operadores mais sofisticados (como os movimentos de Lin--Kernighan ou o EAX) para GPU, reduzindo essa diferença de qualidade.
 
-Essa delimitação ajuda a ler corretamente os resultados do \capref{cap4-resultados}: os \emph{gaps} obtidos (de \(0{,}04\%\) em \texttt{berlin52} a \(1{,}74\%\) em \texttt{pr1002}, com média global em torno de \(0{,}90\%\)) não medem competitividade absoluta frente a resolvedores especializados, mas confirmam que a paralelização preserva a capacidade de busca do algoritmo base.
+Essa delimitação ajuda a ler corretamente os resultados do \capref{cap4-resultados}: os \emph{gaps} obtidos (de \(0{,}04\%\) em \texttt{berlin52} a \(1{,}74\%\) em \texttt{pr1002}, com média global em torno de \(0{,}90\%\)) não medem competitividade absoluta frente a resolvedores especializados --- sobretudo porque, nas instâncias menores, o critério de parada por alvo (\(\text{gap} \le \varepsilon_{\text{alvo}} = 1\%\)) interrompe deliberadamente a evolução assim que esse limiar é cruzado ---, mas confirmam que a paralelização preserva a capacidade de busca do algoritmo base.
 
 \section{Possíveis limitações e ameaças à validade}\label{sec-53-ameacas-validade}
 
@@ -73,7 +72,8 @@ Essa delimitação ajuda a ler corretamente os resultados do \capref{cap4-result
 Em estudos comparativos de meta-heurísticas paralelas, um risco frequente é comparar implementações com orçamentos computacionais diferentes.
 Neste trabalho, todas as variantes usaram exatamente os mesmos parâmetros de busca local: limite de \(\kappa = \maxpassadas\) varreduras \(2\)-opt por indivíduo e lista estática com \(k_{\text{viz}} = \kviz\) vizinhos mais próximos (\secref{sec-321-ga-base}).
 Isso garante que as diferenças de tempo observadas decorram da estratégia de paralelização e do fluxo de dados, e não de esforço algorítmico desigual.
-Cabe observar, porém, que os critérios de parada por estagnação e por número máximo de gerações escalam com \(n_{coords}\) (\secref{sec-321-ga-base}), dando um orçamento maior às instâncias maiores; por isso, comparações diretas entre instâncias de tamanhos diferentes devem levar essa regra em conta.
+Cabe registrar, porém, duas ressalvas metodológicas ligadas aos critérios de parada (\tabref{tbl:ga-hyperparameters}): primeiro, os limites por estagnação e por número máximo de gerações escalam com \(n_{coords}\), concedendo orçamento maior às instâncias maiores; segundo, o critério primário \(\text{gap} \le \varepsilon_{\text{alvo}} = 1\%\) é \emph{oracular}, pois depende do conhecimento prévio do ótimo \(B^*\) da TSPLIB.
+Na prática, esse desenho caracteriza uma avaliação do tipo tempo até o alvo (\hyperlink{term:time-to-target}{\emph{time-to-target}}), metodologicamente válida para comparar velocidade até uma meta fixa de qualidade em \emph{benchmarks}, mas distinta de cenários industriais reais nos quais \(B^*\) é desconhecido e a execução depende apenas de estagnação ou de limite de tempo.
 
 \subsection{Diferenças de execução no operador \texorpdfstring{\(2\)-opt}{2-opt}}\label{sec-5311-semantica-operadores}
 
@@ -82,13 +82,17 @@ Em todas as variantes, cada cidade consulta os mesmos \(k_{\text{viz}} = \kviz\)
 Na CPU, os candidatos são percorridos em um laço vetorizado que seleciona o melhor movimento da varredura; na GPU, os mesmos candidatos são distribuídos entre as \emph{threads} de um bloco, que elegem a melhor troca por redução paralela.
 
 Como a fórmula inteira de ganho e a lista de candidatos são exatamente iguais, a Híbrida Ingênua e a Híbrida Otimizada (\secref{sec-322-variantes}) produzem custos finais idênticos bit a bit em todas as \totalinstancias\ instâncias e em todas as \totalrepeticoes\ sementes avaliadas, confirmando que a diferença no modo de envio apenas reduz a sobrecarga de comunicação sem alterar o trajeto da busca.
-Já entre CPU e GPU, a equivalência é \emph{estatística}, e não bit a bit: quando dois movimentos têm exatamente o mesmo ganho, a ordem de desempate em reduções paralelas na GPU pode diferir da varredura sequencial na CPU (\secref{sec-32-arquitetura-variantes}), ainda que a qualidade final das soluções permaneça equivalente (\secref{sec-43-analise-agregada}).
+Já entre CPU e GPU, a correspondência não é bit a bit: quando dois movimentos têm exatamente o mesmo ganho, a ordem de desempate em reduções paralelas na GPU pode diferir da varredura sequencial na CPU (\secref{sec-32-arquitetura-variantes}), sem provocar diferença estatisticamente significativa na qualidade final das soluções (\secref{sec-43-analise-agregada}).
 
 \subsection{Limitações na medição de desempenho}\label{sec-532-instrumentacao}
 
 As medições coletadas cobrem tempo total, tempo por etapa no relógio da CPU, volume transferido pelo barramento PCIe e número de lançamentos de \emph{kernel}, mas não incluem consumo de energia, evolução dinâmica da memória durante a execução nem contadores internos de baixo nível da GPU.
 Além disso, pequenas parcelas de tempo fora das etapas cronometradas e o custo fixo de lançamento de \emph{kernels} são difíceis de isolar sem introduzir sobrecarga adicional na própria medição (\secref{apendice-telemetria}).
 Como mostram os resultados da \tabref{tbl:phase-timings}, essa parcela residual tem peso maior em instâncias menores --- em que a execução dura poucas dezenas de milissegundos ---, mas tende a se tornar desprezível conforme o número de cidades aumenta (com a soma das etapas fechando entre \(99{,}8\%\) e \(100{,}0\%\) nas maiores instâncias avaliadas).
+
+Duas limitações instrumentais específicas dessa telemetria merecem destaque explícito.
+Primeiro, na variante \textbf{Totalmente em GPU}, os \emph{kernels} são disparados de modo assíncrono pela CPU e ela só aguarda a conclusão de todos eles no ponto de sincronização ao final da geração, fazendo com que até \(94{,}8\%\) do tempo medido pelo relógio da CPU se acumule na etapa \texttt{Sinc.} em \texttt{pr1002} (\tabref{tbl:phase-timings}); essa característica impede decompor internamente quanto tempo o dispositivo dedicou à busca local \(2\)-opt frente ao cruzamento OX sem forçar uma pausa de espera após cada operador (o que distorceria o tempo total coletado).
+Segundo, na coleta experimental das variantes Híbrida Otimizada e Totalmente em GPU, o contador em software da telemetria somou \(8\,n_{coords}^2\) bytes adicionais (\(8{,}03\)\,MB em \texttt{pr1002}) pela recontagem do ponteiro compartilhado da matriz \(D\) em VRAM entre módulos independentes, sem transferência física correspondente no barramento PCIe --- artefato inteiramente reconciliado na \secref{sec-44-decomposicao-fases} e na nota da \tabref{tbl:transfers-launches}.
 
 \subsection{Dependência do hardware utilizado}\label{sec-533-hardware-unico}
 
@@ -100,38 +104,22 @@ Do lado da \textbf{GPU}, modelos com mais unidades de processamento, maior capac
 Além disso, diferenças de limite térmico e de energia entre \emph{notebooks}, computadores de mesa e servidores também influenciam os tempos medidos.
 Assim, os fatores exatos de aceleração valem para o equipamento avaliado, enquanto a ordenação geral entre as estratégias de paralelização tende a se manter em outros cenários de \emph{hardware}.
 
-\section{Implicações práticas}\label{sec-54-implicacoes-praticas}
+\section{Implicações práticas e aplicações na Engenharia}\label{sec-54-implicacoes-praticas}
 
-Para quem projeta ou aplica meta-heurísticas de roteamento em GPU na Pesquisa Operacional, os resultados deste trabalho, interpretados em conjunto com a literatura de programação paralela \autocite{kirk2010programming,schulz2013gpu,nvidia2024cuda}, indicam três princípios práticos --- lembrando que as quatro variantes comparadas não esgotam as arquiteturas possíveis, mas ilustram pontos representativos do espaço de projeto:
+Além dos resultados específicos sobre o TSP, a experiência experimental deste trabalho --- interpretada à luz da literatura de programação paralela \autocite{kirk2010programming,schulz2013gpu,oneil2015rethinking,nvidia2024cuda} --- oferece diretrizes diretas para o projeto de meta-heurísticas em GPU na Pesquisa Operacional e em problemas de Engenharia Mecânica e Industrial.
+Nessas áreas, a mesma estrutura de sequenciamento e roteamento aparece no planejamento de trajetórias de ferramentas em máquinas CNC (como furação de chapas e corte a laser, reduzindo deslocamentos em vazio), no sequenciamento de pontos de solda e inspeção por robôs industriais e na logística interna e externa de fábricas; acelerar o ciclo de busca permite explorar mais cenários de projeto ou replanejar operações em tempo próximo do real.
 
-\begin{itemize}
-      \item
-            \textbf{Manter o ciclo na GPU exige também \emph{kernels} adequados à arquitetura:} No conjunto avaliado (até \(\maiorinstancia\) cidades), a variante \textbf{Totalmente em GPU} obteve os menores tempos nas \totalinstancias\ instâncias sem perda de qualidade (\tabref{tbl:results-aggregated}). Esse ganho, porém, não decorre apenas de manter os dados na VRAM: depende igualmente de otimizações nos \emph{kernels}, como distribuição equilibrada de \emph{threads}, acesso eficiente à memória, uso de memória compartilhada e operações com máscaras de bits; uma implementação mal estruturada não alcança bom desempenho em GPU apenas por evitar transferências \autocite{kirk2010programming,nvidia2024cuda}.
-      \item
-            \textbf{Limites de VRAM e de \emph{cache} admitem alternativas na própria GPU, geralmente com custo de desempenho:} Embora o regime de saturação dos \(4\)\,GB de VRAM não tenha sido atingido nas instâncias testadas, a literatura mostra que problemas muito maiores esbarram tanto na capacidade de VRAM quanto no limite de memória compartilhada (\emph{cache} local dos blocos) \autocite{schulz2013gpu,oneil2015rethinking,tsp_gpu}. Nessas situações, recorrer a uma arquitetura híbrida como a \textbf{Híbrida Otimizada} é apenas uma opção (útil quando parte dos operadores precisa permanecer na CPU); também é possível preservar a execução na GPU por meio de cálculo de distâncias sob demanda a partir das coordenadas, fatiamento de rotas em janelas na memória compartilhada (ambos previstos nos \emph{kernels} deste \emph{framework}), divisão em submatrizes ou uso de fluxos assíncronos (\emph{streams}) --- técnicas que ampliam o porte tratável, ainda que em geral imponham alguma penalidade de tempo frente ao acesso direto à matriz residente.
-      \item
-            \textbf{Evitar transferências individuais por rota (\textbf{Híbrida Ingênua}):} Multiplicar chamadas isoladas de \emph{kernel} e transferências pequenas pelo barramento PCIe desperdiça grande parte do potencial do acelerador (\tabref{tbl:transfers-launches}).
-\end{itemize}
-
-Em resumo, o ganho em GPU na Pesquisa Operacional depende de alinhar algoritmo e estruturas de dados à hierarquia de memória e ao modelo de execução paralela do dispositivo, e não apenas de migrar um operador isolado para a placa.
-
-\section{Uso de GPUs na Pesquisa Operacional e aplicações em Engenharia}\label{sec-55-licoes-engenharia}
-
-Além dos resultados específicos sobre o TSP, a experiência experimental deste trabalho deixa lições diretas para o uso de GPUs na Pesquisa Operacional e em problemas práticos de Engenharia.
-Na Engenharia Mecânica e Industrial, por exemplo, a mesma estrutura de sequenciamento e roteamento aparece no planejamento de trajetórias de ferramentas em máquinas CNC (como furação de chapas e corte a laser, buscando reduzir deslocamentos em vazio), no sequenciamento de pontos de solda e inspeção em robôs industriais e na logística no geral de uma fábrica, sejam operações internas ou externas.
-Em aplicações desse tipo, ganhar velocidade permite avaliar mais cenários de projeto ou replanejar operações em tempo próximo do real.
-
-Sob essa perspectiva, cinco lições práticas se destacam a partir dos experimentos realizados:
+Sob essa perspectiva, cinco diretrizes práticas sintetizam as lições dos experimentos (lembrando que as quatro variantes comparadas ilustram pontos representativos do espaço de projeto):
 
 \begin{enumerate}
       \item
-            \textbf{Reduzir a comunicação entre CPU e GPU é tão importante quanto paralelizar o cálculo:} Acelerar uma etapa isolada não garante bom desempenho se os dados precisarem cruzar o barramento PCIe a cada iteração. Sempre que possível, manter as estruturas principais na memória da GPU --- ou reduzir o número de transferências por geração --- é o fator que transforma capacidade paralela em ganho real de tempo.
+            \textbf{Manter o estado na VRAM e estruturar \emph{kernels} adequados à hierarquia de memória:} Evitar transferências individuais por rota (\textbf{Híbrida Ingênua}) e concentrar os dados na VRAM (\textbf{Totalmente em GPU}) é decisivo, mas insuficiente sem \emph{kernels} bem projetados --- distribuição equilibrada de \emph{threads}, acesso coalescido, memória compartilhada e \hyperlink{term:bitmap}{máscaras de bits} \autocite{kirk2010programming,nvidia2024cuda}. Quando problemas muito maiores excederem a VRAM ou a memória compartilhada, as estratégias de contorno elencadas na \secref{sec-51-sintese-achados} (armazenamento compacto, cálculo sob demanda, fatiamento em janelas ou arquiteturas híbridas agrupadas com \emph{streams}) preservam a viabilidade com penalidade controlada de tempo \autocite{schulz2013gpu,oneil2015rethinking,tsp_gpu}.
       \item
-            \textbf{Gargalos remanescentes em CPU limitam o sistema inteiro:} Conforme evidenciado pela Lei de Amdahl (\secref{sec-44-decomposicao-fases}), depois que a busca local é acelerada na GPU, etapas aparentemente simples deixadas na CPU passam a dominar o tempo total. Em algoritmos iterativos de otimização, o ganho prático depende do equilíbrio de todo o ciclo, e não apenas da etapa mais custosa no modelo sequencial.
+            \textbf{Eliminar gargalos remanescentes em CPU à luz da Lei de Amdahl:} Depois que a busca local é acelerada na GPU, etapas aparentemente leves mantidas na CPU --- como o cruzamento OX na Híbrida Otimizada (\secref{sec-44-decomposicao-fases}) --- passam a dominar o tempo total conforme a Equação~\eqref{eq:amdahl}. O ganho prático em algoritmos iterativos depende do equilíbrio de todo o ciclo evolutivo.
       \item
-            \textbf{Nem toda lógica pode ser paralelizada diretamente --- desvios condicionais penalizam a GPU:} Há etapas inerentemente sequenciais e processos decisórios cheios de desvios condicionais (\texttt{if}/\texttt{else}). Como as \emph{threads} de um mesmo grupo (\emph{warp}) na GPU executam instruções em passo sincronizado (modelo SIMT), caminhos divergentes obrigam a placa a serializar as ramificações e reduzem a ocupação dos núcleos \autocite{kirk2010programming,nvidia2024cuda}. Por isso, aproveitar bem a GPU costuma exigir reformular decisões em operações matriciais, vetoriais ou com máscaras de bits, em vez de apenas traduzir a lógica sequencial da CPU.
+            \textbf{Reformular desvios condicionais para o modelo SIMT:} Como os \emph{warps} da GPU executam instruções em passo coordenado (\secref{sec-263-cpu-vs-gpu}), ramos condicionais irregulares serializam a execução e reduzem a ocupação dos núcleos \autocite{kirk2010programming,nvidia2024cuda}. Aproveitar o acelerador requer traduzir decisões para operações matriciais, reduções paralelas ou mapas de bits, em vez de portar diretamente a lógica sequencial da CPU.
       \item
-            \textbf{Explorar a estrutura geométrica do problema beneficia tanto CPU quanto GPU:} Restringir a busca local aos \(k_{\text{viz}} = \kviz\) vizinhos mais próximos reduziu drasticamente o esforço computacional sem prejudicar a qualidade das soluções. Em problemas geométricos de engenharia --- nos quais movimentos úteis costumam conectar pontos próximos, como furos vizinhos em uma peça ou estações adjacentes em uma célula fabril ---, restrições simples de vizinhança ampliam o alcance do \emph{hardware} disponível.
+            \textbf{Explorar a estrutura geométrica do problema em ambas as plataformas:} Restringir a busca local aos \(k_{\text{viz}} = \kviz\) vizinhos mais próximos reduziu expressivamente o esforço computacional sem degradação observada de qualidade. Em problemas geométricos de engenharia --- como furos adjacentes em uma chapa ou estações próximas em uma célula fabril ---, listas de candidatos ampliam o alcance do \emph{hardware} disponível tanto em CPU quanto em GPU.
       \item
-            \textbf{Medição controlada evita conclusões distorcidas por ruído:} Inicializar e compilar os \emph{kernels} da GPU (\emph{warmup}) antes de iniciar o cronômetro, usar sementes aleatórias fixas e aplicar testes estatísticos adequados garante que decisões de engenharia --- como escolher uma estratégia de otimização ou justificar investimento em GPU --- se apoiem em resultados confiáveis e reproduzíveis.
+            \textbf{Adotar medição controlada e validação estatística rigorosa:} Inicializar e compilar os \emph{kernels} (\hyperlink{term:warmup}{\emph{warmup}}) fora da janela cronometrada, fixar sementes aleatórias e aplicar protocolos não paramétricos (\secref{sec-34-protocolo-estatistico}) assegura que escolhas arquiteturais e investimentos em aceleradores se apoiem em evidências reproduzíveis.
 \end{enumerate}

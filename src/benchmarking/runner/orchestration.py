@@ -37,32 +37,29 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import numpy as np
-
 if TYPE_CHECKING:
   from data_models.problem import Problem
 
 if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"), os.W_OK):
   os.environ["CUPY_CACHE_DIR"] = os.path.join(tempfile.gettempdir(), "cupy_cache")
 
-from benchmarking.analysis.aggregate_statistics import (
-  perform_cross_problem_analysis_stratified,
-)
-from benchmarking.analysis.problem_statistics import perform_statistical_analysis
-from benchmarking.analysis.report_generator import generate_result_tables
+from benchmarking.analysis.cohort_analysis import analyze_cohort
+from benchmarking.analysis.problem_statistics import analyze_problem
 from benchmarking.analysis.statistics import StatisticalAnalyzer
 from benchmarking.logging_config import setup_benchmark_logging
+from benchmarking.reporting.console import log_cohort_analysis, log_problem_analysis
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.style import ReportArtifact, ReportStyle
 from benchmarking.runner.algorithm_runner import (
   adaptive_generations,
-  compute_series_stats,
   run_single_algorithm,
 )
 from benchmarking.runner.checkpoint_io import (
   CheckpointManager,
   load_checkpoint,
-  numpy_to_json_converter,
   quarantine_checkpoint,
   save_checkpoint_atomic,
+  save_problem_statistics,
   validate_existing_checkpoints,
 )
 from benchmarking.runner.config_loader import (
@@ -72,11 +69,11 @@ from benchmarking.runner.config_loader import (
   ProblemConfig,
   build_problem_configs_from_duckdb,
   build_problem_configs_from_tsp_files,
-  load_all_configs,
+  resolve_benchmark_configs,
   validate_configs,
 )
 from loaders.database_loader import DatabaseLoader
-from loaders.tsplib_loader import TsplibLoader
+from loaders.tsplib_loader import TsplibLoader, load_tsplib_file
 from protocols.backend import cupy_backend, gpu_available
 
 
@@ -160,6 +157,10 @@ def _log_benchmark_configuration(
     logging.info("  Early stop patience: Adaptive (2x√n generations)")
   else:
     logging.info(f"  Early stop patience: {benchmark_config.patience} generations")
+  if benchmark_config.max_generations is None:
+    logging.info("  Max generations: Adaptive (2*n*√n generations)")
+  else:
+    logging.info(f"  Max generations: {benchmark_config.max_generations} (fixed)")
   logging.info("")
 
 
@@ -181,11 +182,7 @@ def validate_gpu_backend_for_algorithms(
   algorithm_configs: Mapping[str, AlgorithmConfig],
 ) -> list[str]:
   """Confirm a functional CUDA/CuPy backend when any selected algorithm requires GPU."""
-  requires_gpu = any(
-    algorithm_configs[alg].use_gpu
-    for alg in selected_algorithms
-    if alg in algorithm_configs
-  )
+  requires_gpu = any(algorithm_configs[alg].use_gpu for alg in selected_algorithms if alg in algorithm_configs)
   if not requires_gpu:
     return []
 
@@ -208,6 +205,9 @@ def _run_preflight(
   ga_params: GAParams,
   param_overrides: Mapping[str, Any] | None,
   effective_seed: int,
+  local_search_stage: str | None = None,
+  strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
+  allow_corrupt_checkpoints: bool = False,
   preflight_validator: Callable[
     [Mapping[str, AlgorithmConfig], GAParams, Sequence[ProblemConfig]],
     Sequence[str],
@@ -238,80 +238,16 @@ def _run_preflight(
       param_overrides=param_overrides,
       seed_override=effective_seed,
       cpu_size_threshold=effective_benchmark_config.cpu_size_threshold,
+      max_generations=effective_benchmark_config.max_generations,
+      local_search_stage=local_search_stage,
+      strategy_overrides=strategy_overrides,
+      allow_corrupt=allow_corrupt_checkpoints,
     )
   )
   if errors:
     for err in errors:
       logging.error(f"Preflight error: {err}")
     raise ValueError("Benchmark preflight validation failed:\n" + "\n".join(f"  - {err}" for err in errors))
-
-
-def _save_problem_statistics_file(
-  problem_name: str,
-  problem_size: int,
-  optimal_cost: float,
-  problem_results: dict[str, dict[str, Any]],
-  statistical_test_results: dict[str, Any],
-  checkpoint_manager: CheckpointManager,
-  problem_metadata: dict[str, Any] | None = None,
-) -> None:
-  """Save per-problem statistics to JSON file."""
-  stats_path: Path = checkpoint_manager.get_problem_stats_path(problem_name)
-
-  try:
-    problem_info: dict[str, Any] = {
-      "name": problem_name,
-      "size": problem_size,
-      "optimal_cost": optimal_cost,
-    }
-    if problem_metadata:
-      problem_info.update(problem_metadata)
-
-    problem_stats = {
-      "problem_info": problem_info,
-      "algorithms": {},
-      "statistical_tests": statistical_test_results,
-    }
-
-    for alg_name, results in problem_results.items():
-      times = np.array(results.get("raw_times", results.get("times", [])), dtype=np.float64)
-      initial_costs = np.array(results.get("raw_initial_costs", results.get("initial_costs", [])), dtype=np.float64)
-      costs = np.array(results.get("raw_costs", results.get("final_costs", [])), dtype=np.float64)
-      gaps = np.array(results.get("raw_gaps", results.get("gaps", [])), dtype=np.float64)
-      generations = np.array(results.get("raw_generations", results.get("generations", [])), dtype=np.float64)
-
-      n_valid = int(np.sum(~np.isnan(times)))
-      mean_time, std_time, _, _ = compute_series_stats(times, n_valid)
-      mean_initial_cost, std_initial_cost, _, _ = compute_series_stats(initial_costs, n_valid)
-      mean_cost, std_cost, _, _ = compute_series_stats(costs, n_valid)
-      mean_gap, std_gap, _, _ = compute_series_stats(gaps, n_valid)
-      mean_generations, std_generations, _, _ = compute_series_stats(generations, n_valid)
-
-      problem_stats["algorithms"][alg_name] = {
-        "mean_time": mean_time,
-        "std_time": std_time,
-        "mean_initial_cost": mean_initial_cost,
-        "std_initial_cost": std_initial_cost,
-        "mean_cost": mean_cost,
-        "std_cost": std_cost,
-        "mean_gap": mean_gap,
-        "std_gap": std_gap,
-        "mean_generations": mean_generations,
-        "std_generations": std_generations,
-        "success_rate": float(n_valid / len(times)) if len(times) > 0 else 0.0,
-        "backend": results.get("backend", "unknown"),
-        "mean_phase_timings": results.get("mean_phase_timings", {}),
-        "phase_share_pct": results.get("phase_share_pct", {}),
-        "phase_share_cv_pct": results.get("phase_share_cv_pct", {}),
-        "algorithm_config": results.get("algorithm_config", {}),
-        "strategies": results.get("strategies", {}),
-      }
-
-    with open(stats_path, "w", encoding="utf-8") as f:
-      json.dump(problem_stats, f, indent=2, default=numpy_to_json_converter)
-    logging.info(f"✓ Problem statistics saved: {stats_path.name}\n")
-  except Exception as e:
-    logging.warning(f"Failed to save problem statistics: {e}\n")
 
 
 # =============================================================================
@@ -321,17 +257,21 @@ def _save_problem_statistics_file(
 
 def run_comprehensive_benchmark(
   *,
-  config_dir: str | Path,
   output_dir: str | Path,
+  config_dir: str | Path | None = None,
+  algorithms_config: str | Path | None = None,
+  benchmark_config: str | Path | None = None,
+  problems_config: str | Path | None = None,
   tsp_files: Sequence[str | Path] | None = None,
   problem_names: Sequence[str] | None = None,
   db_path: str | Path | None = None,
-  fallback_tsp_dir: str | Path | None = None,
+  tsp_dir: str | Path | None = None,
   problem_configs: list[ProblemConfig] | None = None,
   algorithms: Sequence[str] | None = None,
   algorithm_configs_override: dict[str, AlgorithmConfig] | None = None,
   repetitions: int | None = None,
-  benchmark_name: str = "chapter4_validation",
+  max_generations: int | None = None,
+  benchmark_name: str = "benchmark",
   local_search_stage: str | None = None,
   skip_cpu: bool = False,
   incremental_runs: bool | None = None,
@@ -343,6 +283,9 @@ def run_comprehensive_benchmark(
   mutation_rate: float | None = None,
   strategy_overrides: Mapping[str, Mapping[str, Any]] | None = None,
   baseline_algorithm: str | None = None,
+  reports: Sequence[ReportArtifact] = (),
+  report_style: ReportStyle | None = None,
+  include_size_category_table: bool = False,
   dry_run: bool = False,
   preflight_validator: Callable[
     [Mapping[str, AlgorithmConfig], GAParams, Sequence[ProblemConfig]],
@@ -350,21 +293,40 @@ def run_comprehensive_benchmark(
   ]
   | None = None,
 ) -> dict[str, dict[str, dict[str, Any]]]:
-  """Run comprehensive benchmark on all configured problems and algorithms."""
+  """Run comprehensive benchmark on configured problems and algorithms.
+
+  By default (``reports=()``), executes collection only (JSON checkpoints and
+  per-problem statistical summaries). Pass ``reports=("markdown", "latex", ...)``
+  or run ``tsp-report`` afterwards to render summary tables, macros, CD diagrams,
+  and scaling plots.
+  """
   setup_benchmark_logging(output_dir, benchmark_name, log_level=None)
   logging.info("Loading configurations...")
 
-  resolved_config_dir: Path = Path(config_dir)
-  configs: dict[str, Any] = load_all_configs(resolved_config_dir)
+  configs: dict[str, Any] = resolve_benchmark_configs(
+    config_dir=config_dir,
+    algorithms_config=algorithms_config,
+    benchmark_config=benchmark_config,
+    problems_config=problems_config,
+    require_algorithms=algorithm_configs_override is None,
+  )
 
   ga_params: GAParams = configs["ga_params"]
   algorithm_configs: dict[str, AlgorithmConfig] = algorithm_configs_override or configs["algorithms"]
-  benchmark_config: BenchmarkConfig = configs["benchmark"]
+  loaded_benchmark_config: BenchmarkConfig = configs["benchmark"]
   default_problems: list[ProblemConfig] = configs["problems"]
 
   if patience is not None:
     logging.info(f"Applying override: patience={patience}")
-    benchmark_config.patience = patience
+    loaded_benchmark_config.patience = patience
+
+  if max_generations is not None:
+    if isinstance(max_generations, bool) or max_generations <= 0:
+      raise ValueError(f"max_generations must be a positive integer, got {max_generations!r}")
+    logging.info(f"Applying override: max_generations={max_generations}")
+    loaded_benchmark_config.max_generations = int(max_generations)
+  elif loaded_benchmark_config.max_generations is not None and loaded_benchmark_config.max_generations <= 0:
+    raise ValueError(f"benchmark_config.max_generations must be > 0, got {loaded_benchmark_config.max_generations}")
 
   effective_seed: int = seed if seed is not None else ga_params.seed
 
@@ -376,36 +338,68 @@ def run_comprehensive_benchmark(
 
   if incremental_runs is not None:
     logging.info(f"Applying override: incremental_runs={incremental_runs}")
-    benchmark_config.incremental_runs = incremental_runs
+    loaded_benchmark_config.incremental_runs = incremental_runs
 
   if cpu_size_threshold is not None:
-    benchmark_config.cpu_size_threshold = int(cpu_size_threshold)
+    loaded_benchmark_config.cpu_size_threshold = int(cpu_size_threshold)
 
-  effective_repetitions = repetitions if repetitions is not None else benchmark_config.repetitions
+  effective_repetitions = repetitions if repetitions is not None else loaded_benchmark_config.repetitions
   effective_skip_cpu = skip_cpu
   effective_test_mode = test_mode
 
   resolved_db_path: Path | None = Path(db_path) if db_path is not None else None
-  resolved_fallback_dir: Path | None = Path(fallback_tsp_dir) if fallback_tsp_dir is not None else None
+  resolved_tsp_dir: Path | None = Path(tsp_dir) if tsp_dir is not None else None
+
+  has_db: bool = resolved_db_path is not None and resolved_db_path.exists()
+  has_tsp_dir: bool = resolved_tsp_dir is not None and resolved_tsp_dir.exists()
 
   tsp_path_map: dict[str, Path] = {}
   if problem_configs is not None:
     resolved_problems: list[ProblemConfig] = list(problem_configs)
-  elif problem_names:
-    if resolved_db_path is None:
-      raise ValueError("db_path must be provided when problem_names is specified")
-    resolved_problems = build_problem_configs_from_duckdb(
-      db_path=resolved_db_path,
-      problem_names=problem_names,
-      existing_configs=default_problems,
-    )
   elif tsp_files:
     resolved_problems, tsp_path_map = build_problem_configs_from_tsp_files(
       tsp_files,
       existing_configs=default_problems,
+      tsp_dir=resolved_tsp_dir,
+    )
+  elif problem_names:
+    if has_tsp_dir and not has_db:
+      resolved_problems, tsp_path_map = build_problem_configs_from_tsp_files(
+        problem_names,
+        existing_configs=default_problems,
+        tsp_dir=resolved_tsp_dir,
+      )
+    elif has_db and resolved_db_path is not None:
+      resolved_problems = build_problem_configs_from_duckdb(
+        db_path=resolved_db_path,
+        problem_names=problem_names,
+        existing_configs=default_problems,
+      )
+    else:
+      raise ValueError(
+        "Either an existing --tsp-dir or an existing --db-path must be provided when --problems is specified"
+      )
+  elif default_problems:
+    resolved_problems = list(default_problems)
+  elif has_tsp_dir and resolved_tsp_dir is not None:
+    discovered_files = sorted(resolved_tsp_dir.glob("*.tsp"))
+    if not discovered_files:
+      raise FileNotFoundError(f"No .tsp files found in --tsp-dir: {resolved_tsp_dir}")
+    resolved_problems, tsp_path_map = build_problem_configs_from_tsp_files(
+      discovered_files,
+      existing_configs=default_problems,
+      tsp_dir=resolved_tsp_dir,
+    )
+    resolved_problems.sort(key=lambda cfg: (cfg.size, cfg.name))
+  elif has_db and resolved_db_path is not None:
+    resolved_problems = build_problem_configs_from_duckdb(
+      db_path=resolved_db_path,
+      existing_configs=default_problems,
     )
   else:
-    resolved_problems = list(default_problems)
+    raise ValueError(
+      "No problems specified: provide --problems-config / problems.json, --tsp-files, --tsp-dir, or --db-path."
+    )
 
   problem_configs = resolved_problems
 
@@ -437,10 +431,11 @@ def run_comprehensive_benchmark(
   )
   effective_benchmark_config = BenchmarkConfig(
     repetitions=effective_repetitions,
-    patience=benchmark_config.patience,
-    cpu_size_threshold=benchmark_config.cpu_size_threshold,
-    incremental_runs=benchmark_config.incremental_runs,
-    line_width=benchmark_config.line_width,
+    patience=loaded_benchmark_config.patience,
+    max_generations=loaded_benchmark_config.max_generations,
+    cpu_size_threshold=loaded_benchmark_config.cpu_size_threshold,
+    incremental_runs=loaded_benchmark_config.incremental_runs,
+    line_width=loaded_benchmark_config.line_width,
   )
 
   resolved_output_dir: Path = Path(output_dir)
@@ -456,6 +451,9 @@ def run_comprehensive_benchmark(
     ga_params=ga_params,
     param_overrides=param_overrides or None,
     effective_seed=effective_seed,
+    local_search_stage=local_search_stage,
+    strategy_overrides=strategy_overrides,
+    allow_corrupt_checkpoints=not dry_run,
     preflight_validator=preflight_validator,
   )
 
@@ -481,7 +479,7 @@ def run_comprehensive_benchmark(
     [p.__dict__ for p in problem_configs],
     selected_algorithms,
     effective_repetitions,
-    benchmark_config.cpu_size_threshold,
+    effective_benchmark_config.cpu_size_threshold,
     algorithm_configs=algorithm_configs,
   )
   if completed > 0:
@@ -489,53 +487,51 @@ def run_comprehensive_benchmark(
     logging.info("  Resuming from previous run...\n")
 
   if not tsp_path_map:
-    has_db = resolved_db_path is not None and resolved_db_path.exists()
-    has_fallback = resolved_fallback_dir is not None and resolved_fallback_dir.exists()
-    if not has_db and not has_fallback:
-      raise FileNotFoundError(
-        f"Neither database ({resolved_db_path}) nor TSPLIB directory ({resolved_fallback_dir}) found"
-      )
+    if not has_db and not has_tsp_dir:
+      raise FileNotFoundError(f"Neither TSPLIB directory ({resolved_tsp_dir}) nor database ({resolved_db_path}) found")
 
   analyzer = StatisticalAnalyzer()
   problem_results: dict[str, dict[str, dict[str, Any]]] = {}
 
   for prob_idx, problem_config in enumerate(problem_configs, 1):
     problem_name: str = problem_config.name
-    optimal_cost: float = problem_config.optimal
+    optimal_cost: float | None = problem_config.optimal
     problem_size: int = problem_config.size
 
     logging.info("\n" + "=" * 80)
     logging.info(f"PROBLEM {prob_idx}/{len(problem_configs)}: {problem_name}")
-    logging.info(f"Size: {problem_size} cities | Optimal: {optimal_cost}")
+    opt_display = f"{optimal_cost}" if optimal_cost is not None else "unknown"
+    logging.info(f"Size: {problem_size} cities | Optimal: {opt_display}")
     logging.info("=" * 80)
 
     problem_algorithms: list[str] = _determine_problem_algorithms(
       problem_size,
       selected_algorithms,
       algorithm_configs,
-      benchmark_config.cpu_size_threshold,
+      effective_benchmark_config.cpu_size_threshold,
     )
 
-    if benchmark_config.cpu_size_threshold is None or problem_size <= benchmark_config.cpu_size_threshold:
-      thresh_label = (
-        "all instances"
-        if benchmark_config.cpu_size_threshold is None
-        else f"n≤{benchmark_config.cpu_size_threshold}"
-      )
+    cpu_thresh = effective_benchmark_config.cpu_size_threshold
+    if cpu_thresh is None or problem_size <= cpu_thresh:
+      thresh_label = "all instances" if cpu_thresh is None else f"n≤{cpu_thresh}"
       logging.info(f"Running {len(problem_algorithms)} algorithm(s) ({thresh_label})\n")
     else:
-      logging.info(f"Running {len(problem_algorithms)} GPU algorithms only (n>{benchmark_config.cpu_size_threshold})\n")
+      logging.info(f"Running {len(problem_algorithms)} GPU algorithms only (n>{cpu_thresh})\n")
 
     try:
       if problem_name in tsp_path_map:
-        tsp_path: Path = tsp_path_map[problem_name]
-        with TsplibLoader(tsp_path.parent) as tsp_loader:
-          problem: Problem = tsp_loader.load(tsp_path)
-      else:
-        if resolved_db_path is None:
-          raise ValueError(f"db_path is required to load problem '{problem_name}' from database")
-        with DatabaseLoader(str(resolved_db_path), fallback_tsp_dir=resolved_fallback_dir) as db_loader:
+        problem: Problem = load_tsplib_file(tsp_path_map[problem_name])
+      elif has_db and resolved_db_path is not None:
+        with DatabaseLoader(str(resolved_db_path), fallback_tsp_dir=resolved_tsp_dir) as db_loader:
           problem = db_loader.load(problem_name)
+      elif has_tsp_dir and resolved_tsp_dir is not None:
+        with TsplibLoader(resolved_tsp_dir) as tsp_loader:
+          problem = tsp_loader.load(problem_name)
+      else:
+        raise FileNotFoundError(
+          f"Cannot load problem '{problem_name}': neither --tsp-dir ({resolved_tsp_dir}) "
+          f"nor --db-path ({resolved_db_path}) exists"
+        )
     except Exception as e:
       logging.error(f"Failed to load {problem_name}: {e}")
       continue
@@ -547,7 +543,11 @@ def run_comprehensive_benchmark(
       )
 
     problem_results[problem_name] = {}
-    max_generations: int = adaptive_generations(problem_size)
+    problem_max_generations: int = (
+      effective_benchmark_config.max_generations
+      if effective_benchmark_config.max_generations is not None
+      else adaptive_generations(problem_size)
+    )
     customers: list[int] = list(range(problem_size))
 
     for algo_idx, alg_name in enumerate(problem_algorithms, 1):
@@ -556,9 +556,10 @@ def run_comprehensive_benchmark(
 
       checkpoint_path: Path = checkpoint_manager.get_checkpoint_path(problem_name, alg_name)
       existing_checkpoint: dict[str, Any] | None = None
-      incremental_mode = benchmark_config.incremental_runs
+      incremental_mode = effective_benchmark_config.incremental_runs
 
       checkpoint_exists: bool = checkpoint_path.exists()
+      existing_runs = 0
 
       if checkpoint_exists:
         try:
@@ -574,6 +575,7 @@ def run_comprehensive_benchmark(
           existing_runs = 0
           checkpoint_exists = False
 
+      if checkpoint_exists:
         if incremental_mode:
           new_reps_to_add = effective_repetitions
           total_target_reps = existing_runs + new_reps_to_add
@@ -653,7 +655,11 @@ def run_comprehensive_benchmark(
         spec: dict[str, Any] = config.strategies.get(slot) or {}
         configured: dict[str, Any] = dict(spec.get("params") or {})
         params: dict[str, Any] = {"class": _get_strat_name(strat)}
+        if isinstance(spec.get("module"), str) and spec["module"].strip():
+          params["module"] = spec["module"]
         params.update(configured)
+        if strategy_overrides and slot in strategy_overrides:
+          params.update(strategy_overrides[slot])
         for attr in _STRATEGY_PARAM_ATTRS:
           value: Any = getattr(strat, attr, None)
           if value is not None:
@@ -685,7 +691,7 @@ def run_comprehensive_benchmark(
         "problem_type": getattr(problem, "problem_type", "TSP"),
         "edge_type": getattr(problem, "edge_type", "EUC_2D"),
         "optimal_cost": optimal_cost,
-        "max_generations_configured": max_generations,
+        "max_generations_configured": problem_max_generations,
         "backend": "GPU" if alg_config.use_gpu else "CPU",
         "problem_metadata": problem.to_metadata_dict(optimal_cost),
         "comment": problem.comment,
@@ -724,11 +730,11 @@ def run_comprehensive_benchmark(
         problem_name=problem_name,
         problem_size=problem_size,
         customers=customers,
-        max_generations=max_generations,
+        max_generations=problem_max_generations,
         optimal_cost=optimal_cost,
         repetitions=actual_repetitions,
         use_gpu=alg_config.use_gpu,
-        patience=benchmark_config.patience,
+        patience=effective_benchmark_config.patience,
         seed_base=effective_seed,
         existing_checkpoint=existing_checkpoint,
         incremental_mode=incremental_mode and existing_checkpoint is not None,
@@ -752,20 +758,21 @@ def run_comprehensive_benchmark(
     logging.info(f"STATISTICS FOR {problem_name}")
     logging.info(f"{'─' * 80}")
 
-    statistical_test_results: dict[str, Any] = perform_statistical_analysis(
+    problem_analysis = analyze_problem(
       problem_name=problem_name,
       optimal_cost=optimal_cost,
       results=problem_results[problem_name],
       analyzer=analyzer,
       baseline_algorithm=baseline_algorithm,
     )
+    log_problem_analysis(problem_analysis)
 
-    _save_problem_statistics_file(
+    save_problem_statistics(
       problem_name,
       problem_size,
       optimal_cost,
       problem_results[problem_name],
-      statistical_test_results,
+      problem_analysis.to_dict(),
       checkpoint_manager,
       problem_metadata=problem.to_metadata_dict(optimal_cost),
     )
@@ -777,16 +784,20 @@ def run_comprehensive_benchmark(
   logging.info("CROSS-PROBLEM ANALYSIS")
   logging.info("=" * 80)
 
-  if len(problem_results) > 1:
-    perform_cross_problem_analysis_stratified(
-      all_results=problem_results,
-      problem_configs=problem_configs,
-      analyzer=analyzer,
-      cpu_threshold=benchmark_config.cpu_size_threshold,
+  cohort_analysis = None
+  if len(problem_results) > 1 or (problem_results and reports):
+    cohort_analysis = analyze_cohort(
+      problem_results,
+      problem_configs,
       baseline_algorithm=baseline_algorithm,
+      alpha=analyzer.alpha,
+      cpu_threshold=effective_benchmark_config.cpu_size_threshold,
+      algorithm_order=report_style.algorithm_order if report_style is not None else None,
     )
+    if len(problem_results) > 1:
+      log_cohort_analysis(cohort_analysis)
 
-  if problem_results:
+  if problem_results and reports:
     tables_dir = resolved_output_dir / "tables"
     tables_dir.mkdir(parents=True, exist_ok=True)
     generate_result_tables(
@@ -795,6 +806,15 @@ def run_comprehensive_benchmark(
       output_dir=tables_dir,
       benchmark_name=resolved_benchmark_name,
       baseline_algorithm=baseline_algorithm,
+      include_size_category_table=include_size_category_table,
+      style=report_style,
+      artifacts=reports,
+      analysis=cohort_analysis,
+    )
+  elif problem_results:
+    logging.info(
+      "Collection complete (no reports requested). Run 'tsp-report -i %s' or pass '--reports all' to generate reports.",
+      resolved_output_dir / "checkpoints",
     )
 
   logging.info("=" * 80)

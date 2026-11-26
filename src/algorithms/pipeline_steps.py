@@ -261,10 +261,35 @@ PIPELINE_STEP_REGISTRY: dict[str, type] = {
   "PostInitLocalSearchStep": PostInitLocalSearchStep,
 }
 
+
+def register_pipeline_step(name: str, step_cls: type, *, overwrite: bool = False) -> None:
+  """Register a custom ``GenerationStep`` class in ``PIPELINE_STEP_REGISTRY`` without modifying ``src/``.
+
+  Args:
+      name: Unique registry key referenced from declarative JSON pipeline specifications.
+      step_cls: Class implementing ``run(self, state, timer) -> None``.
+      overwrite: Allow replacing an existing registration with the same ``name``.
+
+  Raises:
+      ValueError: If ``name`` is empty or already registered with ``overwrite=False``.
+      TypeError: If ``step_cls`` is not a class or lacks a callable ``run`` method.
+  """
+  if not isinstance(name, str) or not name.strip():
+    raise ValueError("Pipeline step name must be a non-empty string.")
+  if not isinstance(step_cls, type):
+    raise TypeError(f"Expected a pipeline step class (type), got {type(step_cls).__name__}.")
+  if not callable(getattr(step_cls, "run", None)):
+    raise TypeError(f"Pipeline step class '{step_cls.__name__}' must define a callable 'run(state, timer)' method.")
+  if name in PIPELINE_STEP_REGISTRY and not overwrite:
+    raise ValueError(f"Pipeline step '{name}' is already registered. Pass overwrite=True to replace it.")
+  PIPELINE_STEP_REGISTRY[name] = step_cls
+
+
 __all__: list[str] = [
   "PIPELINE_STEP_REGISTRY",
   "EliteOnlyLocalSearchStep",
   "PeriodicLocalSearchStep",
   "PostInitLocalSearchStep",
   "StageAnchor",
+  "register_pipeline_step",
 ]

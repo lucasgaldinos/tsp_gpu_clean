@@ -9,16 +9,16 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from benchmarking.analysis.report_generator import generate_result_tables
-from benchmarking.analysis.scaling_plots import (
+from benchmarking.reporting.generator import generate_result_tables
+from benchmarking.reporting.scaling_plots import (
   TEXT_WIDTH_INCHES,
   _collect_algorithm_series,
   _summarize_metric,
   generate_scaling_plots,
   generate_scaling_plots_from_checkpoints,
   get_academic_plot_rc_params,
-  load_results_from_checkpoints,
 )
+from benchmarking.runner.checkpoint_io import load_checkpoints_dir
 from benchmarking.runner.config_loader import ProblemConfig
 
 if TYPE_CHECKING:
@@ -196,8 +196,11 @@ def test_load_and_generate_from_checkpoints_dir(tmp_path: Path) -> None:
   # Malformed checkpoint should be skipped gracefully
   (ckpt_dir / "corrupt.json").write_text("{not valid json", encoding="utf-8")
 
-  loaded = load_results_from_checkpoints(ckpt_dir)
+  loaded = load_checkpoints_dir(ckpt_dir)
   assert set(loaded.keys()) == {"att48", "lin318"}
+  # Also accepts parent output directory containing checkpoints/
+  loaded_parent = load_checkpoints_dir(tmp_path)
+  assert set(loaded_parent.keys()) == {"att48", "lin318"}
 
   pdf_path, svg_path = generate_scaling_plots_from_checkpoints(ckpt_dir, out_dir)
   assert pdf_path.read_bytes()[:4] == b"%PDF"
@@ -269,7 +272,7 @@ def test_scaling_plot_title_and_legend_never_overlap_and_libertinus_path(
   """WHAT: Multi-row pt-BR legend and long figure title never overlap vertically, and Libertinus path maps mathtext."""
   from matplotlib.figure import Figure
 
-  import benchmarking.analysis.scaling_plots as sp
+  import benchmarking.reporting.scaling_plots as sp
 
   # 1. Verify Libertinus Serif branch when font is reported as installed
   monkeypatch.setattr(sp, "_is_font_installed", lambda name: name == "Libertinus Serif")
@@ -512,7 +515,7 @@ def test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties(
   import numpy as np
   from matplotlib.figure import Figure
 
-  import benchmarking.analysis.scaling_plots as sp
+  import benchmarking.reporting.scaling_plots as sp
 
   orig_savefig = Figure.savefig
 
@@ -522,9 +525,7 @@ def test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties(
     stem: str,
   ) -> tuple[list[tuple[str, str]], list[tuple[str, float]]]:
     configs = [ProblemConfig(name=f"p{s}", optimal=100.0, size=s) for s in sizes]
-    all_res = {
-      f"p{s}": {"A": {"problem_size": s, "raw_times": [1.0, 1.2], "raw_gaps": [0.1, 0.2]}} for s in sizes
-    }
+    all_res = {f"p{s}": {"A": {"problem_size": s, "raw_times": [1.0, 1.2], "raw_gaps": [0.1, 0.2]}} for s in sizes}
     overlaps: list[tuple[str, str]] = []
     right_overshoot: list[tuple[str, float]] = []
 
@@ -594,3 +595,53 @@ def test_continuous_ticks_narrow_right_cluster_5digit_fallback_and_ordinal_ties(
   monkeypatch.undo()
   assert captured_xdata[0] == pytest.approx([0.0, 1.0, 2.0])
   assert captured_tick_labels[0] == ["kroA100 (100)", "kroB100 (100)", "ch150 (150)"]
+
+
+def test_resolve_problem_size_metadata_dimension_and_mixed_optimal_cost_fallback(
+  tmp_path: Path,
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """WHAT: `_resolve_problem_size` reads `problem_metadata['dimension']` and mixed cohorts plot cost.
+
+  WHY: BUG-99 — `Problem.to_metadata_dict` emits `'dimension'` (not `'size'`), and mixed
+  cohorts (some optima known, some unknown) must fall back to raw cost across all points
+  instead of dropping unknown-optimal instances from the bottom panel.
+  """
+  import numpy as np
+  from matplotlib.figure import Figure
+
+  from benchmarking.reporting.scaling_plots import _resolve_problem_size
+
+  entries = {"CPU": {"problem_metadata": {"dimension": 52}}}
+  assert _resolve_problem_size("berlin52", entries, {}) == 52
+  assert _resolve_problem_size("berlin52", entries, {"berlin52": 0}) == 52
+
+  mixed_results: dict[str, dict[str, dict[str, Any]]] = {
+    "known52": {
+      "CPU": {"problem_size": 52, "raw_times": [1.0, 1.2], "raw_costs": [7600.0, 7650.0], "raw_gaps": [0.7, 1.4]},
+    },
+    "custom80": {
+      "CPU": {"problem_metadata": {"dimension": 80}, "raw_times": [2.0, 2.2], "raw_costs": [9000.0, 9100.0]},
+    },
+  }
+  captured_bottom_n: list[int] = []
+  captured_bottom_ylabel: list[str] = []
+  orig_savefig = Figure.savefig
+
+  def _spy_mixed(self: Figure, *args: Any, **kwargs: Any) -> Any:
+    ax_bottom = self.axes[1]
+    captured_bottom_n.append(len(np.asarray(ax_bottom.lines[0].get_xdata(), dtype=float)))
+    captured_bottom_ylabel.append(ax_bottom.get_ylabel())
+    return orig_savefig(self, *args, **kwargs)
+
+  monkeypatch.setattr(Figure, "savefig", _spy_mixed)
+  generate_scaling_plots(
+    mixed_results,
+    problem_configs=None,
+    output_dir=tmp_path,
+    filename_stem="mixed_opt",
+    formats=("pdf",),
+  )
+  monkeypatch.undo()
+  assert captured_bottom_n == [2]
+  assert "Cost" in captured_bottom_ylabel[0]

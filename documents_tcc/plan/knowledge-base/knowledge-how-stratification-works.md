@@ -29,7 +29,7 @@ related_files:
   - "[genetic_algorithm.py](../../../src/algorithms/metaheuristics/genetic_algorithm.py)"
   - "[statistics.py](../../../src/benchmarking/analysis/statistics.py)"
   - "[aggregate_statistics.py](../../../src/benchmarking/analysis/aggregate_statistics.py)"
-  - "[run_chapter4_benchmark.py](../../../benchmark_scripts/run_chapter4_benchmark.py)"
+  - "[run_chapter4_benchmark.py](../../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)"
   - "[orchestration.py](../../../src/benchmarking/runner/orchestration.py)"
 tags:
   - analysis/statistics
@@ -129,7 +129,7 @@ It is a stronger statement than "statistically equivalent", because it pins the 
 
 The duplication claim is partly true, and the parts differ in kind — which matters because each needs a different fix.
 
-**The engine is not reimplemented.** [run_chapter4_benchmark.py](../../benchmark_scripts/run_chapter4_benchmark.py)
+**The engine is not reimplemented.** [run_chapter4_benchmark.py](../../../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)
 imports `setup_benchmark_logging`, `adaptive_generations`, `load_checkpoint`, `load_all_configs`, `run_comprehensive_benchmark` and `gpu_available` from `src/`.
 The GA, the runner, the analysis and the logging setup are all library code; there is no duplicated engine and no duplicated logging setup.
 

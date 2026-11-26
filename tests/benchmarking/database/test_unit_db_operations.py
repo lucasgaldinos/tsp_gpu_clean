@@ -55,15 +55,16 @@ NAN_CHECKED_REQUIRED_FIELDS: list[str] = [
   "std_cost",
   "best_cost",
   "worst_cost",
-  "mean_gap",
-  "std_gap",
-  "best_gap",
   "mean_generations",
   "std_generations",
 ]
 
 #: Nullable numeric fields that are NaN-checked only when present.
 NAN_CHECKED_OPTIONAL_FIELDS: list[str] = [
+  "optimal_cost",
+  "mean_gap",
+  "std_gap",
+  "best_gap",
   "mean_initial_cost",
   "std_initial_cost",
   "mean_improvement",
@@ -74,10 +75,10 @@ NAN_CHECKED_OPTIONAL_FIELDS: list[str] = [
 ]
 
 #: Required raw arrays whose length must equal `repetitions`.
-REQUIRED_RAW_ARRAYS: list[str] = ["raw_times", "raw_costs", "raw_gaps"]
+REQUIRED_RAW_ARRAYS: list[str] = ["raw_times", "raw_costs"]
 
 #: Nullable raw arrays whose length must equal `repetitions` when present.
-OPTIONAL_RAW_ARRAYS: list[str] = ["raw_initial_costs", "raw_generations", "raw_stop_reasons"]
+OPTIONAL_RAW_ARRAYS: list[str] = ["raw_gaps", "raw_initial_costs", "raw_generations", "raw_stop_reasons"]
 
 #: Either a mapping or a pre-serialised JSON string is accepted for these columns.
 JSON_PAYLOAD: dict[str, int | float] = {"population_size": 256, "mutation_rate": 0.02}
@@ -364,7 +365,7 @@ RAW_ARRAY_VALUES: dict[str, list[Any]] = {
   [
     pytest.param("raw_times", False, id="raw_times"),
     pytest.param("raw_costs", False, id="raw_costs"),
-    pytest.param("raw_gaps", False, id="raw_gaps"),
+    pytest.param("raw_gaps", True, id="optional-raw_gaps"),
     pytest.param("raw_initial_costs", True, id="optional-raw_initial_costs"),
     pytest.param("raw_generations", True, id="optional-raw_generations"),
     pytest.param("raw_stop_reasons", True, id="optional-raw_stop_reasons"),
@@ -470,6 +471,26 @@ def test_insert_benchmark_run_persists_every_required_value(db_conn: duckdb.Duck
   )
   for field in omitted_nullables:
     assert stored[field] is None, f"{field} must be NULL when the payload omits it"
+
+
+def test_insert_benchmark_run_allows_null_optimal_and_gap_fields(db_conn: duckdb.DuckDBPyConnection) -> None:
+  """WHAT: inserting a run for an arbitrary `.tsp` instance whose optimal cost is unknown.
+
+  WHY: Custom `.tsp` files without a known optimal cost emit `None` for `optimal_cost`
+  and gap fields; DuckDB must persist them as SQL NULL without failing validation.
+  EXPECTED: insert succeeds and all five optimal/gap columns read back as `None`.
+  """
+  payload = run_payload(
+    optimal_cost=None,
+    mean_gap=None,
+    std_gap=None,
+    best_gap=None,
+    raw_gaps=None,
+  )
+  run_id = insert_benchmark_run(db_conn, validate_benchmark_data(payload))
+  stored = fetch_run(db_conn, run_id)
+  for field in ("optimal_cost", "mean_gap", "std_gap", "best_gap", "raw_gaps"):
+    assert stored[field] is None, f"{field} must round-trip as NULL"
 
 
 def test_insert_benchmark_run_persists_optional_fields(db_conn: duckdb.DuckDBPyConnection) -> None:
@@ -1270,3 +1291,65 @@ def test_check_duplicate_equal_repetitions_timestamp_rules(db_conn: duckdb.DuckD
   assert check_duplicate(db_conn, tz_newer) is False
 
 
+def test_compare_databases_handles_empty_dbs_reordered_rows_and_tail_differences(tmp_path: Path) -> None:
+  """WHAT: `compare_databases` handles empty DBs, ignores insertion order, and checks every row.
+
+  WHY: BUG-102 — Previous comparator crashed with `IndexError` on empty DBs, leaked DuckDB
+  connections on early returns, and only sampled 2 rows by `run_id`.
+  """
+  from benchmarking.database.validate_consistency import compare_databases
+
+  db1 = str(tmp_path / "a.duckdb")
+  db2 = str(tmp_path / "b.duckdb")
+  create_database(db1).close()
+  create_database(db2).close()
+
+  # 1. Empty databases compare cleanly without IndexError
+  identical_empty, diffs_empty = compare_databases(db1, db2)
+  assert identical_empty is True
+  assert diffs_empty == []
+
+  # 2. Four identical rows inserted in opposite order compare equal
+  rows = [
+    production_payload(
+      problem_name="p1", algorithm="CPU", mean_cost=100.0, mean_time=1.0, timestamp="2025-11-23T12:00:00"
+    ),
+    production_payload(
+      problem_name="p2", algorithm="CPU", mean_cost=200.0, mean_time=2.0, timestamp="2025-11-23T12:00:00"
+    ),
+    production_payload(
+      problem_name="p3", algorithm="CPU", mean_cost=300.0, mean_time=3.0, timestamp="2025-11-23T12:00:00"
+    ),
+    production_payload(
+      problem_name="p4", algorithm="CPU", mean_cost=400.0, mean_time=4.0, timestamp="2025-11-23T12:00:00"
+    ),
+  ]
+  c1 = create_database(db1)
+  c2 = create_database(db2)
+  for payload in rows:
+    insert_payload(c1, payload)
+  for payload in reversed(rows):
+    insert_payload(c2, payload)
+  c1.close()
+  c2.close()
+
+  identical_reordered, diffs_reordered = compare_databases(db1, db2)
+  assert identical_reordered is True
+  assert diffs_reordered == []
+
+  # 3. Difference strictly in the last row (missed by old [0, len//2] sampling) is detected
+  db3 = str(tmp_path / "c.duckdb")
+  c3 = create_database(db3)
+  for payload in rows[:-1]:
+    insert_payload(c3, payload)
+  insert_payload(
+    c3,
+    production_payload(
+      problem_name="p4", algorithm="CPU", mean_cost=499.0, mean_time=4.0, timestamp="2025-11-23T12:00:00"
+    ),
+  )
+  c3.close()
+
+  identical_diff, diffs = compare_databases(db1, db3)
+  assert identical_diff is False
+  assert any("p4 / CPU" in d and "mean_cost" in d for d in diffs)

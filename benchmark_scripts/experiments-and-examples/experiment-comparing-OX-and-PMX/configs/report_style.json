@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../configs/schemas/report_style.schema.json",
+  "display_names": {
+    "OX_GPU": "OX (GPU)",
+    "PMX_GPU": "PMX (GPU)"
+  },
+  "algorithm_order": [
+    "OX_GPU",
+    "PMX_GPU"
+  ],
+  "decimal_separator": ".",
+  "cd_decimal_sep": ".",
+  "plot_decimal_comma": false,
+  "size_thresholds": [
+    100,
+    400
+  ],
+  "show_size_guides": true
+}

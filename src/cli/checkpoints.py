@@ -56,10 +56,15 @@ def build_validate_parser() -> argparse.ArgumentParser:
   """Build the argument parser for validating database consistency."""
   parser = argparse.ArgumentParser(
     prog="tsp-validate-db",
-    description="Validate consistency between DuckDB databases and checkpoint JSON files",
+    description="Validate consistency between a DuckDB results database and checkpoint JSON files",
   )
-  parser.add_argument("--db1", type=Path, required=True, help="First database path")
-  parser.add_argument("--db2", type=Path, required=True, help="Second database path")
+  parser.add_argument("--db1", type=Path, required=True, help="Primary DuckDB results database path")
+  parser.add_argument(
+    "--db2",
+    type=Path,
+    default=None,
+    help="Optional secondary DuckDB database path to compare against --db1",
+  )
   parser.add_argument("--checkpoints", type=Path, required=True, help="Checkpoint directory")
   return parser
 
@@ -72,19 +77,20 @@ def validate_main(argv: Sequence[str] | None = None) -> int:
   if not args.db1.exists():
     print(f"❌ Database 1 not found: {args.db1}", file=sys.stderr)
     return 1
-  if not args.db2.exists():
+  if args.db2 is not None and not args.db2.exists():
     print(f"❌ Database 2 not found: {args.db2}", file=sys.stderr)
     return 1
   if not args.checkpoints.exists():
     print(f"❌ Checkpoint directory not found: {args.checkpoints}", file=sys.stderr)
     return 1
 
-  identical, db_diffs = compare_databases(str(args.db1), str(args.db2))
-  if not identical:
-    print("\nDatabase Differences:")
-    for diff in db_diffs:
-      print(f"  - {diff}")
-    return 1
+  if args.db2 is not None:
+    identical, db_diffs = compare_databases(str(args.db1), str(args.db2))
+    if not identical:
+      print("\nDatabase Differences:")
+      for diff in db_diffs:
+        print(f"  - {diff}")
+      return 1
 
   all_valid, mismatch_df = validate_against_checkpoints(str(args.db1), str(args.checkpoints))
   if not all_valid:
@@ -92,10 +98,9 @@ def validate_main(argv: Sequence[str] | None = None) -> int:
     print(mismatch_df.to_string(index=False))
     return 1
 
-  print("✅ Validation passed: databases and checkpoints are fully consistent.")
+  print("✅ Validation passed: database and checkpoints are fully consistent.")
   return 0
 
 
 if __name__ == "__main__":
   sys.exit(import_main())
-

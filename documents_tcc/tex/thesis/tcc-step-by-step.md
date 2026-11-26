@@ -252,8 +252,8 @@ Aqui entra a terminologia:
      - executa `repetitions` vezes, respeitando `cpu_size_threshold` (somente CPU quando $n<100$).
   3. Coleta tempos, custos, gaps.
   4. Roda análises estatísticas e gera:
-     - `results/chapter4_validation.log`
-     - `results/tables/chapter4_validation.{md,tex}`.
+     - `benchmark_scripts/experiments-and-examples/chapter4/results/chapter4_validation.log`
+     - `benchmark_scripts/experiments-and-examples/chapter4/results/tables/chapter4_validation.{md,tex}`.
 - Explicar por que CPU é omitido em instâncias grandes (viabilidade prática, aceitável academicamente).
 
 ### 3.7 Ameaças à validade e correções históricas

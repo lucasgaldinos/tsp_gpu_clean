@@ -822,3 +822,271 @@ def test_validate_existing_checkpoints_respects_cpu_size_threshold(tmp_path: Pat
     cpu_size_threshold=400,
   )
   assert errors == []
+
+
+def test_checkpoint_predicates_accept_null_raw_gaps_for_unknown_optimal(
+  tmp_path: Path,
+  caplog: pytest.LogCaptureFixture,
+) -> None:
+  """WHAT: Checkpoints without known optima (`raw_gaps: None`) pass validation and resume checks.
+
+  WHY: BUG-96 — Direct `.tsp` loading emits `optimal_cost=None, raw_gaps=None`; calling
+  `len(raw_gaps)` previously triggered a `TypeError` and reported valid checkpoints as corrupt.
+  """
+  payload = {
+    "problem_name": "custom50",
+    "problem_size": 50,
+    "optimal_cost": None,
+    "algorithm": "CPU",
+    "repetitions": 5,
+    "successful_runs": 5,
+    "mean_time": 0.1,
+    "mean_cost": 500.0,
+    "mean_gap": None,
+    "raw_times": [0.1] * 5,
+    "raw_costs": [500.0] * 5,
+    "raw_gaps": None,
+    "raw_seeds": [42, 43, 44, 45, 46],
+  }
+  path = tmp_path / "custom50_CPU.json"
+  save_checkpoint_atomic(path, payload)
+
+  with caplog.at_level("WARNING"):
+    assert is_valid_checkpoint(path, 5) is True
+    assert can_resume_checkpoint(path, 10) is True
+    assert get_remaining_repetitions(path, 5) == 0
+    assert get_remaining_repetitions(path, 10) == 5
+  assert "corrupted" not in caplog.text.lower()
+
+  # Non-null raw_gaps with mismatched length must still be rejected
+  bad_payload = dict(payload)
+  bad_payload["raw_gaps"] = [1.0, 2.0]
+  bad_path = _write_json(tmp_path / "custom50_bad_gaps.json", bad_payload)
+  assert is_valid_checkpoint(bad_path, 5) is False
+  assert can_resume_checkpoint(bad_path, 10) is False
+
+
+def test_save_problem_statistics_derives_retroactive_gaps_and_handles_summary_only(tmp_path: Path) -> None:
+  """WHAT: `save_problem_statistics` derives gaps from `raw_costs` + retroactive `optimal_cost`.
+
+  WHY: BUG-96 / BUG-99 — Checkpoints originally collected without `optimal_cost` (`raw_gaps=None`)
+  must populate `mean_gap`/`std_gap` when regenerated with an explicit `problems.json` optimum,
+  and summary-only entries must preserve summary metrics instead of zeroing them.
+  """
+  from benchmarking.runner.checkpoint_io import save_problem_statistics
+
+  cm = CheckpointManager(tmp_path / "checkpoints", tmp_path / "problem_statistics")
+  save_problem_statistics(
+    problem_name="custom_opt",
+    problem_size=20,
+    optimal_cost=400.0,
+    problem_results={
+      "RawNoGaps": {
+        "raw_times": [0.5, 0.7],
+        "raw_costs": [440.0, 440.0],
+        "raw_gaps": None,
+        "backend": "CPU",
+      },
+      "SummaryOnly": {
+        "mean_time": 0.25,
+        "std_time": 0.05,
+        "mean_cost": 420.0,
+        "std_cost": 4.0,
+        "success_rate": 1.0,
+        "backend": "GPU",
+      },
+    },
+    statistical_test_results={},
+    checkpoint_manager=cm,
+  )
+  saved = json.loads(cm.get_problem_stats_path("custom_opt").read_text(encoding="utf-8"))
+  assert saved["algorithms"]["RawNoGaps"]["mean_gap"] == pytest.approx(10.0)
+  assert saved["algorithms"]["RawNoGaps"]["std_gap"] == pytest.approx(0.0)
+  assert saved["algorithms"]["SummaryOnly"]["mean_time"] == pytest.approx(0.25)
+  assert saved["algorithms"]["SummaryOnly"]["mean_cost"] == pytest.approx(420.0)
+  assert saved["algorithms"]["SummaryOnly"]["mean_gap"] == pytest.approx(5.0)
+  assert saved["algorithms"]["SummaryOnly"]["success_rate"] == pytest.approx(1.0)
+
+
+def test_validate_existing_checkpoints_detects_stage_strategy_params_pipeline_and_corrupt_mode(
+  tmp_path: Path,
+) -> None:
+  """WHAT: Preflight catches `local_search_stage`, `strategy_params`, `pipeline`, and array drift.
+
+  WHY: BUG-98 — Changing local-search stage or operator hyperparameters must fail preflight,
+  while `allow_corrupt=True` lets malformed JSON proceed to execution-loop quarantine.
+  """
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir()
+  problems = [ProblemConfig(name="p1", optimal=100.0, size=50)]
+  ga_params = GAParams(population_size=256, mutation_rate=0.02, seed=42)
+
+  payload = {
+    "problem_name": "p1",
+    "algorithm": "CPU",
+    "successful_runs": 2,
+    "raw_costs": [100.0, 102.0],
+    "raw_times": [1.0, 1.1],
+    "strategies": {"local_search": "LocalSearchCPUTwoOpt"},
+    "algorithm_config": {
+      "population_size": 256,
+      "mutation_rate": 0.02,
+      "seed": 42,
+      "local_search_stage": "post_mutation",
+      "strategy_params": {
+        "local_search": {"class": "LocalSearchCPUTwoOpt", "max_iterations": 10, "mode": "first"},
+      },
+    },
+  }
+  _write_json(ckpt_dir / "p1_CPU.json", payload)
+
+  drifted_cfg = {
+    "CPU": AlgorithmConfig(
+      name="CPU",
+      use_gpu=False,
+      description="CPU",
+      params={
+        "local_search_stage": "post_evolution",
+        "pipeline": [{"class": "ElitistLocalSearchStep", "params": {"elite_count": 4}}],
+      },
+      strategies={"local_search": {"class": "LocalSearchCPUTwoOpt", "params": {"max_iterations": 999, "mode": "best"}}},
+    )
+  }
+  errors = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], drifted_cfg, ga_params)
+  assert any("local_search_stage" in e for e in errors)
+  assert any("max_iterations" in e for e in errors)
+  assert any("mode" in e for e in errors)
+  assert any("pipeline" in e for e in errors)
+
+  # CLI strategy_overrides drift also rejected
+  matching_cfg = {
+    "CPU": AlgorithmConfig(
+      name="CPU",
+      use_gpu=False,
+      description="CPU",
+      params={"local_search_stage": "post_mutation"},
+      strategies={"local_search": {"class": "LocalSearchCPUTwoOpt", "params": {"max_iterations": 10, "mode": "first"}}},
+    )
+  }
+  assert validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], matching_cfg, ga_params) == []
+  override_errors = validate_existing_checkpoints(
+    ckpt_dir,
+    problems,
+    ["CPU"],
+    matching_cfg,
+    ga_params,
+    strategy_overrides={"local_search": {"max_iterations": 25}},
+  )
+  assert any("max_iterations" in e for e in override_errors)
+
+  # Custom pipeline matching vs parameter drift inside pipeline step
+  pipe_payload = json.loads((ckpt_dir / "p1_CPU.json").read_text(encoding="utf-8"))
+  pipe_payload["algorithm_config"]["pipeline"] = [
+    {"class": "ElitistLocalSearchStep", "params": {"elite_count": 4}},
+  ]
+  _write_json(ckpt_dir / "p1_CPU.json", pipe_payload)
+  pipe_cfg = {
+    "CPU": AlgorithmConfig(
+      name="CPU",
+      use_gpu=False,
+      description="CPU",
+      params={
+        "local_search_stage": "post_mutation",
+        "pipeline": [{"class": "ElitistLocalSearchStep", "params": {"elite_count": 4}}],
+      },
+      strategies={"local_search": {"class": "LocalSearchCPUTwoOpt", "params": {"max_iterations": 10, "mode": "first"}}},
+    )
+  }
+  assert validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], pipe_cfg, ga_params) == []
+  pipe_cfg["CPU"].params["pipeline"] = [{"class": "ElitistLocalSearchStep", "params": {"elite_count": 8}}]
+  pipe_drift = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], pipe_cfg, ga_params)
+  assert any("pipeline[0].params.elite_count" in e for e in pipe_drift)
+
+  # Corrupt JSON fails when allow_corrupt=False (dry-run) and defers when allow_corrupt=True
+  (ckpt_dir / "p1_CPU.json").write_text("{truncated json", encoding="utf-8")
+  corrupt_errors = validate_existing_checkpoints(
+    ckpt_dir, problems, ["CPU"], matching_cfg, ga_params, allow_corrupt=False
+  )
+  assert len(corrupt_errors) == 1
+  assert validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], matching_cfg, ga_params, allow_corrupt=True) == []
+
+
+def test_run_comprehensive_benchmark_quarantines_corrupt_checkpoint_and_runs_cleanly(tmp_path: Path) -> None:
+  """WHAT: Truncated checkpoint JSON is quarantined on live runs instead of aborting preflight.
+
+  WHY: BUG-98 / BUG-37 — Preflight previously raised before `quarantine_checkpoint` ran,
+  the post-quarantine block fell into the resume branch instead of starting a clean run,
+  and custom strategy overrides outside `_STRATEGY_PARAM_ATTRS` were omitted from metadata.
+  """
+  from pathlib import Path as _Path
+
+  from algorithms import register_strategy
+  from algorithms.strategies import STRATEGY_REGISTRY, LocalSearchCPUTwoOpt
+  from benchmarking.runner.orchestration import run_comprehensive_benchmark
+
+  class _CustomTwoOpt(LocalSearchCPUTwoOpt):
+    def __init__(self, max_iterations: int = 10, custom_span: int = 2) -> None:
+      super().__init__(max_iterations=max_iterations)
+      self.custom_span = custom_span
+
+  repo_root = _Path(__file__).resolve().parents[2]
+  cfg_dir = repo_root / "tests" / "fixtures" / "configs"
+  gr17_path = repo_root / "tests" / "fixtures" / "tsp" / "gr17.tsp"
+
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir(parents=True)
+  corrupt_ckpt = ckpt_dir / "gr17_CPU.json"
+  corrupt_ckpt.write_text('{"problem_name": "gr17", "algorithm":', encoding="utf-8")
+
+  # dry_run=True must reject corrupt JSON without touching disk
+  with pytest.raises(ValueError, match="failed to read checkpoint"):
+    run_comprehensive_benchmark(
+      output_dir=tmp_path,
+      config_dir=cfg_dir,
+      tsp_files=[gr17_path],
+      algorithms=["CPU"],
+      repetitions=1,
+      max_generations=2,
+      dry_run=True,
+    )
+  assert corrupt_ckpt.exists()
+
+  register_strategy("_CustomTwoOptTest", _CustomTwoOpt)
+  try:
+    custom_algos = {
+      "CPU": AlgorithmConfig(
+        name="CPU",
+        use_gpu=False,
+        description="Custom CPU",
+        strategies={
+          "initialization": {"class": "InitializationRandom"},
+          "selection": {"class": "SelectionTournament", "params": {"k": 3}},
+          "crossover": {"class": "CrossoverOrder"},
+          "mutation": {"class": "MutationSwap"},
+          "local_search": {"class": "_CustomTwoOptTest", "params": {"max_iterations": 2, "custom_span": 2}},
+          "evaluation": {"class": "EvaluationCPUCost"},
+        },
+      )
+    }
+    # Live run must quarantine corrupt JSON, complete 1 clean rep, and persist custom override
+    results = run_comprehensive_benchmark(
+      output_dir=tmp_path,
+      config_dir=cfg_dir,
+      tsp_files=[gr17_path],
+      algorithms=["CPU"],
+      algorithm_configs_override=custom_algos,
+      repetitions=1,
+      max_generations=2,
+      incremental_runs=False,
+      strategy_overrides={"local_search": {"max_iterations": 3, "custom_span": 7}},
+    )
+  finally:
+    STRATEGY_REGISTRY.pop("_CustomTwoOptTest", None)
+
+  quarantined = list(ckpt_dir.glob("gr17_CPU.json.corrupt.*.bak"))
+  assert len(quarantined) == 1
+  assert results["gr17"]["CPU"]["successful_runs"] == 1
+  saved = load_checkpoint(corrupt_ckpt)
+  assert saved["successful_runs"] == 1
+  assert saved["algorithm_config"]["strategy_params"]["local_search"]["max_iterations"] == 3
+  assert saved["algorithm_config"]["strategy_params"]["local_search"]["custom_span"] == 7

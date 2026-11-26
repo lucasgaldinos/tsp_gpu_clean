@@ -19,6 +19,12 @@ modifications:
           Initial modularization extracted from statistical_tests_comprehensive_guide.md,
           providing pooled variance derivations, non-parametric effect size formulations,
           distribution overlap proofs, sample size derivations, and real TSPLIB benchmark tables.
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Documented correlation-scale thresholds (`0.1 / 0.3 / 0.5`) used by
+          `statistics.py::interpret_rank_biserial` for matched-pairs rank-biserial correlation
+          and noted removal of unused `cohens_d` from production `StatisticalAnalyzer`.
 related_files:
   - "[guide-statistical-testing-index.md](./guide-statistical-testing-index.md)"
   - "[guide-statistical-parametric-foundations.md](./guide-statistical-parametric-foundations.md)"
@@ -26,6 +32,7 @@ related_files:
   - "[guide-statistical-pairwise-comparisons.md](./guide-statistical-pairwise-comparisons.md)"
   - "[guide-statistical-multicomparison-tests.md](./guide-statistical-multicomparison-tests.md)"
   - "[analysis-complete-statistical-results.md](./analysis-complete-statistical-results.md)"
+  - "[statistics.py](../../src/benchmarking/analysis/statistics.py)"
 tags:
   - guide/testing
   - guide/analysis
@@ -304,6 +311,16 @@ where $T^+$ is the positive rank sum and $T^-$ is the negative rank sum.
 - **$r_{\text{rb}} = +1.0$**: Algorithm A was strictly faster than B in every single run ($T^- = 0$).
 - **$r_{\text{rb}} = -1.0$**: Algorithm B was strictly faster in every run ($T^+ = 0$).
 - **$r_{\text{rb}} = 0.0$**: Perfect parity ($T^+ = T^-$).
+
+Because $r_{\text{rb}} \in [-1, 1]$ lies on the **correlation scale** (not the unbounded standardized mean-difference scale of Cohen's $d$), [`statistics.py::interpret_rank_biserial`](../../src/benchmarking/analysis/statistics.py) classifies $|r_{\text{rb}}|$ using Cohen (1988) correlation-scale thresholds (Kerby, 2014):
+
+- $|r_{\text{rb}}| < 0.1$: Negligible
+- $0.1 \le |r_{\text{rb}}| < 0.3$: Small
+- $0.3 \le |r_{\text{rb}}| < 0.5$: Medium
+- $|r_{\text{rb}}| \ge 0.5$: Large
+
+> [!NOTE]
+> Production benchmarking in [`statistics.py::StatisticalAnalyzer`](../../src/benchmarking/analysis/statistics.py) reports matched-pairs rank-biserial correlation exclusively (`DP13-4`, `BUG-60`); parametric `cohens_d` was retired from the production analyzer.
 
 ### 4.3 Independent Samples: Cliff's Delta ($\delta$)
 

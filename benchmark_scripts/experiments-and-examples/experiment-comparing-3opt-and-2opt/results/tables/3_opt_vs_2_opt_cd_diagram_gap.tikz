@@ -1,0 +1,80 @@
+% Auto-generated Demšar Critical Difference Diagram in TikZ
+% Metric: Optimality Gap
+% Generated for k = 6 algorithms across N = 9 instances (CD = 2.513, alpha = 0.05, F_F = 15.924, p = 1.267e-08)
+\begin{tikzpicture}[
+    scale=2.2,
+    axis/.style={thick, -{Stealth[length=2.5mm]}},
+    tick/.style={thick},
+    subtick/.style={thin, gray},
+    clique/.style={line width=2.4pt, color=blue!75!black, line cap=round},
+    cdbar/.style={line width=1.5pt, {Bar[width=4mm]}-{Bar[width=4mm]}},
+    algomarker/.style={circle, fill=black, inner sep=1.2pt},
+    labelnode/.style={font=\small\bfseries, align=center}
+]
+
+    % 1. CD Reference Bar at the Top
+    \draw[cdbar] (1.0, 1.10) -- node[above=2pt, font=\footnotesize\bfseries] {CD = 2.513 ($\alpha = 0.05$)} (3.513, 1.10);
+
+    % 2. Main Horizontal Rank Axis (1.0 to k.0)
+    \draw[axis] (0.8, 0.0) -- (6.3, 0.0) node[right, font=\footnotesize\bfseries] {Average rank};
+
+    % Major Ticks
+    \draw[tick] (1.0, 0.08) -- (1.0, -0.08);
+    \draw[tick] (2.0, 0.08) -- (2.0, -0.08);
+    \draw[tick] (3.0, 0.08) -- (3.0, -0.08);
+    \draw[tick] (4.0, 0.08) -- (4.0, -0.08);
+    \draw[tick] (5.0, 0.08) -- (5.0, -0.08);
+    \draw[tick] (6.0, 0.08) -- (6.0, -0.08);
+
+    % Minor Sub-ticks (every 0.5)
+    \draw[subtick] (1.5, 0.04) -- (1.5, -0.04);
+    \draw[subtick] (2.5, 0.04) -- (2.5, -0.04);
+    \draw[subtick] (3.5, 0.04) -- (3.5, -0.04);
+    \draw[subtick] (4.5, 0.04) -- (4.5, -0.04);
+    \draw[subtick] (5.5, 0.04) -- (5.5, -0.04);
+
+    % 3. Algorithm Data Points and Drop Lines (staggered Demšar elbows avoid overlap on ties)
+    \coordinate (A_ThreeOptMultiMoveGPU) at (1.000, 0.0);
+    \node[algomarker] at (A_ThreeOptMultiMoveGPU) {};
+    \draw[thick] (A_ThreeOptMultiMoveGPU) -- (1.000, -0.48) -- (0.72, -0.48);
+    \node[labelnode, anchor=east] at (0.68, -0.48) {3-opt Multi-Move (GPU)\\(1.00)};
+    \coordinate (A_ThreeOptMultiMoveGPUlesscandidates) at (2.778, 0.0);
+    \node[algomarker] at (A_ThreeOptMultiMoveGPUlesscandidates) {};
+    \draw[thick] (A_ThreeOptMultiMoveGPUlesscandidates) -- (2.778, -0.98) -- (0.72, -0.98);
+    \node[labelnode, anchor=east] at (0.68, -0.98) {ThreeOpt\_MultiMove\_GPU\_less\_candidates\\(2.78)};
+    \coordinate (A_TwoOptMultiMoveGPU) at (3.333, 0.0);
+    \node[algomarker] at (A_TwoOptMultiMoveGPU) {};
+    \draw[thick] (A_TwoOptMultiMoveGPU) -- (3.333, -1.48) -- (0.72, -1.48);
+    \node[labelnode, anchor=east] at (0.68, -1.48) {2-opt Multi-Move (GPU)\\(3.33)};
+    \coordinate (A_ThreeOptBatchGPUlesscandidates) at (4.111, 0.0);
+    \node[algomarker] at (A_ThreeOptBatchGPUlesscandidates) {};
+    \draw[thick] (A_ThreeOptBatchGPUlesscandidates) -- (4.111, -1.48) -- (6.28, -1.48);
+    \node[labelnode, anchor=west] at (6.32, -1.48) {ThreeOpt\_Batch\_GPU\_less\_candidates\\(4.11)};
+    \coordinate (A_ThreeOptBatchGPU) at (4.333, 0.0);
+    \node[algomarker] at (A_ThreeOptBatchGPU) {};
+    \draw[thick] (A_ThreeOptBatchGPU) -- (4.333, -0.98) -- (6.28, -0.98);
+    \node[labelnode, anchor=west] at (6.32, -0.98) {3-opt Batch (GPU)\\(4.33)};
+    \coordinate (A_TwoOptBatchGPU) at (5.444, 0.0);
+    \node[algomarker] at (A_TwoOptBatchGPU) {};
+    \draw[thick] (A_TwoOptBatchGPU) -- (5.444, -0.48) -- (6.28, -0.48);
+    \node[labelnode, anchor=west] at (6.32, -0.48) {2-opt Batch (GPU)\\(5.44)};
+
+    % Major Tick Labels (drawn after drop lines so white fill masks crossings)
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (1.0, -0.08) {1.0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (2.0, -0.08) {2.0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (3.0, -0.08) {3.0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (4.0, -0.08) {4.0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (5.0, -0.08) {5.0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (6.0, -0.08) {6.0};
+
+    % 4. Non-Significant Cliques (|R_i - R_j| <= CD)
+    \draw[clique] (1.000, 0.35) -- (3.333, 0.35);
+    \draw[thin, blue!75!black, dashed] (1.000, 0.0) -- (1.000, 0.35);
+    \draw[thin, blue!75!black, dashed] (3.333, 0.0) -- (3.333, 0.35);
+    \draw[clique] (2.778, 0.50) -- (4.333, 0.50);
+    \draw[thin, blue!75!black, dashed] (2.778, 0.0) -- (2.778, 0.50);
+    \draw[thin, blue!75!black, dashed] (4.333, 0.0) -- (4.333, 0.50);
+    \draw[clique] (3.333, 0.65) -- (5.444, 0.65);
+    \draw[thin, blue!75!black, dashed] (3.333, 0.0) -- (3.333, 0.65);
+    \draw[thin, blue!75!black, dashed] (5.444, 0.0) -- (5.444, 0.65);
+\end{tikzpicture}

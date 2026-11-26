@@ -49,9 +49,19 @@ datasets/
 *.log
 *.lot
 *.toc
+*.nav
+*.out
+*.snm
+*.vrb
+*.xdv
+
+# Forward/inverse search artefacts (`(busy)` is the in-progress writer)
+*.synctex.gz
+*.synctex(busy)
 
 # Bibliography auxiliary files
 *.bbl
+*.bbl-SAVE-ERROR
 *.blg
 *.run.xml
 

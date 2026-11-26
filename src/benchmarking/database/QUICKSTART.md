@@ -1,113 +1,101 @@
-# Quick Start: Database Operations
+---
+title: "Quick Start: Benchmark Results Database (Optional DuckDB Layer)"
+description: >
+  Operational reference for the optional DuckDB results persistence module under
+  `src/benchmarking/database/`, showing CLI checkpoint ingestion, consistency
+  validation, and direct SQL queries.
+created: 2025-11-23
+modifications:
+  - date_modified: 2026-11-23
+    modifications:
+      - description: >
+          Replaced dead `python -m benchmarking.database.*` invocations and broken
+          `README.md` reference with the registered `tsp-import-checkpoints` and
+          `tsp-validate-db` CLIs, clarifying that DuckDB consolidation is optional
+          and adding YAML frontmatter compliant with repository standards.
+      - description: >
+          Noted full-table deterministic `(problem_name, algorithm)` comparison and
+          guaranteed connection cleanup in `validate_consistency.py::compare_databases` (`BUG-102`).
+related_files:
+  - "[schema.sql](./schema.sql)"
+  - "[db_operations.py](./db_operations.py)"
+  - "[checkpoints.py](../../cli/checkpoints.py)"
+  - "[guide-getting-started.md](../../../documentation/guide-getting-started.md)"
+tags:
+  - guide/database
+  - guide/quickstart
+  - guide/cli
+  - benchmark/database
+  - benchmark/checkpoints
+  - benchmark/validation
+  - notes/duckdb
+  - notes/tooling
+  - analysis/benchmarking
+  - review/quality
+---
 
-## File Location
+# Quick Start: Benchmark Results Database
 
-**Directory**: `src/benchmarking/database/`
+> [!NOTE]
+> Consolidating JSON checkpoints into DuckDB is **optional**. Both `tsp-benchmark` and `tsp-report` generate all Markdown/LaTeX tables, quantitative macros, Demšar CD diagrams, and scaling figures directly from JSON files under `checkpoints/`. Use this module when you want SQL querying or archival consistency auditing across runs.
 
-Files:
-- `schema.sql` - Database schema
-- `schema.py` - Table name and standard query constants
-- `db_operations.py` - Pure functions module
-- `import_checkpoints.py` - Batch import script (with CLI support)
-- `validate_consistency.py` - Database validation against JSON checkpoints
-- `README.md` - Full documentation
+## Module Layout
 
-## 1. Quick Setup (3 Steps)
+**Directory:** `src/benchmarking/database/`
 
-### Step 1: Create Database (Optional - Import script does this automatically)
+- [schema.sql](./schema.sql) — DuckDB `benchmark_runs` table DDL and indexes (`optimal_cost` and gap columns are nullable for custom `.tsp` instances without a known optimum).
+- [schema.py](./schema.py) — Table name and reusable SQL query constants.
+- [db_operations.py](./db_operations.py) — Schema creation, payload validation ([db_operations.py::validate_benchmark_data](./db_operations.py)), insertion ([db_operations.py::insert_benchmark_run](./db_operations.py)), and query helpers.
+- [import_checkpoints.py](./import_checkpoints.py) — Idempotent batch importer exposed through the `tsp-import-checkpoints` CLI.
+- [validate_consistency.py](./validate_consistency.py) — Cross-validation between DuckDB and source JSON checkpoints (`validate_against_checkpoints`), plus full-table row-by-row database comparison ordered by `(problem_name, algorithm, timestamp, run_id)` ([validate_consistency.py::compare_databases](./validate_consistency.py), `BUG-102`), exposed through the `tsp-validate-db` CLI.
+
+## 1. Import Checkpoints via CLI
 
 ```bash
-duckdb results.duckdb < src/benchmarking/database/schema.sql
+# Import every *.json checkpoint into ./results/results.duckdb
+uv run tsp-import-checkpoints --input ./results/checkpoints --output-dir ./results
+
+# Validate the database against the source JSON checkpoints (--db2 is optional)
+uv run tsp-validate-db --db1 ./results/results.duckdb --checkpoints ./results/checkpoints
 ```
 
-### Step 2: Import Checkpoints
+## 2. Inspect with SQL
 
 ```bash
-# Default: Creates results.duckdb in current working directory
-python -m benchmarking.database.import_checkpoints --input ./results/checkpoints/
-
-# Or specify output directory
-python -m benchmarking.database.import_checkpoints --input ./results/checkpoints/ --output-dir ./results/
-```
-
-### Step 3: Test Query
-
-```bash
-duckdb results.duckdb
+duckdb ./results/results.duckdb
 ```
 
 ```sql
--- Count benchmark runs
+-- Count consolidated runs
 SELECT COUNT(*) FROM benchmark_runs;
 
--- Get CPU problems
-SELECT DISTINCT problem_name FROM benchmark_runs WHERE algorithm = 'CPU';
+-- Compare mean time and optimality gap for one instance
+SELECT algorithm, mean_time, mean_cost, mean_gap
+FROM benchmark_runs
+WHERE problem_name = 'berlin52'
+ORDER BY mean_time;
 ```
 
-## 2. Type Safety Features
+## 3. Programmatic Validation & Queries
 
-The module validates:
-- No NaN values in DOUBLE fields
-- Array lengths match repetitions: `len(raw_times) == repetitions`
-- Valid JSON structure for configs
-- ISO 8601 timestamp format
-
-**Example**:
 ```python
-data = {
-  "repetitions": 15,
-  "raw_times": [1.2, 1.3, 1.1, ...],  # Must have exactly 15 values
-  "mean_time": float("nan"),  # Will raise ValueError
-}
-
-validate_benchmark_data(data)  # Raises: "NaN value not allowed in field: mean_time"
-```
-
-## 3. Common Use Cases
-
-### Import new benchmarks
-```python
-from benchmarking.database.db_operations import create_database, insert_benchmark_run
 import json
+from benchmarking.database.db_operations import (
+  compute_speedup_matrix,
+  create_database,
+  get_problems_with_cpu,
+  insert_benchmark_run,
+  validate_benchmark_data,
+)
 
 conn = create_database("results/results.duckdb")
 
-# Load checkpoint
-with open("checkpoints/berlin52_CPU.json") as f:
-  data = json.load(f)
+with open("results/checkpoints/berlin52_CPU.json", encoding="utf-8") as fh:
+  payload = validate_benchmark_data(json.load(fh))
 
-# Insert with validation
-run_id = insert_benchmark_run(conn, data)
-print(f"Inserted run_id: {run_id}")
-
+run_id = insert_benchmark_run(conn, payload)
+print(f"Inserted run_id={run_id}")
+print("CPU instances:", get_problems_with_cpu(conn))
+print("Speedups:", compute_speedup_matrix(conn, "CPU", ["AlgA", "AlgB"]))
 conn.close()
 ```
-
-### Query for statistical analysis
-```python
-from benchmarking.database.db_operations import create_database, get_problems_with_cpu
-
-conn = create_database("results/results.duckdb")
-
-# Get problems with CPU data (for CPU vs GPU comparison)
-cpu_problems = get_problems_with_cpu(conn)
-print(f"CPU data available for: {cpu_problems}")
-
-conn.close()
-```
-
-### Speedup analysis
-```python
-from benchmarking.database.db_operations import create_database, compute_speedup_matrix
-
-conn = create_database("results/results.duckdb")
-
-# Compute speedup of GPU algorithms vs CPU
-speedups = compute_speedup_matrix(conn, "CPU", ["HybridOptimized", "FullGPUMonolithic"])
-
-for problem, algo, speedup, baseline_time in speedups:
-  print(f"{problem}: {algo} is {speedup:.2f}x faster than CPU")
-
-conn.close()
-```
-

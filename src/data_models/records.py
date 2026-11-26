@@ -46,13 +46,14 @@ class BenchmarkRunInput(TypedDict):
   Mirrors `src/benchmarking/database/schema.sql`, which stays the
   authority for names and nullability. Two field groups:
 
-  * **required** — the 27 columns declared `NOT NULL` without a default. The
+  * **required** — the 22 columns declared `NOT NULL` without a default. The
     runtime validator derives its required-field list from
     `BenchmarkRunInput.__required_keys__`, so this class and
     `validate_benchmark_data` cannot drift apart.
-  * **`NotRequired`** — the nullable columns. The writer reads these with
-    `dict.get`, so a checkpoint written before the column existed still
-    imports and lands as SQL `NULL`.
+  * **`NotRequired`** — the 21 nullable columns (including `optimal_cost` and
+    gap fields for instances whose optimal tour cost is unknown). The writer
+    reads these with `dict.get`, so a checkpoint without them imports cleanly
+    and lands as SQL `NULL`.
 
   `run_id` is absent on purpose: the database assigns it from
   `benchmark_runs_seq` and returns it from the insert.
@@ -61,7 +62,6 @@ class BenchmarkRunInput(TypedDict):
   # --- required: problem identification -----------------------------------
   problem_name: str
   problem_size: int
-  optimal_cost: float
 
   # --- required: algorithm identification ---------------------------------
   algorithm: str
@@ -85,11 +85,6 @@ class BenchmarkRunInput(TypedDict):
   best_cost: float
   worst_cost: float
 
-  # --- required: gap from optimal -----------------------------------------
-  mean_gap: float
-  std_gap: float
-  best_gap: float
-
   # --- required: generations ---------------------------------------------
   mean_generations: float
   std_generations: float
@@ -97,11 +92,17 @@ class BenchmarkRunInput(TypedDict):
   # --- required: raw arrays (exact reproduction of the runs) --------------
   raw_times: list[float]
   raw_costs: list[float]
-  raw_gaps: list[float]
 
   # --- required: configuration -------------------------------------------
   algorithm_config: JsonPayload
   strategies: JsonPayload
+
+  # --- nullable: optimal cost & gap (absent when optimum is unknown) ------
+  optimal_cost: NotRequired[float | None]
+  mean_gap: NotRequired[float | None]
+  std_gap: NotRequired[float | None]
+  best_gap: NotRequired[float | None]
+  raw_gaps: NotRequired[list[float] | None]
 
   # --- nullable: absent from older checkpoints ---------------------------
   mean_initial_cost: NotRequired[float | None]

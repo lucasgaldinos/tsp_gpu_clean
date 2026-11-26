@@ -51,7 +51,7 @@ modifications:
 related_files:
   - "[order_crossover.py](../../src/algorithms/strategies/crossover/order_crossover.py)"
   - "[order_crossover.cu](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu)"
-  - "[crossover_scaling_sweep.py](../../benchmark_scripts/crossover_scaling_sweep.py)"
+  - "[crossover_scaling_sweep.py](../../benchmark_scripts/experiments-and-examples/chapter4/crossover_scaling_sweep.py)"
   - "[analysis-crossover-matrix-formulation-and-mechanics.md](./analysis-crossover-matrix-formulation-and-mechanics.md)"
   - "[analysis-crossover-shared-memory-formats.md](./analysis-crossover-shared-memory-formats.md)"
   - "[guide-cuda-warp-primitives-and-intrinsics.md](./guide-cuda-warp-primitives-and-intrinsics.md)"
@@ -1003,7 +1003,7 @@ A common testing pitfall is assuming that compiling the CUDA kernel ahead of tim
   3. **Hardware Clock P-State Transitions**: Consumer and mobile GPUs (e.g. GTX 1050 Mobile) idle at low-power P-states (P8/P5, $\approx 139\text{ MHz}$). Upon receiving a kernel, the GPU hardware power management requires several milliseconds to ramp core clocks to maximum boost frequency (P0, $\approx 1{,}493\text{ MHz}$).
   4. **Instruction Cache (I-Cache) and L2 Priming**: The first kernel launch incurs cold misses in the SM instruction cache and GPU L2 cache, loading kernel instructions and page table entries (TLB) into on-chip SRAM.
 
-In initial runs of `benchmark_scripts/crossover_scaling_sweep.py`, measuring $n=52$ without an untimed per-size warm-up yielded $3.08\text{ ms}$ (due to pool expansion for new buffer dimensions), while $n=2{,}000$ measured $1.72\text{ ms}$ on subsequent runs. This artifactual downward measurement tilt produced a false negative power-law exponent ($\beta \approx -0.12$). Introducing an untimed per-dimension execution warm-up stabilized the benchmark to its true scaling behavior: $\beta_{\text{strategy}} = \mathbf{0.0422} \le 1.20$.
+In initial runs of `benchmark_scripts/experiments-and-examples/chapter4/crossover_scaling_sweep.py`, measuring $n=52$ without an untimed per-size warm-up yielded $3.08\text{ ms}$ (due to pool expansion for new buffer dimensions), while $n=2{,}000$ measured $1.72\text{ ms}$ on subsequent runs. This artifactual downward measurement tilt produced a false negative power-law exponent ($\beta \approx -0.12$). Introducing an untimed per-dimension execution warm-up stabilized the benchmark to its true scaling behavior: $\beta_{\text{strategy}} = \mathbf{0.0422} \le 1.20$.
 
 #### 2. The Cache-Poisoning Hazard: Dummy Zero Arrays and Topology Heuristics
 

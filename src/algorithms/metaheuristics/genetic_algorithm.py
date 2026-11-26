@@ -510,7 +510,13 @@ class GeneticAlgorithm:
         strategy_hook(context)
 
   def _collect_strategy_metrics(self, context: ProblemContext) -> None:
-    """Aggregate H2D, D2H, and kernel launch counts from all active strategies."""
+    """Aggregate H2D, D2H, and kernel launch counts from all active strategies.
+
+    Context-owned GPU caches (`ProblemContext.h2d_bytes`) are already attributed once
+    to whichever strategy triggered the first physical upload (`BUG-95`), so this
+    collector must not re-add `context._gpu_distances.nbytes`.
+    """
+    _ = context
     total_h2d = 0
     total_d2h = 0
     total_kernels = 0
@@ -518,10 +524,6 @@ class GeneticAlgorithm:
       total_h2d += int(getattr(strat, "h2d_bytes", 0))
       total_d2h += int(getattr(strat, "d2h_bytes", 0))
       total_kernels += int(getattr(strat, "kernel_launches", 0))
-
-    gpu_dist = getattr(context, "_gpu_distances", None)
-    if gpu_dist is not None and hasattr(gpu_dist, "nbytes"):
-      total_h2d += int(gpu_dist.nbytes)
 
     self.h2d_bytes = total_h2d
     self.d2h_bytes = total_d2h

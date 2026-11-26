@@ -64,7 +64,7 @@ tags:
 All four variants implement the **same genetic algorithm** with identical parameters:
 
 | Parameter | Value | Rationale |
-|-----------|-------|-----------|
+| ----------- | ------- | ----------- |
 | Population size | 256 | Power of 2 for GPU warp alignment |
 | Mutation rate | 0.02 | 2% swap mutation probability |
 | Tournament size | 5 | Strong selection pressure |
@@ -93,7 +93,7 @@ By holding the algorithm constant, this comparison **isolates execution-platform
 ### The Four Variants
 
 | Variant | Class | Strategy | Key Characteristic |
-|---------|-------|----------|--------------------|
+| --------- | ------- | ---------- | -------------------- |
 | **CPU** | `GeneticAlgorithmCPU` | Pure NumPy, sequential | Baseline reference |
 | **HybridNaive** | `GeneticAlgorithmHybridNaive` | Individual GPU kernel calls | Bottleneck demonstration |
 | **HybridOptimized** | `GeneticAlgorithmHybridOptimized` | Batch GPU + kernel chaining | Maximum throughput |
@@ -382,7 +382,7 @@ flowchart TB
 ### Cumulative Transfer Volume Over 1000 Generations
 
 | Metric | CPU | HybridNaive | HybridOptimized | FullGPU |
-|--------|-----|-------------|-----------------|---------|
+| -------- | ----- | ------------- | ----------------- | --------- |
 | H2D per gen | 0 B | ~8–10 MB | ~1 MB | 0 B |
 | D2H per gen | 0 B | ~8–10 MB | ~1 MB + 2 KB | 0 B |
 | **Total per gen** | **0 B** | **~20 MB** | **~2 MB** | **0 B** |
@@ -602,7 +602,7 @@ flowchart TB
 ### Legend
 
 | Symbol | Meaning |
-|--------|---------|
+| -------- | --------- |
 | 🔵 | CPU execution (host) |
 | 🟢 | GPU execution (device) |
 | 🟡 | PCIe memory transfer (H2D or D2H) |
@@ -627,7 +627,7 @@ flowchart TB
 Results from thesis benchmarks using representative TSP instances.
 
 | Variant | Avg Time (s) | Speedup vs. Naive | Notes |
-|---------|-------------|-------------------|-------|
+| --------- | ------------- | ------------------- | ------- |
 | **HybridNaive** | 47.20 | 1.00× (reference) | Baseline for GPU comparison |
 | **HybridOptimized** | 18.94 | **2.49×** | Best execution speed |
 | **FullGPU** | 43.51 | **1.08×** | Close to Naive in raw time |
@@ -642,7 +642,7 @@ Results from thesis benchmarks using representative TSP instances.
 ### 7.2 Solution Quality
 
 | Variant | Avg Gap (%) | Best Gap (%) | Consistency | Notes |
-|---------|------------|-------------|-------------|-------|
+| --------- | ------------ | ------------- | ------------- | ------- |
 | **HybridNaive** | 1.30 | — | Baseline | Reference quality |
 | **HybridOptimized** | 1.30 | — | Same as Naive | Identical algorithm → identical quality |
 | **FullGPU** | **0.88** | — | **Best quality** | GPU 2-opt finds better local optima |
@@ -654,7 +654,7 @@ Results from thesis benchmarks using representative TSP instances.
 ### 7.3 Per-Generation Computational Profile (n=1000)
 
 | Metric | CPU | HybridNaive | HybridOptimized | FullGPU |
-|--------|-----|-------------|-----------------|---------|
+| -------- | ----- | ------------- | ----------------- | --------- |
 | Kernel launches | 0 | 2,560 | 11 | 0* |
 | H2D bytes | 0 B | ~8–10 MB | ~1 MB | 0 B |
 | D2H bytes | 0 B | ~8–10 MB | ~1 MB + 2 KB | 0 B |
@@ -669,7 +669,7 @@ Results from thesis benchmarks using representative TSP instances.
 ### 7.4 Resource Utilization
 
 | Resource | CPU | HybridNaive | HybridOptimized | FullGPU |
-|----------|-----|-------------|-----------------|---------|
+| ---------- | ----- | ------------- | ----------------- | --------- |
 | CPU cores used | 1 (sequential) | 1 (dispatch loop) | 1 (dispatch) | 1 (launch only) |
 | GPU SM utilization | 0% | ~1–5% (1 block) | ~80–95% (256 blocks) | ~95%+ (monolithic) |
 | GPU memory footprint | 0 | ~8 MB (transient) | ~4 MB (persistent) | ~10 MB (all data) |
@@ -679,7 +679,7 @@ Results from thesis benchmarks using representative TSP instances.
 ### 7.5 Scalability Characteristics
 
 | Problem Size (n) | CPU Time Growth | Naive Overhead Growth | Optimized Advantage | FullGPU Advantage |
-|-------------------|-----------------|-----------------------|---------------------|-------------------|
+| ------------------- | ----------------- | ----------------------- | --------------------- | ------------------- |
 | n < 100 | Fast | Moderate (launch overhead dominates) | Minimal | Minimal |
 | n = 100–500 | Moderate | High (transfers dominate) | Significant | Moderate |
 | n = 500–1000 | Slow | Very high (transfers + launches) | **Maximum benefit** | High |
@@ -691,7 +691,7 @@ Results from thesis benchmarks using representative TSP instances.
 ### 7.6 Speedup Summary (vs. HybridNaive Reference)
 
 | Variant | Speedup | Gap (%) | Classification |
-|---------|---------|---------|----------------|
+| --------- | --------- | --------- | ---------------- |
 | HybridNaive | 1.00× | 1.30% | Reference baseline |
 | HybridOptimized | **5.54×** | 1.30% | ✅ Best speed, same quality |
 | FullGPU | 1.21× | **0.88%** | ✅ Best quality, moderate speed |
@@ -748,12 +748,13 @@ occupancy can make performance *worse* than CPU-only execution.
 Two distinct overhead sources affect hybrid GPU algorithms differently:
 
 | Overhead Type | HybridNaive Impact | HybridOptimized Solution |
-|---------------|-------------------|--------------------------|
+| --------------- | ------------------- | -------------------------- |
 | **Kernel launch** (~5–10 μs each) | 2,560 launches × ~7 μs = ~18 ms/gen | 11 launches × ~7 μs = ~0.08 ms/gen |
 | **PCIe transfer** (~10 μs + bandwidth) | 512+ roundtrips, ~20 MB/gen | 2 roundtrips, ~2 MB/gen |
 | **CPU-GPU sync** (implicit per launch) | 2,560 sync points | 2 sync points |
 
 **HybridOptimized eliminates these overheads through**:
+
 - **Batching**: All 256 tours transferred and processed in a single operation
 - **Kernel chaining**: 2-opt → cost calculation without intermediate D2H
 - **Selective transfer**: Only costs (2 KB) returned instead of all tours (1 MB)
@@ -763,7 +764,7 @@ Two distinct overhead sources affect hybrid GPU algorithms differently:
 ### 8.4 When to Use Each Variant
 
 | Scenario | Recommended Variant | Rationale |
-|----------|-------------------|-----------|
+| ---------- | ------------------- | ----------- |
 | **No GPU available** | CPU | Only option; reasonable for n < 500 |
 | **Educational / debugging** | HybridNaive | Simplest GPU code; clear 1:1 CPU-GPU mapping |
 | **Time-critical applications** | **HybridOptimized** | Best wall-clock time; 5.54× speedup |
@@ -805,7 +806,7 @@ Two distinct overhead sources affect hybrid GPU algorithms differently:
 ## Appendix A: File Locations
 
 | Component | Path |
-|-----------|------|
+| ----------- | ------ |
 | Base class / Engine | [`src/algorithms/metaheuristics/genetic_algorithm.py`](../../../src/algorithms/metaheuristics/genetic_algorithm.py) |
 | Strategy Protocols | [`src/protocols/algorithm_strategies.py`](../../../src/protocols/algorithm_strategies.py) |
 | CPU variant docs | [`analysis-genetic-algorithm-cpu.md`](../algorithms/analysis-genetic-algorithm-cpu.md) |
@@ -819,12 +820,12 @@ Two distinct overhead sources affect hybrid GPU algorithms differently:
 | 2-opt batch kernel | [`src/algorithms/strategies/local_search/kernels/two_opt_batch.cu`](../../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) |
 | Cost calculator kernel | [`src/algorithms/strategies/evaluation/kernels/cost_calculator.cu`](../../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) |
 | Fujimoto GA kernel | [`src/algorithms/archive/kernels/ga_fujimoto_early_stop.cu`](../../../src/algorithms/archive/kernels/ga_fujimoto_early_stop.cu) |
-| Benchmark configs | [`configs/benchmark.json`](../../../configs/benchmark.json) |
+| Benchmark configs | [`benchmark_scripts/experiments-and-examples/chapter4/configs/benchmark.json`](../../../benchmark_scripts/experiments-and-examples/chapter4/configs/benchmark.json) |
 
 ## Appendix B: Glossary
 
 | Term | Definition |
-|------|-----------|
+| ------ | ----------- |
 | **H2D** | Host-to-Device transfer (CPU RAM → GPU VRAM via PCIe) |
 | **D2H** | Device-to-Host transfer (GPU VRAM → CPU RAM via PCIe) |
 | **Kernel launch** | Invocation of a CUDA kernel function on the GPU |

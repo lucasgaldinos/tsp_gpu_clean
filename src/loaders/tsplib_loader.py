@@ -43,6 +43,7 @@ from data_models.exceptions import (
 )
 from data_models.problem import VALID_EDGE_TYPES, Problem, expected_coordinate_dimension
 from distances.matrix import compute_distance_matrix
+from distances.pairwise import get_distance_function
 from protocols.problem_context import DEFAULT_MAX_MATRIX_DIMENSION
 
 if TYPE_CHECKING:
@@ -381,6 +382,120 @@ def bundle_to_problem(
     raise InvalidProblemDataError(meta.name, str(exc)) from exc
 
 
+def load_tsplib_file(
+  tsp_path: str | Path,
+  *,
+  max_eager_matrix_dimension: int = DEFAULT_MAX_MATRIX_DIMENSION,
+) -> Problem:
+  """Load a single `.tsp` file directly into a validated `Problem` instance.
+
+  Convenience wrapper combining :func:`parse_tsplib_file` and
+  :func:`bundle_to_problem` without requiring a DuckDB database.
+
+  Args:
+      tsp_path: Path to the `.tsp` file.
+      max_eager_matrix_dimension: Maximum dimension for eager `O(n^2)` distance
+          matrix construction on coordinate-based problems (`DP11-3`).
+
+  Returns:
+      Immutable :class:`Problem` instance.
+  """
+  bundle: TsplibIngestionBundle = parse_tsplib_file(tsp_path)
+  return bundle_to_problem(bundle, max_eager_matrix_dimension=max_eager_matrix_dimension)
+
+
+def _normalize_tour_nodes(route: list[int]) -> list[int]:
+  """Strip a repeated terminal city from a closed tour so cyclic evaluation never double-counts."""
+  if len(route) > 1 and route[0] == route[-1]:
+    return route[:-1]
+  return route
+
+
+def _compute_problem_routes_cost(problem: Problem, routes: list[list[int]]) -> float:
+  """Evaluate 0-based TSP tour(s) using this solver's canonical TSPLIB95 distances."""
+  if problem.distances is not None:
+    total = 0
+    for route in routes:
+      nodes = _normalize_tour_nodes(route)
+      n_nodes = len(nodes)
+      if n_nodes < 2:
+        continue
+      for idx in range(n_nodes):
+        total += int(problem.distances[nodes[idx], nodes[(idx + 1) % n_nodes]])
+    return float(total)
+
+  if problem.coordinates is not None:
+    dist_fn = get_distance_function(problem.edge_type)
+    total = 0
+    for route in routes:
+      nodes = _normalize_tour_nodes(route)
+      n_nodes = len(nodes)
+      if n_nodes < 2:
+        continue
+      for idx in range(n_nodes):
+        total += int(dist_fn(problem.coordinates[nodes[idx]], problem.coordinates[nodes[(idx + 1) % n_nodes]]))
+    return float(total)
+
+  raise InvalidProblemDataError(problem.name, "Cannot evaluate tour cost without coordinates or distance matrix")
+
+
+def resolve_opt_tour_cost(
+  tsp_path: str | Path,
+  *,
+  bundle: TsplibIngestionBundle | None = None,
+) -> float | None:
+  """Resolve the optimal tour cost from a sibling `<stem>.opt.tour` file if present.
+
+  Checks `<tsp_dir>/<stem>.opt.tour` and `<tsp_dir>/tour/<stem>.opt.tour`. When
+  the tour file does not embed an explicit cost header, computes the tour length
+  with canonical TSPLIB95 integer distances (matching `distances.pairwise` and
+  `BUG-32` for `GEO`). Returns `None` when no readable `.opt.tour` exists.
+  """
+  path = Path(tsp_path)
+  candidates: tuple[Path, ...] = (
+    path.parent / f"{path.stem}.opt.tour",
+    path.parent / "tour" / f"{path.stem}.opt.tour",
+  )
+  tour_file: Path | None = next((cand for cand in candidates if cand.is_file()), None)
+  if tour_file is None:
+    return None
+
+  try:
+    parsed = parse_solution_file(tour_file)
+  except Exception as exc:
+    logger.warning("Skipping unreadable solution file '%s': %s", tour_file, exc)
+    return None
+
+  raw_cost: float | None = parsed["cost"]
+  if raw_cost is not None:
+    return float(raw_cost)
+
+  routes: list[list[int]] = parsed["routes"]
+  if not routes:
+    return None
+
+  resolved_bundle: TsplibIngestionBundle = bundle if bundle is not None else parse_tsplib_file(path)
+  if resolved_bundle.problem.problem_type == "TSP":
+    problem = bundle_to_problem(resolved_bundle, max_eager_matrix_dimension=0)
+    return _compute_problem_routes_cost(problem, routes)
+
+  matrix = resolved_bundle.edge_matrix.matrix if resolved_bundle.edge_matrix is not None else None
+  coords: list[list[float]] | None = None
+  if resolved_bundle.nodes and all(node.x is not None and node.y is not None for node in resolved_bundle.nodes):
+    coords = [
+      [node.x, node.y] if node.z is None else [node.x, node.y, node.z]
+      for node in resolved_bundle.nodes
+      if node.x is not None and node.y is not None
+    ]
+  computed = compute_routes_cost(
+    routes,
+    matrix=matrix,
+    coords=coords,
+    edge_weight_type=resolved_bundle.problem.edge_weight_type,
+  )
+  return float(computed) if computed is not None else None
+
+
 class TsplibLoader:
   """
   Context-managed loader that parses `.tsp` files into `Problem` objects.
@@ -428,7 +543,7 @@ class TsplibLoader:
     if isinstance(instance_name, Path) or "/" in str(instance_name):
       candidate = Path(instance_name)
       if candidate.exists():
-        return bundle_to_problem(parse_tsplib_file(candidate))
+        return load_tsplib_file(candidate)
       instance_str: str = candidate.name
     else:
       instance_str = str(instance_name)
@@ -438,7 +553,7 @@ class TsplibLoader:
     if not tsp_path.exists():
       raise InstanceNotFoundError(stem)
 
-    return bundle_to_problem(parse_tsplib_file(tsp_path))
+    return load_tsplib_file(tsp_path)
 
   def list_instances(self) -> list[str]:
     """Return sorted list of available `.tsp` problem names in `tsp_dir`."""
@@ -681,7 +796,7 @@ def ingest_tsplib_directory_to_duckdb(
   return ingested
 
 
-__all__ = [
+__all__: list[str] = [
   "MatrixRowRecord",
   "NodeRowRecord",
   "ProblemRowRecord",
@@ -689,5 +804,7 @@ __all__ = [
   "TsplibLoader",
   "bundle_to_problem",
   "ingest_tsplib_directory_to_duckdb",
+  "load_tsplib_file",
   "parse_tsplib_file",
+  "resolve_opt_tour_cost",
 ]

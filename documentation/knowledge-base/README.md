@@ -62,11 +62,23 @@ modifications:
       - description: >
           Indexed `analysis-sample-variance-bessel-correction-and-ddof.md` covering
           Bessel's correction derivation, degrees of freedom, and NumPy ddof semantics.
+  - date_modified: 2026-11-22
+    modifications:
+      - description: >
+          Indexed `analysis-host-sync-drain-and-mitigations.md` under GPU architecture,
+          memory hierarchy, and synchronization.
+  - date_modified: 2026-11-24
+    modifications:
+      - description: >
+          Indexed `analysis-gpu-multi-move-conflict-resolution.md` under parallel
+          local search and GPU reductions.
 related_files:
   - "[README.md](../README.md)"
   - "[analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md)"
+  - "[analysis-host-sync-drain-and-mitigations.md](./analysis-host-sync-drain-and-mitigations.md)"
   - "[analysis-host-side-sampling-bottlenecks.md](./analysis-host-side-sampling-bottlenecks.md)"
   - "[analysis-gpu-two-opt-dispatch-and-reduction.md](./analysis-gpu-two-opt-dispatch-and-reduction.md)"
+  - "[analysis-gpu-multi-move-conflict-resolution.md](./analysis-gpu-multi-move-conflict-resolution.md)"
   - "[analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md)"
   - "[guide-local-search-pipeline-stages.md](../guide-local-search-pipeline-stages.md)"
   - "[analysis-gpu-distance-and-shared-memory-limits.md](./analysis-gpu-distance-and-shared-memory-limits.md)"
@@ -108,6 +120,7 @@ Curated technical reference articles, mathematical derivations, and engineering 
 - [guide-cuda-warp-primitives-and-intrinsics.md](./guide-cuda-warp-primitives-and-intrinsics.md) — Warp vote and shuffle primitives (`__ballot_sync`, `__shfl_*_sync`), Pascal CC 6.1 vs Volta+ CC 7.0 mask RSVP semantics, sub-warp partitioning, classroom broadcast analogies, and step-by-step stream compaction for Davis Order Crossover.
 - [analysis-gpu-ga-strategies-coalescing-and-divergence.md](./analysis-gpu-ga-strategies-coalescing-and-divergence.md) — Memory coalescing in tournament selection (SEL-A/B), warp branch divergence in inversion mutation (INV-A), cost evaluation without shared-memory caps (EVAL-A), and cooperative 2-opt block reversal (2OPT-A).
 - [analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md) — The two clocks that synchronize the device: `@time_strategy` as an unconditional `cp.cuda.Event` + `end_evt.synchronize()` barrier versus `PhaseTimer.measure`, why the 2026-11-06 `DP11-7` premise was refuted (the three-call-surface experiment: $260.840\ \text{ms}$ wrapped vs $0.363\ \text{ms}$ enqueue vs $258.725\ \text{ms}$ enqueue-plus-explicit-drain), the 6–8 host-device round trips per `FullGPUModular` generation, `SurvivalStep` async bleed into `host_sync`, `ddof=1` for `phase_share_cv_pct`, warm-up instance isolation for RNG-stream integrity, and deterministic AOT warm-up via `_compile_kernel_cached.cache_info().currsize` (`BUG-25`, `DP11-21`, `DP11-22`).
+- [analysis-host-sync-drain-and-mitigations.md](./analysis-host-sync-drain-and-mitigations.md) — Plain-language architectural guide to the `host_sync` (`Sinc.`) timing bucket ($36\%\text{–}95\%$ of wall time in `FullGPUModular` via `_best_cost().get()` draining the async CUDA stream) and four mitigations: batched $K$-generation convergence checks, crossover+mutation fusion and `s_tour` shared-memory caching in candidate-list 2-opt, CUDA Graphs, and device-side RNG.
 - [analysis-non-power-of-two-blocks.md](./analysis-non-power-of-two-blocks.md) — Formal proof of orphaned-thread failure modes in non-power-of-two tree reductions.
 - [guide-cupy-raw-kernels-optimization.md](./guide-cupy-raw-kernels-optimization.md) — Authoring and compiling custom CUDA C++ `RawKernel` modules in CuPy.
 - [notes_cupy_amd_rocm_compatibility.md](./notes_cupy_amd_rocm_compatibility.md) — Portability notes for running CuPy kernels on AMD ROCm / HIP backends.
@@ -121,6 +134,7 @@ Curated technical reference articles, mathematical derivations, and engineering 
 - [analysis-gpu-2opt-literature-attribution.md](./analysis-gpu-2opt-literature-attribution.md) — Mapping implemented CUDA 2-opt choices to Rocki & Suda (2012, 2013) and O'Neil & Burtscher (2015).
 - [analysis-gpu-2opt-integration-postmortem.md](./analysis-gpu-2opt-integration-postmortem.md) — Engineering postmortem on integrating GPU 2-opt into the modular strategy pipeline.
 - [analysis-gpu-two-opt-dispatch-and-reduction.md](./analysis-gpu-two-opt-dispatch-and-reduction.md) — Dispatch defects in `LocalSearchGPUTwoOpt._improve_grid`: candidate-list bypass and per-generation `h2d_bytes` growth, `int(tour.max())` D2H stalls, dead `s_tour` shared memory in candidate mode, serial `while (left < right)` reversals and one-candidate-per-thread compression in `two_opt_multi_move.cu`, the missing `tour_idx >= num_tours` guard, and the `O(block_size)` serial reduction tail (`BUG-27`, `BUG-29`).
+- [analysis-gpu-multi-move-conflict-resolution.md](./analysis-gpu-multi-move-conflict-resolution.md) — Thread-0 greedy disjoint multi-move conflict resolution shared across `two_opt_multi_move.cu` and `three_opt_multi_move.cu` (Rocki & Suda 2012, 2013): `!(tk < mi || mk < ti)` overlap invalidation, `tour[0]` invariance, $\mathcal{O}(\text{block\_size})$ candidate compression, cooperative block reversals (`BUG-29`, `2OPT-A`), and empirical 2-opt/3-opt multi-move vs. `batch` results.
 - [analysis-gpu-reduction-patterns.md](./analysis-gpu-reduction-patterns.md) — Deep-dive reference on parallel reduction bug root causes, warp masks, and VRP operator scope.
 - [analysis-gpu-performance-bottlenecks.md](./analysis-gpu-performance-bottlenecks.md) — Profiling host-device transfer bottlenecks, python dispatch overhead, and kernel occupancy limits.
 

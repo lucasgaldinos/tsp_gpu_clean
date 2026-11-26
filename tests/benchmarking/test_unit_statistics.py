@@ -1,11 +1,11 @@
-"""Unit tests for the statistics facade and the `StatisticalSummary` helpers.
+"""Unit tests for the analysis/reporting facades and `StatisticalSummary` / Nemenyi primitives.
 
-WHAT: Covers the `benchmarking.analysis` package facade and the
-`StatisticalSummary` helper methods (speedup, bootstrap CI, significance).
-WHY: Notebooks import from the package root and the report tables quote these
-helpers; a broken re-export or a wrong boundary value silently corrupts them.
-EXPECTED: Every exported name resolves and the helpers return the exact
-documented values, including at the significance boundary.
+WHAT: Covers `benchmarking.analysis` and `benchmarking.reporting` package facades,
+`StatisticalSummary` helpers, `interpret_rank_biserial` correlation-scale brackets,
+and parity between `StatisticalAnalyzer.nemenyi_posthoc` and `run_friedman_nemenyi_analysis`.
+WHY: Prevents broken re-exports, mislabeled rank-biserial effect sizes, and Nemenyi CD drift.
+EXPECTED: Every exported name resolves cleanly, rank-biserial brackets follow Cohen (1988) /
+Kerby (2014) cutoffs (0.1 / 0.3 / 0.5), and Nemenyi parity holds with tie/orientation safety.
 """
 
 from __future__ import annotations
@@ -15,9 +15,15 @@ import pytest
 from scipy.stats import rankdata
 
 import benchmarking.analysis as analysis_facade
-from benchmarking.analysis.aggregate_statistics import compare_algorithms
-from benchmarking.analysis.cd_diagram import compute_cd_diagram_data
-from benchmarking.analysis.statistics import StatisticalAnalyzer, StatisticalSummary
+import benchmarking.reporting as reporting_facade
+from benchmarking.analysis.cohort_analysis import compare_algorithms
+from benchmarking.analysis.statistics import (
+  OmnibusTestResult,
+  StatisticalAnalyzer,
+  StatisticalSummary,
+  interpret_rank_biserial,
+  run_friedman_nemenyi_analysis,
+)
 from benchmarking.analysis.stats_utils import compute_nemenyi_critical_distance
 
 
@@ -37,7 +43,7 @@ def _summary(*, mean_a: float = 4.0, mean_b: float = 2.0, p_value: float = 0.04)
     ci_95_difference=(mean_a - mean_b, mean_a - mean_b),
     p_value=p_value,
     effect_size=0.0,
-    test_used="paired_t_test",
+    test_used="wilcoxon_signed_rank",
     normality_p_value_a=0.5,
     normality_p_value_b=0.5,
     test_statistic=0.0,
@@ -47,11 +53,7 @@ def _summary(*, mean_a: float = 4.0, mean_b: float = 2.0, p_value: float = 0.04)
 
 
 def test_statistical_summary_requires_test_statistic_and_dfs() -> None:
-  """WHAT: StatisticalSummary requires test_statistic, df1, and df2 explicitly.
-
-  WHY: Task 13.10 (BUG-62 / DP13-3) — Omitting test_statistic or degrees of freedom
-  must fail at construction time so no summary silently lacks reporting metadata.
-  """
+  """WHAT: StatisticalSummary requires test_statistic, df1, and df2 explicitly."""
   with pytest.raises(TypeError):
     StatisticalSummary(  # type: ignore[call-arg]
       comparison_label="A vs B",
@@ -73,29 +75,37 @@ def test_statistical_summary_requires_test_statistic_and_dfs() -> None:
     )
 
 
-# ============================================================================
-# Package facade
-# ============================================================================
-
-
-def test_analysis_facade_reexports_public_api() -> None:
-  """WHAT: Every name in `benchmarking.analysis.__all__` resolves on the package.
-
-  WHY: Notebooks import from the package root; a broken re-export breaks them at
-  import time, not at use time.
-  EXPECTED: all names exist and the key classes are the same objects.
-  """
-  # Arrange / Act / Assert
+def test_analysis_and_reporting_facades_reexport_public_api() -> None:
+  """WHAT: Every name in `benchmarking.analysis.__all__` and `benchmarking.reporting.__all__` resolves."""
   for name in analysis_facade.__all__:
-    assert hasattr(analysis_facade, name), f"facade is missing exported name {name!r}"
+    assert hasattr(analysis_facade, name), f"analysis facade is missing exported name {name!r}"
+  for name in reporting_facade.__all__:
+    assert hasattr(reporting_facade, name), f"reporting facade is missing exported name {name!r}"
+
   assert analysis_facade.StatisticalAnalyzer is StatisticalAnalyzer
   assert analysis_facade.StatisticalSummary is StatisticalSummary
   assert analysis_facade.compare_algorithms is compare_algorithms
+  assert analysis_facade.OmnibusTestResult is OmnibusTestResult
 
 
-# ============================================================================
-# StatisticalSummary helpers
-# ============================================================================
+@pytest.mark.parametrize(
+  ("r_val", "expected"),
+  [
+    pytest.param(0.0, "negligible", id="zero"),
+    pytest.param(-0.09, "negligible", id="below_0_1"),
+    pytest.param(0.10, "small", id="at_0_1"),
+    pytest.param(0.29, "small", id="below_0_3"),
+    pytest.param(-0.30, "medium", id="at_0_3"),
+    pytest.param(0.49, "medium", id="below_0_5_not_small"),
+    pytest.param(0.50, "large", id="at_0_5"),
+    pytest.param(-0.79, "large", id="at_0_79_not_medium"),
+    pytest.param(1.0, "large", id="perfect_dominance"),
+    pytest.param(float("nan"), "undefined", id="nan"),
+  ],
+)
+def test_interpret_rank_biserial_uses_correlation_scale(r_val: float, expected: str) -> None:
+  """WHAT: Rank-biserial classification uses correlation cutoffs (0.1/0.3/0.5), not Cohen's d (0.2/0.5/0.8)."""
+  assert interpret_rank_biserial(r_val) == expected
 
 
 @pytest.mark.parametrize(
@@ -108,34 +118,9 @@ def test_analysis_facade_reexports_public_api() -> None:
   ],
 )
 def test_summary_speedup(mean_a: float, mean_b: float, expected: float) -> None:
-  """WHAT: `StatisticalSummary.get_speedup` = mean_a / mean_b with a zero guard.
-
-  WHY: Speedup is the headline metric for CPU/GPU comparisons.
-  EXPECTED: 2.0, 1.0, and 0.0 whenever the denominator is zero.
-  """
-  # Arrange
+  """WHAT: `StatisticalSummary.get_speedup` = mean_a / mean_b with a zero guard."""
   summary = _summary(mean_a=mean_a, mean_b=mean_b)
-
-  # Act / Assert
   assert summary.get_speedup() == pytest.approx(expected)
-
-
-def test_summary_speedup_ci_uses_percentiles() -> None:
-  """WHAT: 95% speedup CI from bootstrap samples.
-
-  WHY: The CI is quoted next to the speedup; percentile bounds must be 2.5/97.5.
-  EXPECTED: `arange(101)` -> (2.5, 97.5).
-  """
-  # Arrange
-  summary = _summary()
-  samples = np.arange(101, dtype=float)
-
-  # Act
-  low, high = summary.get_speedup_ci_95(samples)
-
-  # Assert
-  assert low == pytest.approx(2.5)
-  assert high == pytest.approx(97.5)
 
 
 @pytest.mark.parametrize(
@@ -148,42 +133,27 @@ def test_summary_speedup_ci_uses_percentiles() -> None:
   ],
 )
 def test_summary_is_significant_uses_strict_inequality(p_value: float, alpha: float, expected: bool) -> None:
-  """WHAT: `is_significant` boundary behavior.
-
-  WHY: Whether p == alpha counts as significant changes borderline claims in the
-  results chapter.
-  EXPECTED: True only when p < alpha (strict).
-  """
-  # Arrange
+  """WHAT: `is_significant` boundary behavior uses strict p < alpha."""
   summary = _summary(p_value=p_value)
-
-  # Act / Assert
   assert summary.is_significant(alpha) is expected
 
 
-def test_nemenyi_critical_distance_parity_with_cd_diagram_and_significance() -> None:
-  """WHAT: Tests parity between StatisticalAnalyzer.nemenyi_posthoc and cd_diagram.
-
-  WHY: BUG-47 / DP12-24 — Demšar (2006, Eq. 8) defines the Nemenyi critical distance
-  with q_alpha = q_tukey / sqrt(2). Both statistical post-hoc and CD diagram generation
-  must yield identical critical difference values and consistent significance decisions:
-  |R_i - R_j| > CD <=> p_val < alpha.
-  """
-  np.random.seed(42)
+def test_nemenyi_critical_distance_parity_with_omnibus_analysis() -> None:
+  """WHAT: Parity between StatisticalAnalyzer.nemenyi_posthoc and run_friedman_nemenyi_analysis."""
+  rng = np.random.default_rng(42)
   n_instances = 38
   k_algorithms = 4
   alg_names = ["AlgA", "AlgB", "AlgC", "AlgD"]
   base_scores = np.tile([100.0, 150.0, 250.0, 400.0], (n_instances, 1))
-  noise = np.random.normal(0, 5.0, size=(n_instances, k_algorithms))
-  results_matrix = base_scores + noise
+  results_matrix = base_scores + rng.normal(0, 5.0, size=(n_instances, k_algorithms))
 
   data = [results_matrix[:, j] for j in range(k_algorithms)]
 
   analyzer = StatisticalAnalyzer(alpha=0.05)
   nemenyi_res = analyzer.nemenyi_posthoc(data, algorithm_names=alg_names)
-  cd_res = compute_cd_diagram_data(results_matrix, alg_names, alpha=0.05)
+  omnibus = run_friedman_nemenyi_analysis(results_matrix, alg_names, alpha=0.05)
 
-  assert nemenyi_res["critical_distance"] == pytest.approx(cd_res.critical_difference, rel=1e-6)
+  assert nemenyi_res["critical_distance"] == pytest.approx(omnibus.critical_difference, rel=1e-6)
 
   ranks = np.apply_along_axis(rankdata, 1, results_matrix)
   mean_ranks = np.mean(ranks, axis=0)
@@ -195,6 +165,27 @@ def test_nemenyi_critical_distance_parity_with_cd_diagram_and_significance() -> 
       rank_diff = abs(mean_ranks[i] - mean_ranks[j])
       p_val = p_mat[i, j]
       assert (rank_diff > cd) == (p_val < 0.05)
+
+
+def test_nemenyi_posthoc_higher_is_better_and_all_tied_guard() -> None:
+  """WHAT: `nemenyi_posthoc` handles all-tied blocks cleanly without NaN and supports higher_is_better."""
+  analyzer = StatisticalAnalyzer(alpha=0.05)
+
+  tied = [np.array([5.0, 5.0, 5.0, 5.0]) for _ in range(3)]
+  res_tied = analyzer.nemenyi_posthoc(tied, ["A", "B", "C"])
+  assert np.all(np.isfinite(res_tied["p_values_matrix"]))
+  assert np.allclose(res_tied["p_values_matrix"], np.ones((3, 3)))
+  assert res_tied["significant_pairs"] == []
+
+  # Higher-is-better produces identical pairwise p-values to negated lower-is-better
+  cols = [
+    np.array([1.0, 2.0, 1.5, 1.0, 2.0]),
+    np.array([5.0, 5.5, 5.2, 5.1, 5.3]),
+    np.array([10.0, 11.0, 10.5, 9.8, 10.2]),
+  ]
+  res_high = analyzer.nemenyi_posthoc(cols, ["A", "B", "C"], higher_is_better=True)
+  res_neg = analyzer.nemenyi_posthoc([-c for c in cols], ["A", "B", "C"], higher_is_better=False)
+  assert np.allclose(res_high["p_values_matrix"], res_neg["p_values_matrix"])
 
 
 @pytest.mark.parametrize(
@@ -210,27 +201,40 @@ def test_nemenyi_critical_distance_parity_with_cd_diagram_and_significance() -> 
   ],
 )
 def test_compute_nemenyi_critical_distance_guards(k: int, n: int, alpha: float, match: str) -> None:
-  """WHAT: Boundary validation in compute_nemenyi_critical_distance.
-
-  WHY: Review Gate 22c181dd — Invalid k, n, or alpha must raise ValueError instead of
-  emitting RuntimeWarning (sqrt invalid), NaN, or ZeroDivisionError.
-  """
+  """WHAT: Boundary validation in compute_nemenyi_critical_distance."""
   with pytest.raises(ValueError, match=match):
     compute_nemenyi_critical_distance(k, n, alpha)
 
 
 def test_nemenyi_posthoc_guards() -> None:
-  """WHAT: Boundary validation in StatisticalAnalyzer.nemenyi_posthoc.
-
-  WHY: Review Gate 22c181dd — Ensure k < 2 and empty observations raise ValueError.
-  """
+  """WHAT: Boundary validation in StatisticalAnalyzer.nemenyi_posthoc."""
   analyzer = StatisticalAnalyzer()
-  # k = 1
   with pytest.raises(ValueError, match="at least 2 algorithms"):
     analyzer.nemenyi_posthoc([np.array([1.0, 2.0])])
-
-  # n = 0
   with pytest.raises(ValueError, match="at least 1 observation"):
     analyzer.nemenyi_posthoc([np.array([]), np.array([])])
 
 
+def test_wilcoxon_paired_summary_is_scale_invariant_and_checks_length() -> None:
+  """WHAT: `wilcoxon_paired_summary` matches `paired_comparison` on large-scale paired costs.
+
+  WHY: BUG-97 — Relative tolerance (`np.allclose` default `rtol=1e-5`) previously collapsed
+  consistent differences of 5.0 on 1e6-scale costs to `(0.0, 1.0, 0.0)`.
+  """
+  analyzer = StatisticalAnalyzer()
+  a = np.full(10, 1_000_000.0)
+  b = np.full(10, 1_000_005.0)
+  pc = analyzer.paired_comparison(a, b, "A vs B", "cost")
+  w_stat, p_val, r_eff = analyzer.wilcoxon_paired_summary(a, b)
+  assert w_stat == pytest.approx(pc.test_statistic)
+  assert p_val == pytest.approx(pc.p_value)
+  assert p_val == pytest.approx(2.0**-9)
+  assert r_eff == pytest.approx(pc.effect_size)
+  assert r_eff == pytest.approx(-1.0)
+
+  # Identical vectors still short-circuit cleanly
+  assert analyzer.wilcoxon_paired_summary(a, a.copy()) == (0.0, 1.0, 0.0)
+
+  # Mismatched lengths raise ValueError instead of failing inside SciPy
+  with pytest.raises(ValueError, match="same length"):
+    analyzer.wilcoxon_paired_summary(np.array([1.0, 2.0]), np.array([1.0, 2.0, 3.0]))

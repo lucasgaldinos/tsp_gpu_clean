@@ -38,6 +38,81 @@ def test_benchmark_cli_run(fixture_config_dir: Path, fixture_tsp_dir: Path, tmp_
   assert (tmp_path / "checkpoints").exists()
 
 
+def test_benchmark_cli_tsp_dir_without_db_and_custom_unknown_optimal(
+  fixture_config_dir: Path,
+  fixture_tsp_dir: Path,
+  tmp_path: Path,
+) -> None:
+  """Verify `--tsp-dir` works without `--db-path`, defaults to collection-only, and honors `--reports`."""
+  tsp_dir = tmp_path / "custom_tsps"
+  tsp_dir.mkdir()
+  (tsp_dir / "gr17.tsp").write_text((fixture_tsp_dir / "gr17.tsp").read_text(encoding="utf-8"), encoding="utf-8")
+  custom_text = (fixture_tsp_dir / "burma14.tsp").read_text(encoding="utf-8").replace("burma14", "custom14")
+  (tsp_dir / "custom14.tsp").write_text(custom_text, encoding="utf-8")
+
+  # 1. Collection-only default (no tables/ or figures/ emitted)
+  collect_dir = tmp_path / "collect_only"
+  exit_code = benchmark_main(
+    [
+      "--config-dir",
+      str(fixture_config_dir),
+      "--output-dir",
+      str(collect_dir),
+      "--tsp-dir",
+      str(tsp_dir),
+      "--problems",
+      "gr17",
+      "custom14",
+      "--algorithms",
+      "CPU",
+      "-r",
+      "1",
+      "--max-generations",
+      "5",
+    ]
+  )
+  assert exit_code == 0
+  assert (collect_dir / "checkpoints" / "gr17_CPU.json").is_file()
+  assert (collect_dir / "checkpoints" / "custom14_CPU.json").is_file()
+  assert not (collect_dir / "tables").exists()
+  assert not (collect_dir / "figures").exists()
+
+  # 2. Zero-boilerplate single-file --algorithms-config + auto-discovered --tsp-dir + opt-in --reports
+  out_dir = tmp_path / "single_file_out"
+  example_alg = Path(__file__).resolve().parents[2] / "configs" / "cpu-operators.example.json"
+  example_style = Path(__file__).resolve().parents[2] / "configs" / "report-style.example.json"
+  exit_code2 = benchmark_main(
+    [
+      "--algorithms-config",
+      str(example_alg),
+      "--output-dir",
+      str(out_dir),
+      "--tsp-dir",
+      str(tsp_dir),
+      "--algorithms",
+      "PureGA_OX_Swap",
+      "-r",
+      "1",
+      "--max-generations",
+      "5",
+      "--reports",
+      "markdown",
+      "plots",
+      "--report-style",
+      str(example_style),
+    ]
+  )
+  assert exit_code2 == 0
+  assert (out_dir / "checkpoints" / "gr17_PureGA_OX_Swap.json").is_file()
+  assert (out_dir / "checkpoints" / "custom14_PureGA_OX_Swap.json").is_file()
+  md_text = (out_dir / "tables" / "benchmark.md").read_text(encoding="utf-8")
+  assert "custom14" in md_text
+  assert "Pure GA (OX + Swap)" in md_text
+  assert "| — |" in md_text
+  assert not (out_dir / "tables" / "benchmark.tex").exists()
+  assert (out_dir / "figures" / "scaling_time_gap.pdf").is_file()
+
+
 def test_benchmark_parser_accepts_overrides() -> None:
   """Verify benchmark CLI parser parses all new override flags correctly."""
   from cli.benchmark import build_parser
@@ -152,10 +227,16 @@ def test_benchmark_parser_supports_incremental_aliases_and_dry_run(capsys: pytes
 
 
 def _load_chapter4_script() -> Any:
-  """Load `benchmark_scripts/run_chapter4_benchmark.py` without mutating sys.path."""
+  """Load `benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py` without mutating sys.path."""
   import importlib.util
 
-  script_path = Path(__file__).resolve().parents[2] / "benchmark_scripts" / "run_chapter4_benchmark.py"
+  script_path = (
+    Path(__file__).resolve().parents[2]
+    / "benchmark_scripts"
+    / "experiments-and-examples"
+    / "chapter4"
+    / "run_chapter4_benchmark.py"
+  )
   spec = importlib.util.spec_from_file_location("run_chapter4_benchmark", script_path)
   assert spec is not None and spec.loader is not None
   module = importlib.util.module_from_spec(spec)
@@ -168,11 +249,11 @@ def test_chapter4_script_help_and_dry_run_logging_isolation(
   capsys: pytest.CaptureFixture[str],
   monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-  """WHAT: run_chapter4_benchmark delegates --help and --dry-run to cli.benchmark without touching results_v4/.
+  """WHAT: run_chapter4_benchmark delegates --help and --dry-run to cli.benchmark without touching chapter4/results/.
 
   WHY: Task 13.17, Task 13.22 (BUG-74), and Task 13.24 (DP13-8 / BUG-80).
   EXPECTED: --help lists full CLI flags including --incremental/--no-incremental and --patience/--seed;
-  --output-dir redirects logging to a single log file with preflight lines and zero files created in results_v4/.
+  --output-dir redirects logging to a single log file with preflight lines and zero files created in chapter4/results/.
   """
   import json
   import subprocess
@@ -197,8 +278,9 @@ def test_chapter4_script_help_and_dry_run_logging_isolation(
   assert "--strategy-param" in help_out
   assert "--dry-run" in help_out
 
-  proc = subprocess.run(
-    [sys.executable, "-m", "benchmark_scripts.run_chapter4_benchmark", "--help"],
+  script_path = repo_root / "benchmark_scripts" / "experiments-and-examples" / "chapter4" / "run_chapter4_benchmark.py"
+  proc = subprocess.run(  # noqa: S603
+    [sys.executable, str(script_path), "--help"],
     cwd=repo_root,
     capture_output=True,
     text=True,
@@ -208,7 +290,7 @@ def test_chapter4_script_help_and_dry_run_logging_isolation(
   assert "--incremental" in proc.stdout
   assert "--no-incremental" in proc.stdout
 
-  # 2. --output-dir + --dry-run redirects log strictly to tmp_path and leaves results_v4/ untouched
+  # 2. --output-dir + --dry-run redirects log strictly to tmp_path and leaves chapter4/results/ untouched
   results_dir = run_chapter4_benchmark.OUTPUT_DIR
   before_snapshot = (
     {p: (p.stat().st_mtime, p.stat().st_size) for p in results_dir.rglob("*")} if results_dir.exists() else {}
@@ -318,5 +400,3 @@ def test_chapter4_script_end_to_end_delegation_and_joint_comparison(
   assert "FullGPUModular ranks fastest" in gpu_only_log
   assert "baseline CPU omitted" in gpu_only_log
   assert "1.00x geometric speedup" not in gpu_only_log
-
-

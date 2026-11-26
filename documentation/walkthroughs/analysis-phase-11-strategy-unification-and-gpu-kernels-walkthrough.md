@@ -38,7 +38,7 @@ related_files:
   - "[src/algorithms/strategies/local_search/kernels/two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu)"
   - "[src/algorithms/strategies/local_search/two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py)"
   - "[src/utils/gpu_helpers.py](../../src/utils/gpu_helpers.py)"
-  - "[benchmark_scripts/crossover_scaling_sweep.py](../../benchmark_scripts/crossover_scaling_sweep.py)"
+  - "[crossover_scaling_sweep.py](../../benchmark_scripts/experiments-and-examples/chapter4/crossover_scaling_sweep.py)"
 tags:
   - analysis/architecture
   - analysis/decisions
@@ -394,7 +394,7 @@ All 197 distance unit tests in `tests/distances/` now pass.
 
 ### 11.3 10-Repetition cohort execution and Table 4 closure
 
-Executing [run_selected_problems.py](../../benchmark_scripts/run_selected_problems.py#L39) with `REPETITIONS = 10` populated all checkpoints with `raw_phase_timings`, `mean_phase_timings`, `phase_share_pct`, and `phase_share_cv_pct` (`ddof=1`), closing Table 4 in Markdown and LaTeX.
+Executing [run_selected_problems.py](../../benchmark_scripts/experiments-and-examples/chapter4/run_selected_problems.py) with `REPETITIONS = 10` populated all checkpoints with `raw_phase_timings`, `mean_phase_timings`, `phase_share_pct`, and `phase_share_cv_pct` (`ddof=1`), closing Table 4 in Markdown and LaTeX.
 
 ### 11.4 Verification record
 

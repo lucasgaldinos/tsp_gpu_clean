@@ -1,0 +1,60 @@
+% Auto-generated Demšar Critical Difference Diagram in TikZ
+% Metric: Gap de Otimalidade
+% Generated for k = 4 algorithms across N = 15 instances (CD = 1.211, alpha = 0.05, F_F = 0.890, p = 0.4543)
+\begin{tikzpicture}[
+    scale=2.2,
+    axis/.style={thick, -{Stealth[length=2.5mm]}},
+    tick/.style={thick},
+    subtick/.style={thin, gray},
+    clique/.style={line width=2.4pt, color=blue!75!black, line cap=round},
+    cdbar/.style={line width=1.5pt, {Bar[width=4mm]}-{Bar[width=4mm]}},
+    algomarker/.style={circle, fill=black, inner sep=1.2pt},
+    labelnode/.style={font=\small\bfseries, align=center}
+]
+
+    % 1. CD Reference Bar at the Top
+    \draw[cdbar] (1.0, 1.10) -- node[above=2pt, font=\footnotesize\bfseries] {CD = 1,211 ($\alpha = 0{,}05$)} (2.211, 1.10);
+
+    % 2. Main Horizontal Rank Axis (1.0 to k.0)
+    \draw[axis] (0.8, 0.0) -- (4.3, 0.0) node[right, font=\footnotesize\bfseries] {Posto médio};
+
+    % Major Ticks
+    \draw[tick] (1.0, 0.08) -- (1.0, -0.08);
+    \draw[tick] (2.0, 0.08) -- (2.0, -0.08);
+    \draw[tick] (3.0, 0.08) -- (3.0, -0.08);
+    \draw[tick] (4.0, 0.08) -- (4.0, -0.08);
+
+    % Minor Sub-ticks (every 0.5)
+    \draw[subtick] (1.5, 0.04) -- (1.5, -0.04);
+    \draw[subtick] (2.5, 0.04) -- (2.5, -0.04);
+    \draw[subtick] (3.5, 0.04) -- (3.5, -0.04);
+
+    % 3. Algorithm Data Points and Drop Lines (staggered Demšar elbows avoid overlap on ties)
+    \coordinate (A_HybridNaive) at (2.300, 0.0);
+    \node[algomarker] at (A_HybridNaive) {};
+    \draw[thick] (A_HybridNaive) -- (2.300, -0.48) -- (0.72, -0.48);
+    \node[labelnode, anchor=east] at (0.68, -0.48) {Híbrida Ingênua\\(2,30)};
+    \coordinate (A_HybridOptimized) at (2.300, 0.0);
+    \node[algomarker] at (A_HybridOptimized) {};
+    \draw[thick] (A_HybridOptimized) -- (2.300, -0.98) -- (0.72, -0.98);
+    \node[labelnode, anchor=east] at (0.68, -0.98) {Híbrida Otimizada\\(2,30)};
+    \coordinate (A_FullGPUModular) at (2.467, 0.0);
+    \node[algomarker] at (A_FullGPUModular) {};
+    \draw[thick] (A_FullGPUModular) -- (2.467, -0.98) -- (4.28, -0.98);
+    \node[labelnode, anchor=west] at (4.32, -0.98) {Totalmente em GPU\\(2,47)};
+    \coordinate (A_CPU) at (2.933, 0.0);
+    \node[algomarker] at (A_CPU) {};
+    \draw[thick] (A_CPU) -- (2.933, -0.48) -- (4.28, -0.48);
+    \node[labelnode, anchor=west] at (4.32, -0.48) {CPU\\(2,93)};
+
+    % Major Tick Labels (drawn after drop lines so white fill masks crossings)
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (1.0, -0.08) {1,0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (2.0, -0.08) {2,0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (3.0, -0.08) {3,0};
+    \node[below=2pt, font=\footnotesize, fill=white, inner sep=1.5pt] at (4.0, -0.08) {4,0};
+
+    % 4. Non-Significant Cliques (|R_i - R_j| <= CD)
+    \draw[clique] (2.300, 0.35) -- (2.933, 0.35);
+    \draw[thin, blue!75!black, dashed] (2.300, 0.0) -- (2.300, 0.35);
+    \draw[thin, blue!75!black, dashed] (2.933, 0.0) -- (2.933, 0.35);
+\end{tikzpicture}
