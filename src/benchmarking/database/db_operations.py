@@ -127,10 +127,6 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
     "std_time",
     "min_time",
     "max_time",
-    "mean_cost",
-    "std_cost",
-    "best_cost",
-    "worst_cost",
     "mean_generations",
     "std_generations",
   ]
@@ -142,6 +138,10 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
 
   # Optional numeric fields (check if present)
   optional_numeric = [
+    "mean_cost",
+    "std_cost",
+    "best_cost",
+    "worst_cost",
     "optimal_cost",
     "mean_gap",
     "std_gap",
@@ -153,6 +153,8 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
     "mean_d2h_mb",
     "total_transfer_mb",
     "mean_kernels",
+    "feasibility_rate",
+    "mean_vehicles",
   ]
 
   for field in optional_numeric:
@@ -175,7 +177,16 @@ def validate_benchmark_data(data: Mapping[str, Any]) -> BenchmarkRunInput:
       raise ValueError(f"Array length mismatch for '{field}': expected {expected_len}, got {len(arr)}")
 
   # Check optional arrays if present
-  optional_arrays = ["raw_gaps", "raw_initial_costs", "raw_generations", "raw_stop_reasons"]
+  optional_arrays = [
+    "raw_gaps",
+    "raw_initial_costs",
+    "raw_generations",
+    "raw_stop_reasons",
+    "raw_is_feasible",
+    "raw_unpenalized_costs",
+    "raw_violations",
+    "raw_num_vehicles",
+  ]
   for field in optional_arrays:
     arr = data.get(field)
     if arr is not None and len(arr) != expected_len:
@@ -365,6 +376,7 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
   query = f"""
         INSERT INTO {TABLE_RUNS} (
             problem_name,
+            problem_type,
             problem_size,
             optimal_cost,
             algorithm,
@@ -383,6 +395,10 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
             worst_cost,
             mean_initial_cost,
             std_initial_cost,
+            feasible_runs,
+            feasibility_rate,
+            mean_vehicles,
+            best_vehicles,
             mean_gap,
             std_gap,
             best_gap,
@@ -404,6 +420,10 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
             raw_initial_costs,
             raw_generations,
             raw_stop_reasons,
+            raw_is_feasible,
+            raw_unpenalized_costs,
+            raw_violations,
+            raw_num_vehicles,
             algorithm_config,
             strategies,
             construction_heuristic
@@ -412,7 +432,8 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?
         )
         RETURNING run_id
     """
@@ -421,6 +442,7 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
     query,
     [
       data["problem_name"],
+      data.get("problem_type") or "TSP",
       data["problem_size"],
       data.get("optimal_cost"),
       data["algorithm"],
@@ -433,12 +455,16 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
       data["std_time"],
       data["min_time"],
       data["max_time"],
-      data["mean_cost"],
-      data["std_cost"],
-      data["best_cost"],
-      data["worst_cost"],
+      data.get("mean_cost"),
+      data.get("std_cost"),
+      data.get("best_cost"),
+      data.get("worst_cost"),
       data.get("mean_initial_cost"),
       data.get("std_initial_cost"),
+      data.get("feasible_runs"),
+      data.get("feasibility_rate"),
+      data.get("mean_vehicles"),
+      data.get("best_vehicles"),
       data.get("mean_gap"),
       data.get("std_gap"),
       data.get("best_gap"),
@@ -460,6 +486,10 @@ def insert_benchmark_run(conn: duckdb.DuckDBPyConnection, data: BenchmarkRunInpu
       data.get("raw_initial_costs"),
       data.get("raw_generations"),
       data.get("raw_stop_reasons"),
+      data.get("raw_is_feasible"),
+      data.get("raw_unpenalized_costs"),
+      data.get("raw_violations"),
+      data.get("raw_num_vehicles"),
       algorithm_config,
       strategies,
       data.get("construction_heuristic"),

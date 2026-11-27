@@ -18,14 +18,19 @@ Example:
     berlin52: 52 nodes, EUC_2D
 """
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from typing import Any
 
 import numpy as np
 
-VALID_PROBLEM_TYPES: frozenset[str] = frozenset({"TSP", "ATSP", "CVRP"})
+from data_models.exceptions import InvalidProblemDataError
+from data_models.vrp_constraints import VRPConstraints
+
+VRP_PROBLEM_TYPES: frozenset[str] = frozenset({"CVRP", "OVRP", "DCVRP"})
+VALID_PROBLEM_TYPES: frozenset[str] = frozenset({"TSP", "ATSP"}) | VRP_PROBLEM_TYPES
 VALID_EDGE_TYPES: frozenset[str] = frozenset({"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"})
 THREE_DIMENSIONAL_EDGE_TYPES: frozenset[str] = frozenset({"EUC_3D"})
+_UNSET_CONSTRAINTS: VRPConstraints = VRPConstraints()
 
 
 def expected_coordinate_dimension(edge_type: str) -> int:
@@ -161,6 +166,7 @@ class Problem:
   depots: np.ndarray | None = None
   source_file: str | None = None
   file_checksum: str | None = None
+  constraints: VRPConstraints = _UNSET_CONSTRAINTS
 
   def to_metadata_dict(self, optimal_cost: float | None = None) -> dict[str, Any]:
     """Return JSON-serializable problem metadata dictionary for checkpoints and statistics."""
@@ -184,6 +190,41 @@ class Problem:
       "source_file": self.source_file,
       "file_checksum": self.file_checksum,
     }
+
+  def with_constraints(
+    self,
+    *,
+    problem_type: str | None = None,
+    capacity: int | None = None,
+    max_vehicles: int | None = None,
+    max_route_distance: float | None = None,
+    return_to_depot: bool | None = None,
+  ) -> "Problem":
+    """Return a new `Problem` with declarative constraint/variant overrides applied (`DP17-10`)."""
+    target_type = problem_type.upper().strip() if problem_type is not None else self.problem_type
+    new_capacity = capacity if capacity is not None else self.constraints.capacity
+    new_max_vehicles = max_vehicles if max_vehicles is not None else self.constraints.max_vehicles
+    new_max_distance = max_route_distance if max_route_distance is not None else self.constraints.max_route_distance
+    if return_to_depot is not None:
+      new_return = return_to_depot
+    elif problem_type is not None and target_type == "OVRP":
+      new_return = False
+    else:
+      new_return = self.constraints.return_to_depot
+
+    new_constraints = replace(
+      self.constraints,
+      capacity=new_capacity,
+      max_vehicles=new_max_vehicles,
+      max_route_distance=new_max_distance,
+      return_to_depot=new_return,
+    )
+    return replace(
+      self,
+      problem_type=target_type,
+      capacity=new_capacity,
+      constraints=new_constraints,
+    )
 
   def __post_init__(self) -> None:
     """
@@ -250,17 +291,68 @@ class Problem:
       if self.distances.shape != (self.dimension, self.dimension):
         raise ValueError(f"distances.shape should be ({self.dimension}, {self.dimension}), got {self.distances.shape}")
 
-    # Validate CVRP requirements
-    if self.problem_type == "CVRP":
-      if self.capacity is None:
-        raise ValueError("CVRP instances require capacity")
+    # Validate and synchronize VRPConstraints with capacity
+    if not isinstance(self.constraints, VRPConstraints):
+      raise ValueError(f"constraints must be a VRPConstraints instance, got {type(self.constraints).__name__}")
+
+    if self.capacity is not None:
+      if isinstance(self.capacity, bool) or not isinstance(self.capacity, int):
+        raise ValueError(f"capacity must be a positive int, got {type(self.capacity).__name__}: {self.capacity!r}")
       if self.capacity <= 0:
         raise ValueError(f"capacity must be positive, got {self.capacity}")
 
+    constraints_omitted = self.constraints is _UNSET_CONSTRAINTS
+    if constraints_omitted:
+      default_return = self.problem_type != "OVRP"
+      if self.capacity is not None or not default_return:
+        object.__setattr__(
+          self,
+          "constraints",
+          VRPConstraints(capacity=self.capacity, return_to_depot=default_return),
+        )
+    else:
+      if self.problem_type == "OVRP" and self.constraints.return_to_depot:
+        raise InvalidProblemDataError(self.name, "OVRP instances require constraints.return_to_depot=False")
+      if (
+        self.capacity is not None
+        and self.constraints.capacity is not None
+        and self.capacity != self.constraints.capacity
+      ):
+        raise InvalidProblemDataError(
+          self.name,
+          (
+            f"Conflicting capacity values: problem.capacity={self.capacity} "
+            f"!= constraints.capacity={self.constraints.capacity}"
+          ),
+        )
+      if self.capacity is None and self.constraints.capacity is not None:
+        object.__setattr__(self, "capacity", self.constraints.capacity)
+      elif self.capacity is not None and self.constraints.capacity is None:
+        object.__setattr__(self, "constraints", replace(self.constraints, capacity=self.capacity))
+
+    # Validate VRP requirements (CVRP, OVRP, DCVRP)
+    if self.problem_type in VRP_PROBLEM_TYPES:
+      if self.capacity is None:
+        raise ValueError(f"{self.problem_type} instances require capacity")
+
       if self.demands is None:
-        raise ValueError("CVRP instances require demands")
+        raise ValueError(f"{self.problem_type} instances require demands")
       if self.demands.shape != (self.dimension,):
         raise ValueError(f"demands.shape should be ({self.dimension},), got {self.demands.shape}")
+      if self.demands.dtype == np.dtype(bool) or not np.issubdtype(self.demands.dtype, np.integer):
+        raise ValueError(f"demands must have an integer dtype, got {self.demands.dtype}")
+      demands_i32: np.ndarray = np.ascontiguousarray(self.demands, dtype=np.int32)
+      if int(demands_i32[0]) != 0:
+        raise ValueError(f"Depot demand demands[0] must be 0, got {int(demands_i32[0])}")
+      if bool(np.any(demands_i32 < 0)):
+        raise ValueError("demands must be non-negative")
+      if demands_i32 is not self.demands:
+        object.__setattr__(self, "demands", demands_i32)
+
+      if self.problem_type == "DCVRP" and self.constraints.max_route_distance is None:
+        raise ValueError("DCVRP instances require constraints.max_route_distance")
+
+    self.constraints.validate_against_dimension(self.dimension)
 
   def __eq__(self, other: object) -> bool:
     """
@@ -321,7 +413,7 @@ class Problem:
     Returns:
         Brief problem description
     """
-    if self.problem_type == "CVRP":
+    if self.problem_type in VRP_PROBLEM_TYPES:
       return f"{self.name}: {self.problem_type} with {self.dimension} nodes, capacity={self.capacity}"
     else:
       return f"{self.name}: {self.problem_type} with {self.dimension} nodes"
@@ -332,9 +424,9 @@ class Problem:
     Check if problem has symmetric distances.
 
     Returns:
-        True for TSP and CVRP (symmetric), False for ATSP (asymmetric)
+        True for TSP and VRP variants (CVRP, OVRP, DCVRP), False for ATSP
     """
-    return self.problem_type in {"TSP", "CVRP"}
+    return self.problem_type != "ATSP"
 
   @property
   def has_capacity_constraints(self) -> bool:
@@ -342,9 +434,20 @@ class Problem:
     Check if problem has vehicle capacity constraints.
 
     Returns:
-        True for CVRP, False for TSP/ATSP
+        True for VRP variants or problems with explicit capacity constraints, False otherwise
     """
-    return self.problem_type == "CVRP"
+    return self.problem_type in VRP_PROBLEM_TYPES or self.constraints.capacity is not None
+
+  @property
+  def is_vrp(self) -> bool:
+    """Return ``True`` when this instance is a VRP variant or carries active constraints."""
+    return self.problem_type in VRP_PROBLEM_TYPES or self.constraints.is_constrained
+
+  @property
+  def default_evolutionary_nodes(self) -> list[int]:
+    """Return default node sequence for GA evolution (`1..n-1` for VRP variants, `0..n-1` otherwise)."""
+    start = 1 if self.problem_type in VRP_PROBLEM_TYPES else 0
+    return list(range(start, self.dimension))
 
   @property
   def requires_distance_computation(self) -> bool:

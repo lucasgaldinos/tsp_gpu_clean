@@ -17,12 +17,13 @@ from algorithms.strategies import (
   CrossoverOrder,
   EvaluationCPUCost,
   EvaluationGPUCost,
-  InitializationRandom,
+  InitializationCPURandom,
   LocalSearchCPUTwoOpt,
   LocalSearchGPUTwoOpt,
   MutationSwap,
   SelectionTournament,
 )
+from data_models.exceptions import AmbiguousProblemError, InvalidProblemDataError
 from data_models.problem import Problem
 from distances.matrix import compute_distance_matrix
 from distances.pairwise import compute_euclidean_3d
@@ -286,7 +287,7 @@ def test_euc3d_end_to_end_loaders_distances_and_cpu_ga(tmp_path: Path) -> None:
     population_size=8,
     mutation_rate=0.2,
     seed=42,
-    initialization=InitializationRandom(seed=42),
+    initialization=InitializationCPURandom(seed=42),
     selection=SelectionTournament(k=2, seed=42),
     crossover=CrossoverOrder(seed=42),
     mutation=MutationSwap(seed=42),
@@ -336,7 +337,7 @@ def test_euc3d_gpu_end_to_end_dense_and_on_the_fly(tmp_path: Path, max_matrix_di
     population_size=8,
     mutation_rate=0.2,
     seed=7,
-    initialization=InitializationRandom(seed=7),
+    initialization=InitializationCPURandom(seed=7),
     selection=SelectionTournament(k=2, seed=7),
     crossover=CrossoverOrder(seed=7),
     mutation=MutationSwap(seed=7),
@@ -387,3 +388,202 @@ def test_euc3d_gpu_on_the_fly_all_modes_and_non_contiguous_float32_inputs(tmp_pa
     improved = cp.asnumpy(ls.improve_batch(probe_population, gpu_ctx))
     after_costs = EvaluationCPUCost().evaluate_batch(improved, cpu_ctx)
     assert (after_costs <= cpu_costs).all()
+
+
+def test_vrp_and_sol_tier1_roundtrip_and_twin_disambiguation(tmp_path: Path) -> None:
+  """WHAT: `.vrp` + `.sol` loading, Tier-1 `VRPConstraints`, twin disambiguation, and DuckDB round-trip.
+
+  WHY: Ensures `BUG-108` / `BUG-109` / `DP17-6` forward `DISTANCE`, `VEHICLES`, `SERVICE_TIME`,
+  and `DISPLAY_DATA_SECTION`, recompute canonical TSPLIB95 `nint` cost from `.sol` routes,
+  and raise `AmbiguousProblemError` on twin stems unless `problem_type` is supplied.
+  """
+  data_dir = tmp_path / "mixed"
+  data_dir.mkdir()
+
+  # Twin TSP + CVRP under stem 'twin4'
+  (data_dir / "twin4.tsp").write_text(
+    "NAME : twin4\n"
+    "TYPE : TSP\n"
+    "DIMENSION : 4\n"
+    "EDGE_WEIGHT_TYPE : EUC_2D\n"
+    "NODE_COORD_SECTION\n"
+    "1 0 0\n2 3 0\n3 3 4\n4 0 4\n"
+    "EOF\n",
+    encoding="utf-8",
+  )
+  (data_dir / "twin4.opt.tour").write_text(
+    "NAME : twin4.opt.tour\n"
+    "COMMENT : Optimal (Length 14)\n"
+    "TYPE : TOUR\n"
+    "DIMENSION : 4\n"
+    "TOUR_SECTION\n1\n2\n3\n4\n-1\nEOF\n",
+    encoding="utf-8",
+  )
+  (data_dir / "twin4.vrp").write_text(
+    "NAME : twin4\n"
+    "TYPE : CVRP\n"
+    "DIMENSION : 4\n"
+    "EDGE_WEIGHT_TYPE : EUC_2D\n"
+    "CAPACITY : 10\n"
+    "DISTANCE : 100.5\n"
+    "VEHICLES : 2\n"
+    "SERVICE_TIME : 5.0\n"
+    "DISPLAY_DATA_TYPE : TWOD_DISPLAY\n"
+    "NODE_COORD_SECTION\n"
+    "1 0.0 0.0\n2 1.0 1.0\n3 4.0 1.0\n4 4.0 5.0\n"
+    "DISPLAY_DATA_SECTION\n"
+    "1 10 10\n2 20 20\n3 30 30\n4 40 40\n"
+    "DEMAND_SECTION\n"
+    "1 0\n2 4\n3 5\n4 3\n"
+    "DEPOT_SECTION\n"
+    "1\n-1\nEOF\n",
+    encoding="utf-8",
+  )
+  # Stated cost is continuous float, while TSPLIB95 nint route cost is integer:
+  # Route 1: 0->1 (nint(sqrt(2))=1), 1->2 (3), 2->0 (nint(sqrt(17))=4) => 8
+  # Route 2: 0->3 (nint(sqrt(41))=6), 3->0 (6) => 12; total = 20.0
+  (data_dir / "twin4.sol").write_text(
+    "Route #1: 1 2\nRoute #2: 3\nCost 19.75\n",
+    encoding="utf-8",
+  )
+
+  with TsplibLoader(data_dir) as tsp_loader:
+    assert tsp_loader.list_instances() == ["twin4"]
+    with pytest.raises(AmbiguousProblemError) as exc_info:
+      tsp_loader.load("twin4")
+    assert exc_info.value.available_types == ("CVRP", "TSP")
+
+    tsp_prob = tsp_loader.load("twin4", problem_type="TSP")
+    cvrp_prob = tsp_loader.load("twin4", problem_type="CVRP")
+    assert tsp_prob.problem_type == "TSP"
+    assert cvrp_prob.problem_type == "CVRP"
+    assert cvrp_prob.capacity == 10
+    assert cvrp_prob.constraints.max_route_distance == pytest.approx(100.5)
+    assert cvrp_prob.constraints.max_vehicles == 2
+    assert cvrp_prob.constraints.service_times is not None
+    np.testing.assert_allclose(cvrp_prob.constraints.service_times, [0.0, 5.0, 5.0, 5.0])
+    assert cvrp_prob.display_coords is not None
+    np.testing.assert_allclose(cvrp_prob.display_coords, [[10.0, 10.0], [20.0, 20.0], [30.0, 30.0], [40.0, 40.0]])
+
+    assert tsp_loader.resolve_optimal_cost("twin4", problem_type="TSP") == pytest.approx(14.0)
+    assert tsp_loader.resolve_optimal_cost("twin4", problem_type="CVRP") == pytest.approx(20.0)
+
+  assert resolve_opt_tour_cost(data_dir / "twin4.vrp") == pytest.approx(20.0)
+
+  db_path = tmp_path / "mixed.duckdb"
+  assert ingest_tsplib_directory_to_duckdb(data_dir, db_path) == 2
+
+  with DatabaseLoader(db_path, fallback_tsp_dir=None) as db_loader:
+    with pytest.raises(AmbiguousProblemError) as db_exc:
+      db_loader.load("twin4")
+    assert db_exc.value.available_types == ("CVRP", "TSP")
+
+    db_cvrp = db_loader.load("twin4", problem_type="CVRP")
+    assert db_cvrp.constraints == cvrp_prob.constraints
+    assert db_cvrp.display_coords is not None
+    np.testing.assert_allclose(db_cvrp.display_coords, cvrp_prob.display_coords)
+    assert db_loader.load_optimal_cost("twin4", problem_type="TSP") == pytest.approx(14.0)
+    assert db_loader.load_optimal_cost("twin4", problem_type="CVRP") == pytest.approx(20.0)
+
+
+def test_corpus_duckdb_disambiguation_li21_and_multidepot_guard() -> None:
+  """WHAT: Verify real corpus `datasets/tsp.duckdb` disambiguation, `Li_21` dual cost, and `gil262` MDVRP guard.
+
+  WHY: Falsifies twin collisions (`eil51`), continuous-vs-nint cost drift (`Li_21`),
+  and accidental single-depot loading of multi-depot `gil262` (`BUG-108`).
+  """
+  from pathlib import Path
+
+  db_path = Path("datasets/tsp.duckdb")
+  if not db_path.exists():
+    pytest.skip("datasets/tsp.duckdb not present")
+
+  with DatabaseLoader(db_path, fallback_tsp_dir=None) as loader:
+    with pytest.raises(AmbiguousProblemError) as exc_info:
+      loader.load("eil51")
+    assert exc_info.value.available_types == ("CVRP", "TSP")
+
+    eil_tsp = loader.load("eil51", problem_type="TSP")
+    eil_cvrp = loader.load("eil51", problem_type="CVRP")
+    assert eil_tsp.problem_type == "TSP"
+    assert eil_cvrp.problem_type == "CVRP"
+    assert eil_cvrp.capacity == 160
+    assert loader.load_optimal_cost("eil51", problem_type="TSP") == pytest.approx(426.0)
+    assert loader.load_optimal_cost("eil51", problem_type="CVRP") is None
+    assert loader.load_optimal_cost("Leuven1", problem_type="CVRP") == pytest.approx(192848.0)
+
+    li21 = loader.load("Li_21", problem_type="CVRP")
+    assert li21.capacity == 1200
+    assert li21.constraints.max_route_distance == pytest.approx(1800.0)
+    assert loader.load_optimal_cost("Li_21", problem_type="CVRP") == pytest.approx(16220.0)
+
+    gil_tsp = loader.load("gil262", problem_type="TSP")
+    assert gil_tsp.dimension == 262
+    with pytest.raises(InvalidProblemDataError, match="outside single-depot"):
+      loader.load("gil262", problem_type="CVRP")
+
+    # Derived OVRP variant on stored CVRP row ('eil51') & BKS safety (BUG-111, DP17-10)
+    eil_ovrp = loader.load("eil51", problem_type="OVRP")
+    assert eil_ovrp.problem_type == "OVRP"
+    assert eil_ovrp.constraints.return_to_depot is False
+    assert eil_ovrp.has_solution is False
+    assert loader.load_optimal_cost("eil51", problem_type="OVRP") is None
+
+
+def test_derived_ovrp_dcvrp_overrides_and_bks_safety(tmp_path: Path) -> None:
+  """WHAT: Deriving `OVRP`/`DCVRP` from a stored `CVRP` row applies constraints and suppresses closed-CVRP BKS.
+
+  WHY: `BUG-111` / `DP17-10` — `DatabaseLoader.load(..., problem_type="OVRP")` must derive
+  open routes from closed `CVRP` records without reusing closed-CVRP `.sol` optimal costs.
+  """
+  vrp_dir = tmp_path / "derived_vrp"
+  vrp_dir.mkdir()
+  (vrp_dir / "base4.vrp").write_text(
+    "NAME : base4\n"
+    "TYPE : CVRP\n"
+    "DIMENSION : 4\n"
+    "EDGE_WEIGHT_TYPE : EUC_2D\n"
+    "CAPACITY : 10\n"
+    "NODE_COORD_SECTION\n"
+    "1 0 0\n2 3 0\n3 3 4\n4 0 4\n"
+    "DEMAND_SECTION\n"
+    "1 0\n2 4\n3 4\n4 4\n"
+    "DEPOT_SECTION\n"
+    "1\n-1\nEOF\n",
+    encoding="utf-8",
+  )
+  (vrp_dir / "base4.sol").write_text("Route #1: 1 2\nRoute #2: 3\nCost 20.0\n", encoding="utf-8")
+
+  with TsplibLoader(vrp_dir) as tsp_loader:
+    assert tsp_loader.resolve_optimal_cost("base4", problem_type="CVRP") is not None
+    assert tsp_loader.resolve_optimal_cost("base4", problem_type="OVRP") is None
+    derived_file_ovrp = tsp_loader.load("base4", problem_type="OVRP", max_vehicles=3)
+    assert derived_file_ovrp.problem_type == "OVRP"
+    assert derived_file_ovrp.constraints.return_to_depot is False
+    assert derived_file_ovrp.constraints.max_vehicles == 3
+
+  db_path = tmp_path / "derived.duckdb"
+  assert ingest_tsplib_directory_to_duckdb(vrp_dir, db_path) == 1
+
+  with DatabaseLoader(db_path, fallback_tsp_dir=None) as db_loader:
+    assert db_loader.load_optimal_cost("base4", problem_type="CVRP") == pytest.approx(20.0)
+    assert db_loader.load_optimal_cost("base4", problem_type="OVRP") is None
+    assert db_loader.load_optimal_cost("base4", problem_type="DCVRP") is None
+
+    db_ovrp = db_loader.load("base4", problem_type="OVRP", max_vehicles=2, capacity=12)
+    assert db_ovrp.problem_type == "OVRP"
+    assert db_ovrp.capacity == 12
+    assert db_ovrp.constraints.return_to_depot is False
+    assert db_ovrp.constraints.max_vehicles == 2
+
+    db_dcvrp = db_loader.load("base4", problem_type="DCVRP", max_route_distance=25.0)
+    assert db_dcvrp.problem_type == "DCVRP"
+    assert db_dcvrp.constraints.max_route_distance == pytest.approx(25.0)
+    assert db_dcvrp.constraints.return_to_depot is True
+
+    # Immutable helper on Problem
+    re_constrained = db_dcvrp.with_constraints(problem_type="OVRP", max_vehicles=4)
+    assert re_constrained.problem_type == "OVRP"
+    assert re_constrained.constraints.return_to_depot is False
+    assert re_constrained.constraints.max_vehicles == 4
+    assert db_dcvrp.problem_type == "DCVRP"

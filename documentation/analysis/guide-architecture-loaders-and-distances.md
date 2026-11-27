@@ -21,10 +21,17 @@ modifications:
           and `src/distances/` aligned with the Wave 1 Standardization Contract,
           and polished plain-text title formatting and cross-guide
           `related_files` symmetry.
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Synchronized Phase 17 / 17R VRP Tier 1 loading (`CVRP`, `OVRP`, `DCVRP`),
+          `.vrp`/`.sol` parsing with `int32` TSPLIB95 `nint` BKS recomputation
+          (`DP17-6`), and `PROBLEM_TYPE_HANDLERS` VRP dispatch.
 related_files:
   - "[design-patterns-links.md](../../design-patterns-links.md)"
   - "[table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md)"
   - "[guide-project-architecture-blueprint.md](../guide-project-architecture-blueprint.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](../knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[analysis-strategy-hierarchy-and-context-contracts.md](../knowledge-base/analysis-strategy-hierarchy-and-context-contracts.md)"
   - "[guide-architecture-protocols-and-data-models.md](./guide-architecture-protocols-and-data-models.md)"
   - "[guide-architecture-algorithms-and-strategies.md](./guide-architecture-algorithms-and-strategies.md)"
@@ -57,11 +64,11 @@ This guide documents the problem ingestion, database loading, and three-tier TSP
 
 ## 1. Scope & Architectural Boundaries
 
-`src/loaders/` and `src/distances/` form the **Problem Ingestion and Distance Metric Computation** layers that transform raw `.tsp` / `.opt.tour` files and normalized DuckDB records into validated `Problem` instances, dense `int32` distance matrices, $k$-NN candidate tables, and CUDA device primitives.
+`src/loaders/` and `src/distances/` form the **Problem Ingestion and Distance Metric Computation** layers that transform raw `.tsp` / `.vrp` / `.opt.tour` / `.sol` files and normalized DuckDB records into validated `Problem` instances (including `VRPConstraints` and `int32` TSPLIB95 `nint` BKS recomputation per `DP17-6`), dense `int32` distance matrices, $k$-NN candidate tables, and CUDA device primitives.
 
 | Module | Role | Key Symbols |
 | :--- | :--- | :--- |
-| `src/loaders/problem_type_handlers.py` | Formulation-specific SQL & metadata extraction (`TSP`, `ATSP`, `CVRP`) | [`ProblemTypeHandler`](../../src/loaders/problem_type_handlers.py), [`PROBLEM_TYPE_HANDLERS`](../../src/loaders/problem_type_handlers.py), [`ProblemMetadataRow`](../../src/loaders/problem_type_handlers.py) |
+| `src/loaders/problem_type_handlers.py` | Formulation-specific SQL & metadata extraction (`TSP`, `ATSP`, `CVRP`, `OVRP`, `DCVRP`) | [`ProblemTypeHandler`](../../src/loaders/problem_type_handlers.py), [`PROBLEM_TYPE_HANDLERS`](../../src/loaders/problem_type_handlers.py), [`ProblemMetadataRow`](../../src/loaders/problem_type_handlers.py) |
 | `src/loaders/database_loader.py` | Context-managed DuckDB reader with `.tsp` fallback & eager threshold | [`DatabaseLoader`](../../src/loaders/database_loader.py) |
 | `src/loaders/tsplib_loader.py` | `routing_data` ETL adapter, `.tsp` reader, and DuckDB batch ingestion | [`TsplibLoader`](../../src/loaders/tsplib_loader.py), [`parse_tsplib_file`](../../src/loaders/tsplib_loader.py), [`ingest_tsplib_directory_to_duckdb`](../../src/loaders/tsplib_loader.py) |
 | `src/distances/pairwise.py` | Tier 3 scalar TSPLIB95 functions, factory lookup, `EDGE_TYPE_TO_CODE`, `BUG-32` patch | [`get_distance_function`](../../src/distances/pairwise.py), [`get_edge_type_code`](../../src/distances/pairwise.py), [`compute_geographical`](../../src/distances/pairwise.py) |

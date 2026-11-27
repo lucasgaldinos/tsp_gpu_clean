@@ -2,29 +2,29 @@
 # --- Antigravity rule keys ---
 trigger: glob
 globs: "**/*.py, **/*.cu, **/*.cuh, !**/.agents/**, !**/.github/**, !**/archive/**"
-description: "Use when writing, typing, refactoring, or reviewing Python 3.12+ and CUDA/CuPy code: import root, PEP 695/698 typing, TypeGuard and descriptor patterns, NumPy/CuPy boundary protocols, GPU caching, TSPLIB95/CVRP invariants, and DuckDB safety." # shared with VS Code
+description: "Use when writing, typing, refactoring, or reviewing Python 3.12+ and CUDA/CuPy code: import root, PEP 695/698 typing, representation-qualified strategy/operator/CUDA naming & header placement, NumPy/CuPy boundary protocols, GPU caching, TSPLIB95/CVRP invariants, and DuckDB safety." # shared with VS Code
 # --- VS Code instruction keys ---
 name: "Python 3.12, Typing & GPU/Routing Architecture"
 applyTo: "**/*.py, **/*.cu, **/*.cuh, !**/.agents/**, !**/.github/**, !**/archive/**"
 ---
 
-# Python 3.12+, Typing & GPU/Routing Architecture Standards
+# python 3.12+, Typing & GPU/Routing Architecture Standards
 
 ## 1. Architecture Precedes Typing
 
 - Establish functional behavior, database schemas, and input/output contracts **before** pursuing strict static type gymnastics. Never invest passes typing broken or unverified pipelines.
 - Never silently strip forward-compatibility stubs or planned enum/section branches without user confirmation via `ask-clarification-questions`.
-- Comments and docstrings must explain **domain/business rules and algorithmic provenance** (WHY — e.g., TSPLIB95 rounding rules, Pascal CC 6.1 SM occupancy, Rocki & Suda 2012), never restate Python/CUDA syntax.
+- Comments and docstrings must explain **domain/business rules and algorithmic provenance** (WHY — e.g., TSPLIB95 rounding rules, Pascal CC 6.1 SM occupancy, Rocki & Suda 2012), never restate python/CUDA syntax.
 
 ## 2. Import Root & Configuration Authority
 
 - `src/` is the import root (`pythonpath = ["src"]`, `mypy_path = ["src"]`), **not** an importable package.
-  - **Banned:** `from src.*` and cross-package relative escaping (`from ..data_models import ...`).
-  - **Allowed:** Absolute package imports (`from protocols.backend import require_gpu`) and intra-package relative imports (`from .backend import ...`).
+  + **Banned:** `from src.*` and cross-package relative escaping (`from ..data_models import ...`).
+  + **Allowed:** Absolute package imports (`from protocols.backend import require_gpu`) and intra-package relative imports (`from .backend import ...`).
 - [pyproject.toml](../../pyproject.toml) is the single configuration source of truth for `mypy`, `ruff`, and `pytest`. Never reintroduce `mypy.ini`, `ruff.toml`, or `setup.cfg`.
 - Run linters and type checkers via `rtk .venv/bin/python -m ruff check <files>` and `rtk .venv/bin/python -m mypy <files>` (never bare system `pytest`/`mypy`).
 
-## 3. Modern Python 3.12+ Static Typing
+## 3. Modern python 3.12+ Static Typing
 
 Every public and private function carries explicit parameter and return annotations (`-> None` included):
 
@@ -45,12 +45,29 @@ Every public and private function carries explicit parameter and return annotati
 ## 5. Routing Domain, DuckDB, & Decoupled Benchmark Invariants
 
 - **TSPLIB95 Specification Authority:**
-  - TSPLIB node and depot IDs in problem/tour files are **1-based**; `.sol` files use customer ordinals — verify tour/route indexing against coordinate cost recomputation.
-  - `GEO` coordinate conversion truncates degrees toward zero via `int(coord_val)` (Reinelt 1991), **never** nearest-integer `_nint(coord_val)` (`burma14` `d(1,3) == 510`, not `560`).
-  - Reject malformed sections loudly (`ParseError`); never swallow section errors into empty arrays or launder `ValidationError` into `ParseError`.
+  + TSPLIB node and depot IDs in problem/tour files are **1-based**; `.sol` files use customer ordinals — verify tour/route indexing against coordinate cost recomputation.
+  + `GEO` coordinate conversion truncates degrees toward zero via `int(coord_val)` (Reinelt 1991), **never** nearest-integer `_nint(coord_val)` (`burma14` `d(1,3) == 510`, not `560`).
+  + Reject malformed sections loudly (`ParseError`); never swallow section errors into empty arrays or launder `ValidationError` into `ParseError`.
 - **CVRP Sub-Route Indexing Bounds (`BUG-19`):** A CVRP vehicle sub-route (e.g., `[0, 5, 18, 0]`) has `route.max() >= len(route)`. Never allocate inverse-position lookup tables as `np.empty(len(route))` or silently disable `candidate_k` when `route.max() >= route.size`; allocate `np.full(max(len(route), int(route.max()) + 1), -1, dtype=np.int32)` and skip candidates with position `< 0`.
 - **No Hardcoded Corpus Shapes or Run Counts (`C1`–`C3`, `BUG-17`, `BUG-18`):** Library, CLI, and config defaults must never hardcode `datasets_raw/**`, sibling folder layouts (`parent / "tour"`), `expected_reps = 30`, or hardcoded `construction_heuristic` strings; serialize full strategy hyperparameters into checkpoints.
 - **DuckDB Safety & Decoupled Analysis:**
-  - DuckDB lacks SQL `SAVEPOINT`; isolate batch ingestion via Python pre-flight validation + per-item transactions + `ON CONFLICT` upserts.
-  - Guard nullable `cursor.fetchone()` calls with a typed helper (`_one(row, error_msg)`), mirror SQL column names as constants in `schema.py`, and type insert payloads with `TypedDict`.
-  - Benchmark analysis/reporting is a **pure consumer** of checkpoint/DB files and must never depend on runner execution size thresholds.
+  + DuckDB lacks SQL `SAVEPOINT`; isolate batch ingestion via python pre-flight validation + per-item transactions + `ON CONFLICT` upserts.
+  + Guard nullable `cursor.fetchone()` calls with a typed helper (`_one(row, error_msg)`), mirror SQL column names as constants in `schema.py`, and type insert payloads with `TypedDict`.
+  + Benchmark analysis/reporting is a **pure consumer** of checkpoint/DB files and must never depend on runner execution size thresholds.
+
+## 6. Strategy, Operator, and CUDA Kernel Naming
+
+Full taxonomy, Mermaid decision tree, and multi-variant examples: [guide-strategy-and-operator-naming.md](../../documentation/knowledge-base/guide-strategy-and-operator-naming.md).
+
+- **Role-Based Strategy Directories:** Subpackages under `src/algorithms/strategies/` MUST name **algorithmic roles** (`initialization/`, `selection/`, `crossover/`, `mutation/`, `local_search/`, `evaluation/`, `decoding/`, `penalties/`, `bin_packing/`) — never problem nouns (`cvrp/`) or vague catch-alls (`repair/`).
+- **Representation-Infix Class Grammar (`<Slot><CPU|GPU>[Perm|Tour|Route]<Algorithm>[<Qualifier>]`):**
+  + Expose explicit `CPU`/`GPU` pairs in `STRATEGY_REGISTRY` (`EvaluationCPUCost` / `EvaluationGPUCost`, `BinPackingCPUFFD` / `BinPackingGPUFFD`, `LocalSearchCPURouteTwoOptStar` / `LocalSearchGPURouteTwoOptStar`).
+  + Omit the representation infix **only** when genuinely polymorphic across representations (`Evaluation[CPU|GPU]Cost`, `Selection[CPU|GPU]Tournament`); otherwise include `Perm` (`(N, k)` permutations across TSP/ATSP/VRP Giant-Tours: `CrossoverGPUPermOrder`, `MutationGPUPermInversion`), `Tour` (single Hamiltonian tour geometry: `LocalSearchGPUTourTwoOpt`), or `Route` (`0`-delimited multi-vehicle partitions: `CrossoverGPURouteRBX`, `MutationGPURouteRelocate`, `LocalSearchGPURouteTwoOptStar`).
+- **Multi-Variant (`2+` Types) vs. Single-Variant `<Qualifier>` & Capability Metadata:**
+  + **Banned:** Never concatenate multiple problem acronyms into any class, function, or file name (`...CVRPDCVRP`, `...TSPHCP`).
+  + **2+ Variants:** When restricted to a subset of variants within `Perm`/`Tour`/`Route`, append the **shared structural or constraint-algebra property** (`Closed`, `Open`, `Asymmetric`, `TimeWarp`), e.g. `LocalSearchGPURouteTwoOptStarClosed` (`CVRP` + `DCVRP`) or `LocalSearchGPUTourTwoOptAsymmetric` (`ATSP` + `TSP`); omit `<Qualifier>` when the implementation covers the full representation scope.
+  + **Strictly 1 Variant:** Append a single problem acronym (`SOP`, `OVRP`, `CVRP`, `VRPTW`) **only** when the domain formula is mathematically locked to one exact formulation (`LocalSearchGPUTourOrOptSOP`).
+  + **Exact Compatibility Enforcement:** Enforce exact multi-problem or constraint subsets via class capability metadata (`ClassVar` sets/flags) and runtime `ProblemContext` / `VRPConstraints` validation raising `ConfigurationError` or `ValueError` — never via acronym concatenation in identifiers.
+- **Algorithm-Descriptive File Names & Three-Tier `.cuh` Header Placement:**
+  + Name `.py`, `.cu`, and `.cuh` files after the **specific OR algorithm or neighborhood** (`rbx_crossover.{py,cu}`, `route_relocate_mutation.{py,cu}`, `two_opt_star_steepest.cu`, `two_opt_star_multi_move.cu`) — never vague mechanical names (`route_ops.cu`, `inter_route_batch.cu`, `inter_route_search.cuh`) and never inconsistent `cvrp_` prefixes on multi-variant VRP code.
+  + Place domain-agnostic CUDA primitives (`block_reductions.cuh`) in `src/utils/kernels/`, distance/edge-delta headers (`pairwise_device.cuh`, `two_opt_common.cuh`) in `src/distances/kernels/`, and single-responsibility operator headers (`vrp_route_prefix_buffers.cuh`, `relocate_swap_two_opt_star_deltas.cuh`, `vrp_candidate_neighborhood_scan.cuh`, `intra_route_two_opt.cuh`) in `<role>/kernels/`.

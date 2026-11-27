@@ -22,7 +22,8 @@ related_files:
   - "[two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu)"
   - "[swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py)"
   - "[inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py)"
-  - "[random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py)"
+  - "[random_init.py](../../src/algorithms/strategies/initialization/random_init.py)"
+  - "[nearest_neighbor_init.py](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py)"
 tags:
   - notes/walkthrough
   - analysis/algorithm
@@ -56,7 +57,7 @@ contrato de `Protocol`.
 | 2-opt CPU | [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py) | Laço `j` exaustivo com hoisting e carry-over da Task 10.16. |
 | 2-opt GPU | [two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) | Um bloco por tour, `s_tour` compartilhada, varredura `j` serial por thread. |
 | Mutação | [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py), [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py) | Sorteio uniforme de dois índices interiores. |
-| Inicialização | [random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py) | `rng.permutation` uniforme. |
+| Inicialização | [random_init.py](../../src/algorithms/strategies/initialization/random_init.py) | `rng.permutation` uniforme. |
 
 ## 3. Análise de impacto
 
@@ -94,7 +95,7 @@ injeta arestas longas que a seleção descarta. A construção de $\mathcal{N}_k
 4. [two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py) — `candidate_k` nos três 2-opt de CPU e no `BatchGPUTwoOpt`; `_inverse_positions`, `_resolve_candidates`.
 5. [swap_mutation.py](../../src/algorithms/strategies/mutation/swap_mutation.py) — `candidate_k` + `_proximity_index`.
 6. [inversion_mutation.py](../../src/algorithms/strategies/mutation/inversion_mutation.py) — `candidate_k` + `_proximity_index`.
-7. [random_initialization.py](../../src/algorithms/strategies/initialization/random_initialization.py) — `candidate_k` + `_greedy_candidate_tour`.
+7. [nearest_neighbor_init.py](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) — inicialização gulosa guiada por $\mathcal{N}_k$ (evolução do antigo `random_initialization.py`).
 
 ### CUDA (1 arquivo)
 

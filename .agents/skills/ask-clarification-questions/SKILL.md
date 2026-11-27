@@ -34,6 +34,37 @@ Invoke this skill whenever any of these are unclear:
 If any of the above are unclear, proceed to Step 2. When in doubt, ask.
 </instructions>
 
+### Step 1b: Pre-Implementation Decision-Surface Audit (Mandatory for Large / Multi-Module Plans)
+
+<instructions>
+
+For architectural changes spanning >3 files, a new subsystem, or a multi-wave swarm plan,
+high-level scope questions are **not enough**—unasked low-level choices turn into silent
+worker defaults that must be rewritten later. Before proposing or starting implementation,
+explicitly scan for and ask about every unresolved item in this 6-point checklist:
+
+1. **Terminology & Vocabulary Collisions:** Are we introducing labels (e.g. `"Tier-1"`,
+   `"hybrid"`, `"mode"`) that collide with existing concepts in the codebase, thesis, or
+   docs? Confirm canonical naming first.
+2. **Magic Constants & Scaling Policies:** Does any formula need default weights, penalties,
+   thresholds, or tolerances (e.g. penalty weights $\omega_Q, \omega_L$, tie-breaking)?
+   Ask whether they should be instance-scaled, adaptive, or explicit user parameters—never
+   silently hardcode arbitrary numbers like `10_000.0`.
+3. **Partial-Failure & Statistical Edge Semantics:** What happens in intermediate/degraded
+   regimes (e.g. `0% < feasibility_rate < 100%`, missing optimal cost, zero feasible runs,
+   ordinal vs. cardinal test invariance)? Ask explicitly instead of assuming all-or-nothing.
+4. **Public API, Class Naming & Protocol Boundaries:** Must new CPU/GPU classes mirror an
+   existing naming symmetry (e.g. `Foo` + `FooGPU`), and should problem-specific logic live
+   behind protocol hooks instead of branching in the core runner/engine?
+5. **Config & Schema Contract Honesty:** Which fields in JSON configs/schemas are declarative
+   runtime overrides vs. catalog metadata only? Never document or expose schema keys whose
+   runtime behavior wasn't confirmed.
+6. **Change-Size & Phase-Review Cadence:** When a plan exceeds ~1,500 LOC or 2 implementation
+   waves, ask the user where to insert mandatory human review checkpoints rather than
+   executing all waves straight through.
+
+</instructions>
+
 ## Step 2: Formulate must-have questions
 
 <instructions>

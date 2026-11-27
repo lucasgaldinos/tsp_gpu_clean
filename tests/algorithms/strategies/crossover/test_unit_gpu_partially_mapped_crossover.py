@@ -87,7 +87,7 @@ def test_gpu_pmx_registry_protocol_schema_and_instantiate(tmp_path: Path) -> Non
         "description": "Test built-in CrossoverGPUPartiallyMapped config",
         "params": {"local_search_stage": "none"},
         "strategies": {
-          "initialization": {"class": "InitializationRandom", "params": {"return_gpu": True}},
+          "initialization": {"class": "InitializationGPURandom", "params": {"return_gpu": True}},
           "selection": {"class": "SelectionGPUTournament", "params": {"k": 3}},
           "crossover": {"class": "CrossoverGPUPartiallyMapped", "params": {"seed": 42}},
           "mutation": {"class": "MutationGPUSwap"},
@@ -281,7 +281,8 @@ def test_gpu_pmx_crossover_recovers_from_warmup_and_zero_filled_batch() -> None:
   gpu_strategy = CrossoverGPUPartiallyMapped(seed=5)
   poison_ctx = ProblemContext(problem, xp=cp, seed=1)
   gpu_strategy.warmup(poison_ctx)
-  assert gpu_strategy.kernel_launches == 1
+  assert gpu_strategy._kernel is not None
+  assert (gpu_strategy.kernel_launches, gpu_strategy.h2d_bytes, gpu_strategy.d2h_bytes) == (0, 0, 0)
 
   gpu_strategy.crossover_batch(cp.zeros((pop_size, n), dtype=cp.int32), context=poison_ctx)
 

@@ -14,6 +14,8 @@ argument-hint: "task to orchestrate; pipeline: assess -> plan/register -> launch
 
 <context>
 
+**Surface Scope:** This skill applies to **VS Code GitHub Copilot** (`RUG` agent + `runSubagent` / `agent` tool). When running inside **Google Antigravity** (App/CLI), use the global `orchestrate` skill (`invoke_subagent`, `run_workflow`, `/boost`) or `orchestrate-swarm` (`/swarm`) instead.
+
 A subagent is a one-shot, context-isolated worker: the main agent launches it through the `agent` / `runSubagent` tool and it returns exactly one report. The orchestrator is the `RUG` agent, which loads this skill as its operating manual. RUG decomposes, batches, dispatches, tracks, and synthesizes — the reviewer plans and registers; the implementer executes. Review runs at the start and end gates only.
 
 </context>
@@ -99,7 +101,7 @@ If `runSubagent` is unavailable, check RUG's `tools` for `agent` — or do the w
 
 <instructions>
 
-Execute & track. Execution is delegated to `implementer`, which loads `solving-tasks` + `task-managing`, executes, and updates task state and artifacts. Track batches with a todo list (one entry per batch). If a batch fails mid-run, register why it failed — do not auto-retry.
+Execute & track. Execution is delegated to `implementer`, which loads `solving-tasks` + `task-managing`, executes, and updates task state and artifacts. Keep batch verification **targeted** (one chained lint/type/pytest command on touched files only); reserve full-repo suites and doc-link gates for the Step 5 final review gate. Track batches with a todo list (one entry per batch). If a batch fails mid-run, register why it failed — do not auto-retry.
 
 </instructions>
 

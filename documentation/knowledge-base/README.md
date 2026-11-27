@@ -72,8 +72,22 @@ modifications:
       - description: >
           Indexed `analysis-gpu-multi-move-conflict-resolution.md` under parallel
           local search and GPU reductions.
+  - date_modified: 2026-11-25
+    modifications:
+      - description: >
+          Indexed `analysis-cvrp-gpu-split-and-deb-statistics.md` under metaheuristics
+          and problem formulations (Phase 17 VRP architecture, GPU Prins Split,
+          inter-route local search, and Deb feasibility dominance statistics).
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Indexed `guide-strategy-and-operator-naming.md` under metaheuristics and
+          software design (representation-infix grammar, multi-variant structural
+          qualifiers, capability metadata, and CUDA kernel/header naming rules).
 related_files:
   - "[README.md](../README.md)"
+  - "[guide-strategy-and-operator-naming.md](./guide-strategy-and-operator-naming.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](./analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[analysis-timing-instrumentation-and-warmup.md](./analysis-timing-instrumentation-and-warmup.md)"
   - "[analysis-host-sync-drain-and-mitigations.md](./analysis-host-sync-drain-and-mitigations.md)"
   - "[analysis-host-side-sampling-bottlenecks.md](./analysis-host-side-sampling-bottlenecks.md)"
@@ -141,6 +155,7 @@ Curated technical reference articles, mathematical derivations, and engineering 
 ## 3. Metaheuristics, problem formulations, and software design
 
 - [analysis-problem-definition-tsp-cvrp.md](./analysis-problem-definition-tsp-cvrp.md) — Formal mathematical definitions for symmetric/asymmetric TSP and Capacitated VRP (CVRP).
+- [analysis-cvrp-gpu-split-and-deb-statistics.md](./analysis-cvrp-gpu-split-and-deb-statistics.md) — Tier-1 multi-attribute VRP (`VRPConstraints`, `int32` TSPLIB95 `nint` parity), 3-representation coexistence, Pascal `sm_61` GPU `PrinsSplitDecoder`, route-disjoint `LocalSearchGPUCVRP`, and Deb (2000) feasibility-aware statistics (`DP17-1`–`DP17-6`).
 - [guide-construction-heuristics.md](./guide-construction-heuristics.md) — Nearest Neighbor, Clarke-Wright Savings, and greedy tour construction heuristics.
 - [analysis-compiling-tsp-heuristics.md](./analysis-compiling-tsp-heuristics.md) — Performance trade-offs across pure python, NumPy vectorization, JIT compilation, and CUDA kernels.
 - [analysis-genetic-algorithm-memetic-lineage.md](./analysis-genetic-algorithm-memetic-lineage.md) — Holland GA -> Moscato Memetic Algorithm lineage, discrete tournament selection math, and strategy composition.
@@ -154,6 +169,7 @@ Curated technical reference articles, mathematical derivations, and engineering 
 - [analysis-simulated-annealing-foundations.md](./analysis-simulated-annealing-foundations.md) — Talbi's S-Task vs P-Data taxonomy, Metropolis criterion, Kirkpatrick initial temperature, and adaptive cooling.
 - [analysis-simulated-annealing-gpu-execution.md](./analysis-simulated-annealing-gpu-execution.md) — CUDA kernel launch latency vs arithmetic intensity, multi-tier SA parallelization, and `ch150` benchmarks.
 - [analysis-strategy-hierarchy-and-context-contracts.md](./analysis-strategy-hierarchy-and-context-contracts.md) — Slot-prefixed `StrategyBase` hierarchy, `ProblemContext` GPU cache ownership, and three-tier TSPLIB95 distances.
+- [guide-strategy-and-operator-naming.md](./guide-strategy-and-operator-naming.md) — Representation-infix class grammar (`Perm`, `Tour`, `Route`), structural/constraint qualifiers for multi-variant operators, capability metadata enforcement, and three-tier CUDA `.cu`/`.cuh` naming rules.
 - [analysis-host-side-sampling-bottlenecks.md](./analysis-host-side-sampling-bottlenecks.md) — Host RNG serialization in crossover and mutation: why `rng.choice(np.arange(...), size=2, replace=False)` per route costs $\mathcal{O}(N \cdot n)$, the rejection-free $\mathcal{O}(1)$-per-pair formula $v = v' + \mathbb{I}[v' \ge u]$, why GPU-only vectorization breaks `OX-A`/`SWAP-A`/`INV-A` bit-identity, and the `_mutation_bounds` versus `_is_closed_cache` topology conflict (`BUG-24`, `DP11-19`, `DP11-20`).
 - [notes_average_worst_case_analysis.md](./notes_average_worst_case_analysis.md) — Asymptotic worst-case vs empirical average-case complexity notes for routing heuristics.
 - [guide-clean-python-practices.md](./guide-clean-python-practices.md) — Type annotations, protocol-driven design, and clean python conventions used in `src/`.

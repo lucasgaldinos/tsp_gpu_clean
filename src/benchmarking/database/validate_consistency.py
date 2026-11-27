@@ -136,7 +136,7 @@ def compare_databases(db1_path: str, db2_path: str) -> tuple[bool, list[str]]:
     print(f"✓ Same {len(algos1)} algorithms")
     print()
 
-    sort_cols = [c for c in ("problem_name", "algorithm", "timestamp", "run_id") if c in df1.columns]
+    sort_cols = [c for c in ("problem_name", "problem_type", "algorithm", "timestamp", "run_id") if c in df1.columns]
     df1_sorted = df1.sort_values(by=sort_cols, kind="mergesort").reset_index(drop=True)
     df2_sorted = df2.sort_values(by=sort_cols, kind="mergesort").reset_index(drop=True)
 
@@ -146,7 +146,8 @@ def compare_databases(db1_path: str, db2_path: str) -> tuple[bool, list[str]]:
     for idx in range(len(df1_sorted)):
       row1 = df1_sorted.iloc[idx]
       row2 = df2_sorted.iloc[idx]
-      row_label = f"{row1['problem_name']} / {row1['algorithm']}"
+      prob_type_suffix = f" [{row1['problem_type']}]" if "problem_type" in df1_sorted.columns else ""
+      row_label = f"{row1['problem_name']} / {row1['algorithm']}{prob_type_suffix}"
       for field in compare_cols:
         val1 = row1[field]
         val2 = row2[field]
@@ -180,23 +181,44 @@ def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[boo
   print()
 
   conn = duckdb.connect(db_path, read_only=True)
-  df = conn.execute(f"SELECT * FROM {TABLE_RUNS} ORDER BY problem_name, algorithm").df()
+  df = conn.execute(f"SELECT * FROM {TABLE_RUNS} ORDER BY problem_name, problem_type, algorithm").df()
   conn.close()
 
   checkpoint_path = Path(checkpoint_dir)
   mismatches = []
   validated_count = 0
 
+  checkpoint_index: dict[tuple[str, str, str], dict[str, Any]] = {}
+  for json_file in sorted(checkpoint_path.glob("*.json")):
+    try:
+      payload = load_checkpoint_json(json_file)
+    except (OSError, json.JSONDecodeError):
+      continue
+    p_name = payload.get("problem_name")
+    a_name = payload.get("algorithm")
+    if isinstance(p_name, str) and isinstance(a_name, str):
+      p_type = str(payload.get("problem_type") or "TSP")
+      checkpoint_index[(p_name, p_type, a_name)] = payload
+
   print(f"Validating {len(df)} database records...")
   print()
 
   for _, row in df.iterrows():
     problem = row["problem_name"]
+    problem_type = (
+      str(row["problem_type"]) if "problem_type" in df.columns and not pd.isna(row["problem_type"]) else "TSP"
+    )
     algo = row["algorithm"]
 
-    checkpoint_file = checkpoint_path / f"{problem}_{algo}.json"
+    json_data = checkpoint_index.get((problem, problem_type, algo))
+    if json_data is None:
+      checkpoint_file = checkpoint_path / f"{problem}_{algo}.json"
+      if checkpoint_file.exists():
+        candidate = load_checkpoint_json(checkpoint_file)
+        if str(candidate.get("problem_type") or "TSP") == problem_type:
+          json_data = candidate
 
-    if not checkpoint_file.exists():
+    if json_data is None:
       mismatches.append(
         {
           "run_id": row["run_id"],
@@ -209,8 +231,6 @@ def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[boo
         }
       )
       continue
-
-    json_data = load_checkpoint_json(checkpoint_file)
 
     fields_to_check = [
       "algorithm",
@@ -228,8 +248,13 @@ def validate_against_checkpoints(db_path: str, checkpoint_dir: str) -> tuple[boo
       "std_gap",
       "best_gap",
       "problem_name",
+      "problem_type",
       "problem_size",
       "optimal_cost",
+      "feasible_runs",
+      "feasibility_rate",
+      "mean_vehicles",
+      "best_vehicles",
     ]
 
     record_valid = True

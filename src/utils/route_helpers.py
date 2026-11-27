@@ -55,6 +55,12 @@ def resolve_route_bounds(
     if sample.size == n and int(sample[0]) == int(sample[-1]):
       return 1, n - 1
   if context is not None:
+    # A VRP Giant-Tour chromosome has width `dimension - 1` (customers `1..dimension-1`
+    # with depot `0` omitted, `DP17-2`). When it reaches here (either on GPU without a
+    # host transfer or on CPU after the `sample[0] == sample[-1]` check above passed),
+    # every position is a customer and must remain free to cross over and mutate.
+    if n == int(getattr(context, "dimension", -1)) - 1 and bool(getattr(context, "is_closed", False)):
+      return 0, n
     return (1, n - 1) if bool(getattr(context, "is_closed", False)) else (0, n)
   if route_sample is not None:
     if is_gpu_array(route_sample):

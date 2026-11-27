@@ -23,7 +23,7 @@ from algorithms.metaheuristics.genetic_algorithm import (
 )
 from algorithms.strategies.crossover.order_crossover import CrossoverOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization.random_initialization import InitializationRandom
+from algorithms.strategies.initialization import InitializationCPURandom
 from algorithms.strategies.local_search.two_opt import LocalSearchCPUTwoOpt
 from algorithms.strategies.mutation.swap_mutation import MutationSwap
 from algorithms.strategies.selection.tournament_selection import SelectionTournament
@@ -74,7 +74,7 @@ def test_initial_fitness_strictly_raw_across_all_stages(burma14_problem: Problem
     population_size=16,
     mutation_rate=0.05,
     seed=seed,
-    initialization=InitializationRandom(seed=seed),
+    initialization=InitializationCPURandom(seed=seed),
     selection=SelectionTournament(k=3, seed=seed),
     crossover=CrossoverOrder(seed=seed),
     mutation=MutationSwap(seed=seed),
@@ -87,7 +87,7 @@ def test_initial_fitness_strictly_raw_across_all_stages(burma14_problem: Problem
 
   # Baseline raw evaluation of random population with fresh context
   baseline_context = ProblemContext(burma14_problem, xp=np, seed=seed)
-  init_strat = InitializationRandom(seed=seed)
+  init_strat = InitializationCPURandom(seed=seed)
   eval_strat = EvaluationCPUCost()
   pop_raw = init_strat.initialize(customers, 16, baseline_context)
   fit_raw = eval_strat.evaluate_batch(pop_raw, baseline_context)

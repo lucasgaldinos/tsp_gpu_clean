@@ -24,7 +24,7 @@ import protocols.backend as backend
 from algorithms.strategies import (
   CrossoverGPUOrder,
   EvaluationGPUCost,
-  InitializationRandom,
+  InitializationGPURandom,
   LocalSearchGPUTwoOpt,
   MutationGPUInversion,
   MutationGPUSwap,
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 GPU_STRATEGY_MODULES: tuple[str, ...] = (
   "algorithms.strategies.crossover.order_crossover",
   "algorithms.strategies.evaluation.cost_evaluation",
-  "algorithms.strategies.initialization.random_initialization",
+  "algorithms.strategies.initialization.random_init",
   "algorithms.strategies.local_search.two_opt",
   "algorithms.strategies.mutation.inversion_mutation",
   "algorithms.strategies.mutation.swap_mutation",
@@ -49,7 +49,7 @@ GPU_STRATEGY_MODULES: tuple[str, ...] = (
 
 #: One label per GPU entry point that used to fall back to CPU.
 GPU_ENTRY_POINTS: tuple[str, ...] = (
-  "InitializationRandom.return_gpu",
+  "InitializationGPURandom.return_gpu",
   "LocalSearchGPUTwoOpt.improve_batch",
   "SelectionGPUTournament.select_batch",
   "CrossoverGPUOrder.crossover_batch",
@@ -76,9 +76,9 @@ def cpu_only_probe(monkeypatch: pytest.MonkeyPatch) -> None:
 def _call_entry_point(name: str, context: ProblemContext, routes: np.ndarray, fitness: np.ndarray) -> None:
   """Dispatch one GPU entry point by label, keeping the parametrization readable."""
   match name:
-    case "InitializationRandom.return_gpu":
+    case "InitializationGPURandom.return_gpu":
       customers: list[int] = list(range(context.problem.dimension))
-      InitializationRandom(seed=42, return_gpu=True).initialize(
+      InitializationGPURandom(seed=42, return_gpu=True).initialize(
         customers,
         population_size=2,
         context=context,

@@ -31,7 +31,65 @@ from benchmarking.analysis.stats_utils import (
 if TYPE_CHECKING:
   from collections.abc import Sequence
 
+  from numpy.typing import NDArray
+
   from data_models.records import NemenyiResult
+
+
+def build_feasibility_aware_scores(
+  costs: Sequence[float] | np.ndarray,
+  violations: Sequence[float] | np.ndarray | None = None,
+  is_feasible: Sequence[bool] | np.ndarray | None = None,
+) -> NDArray[np.float64]:
+  """Transform raw solution costs into Deb (2000) lexicographic feasibility scores.
+
+  For unconstrained or 100%-feasible inputs (``is_feasible is None`` or
+  ``all(is_feasible)``), returns ``np.asarray(costs, dtype=np.float64)`` unchanged
+  so unconstrained TSP statistics remain bit-identical.
+
+  When any entry is infeasible, defines
+  :math:`C^{\\max} = \\max_{i:\\,\\text{feasible}[i]} c_i` (or ``0.0`` when zero
+  feasible entries exist) and maps:
+
+  .. math::
+
+      \\tilde{z}_i = \\begin{cases}
+          c_i, & \\text{if feasible}[i] \\\\
+          C^{\\max} + 1.0 + \\nu_i, & \\text{otherwise}
+      \\end{cases}
+
+  Guarantees that every feasible solution strictly beats every infeasible solution
+  regardless of arbitrary penalty weights :math:`\\omega_Q`, while infeasible
+  solutions rank monotonically by lower physical violation :math:`\\nu_i`.
+  """
+  costs_arr: NDArray[np.float64] = np.asarray(costs, dtype=np.float64)
+  if is_feasible is None:
+    return costs_arr
+
+  feas_mask: NDArray[np.bool_] = np.asarray(is_feasible, dtype=bool)
+  if feas_mask.shape != costs_arr.shape:
+    raise ValueError(
+      f"is_feasible shape {feas_mask.shape} must match costs shape {costs_arr.shape}."
+    )
+
+  if bool(np.all(feas_mask)):
+    return costs_arr
+
+  viol_arr: NDArray[np.float64] = (
+    np.zeros_like(costs_arr, dtype=np.float64)
+    if violations is None
+    else np.asarray(violations, dtype=np.float64)
+  )
+  if viol_arr.shape != costs_arr.shape:
+    raise ValueError(
+      f"violations shape {viol_arr.shape} must match costs shape {costs_arr.shape}."
+    )
+
+  feasible_costs = costs_arr[feas_mask]
+  finite_feasible = feasible_costs[np.isfinite(feasible_costs)]
+  c_max = float(np.max(finite_feasible)) if finite_feasible.size > 0 else 0.0
+
+  return np.where(feas_mask, costs_arr, c_max + 1.0 + viol_arr).astype(np.float64, copy=False)
 
 POSTHOCS_AVAILABLE = find_spec("scikit_posthocs") is not None
 
@@ -211,6 +269,8 @@ class StatisticalSummary:
       zero_differences_count: Number of paired observations with zero difference.
       effective_sample_size: Non-zero difference count available to Wilcoxon.
       insufficient_power_warning: ``True`` when >50% of diffs are zero or ``2^{-(n_eff-1)} > alpha``.
+      vargha_delaney_a12: Optional Vargha-Delaney :math:`\\hat{A}_{12}` dominance probability
+          for constrained Binomial Sign Test comparisons (``None`` for unconstrained Wilcoxon).
   """
 
   comparison_label: str
@@ -236,6 +296,7 @@ class StatisticalSummary:
   zero_differences_count: int = 0
   effective_sample_size: int = 0
   insufficient_power_warning: bool = False
+  vargha_delaney_a12: float | None = None
 
   def get_speedup(self) -> float:
     """Calculate speedup ratio ``mean_a / mean_b``, returning ``0.0`` when ``mean_b == 0.0``."""
@@ -802,6 +863,7 @@ __all__ = [
   "OmnibusTestResult",
   "StatisticalAnalyzer",
   "StatisticalSummary",
+  "build_feasibility_aware_scores",
   "compute_iman_davenport_f",
   "compute_mean_ranks",
   "interpret_rank_biserial",

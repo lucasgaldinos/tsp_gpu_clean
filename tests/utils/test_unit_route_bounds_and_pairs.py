@@ -20,6 +20,7 @@ from utils.route_helpers import resolve_route_bounds, sample_distinct_pairs
 def _make_problem(name: str, problem_type: str, dimension: int) -> Problem:
   """Build a minimal coordinate problem of the requested formulation."""
   is_cvrp = problem_type == "CVRP"
+  demands = np.array([0, *([1] * (dimension - 1))], dtype=np.int32) if is_cvrp else None
   return Problem(
     name=name,
     dimension=dimension,
@@ -28,7 +29,7 @@ def _make_problem(name: str, problem_type: str, dimension: int) -> Problem:
     coordinates=np.zeros((dimension, 2), dtype=np.float64),
     distances=None,
     capacity=10 if is_cvrp else None,
-    demands=np.ones(dimension, dtype=np.int32) if is_cvrp else None,
+    demands=demands,
   )
 
 
@@ -87,6 +88,23 @@ def test_cvrp_context_forces_depot_bounds_without_a_sample() -> None:
 
   assert resolve_route_bounds(12, context=cvrp) == (1, 11)
   assert resolve_route_bounds(12, context=tsp) == (0, 12)
+
+
+def test_cvrp_giant_tour_can_mutate_both_customer_endpoints() -> None:
+  """WHAT: Bounds of a depot-free Giant-Tour (`n == dimension - 1`) under a CVRP context.
+
+  WHY: `DP17-2` reuses `OX`, `PMX`, `Swap`, and `Inversion` directly on `(N, dimension - 1)`
+  customer permutations; freezing `0` and `n - 1` would lock two customers out of search.
+
+  EXPECTED: `(0, 11)` for `dimension = 12` Giant-Tour, while `[0, ..., 0]` of length 11 keeps `(1, 10)`.
+  """
+  cvrp = ProblemContext(_make_problem("c", "CVRP", 12), xp=np)
+  giant_tour = np.arange(1, 12, dtype=np.int32)
+  subroute_same_len = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0], dtype=np.int32)
+
+  assert resolve_route_bounds(11, context=cvrp) == (0, 11)
+  assert resolve_route_bounds(11, context=cvrp, route_sample=giant_tour) == (0, 11)
+  assert resolve_route_bounds(11, context=cvrp, route_sample=subroute_same_len) == (1, 10)
 
 
 def test_no_information_keeps_the_conservative_slice() -> None:

@@ -15,8 +15,14 @@ References:
 
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING
 
+from protocols.vrp_strategies import (
+  RouteAssessment,
+  assess_from_evaluate_batch,
+  canonicalize_default_route,
+)
 from utils.rng import make_rng
 
 if TYPE_CHECKING:
@@ -25,7 +31,7 @@ if TYPE_CHECKING:
   from numpy.random import Generator
 
   from protocols.problem_context import ProblemContext
-  from protocols.types import SeedLike
+  from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
 class StrategyBase:
@@ -75,22 +81,62 @@ class StrategyBase:
     self.kernel_launches = 0
 
   def warmup(self, context: ProblemContext) -> None:
-    """Compile this strategy's CUDA kernels ahead of the measured loop (`DP11-12`, `BUG-25`).
+    """Compile and warm up CUDA kernels without mutating telemetry or RNG state (`DP11-12`, `BUG-115`).
 
-    The hook exists on *every* strategy so the warm-up protocol never has to guess
-    which slot owns a kernel: CPU strategies keep the no-op body, GPU strategies
-    override it to compile *and* launch their kernel once (see `_warmup_batch`).
-    The default here only forces compilation through `_get_kernel()`, the single path
-    that reaches `_compile_kernel_cached`, so even a strategy that has not overridden
-    the hook cannot leave a JIT compilation for the measured repetitions.
-
-    Args:
-        context: The run's `ProblemContext`; unused by the compile-only default.
+    Template Method wrapping `_warmup_impl(context)` in a `try ... finally` guard that
+    snapshots and restores `self` transfer/launch/timer counters, `self.rng`, and
+    `context`'s transfer counters and `rng.bit_generator.state`.
     """
+    prev_h2d = self.h2d_bytes
+    prev_d2h = self.d2h_bytes
+    prev_launches = self.kernel_launches
+    prev_last_ms = self.last_elapsed_ms
+    prev_total_ms = self.total_elapsed_ms
+    prev_calls = self.call_count
+    prev_self_rng = copy.deepcopy(self.rng.bit_generator.state) if hasattr(self.rng, "bit_generator") else None
+
+    prev_ctx_h2d = getattr(context, "h2d_bytes", None)
+    ctx_rng = getattr(context, "rng", None)
+    prev_ctx_rng = (
+      copy.deepcopy(ctx_rng.bit_generator.state) if ctx_rng is not None and hasattr(ctx_rng, "bit_generator") else None
+    )
+
+    try:
+      self._warmup_impl(context)
+    finally:
+      self.h2d_bytes = prev_h2d
+      self.d2h_bytes = prev_d2h
+      self.kernel_launches = prev_launches
+      self.last_elapsed_ms = prev_last_ms
+      self.total_elapsed_ms = prev_total_ms
+      self.call_count = prev_calls
+      if prev_self_rng is not None and hasattr(self.rng, "bit_generator"):
+        self.rng.bit_generator.state = prev_self_rng
+      if prev_ctx_h2d is not None:
+        context.h2d_bytes = prev_ctx_h2d
+      if prev_ctx_rng is not None and ctx_rng is not None and hasattr(ctx_rng, "bit_generator"):
+        ctx_rng.bit_generator.state = prev_ctx_rng
+
+  def _warmup_impl(self, context: ProblemContext) -> None:
+    """Subclasses override to compile and launch warm-up kernels; default compiles `_get_kernel()`."""
     del context
     compile_kernel = getattr(self, "_get_kernel", None)
     if callable(compile_kernel):
       compile_kernel()
+
+  def canonicalize_route(self, route: Route, context: ProblemContext) -> Route:
+    """Normalize a single 1D winning route into canonical host representation (`DP17-8`)."""
+    del context
+    return canonicalize_default_route(route)
+
+  def assess_batch(
+    self,
+    routes: RouteOrRoutes,
+    context: ProblemContext,
+    return_gpu: bool = False,
+  ) -> RouteAssessment:
+    """Default `EvaluationStrategy.assess_batch` adapter wrapping `evaluate_batch` (`DP17-8`)."""
+    return assess_from_evaluate_batch(self, routes, context, return_gpu=return_gpu)
 
   @staticmethod
   def _warmup_batch(context: ProblemContext, rows: int = 2) -> Any:

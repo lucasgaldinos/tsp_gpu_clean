@@ -20,10 +20,16 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from benchmarking.analysis.constrained_statistics import (
+  compute_deb_seed_rank_matrix,
+  constrained_paired_comparison,
+  extract_entry_normalized_violations,
+)
 from benchmarking.analysis.statistics import (
   OmnibusTestResult,
   StatisticalAnalyzer,
   StatisticalSummary,
+  build_feasibility_aware_scores,
   interpret_rank_biserial,
   run_friedman_nemenyi_analysis,
 )
@@ -56,6 +62,8 @@ def _get_data_field(results_dict: Mapping[str, Any], field: str) -> list[Any]:
   val = results_dict.get(raw_field)
   if val is None:
     val = results_dict.get(direct_field)
+  if val is None and field == "costs":
+    val = results_dict.get("raw_unpenalized_costs")
   if val is None:
     return []
   return val if isinstance(val, list) else list(val)
@@ -116,7 +124,7 @@ class AlgorithmProblemRow:
   """Per-algorithm descriptive summary on a single benchmark instance."""
 
   algorithm: str
-  mean_cost: float
+  mean_cost: float | None
   mean_gap: float | None
   mean_time: float
   speedup: float
@@ -156,6 +164,8 @@ class PairwiseComparisonRecord:
       "normality_p_value_b": _finite_or_none(comp.normality_p_value_b),
       "effect_interpretation": self.effect_interpretation,
     }
+    if comp.vargha_delaney_a12 is not None:
+      payload["vargha_delaney_a12"] = float(comp.vargha_delaney_a12)
     if self.p_value_corrected is not None:
       payload["p_value_corrected"] = float(self.p_value_corrected)
     if self.significant_after_correction is not None:
@@ -208,6 +218,67 @@ class ProblemAnalysis:
     return payload
 
 
+def _prepare_paired_problem_cost_inputs(
+  results: Mapping[str, Mapping[str, Any]],
+  algorithm_names: Sequence[str],
+  paired_cost_data: list[NDArray[Any]],
+) -> tuple[list[NDArray[np.float64]], list[NDArray[np.float64]], list[NDArray[np.bool_]], bool]:
+  """Extract aligned unpenalized costs, dimensionless ``hat_nu``, and feasibility masks.
+
+  Returns ``(cost_cols, hat_nu_cols, feas_cols, has_infeasibility)``. When no VRP
+  feasibility metadata is present or 100% of seeds are feasible, ``has_infeasibility``
+  is ``False`` so callers execute the exact unconstrained Demšar (2006) path.
+  """
+  if not paired_cost_data:
+    return [], [], [], False
+  common_len = min((len(arr) for arr in paired_cost_data), default=0)
+  if common_len == 0:
+    empty_f = [np.empty(0, dtype=np.float64) for _ in algorithm_names]
+    empty_b = [np.empty(0, dtype=bool) for _ in algorithm_names]
+    return empty_f, empty_f, empty_b, False
+
+  has_vrp_feasibility = any(
+    results[name].get("raw_is_feasible") is not None for name in algorithm_names
+  )
+  if not has_vrp_feasibility:
+    cost_cols = [np.asarray(arr[:common_len], dtype=np.float64) for arr in paired_cost_data]
+    zero_viols = [np.zeros(common_len, dtype=np.float64) for _ in algorithm_names]
+    all_feas = [np.ones(common_len, dtype=bool) for _ in algorithm_names]
+    return cost_cols, zero_viols, all_feas, False
+
+  cost_cols = []
+  nu_cols: list[NDArray[np.float64]] = []
+  feas_cols: list[NDArray[np.bool_]] = []
+
+  for idx, name in enumerate(algorithm_names):
+    entry = results[name]
+    raw_unpen = entry.get("raw_unpenalized_costs")
+    raw_feas = entry.get("raw_is_feasible")
+    viols = extract_entry_normalized_violations(entry, expected_len=common_len)
+
+    col_cost = (
+      np.asarray(raw_unpen[:common_len], dtype=np.float64)
+      if isinstance(raw_unpen, list) and len(raw_unpen) >= common_len
+      else np.asarray(paired_cost_data[idx][:common_len], dtype=np.float64)
+    )
+    col_nu = (
+      np.asarray(viols[:common_len], dtype=np.float64)
+      if viols is not None
+      else np.zeros(common_len, dtype=np.float64)
+    )
+    col_feas = (
+      np.asarray(raw_feas[:common_len], dtype=bool)
+      if isinstance(raw_feas, list) and len(raw_feas) >= common_len
+      else np.ones(common_len, dtype=bool)
+    )
+    cost_cols.append(col_cost)
+    nu_cols.append(col_nu)
+    feas_cols.append(col_feas)
+
+  has_infeas = not all(bool(np.all(col)) for col in feas_cols)
+  return cost_cols, nu_cols, feas_cols, has_infeas
+
+
 def _run_omnibus_if_eligible(
   *,
   series_data: list[NDArray[Any]],
@@ -229,8 +300,10 @@ def _run_pairwise_comparisons(
   series_data: list[NDArray[Any]],
   metric_name: str,
   analyzer: StatisticalAnalyzer,
+  hat_nu_data: list[NDArray[np.float64]] | None = None,
+  feasibility_data: list[NDArray[np.bool_]] | None = None,
 ) -> tuple[PairwiseComparisonRecord, ...]:
-  """Run paired Wilcoxon + Holm-Bonferroni using ``analyzer.alpha``."""
+  """Run paired Wilcoxon (when 100% feasible) or constrained Binomial Sign Test + Holm-Bonferroni."""
   min_len = min((len(d) for d in series_data), default=0)
   if min_len < 2:
     return ()
@@ -238,14 +311,33 @@ def _run_pairwise_comparisons(
   summaries: list[StatisticalSummary] = []
   for i, name1 in enumerate(algorithm_names):
     for j, name2 in enumerate(algorithm_names[i + 1 :], start=i + 1):
-      summaries.append(
-        analyzer.paired_comparison(
-          series_data[i],
-          series_data[j],
-          f"{name1} vs {name2}",
-          metric_name=metric_name,
+      if (
+        feasibility_data is not None
+        and hat_nu_data is not None
+        and (not bool(np.all(feasibility_data[i])) or not bool(np.all(feasibility_data[j])))
+      ):
+        summaries.append(
+          constrained_paired_comparison(
+            series_data[i],
+            hat_nu_data[i],
+            feasibility_data[i],
+            series_data[j],
+            hat_nu_data[j],
+            feasibility_data[j],
+            label=f"{name1} vs {name2}",
+            metric_name=metric_name,
+            analyzer=analyzer,
+          )
         )
-      )
+      else:
+        summaries.append(
+          analyzer.paired_comparison(
+            series_data[i],
+            series_data[j],
+            f"{name1} vs {name2}",
+            metric_name=metric_name,
+          )
+        )
 
   reject: list[bool] = []
   pvals_corrected: list[float] = []
@@ -384,16 +476,28 @@ def analyze_problem(
       )
     run_time_inference = True
 
+  cost_cols, nu_cols, feas_cols, has_infeasibility = _prepare_paired_problem_cost_inputs(
+    results, algorithm_names, paired_cost_data
+  )
+
+  if has_infeasibility and len(cost_cols) >= 3 and min((len(c) for c in cost_cols), default=0) >= 2:
+    deb_ranks = compute_deb_seed_rank_matrix(cost_cols, nu_cols, feas_cols)
+    omnibus_series: list[NDArray[Any]] = [deb_ranks[:, j] for j in range(len(algorithm_names))]
+  else:
+    omnibus_series = list(cost_cols)
+
   cost_omnibus = _run_omnibus_if_eligible(
-    series_data=paired_cost_data,
+    series_data=omnibus_series,
     algorithm_names=algorithm_names,
     alpha=active_analyzer.alpha,
   )
   cost_pairwise = _run_pairwise_comparisons(
     algorithm_names=algorithm_names,
-    series_data=paired_cost_data,
+    series_data=list(cost_cols),
     metric_name="cost",
     analyzer=active_analyzer,
+    hat_nu_data=nu_cols if has_infeasibility else None,
+    feasibility_data=feas_cols if has_infeasibility else None,
   )
 
   time_omnibus: OmnibusTestResult | None = None
@@ -418,8 +522,43 @@ def analyze_problem(
   rows: list[AlgorithmProblemRow] = []
   for idx, name in enumerate(algorithm_names):
     entry = results[name]
-    m_cost = _resolve_metric_mean(entry, "mean_cost", cost_data[idx], name)
-    m_gap = _resolve_gap_mean(entry, m_cost, optimal_cost, gap_data[idx], name)
+    raw_feas = entry.get("raw_is_feasible")
+    m_cost: float | None
+    m_gap: float | None
+    if isinstance(raw_feas, list) and raw_feas:
+      feas_mask = np.asarray(raw_feas, dtype=bool)
+      unpen_raw = entry.get("raw_unpenalized_costs")
+      cost_src = (
+        np.asarray(unpen_raw, dtype=np.float64)
+        if isinstance(unpen_raw, list) and len(unpen_raw) == len(feas_mask)
+        else cost_data[idx]
+      )
+      if not bool(np.any(feas_mask)):
+        m_cost, m_gap = None, None
+      else:
+        m_cost = finite_metric(entry.get("mean_cost"))
+        if m_cost is None and len(cost_src) == len(feas_mask):
+          valid_c = cost_src[feas_mask]
+          valid_c = valid_c[np.isfinite(valid_c)]
+          m_cost = (
+            float(np.mean(valid_c))
+            if valid_c.size > 0
+            else _resolve_metric_mean(entry, "mean_cost", cost_data[idx], name)
+          )
+        elif m_cost is None:
+          m_cost = _resolve_metric_mean(entry, "mean_cost", cost_data[idx], name)
+        m_gap = finite_metric(entry.get("mean_gap"))
+        if m_gap is None and optimal_cost is not None and optimal_cost > 0:
+          m_gap = float((m_cost - optimal_cost) / optimal_cost * 100.0)
+        elif m_gap is None and len(gap_data[idx]) == len(feas_mask):
+          valid_g = gap_data[idx][feas_mask]
+          valid_g = valid_g[np.isfinite(valid_g)]
+          m_gap = float(np.mean(valid_g)) if valid_g.size > 0 else None
+    elif entry.get("feasible_runs") == 0 and entry.get("mean_cost") is None:
+      m_cost, m_gap = None, None
+    else:
+      m_cost = _resolve_metric_mean(entry, "mean_cost", cost_data[idx], name)
+      m_gap = _resolve_gap_mean(entry, m_cost, optimal_cost, gap_data[idx], name)
     m_time = _resolve_metric_mean(entry, "mean_time", time_data[idx], name)
     speedup = (
       1.0 if name == baseline_name else ((baseline_time / m_time) if (m_time > 0.0 and baseline_time > 0.0) else 1.0)
@@ -456,4 +595,5 @@ __all__ = [
   "PairwiseComparisonRecord",
   "ProblemAnalysis",
   "analyze_problem",
+  "build_feasibility_aware_scores",
 ]

@@ -32,6 +32,7 @@ import duckdb
 import numpy as np
 
 from data_models.exceptions import (
+  AmbiguousProblemError,
   DatabaseConnectionError,
   InstanceNotFoundError,
   InvalidEdgeTypeError,
@@ -47,6 +48,8 @@ from .problem_type_handlers import (
   BaseProblemRow,
   ProblemMetadataRow,
   ProblemTypeHandler,
+  build_vrp_constraints,
+  validate_single_depot,
 )
 
 if TYPE_CHECKING:
@@ -155,23 +158,37 @@ class DatabaseLoader:
       raise UnsupportedProblemTypeError(problem_type)
     return handler.list_problems(self.conn)
 
-  def load(self, instance_name: str) -> Problem:
+  def load(
+    self,
+    instance_name: str,
+    problem_type: str | None = None,
+    *,
+    capacity: int | None = None,
+    max_vehicles: int | None = None,
+    max_route_distance: float | None = None,
+    return_to_depot: bool | None = None,
+  ) -> Problem:
     """
     Load a problem instance from the DuckDB database (or `TsplibLoader` fallback).
 
-    Args:
-        instance_name: Name of the problem instance (e.g., 'berlin52').
-
-    Returns:
-        Immutable `Problem` instance with all data and metadata loaded.
+    When `problem_type` is `'OVRP'` or `'DCVRP'` and no exact row with that type
+    exists in `problems`, falls back unambiguously to the matching `'CVRP'` row
+    and derives the requested variant (`BUG-111`, `DP17-10`).
     """
     if self._tsplib_fallback is not None:
-      return self._tsplib_fallback.load(instance_name)
+      return self._tsplib_fallback.load(
+        instance_name,
+        problem_type=problem_type,
+        capacity=capacity,
+        max_vehicles=max_vehicles,
+        max_route_distance=max_route_distance,
+        return_to_depot=return_to_depot,
+      )
 
     if self.conn is None:
       raise RuntimeError("DatabaseLoader must be used as context manager")
 
-    metadata = self._load_metadata(instance_name)
+    metadata = self._load_metadata(instance_name, problem_type=problem_type)
     coordinates, demands, display_coords, depots = self._load_coordinates(metadata)
     distances, matrix_format, _is_symmetric = self._load_distance_matrix(metadata)
     metadata["edge_weight_format"] = metadata["edge_weight_format"] or matrix_format
@@ -183,37 +200,139 @@ class DatabaseLoader:
       distances=distances,
       display_coords=display_coords,
       depots=depots,
+      capacity_override=capacity,
+      max_vehicles_override=max_vehicles,
+      max_route_distance_override=max_route_distance,
+      return_to_depot_override=return_to_depot,
     )
 
-  def _load_metadata(self, instance_name: str) -> ProblemMetadataRow:
-    """Query and validate problem metadata across normalized tables."""
+  def _resolve_problem_row(
+    self,
+    instance_name: str,
+    *,
+    problem_type: str | None = None,
+  ) -> tuple[tuple[Any, ...], bool]:
+    """Resolve one row from `problems LEFT JOIN file_tracking` with `(name, type)` disambiguation.
+
+    Returns ``(row, is_derived_variant)``. When ``problem_type`` is ``OVRP`` or ``DCVRP``
+    and no exact row exists, falls back to the stored ``CVRP`` row and marks
+    ``is_derived_variant=True`` so closed-CVRP solutions are never reused as OVRP/DCVRP BKS.
+    """
     if self.conn is None:
       raise RuntimeError("DatabaseLoader must be used as context manager")
 
-    row = self.conn.execute(
+    if problem_type is not None:
+      normalized_type = problem_type.upper().strip()
+      row = self.conn.execute(
+        """
+        SELECT p.id, p.name, p.type, p.has_solution, ft.file_path, ft.checksum
+        FROM problems p
+        LEFT JOIN file_tracking ft ON p.id = ft.problem_id
+        WHERE p.name = ? AND p.type = ?
+        """,
+        [instance_name, normalized_type],
+      ).fetchone()
+      if row is not None:
+        return row, False
+      if normalized_type in ("OVRP", "DCVRP"):
+        cvrp_row = self.conn.execute(
+          """
+          SELECT p.id, p.name, p.type, p.has_solution, ft.file_path, ft.checksum
+          FROM problems p
+          LEFT JOIN file_tracking ft ON p.id = ft.problem_id
+          WHERE p.name = ? AND p.type = 'CVRP'
+          """,
+          [instance_name],
+        ).fetchone()
+        if cvrp_row is not None:
+          return cvrp_row, True
+      raise InstanceNotFoundError(instance_name)
+
+    rows = self.conn.execute(
       """
       SELECT p.id, p.name, p.type, p.has_solution, ft.file_path, ft.checksum
       FROM problems p
       LEFT JOIN file_tracking ft ON p.id = ft.problem_id
       WHERE p.name = ?
+      ORDER BY p.id ASC
       """,
       [instance_name],
-    ).fetchone()
-
-    if row is None:
+    ).fetchall()
+    if not rows:
       raise InstanceNotFoundError(instance_name)
+    if len(rows) > 1:
+      raise AmbiguousProblemError(instance_name, [str(r[2]) for r in rows])
+    return rows[0], False
+
+  def load_optimal_cost(
+    self,
+    instance_name: str,
+    problem_type: str | None = None,
+  ) -> float | None:
+    """Return the best canonical solution cost stored for `(instance_name, problem_type)`.
+
+    Returns ``None`` when ``problem_type`` (e.g. ``OVRP``) is derived from a stored
+    closed ``CVRP`` row so closed-CVRP BKS values are never misapplied (`DP17-6`, `BUG-111`).
+    """
+    if self._tsplib_fallback is not None:
+      return self._tsplib_fallback.resolve_optimal_cost(instance_name, problem_type=problem_type)
+
+    if self.conn is None:
+      raise RuntimeError("DatabaseLoader must be used as context manager")
+
+    row, is_derived = self._resolve_problem_row(instance_name, problem_type=problem_type)
+    if is_derived:
+      return None
+    problem_id = int(row[0])
+
+    has_solutions_row = self.conn.execute(
+      "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'solutions'"
+    ).fetchone()
+    if has_solutions_row is None or int(has_solutions_row[0]) == 0:
+      return None
+
+    sol_row = self.conn.execute(
+      """
+      SELECT cost
+      FROM solutions
+      WHERE problem_id = ?
+        AND cost IS NOT NULL
+      ORDER BY CASE quality
+        WHEN 'proven_optimal' THEN 0
+        WHEN 'best_known' THEN 1
+        ELSE 2
+      END ASC,
+      id ASC
+      LIMIT 1
+      """,
+      [problem_id],
+    ).fetchone()
+    return float(sol_row[0]) if sol_row is not None else None
+
+  def _load_metadata(
+    self,
+    instance_name: str,
+    *,
+    problem_type: str | None = None,
+  ) -> ProblemMetadataRow:
+    """Query and validate problem metadata across normalized tables."""
+    if self.conn is None:
+      raise RuntimeError("DatabaseLoader must be used as context manager")
+
+    row, is_derived = self._resolve_problem_row(instance_name, problem_type=problem_type)
 
     problem_id, name, ptype, has_solution, source_file, file_checksum = row
+    effective_type = problem_type.upper().strip() if (is_derived and problem_type is not None) else ptype
 
-    handler = self.handlers.get(ptype)
+    handler = self.handlers.get(effective_type)
     if handler is None:
-      raise UnsupportedProblemTypeError(ptype, instance_name=name)
+      raise UnsupportedProblemTypeError(effective_type, instance_name=name)
 
     base = BaseProblemRow(
       problem_id=problem_id,
       name=name,
-      problem_type=ptype,
-      has_solution=bool(has_solution),
+      problem_type=effective_type,
+      has_solution=False if is_derived else bool(has_solution),
       source_file=source_file,
       file_checksum=file_checksum,
     )
@@ -337,13 +456,36 @@ class DatabaseLoader:
     distances: np.ndarray | None,
     display_coords: np.ndarray | None = None,
     depots: np.ndarray | None = None,
+    *,
+    capacity_override: int | None = None,
+    max_vehicles_override: int | None = None,
+    max_route_distance_override: float | None = None,
+    return_to_depot_override: bool | None = None,
   ) -> Problem:
-    """Assemble validated Problem instance from loaded data."""
+    """Assemble validated Problem instance from loaded data and optional declarative overrides."""
+    validate_single_depot(metadata["name"], metadata["type"], depots)
     try:
       if distances is None and coordinates is not None and metadata["dimension"] <= self.max_eager_matrix_dimension:
         from distances.matrix import compute_distance_matrix
 
         distances = compute_distance_matrix(coordinates, metadata["edge_type"])
+
+      effective_capacity = capacity_override if capacity_override is not None else metadata["capacity"]
+      effective_max_distance = (
+        max_route_distance_override if max_route_distance_override is not None else metadata.get("max_distance")
+      )
+      effective_vehicles = max_vehicles_override if max_vehicles_override is not None else metadata.get("vehicles")
+
+      constraints = build_vrp_constraints(
+        name=metadata["name"],
+        problem_type=metadata["type"],
+        dimension=metadata["dimension"],
+        capacity=effective_capacity,
+        max_distance=effective_max_distance,
+        vehicles=effective_vehicles,
+        service_time=metadata.get("service_time"),
+        return_to_depot=return_to_depot_override,
+      )
 
       return Problem(
         name=metadata["name"],
@@ -352,7 +494,7 @@ class DatabaseLoader:
         edge_type=metadata["edge_type"],
         coordinates=coordinates,
         distances=distances,
-        capacity=metadata["capacity"],
+        capacity=effective_capacity,
         demands=demands,
         problem_id=metadata["problem_id"],
         comment=metadata["comment"],
@@ -363,6 +505,7 @@ class DatabaseLoader:
         depots=depots,
         source_file=metadata["source_file"],
         file_checksum=metadata["file_checksum"],
+        constraints=constraints,
       )
     except ValueError as e:
       raise InvalidProblemDataError(metadata["name"], str(e)) from e

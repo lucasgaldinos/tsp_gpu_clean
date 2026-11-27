@@ -33,7 +33,7 @@ related_files:
   - "[src/algorithms/pipeline_steps.py](../../src/algorithms/pipeline_steps.py)"
   - "[src/algorithms/strategies/crossover/kernels/order_crossover.cu](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu)"
   - "[src/algorithms/strategies/crossover/order_crossover.py](../../src/algorithms/strategies/crossover/order_crossover.py)"
-  - "[src/algorithms/strategies/evaluation/kernels/cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu)"
+  - "[src/algorithms/strategies/evaluation/kernels/tour_cost.cu](../../src/algorithms/strategies/evaluation/kernels/tour_cost.cu)"
   - "[src/algorithms/strategies/evaluation/cost_evaluation.py](../../src/algorithms/strategies/evaluation/cost_evaluation.py)"
   - "[src/algorithms/strategies/local_search/kernels/two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu)"
   - "[src/algorithms/strategies/local_search/two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py)"
@@ -374,6 +374,7 @@ The multi-axis quality audit of Phase 11 uncovered two contract defects and one 
 ### 11.1 `Task 11.18` — Telemetry contract synchronization (`BUG-31`)
 
 In [test_unit_records.py](../../tests/data_models/test_unit_records.py#L54-L190):
+
 - Added `"mean_phase_timings"`, `"phase_share_pct"`, `"phase_share_cv_pct"` to `OPTIONAL_FIELDS` (expanding optional columns from 13 to 16).
 - Included sample values in `FULL_PAYLOAD` (expanding declared payload keys from 40 to 43).
 - Updated assertions `assert len(BenchmarkRunInput.__optional_keys__) == 16` and `assert len(FULL_PAYLOAD) == 43`.
@@ -383,6 +384,7 @@ All 15 tests in `tests/data_models/test_unit_records.py` now pass.
 ### 11.2 Canonical `GEO` distance patch (`BUG-32`)
 
 To restore compliance with TSPLIB95 without waiting for an upstream `routing_data` release:
+
 - Re-implemented `_to_radians_geo(coord_val: float) -> float` in [pairwise.py](../../src/distances/pairwise.py#L66):
   $$\text{deg} = \lfloor x \rfloor, \quad \text{min} = x - \text{deg}, \quad \text{rad} = \frac{\pi \cdot (\text{deg} + \frac{5}{3}\text{min})}{180}$$
   Truncating the degree part ensures that coordinates like `52.31` (52° 18.6') are correctly converted to radians instead of being rounded to 53°.
@@ -404,4 +406,3 @@ Executing [run_selected_problems.py](../../benchmark_scripts/experiments-and-exa
 | GEO distance patch (`BUG-32`) | `pytest tests/distances -q` | 197 passed |
 | Full test suite | `pytest tests/ -q` | 1067 passed, 0 failed |
 | Documentation check | `python -m benchmark_scripts.check_docs` | exit 0 (0 stale, 0 dead links, 0 undefined symbols) |
-

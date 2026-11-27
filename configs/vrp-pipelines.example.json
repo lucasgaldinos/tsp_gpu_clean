@@ -1,0 +1,160 @@
+{
+  "$schema": "./schemas/algorithms.schema.json",
+  "default_params": {
+    "population_size": 128,
+    "mutation_rate": 0.05,
+    "seed": 42
+  },
+  "algorithm_configs": {
+    "VRP_GiantTour_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Giant-Tour GPU GA with 32-lane warp-parallel Prins split evaluation and instance-scaled penalties",
+      "params": {
+        "local_search_stage": "none"
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationGPURandom"
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchNoOp"
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "split_mode": "prins",
+            "penalty_policy": {
+              "class": "InstanceScaledPenaltyPolicy"
+            }
+          }
+        }
+      }
+    },
+    "VRP_HybridPeriodic_InterRoute_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Hybrid Split-Memetic GPU pipeline: SplitDecodeStep -> periodic GPU inter-route multi-move -> GiantTourEncodeStep",
+      "params": {
+        "local_search_stage": "none",
+        "pipeline": [
+          {
+            "class": "SplitDecodeStep"
+          },
+          {
+            "class": "PeriodicLocalSearchStep",
+            "params": {
+              "interval": 5,
+              "target": "offspring"
+            }
+          },
+          {
+            "class": "GiantTourEncodeStep"
+          }
+        ]
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationGPURandom"
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPUOrder"
+        },
+        "mutation": {
+          "class": "MutationGPUInversion"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOptStar",
+          "params": {
+            "mode": "multi_move",
+            "max_iterations": 10
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "split_mode": "prins"
+          }
+        }
+      }
+    },
+    "VRP_DirectDelimited_Adaptive_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Direct 0-delimited GPU GA with RBX, GPU route relocate, FleetBinPackStep (FFD), and AdaptivePenaltyPolicy",
+      "params": {
+        "local_search_stage": "post_mutation",
+        "pipeline": [
+          {
+            "class": "FleetBinPackStep",
+            "params": {
+              "bin_packing": {
+                "class": "BinPackingGPUFFD"
+              },
+              "target": "offspring"
+            }
+          },
+          {
+            "class": "PenaltyAdaptationStep",
+            "params": {
+              "penalty_policy": {
+                "class": "AdaptivePenaltyPolicy"
+              },
+              "interval": 1
+            }
+          }
+        ]
+      },
+      "strategies": {
+        "initialization": {
+          "class": "InitializationGPUClarkeWright"
+        },
+        "selection": {
+          "class": "SelectionGPUTournament",
+          "params": {
+            "k": 3
+          }
+        },
+        "crossover": {
+          "class": "CrossoverGPURBX"
+        },
+        "mutation": {
+          "class": "MutationGPURouteRelocate"
+        },
+        "local_search": {
+          "class": "LocalSearchGPUTwoOptStar",
+          "params": {
+            "mode": "multi_move",
+            "max_iterations": 10
+          }
+        },
+        "evaluation": {
+          "class": "EvaluationGPUCost",
+          "params": {
+            "penalty_policy": {
+              "class": "AdaptivePenaltyPolicy"
+            }
+          }
+        }
+      }
+    }
+  }
+}

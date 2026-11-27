@@ -137,7 +137,7 @@ EXPECTED_GA_PARAMS: dict[str, float] = {"population_size": 256.0, "mutation_rate
 #: Operator composition that defines each variant's execution backend (`DP11-1` naming).
 EXPECTED_STRATEGIES: dict[str, dict[str, str]] = {
   "CPU": {
-    "initialization": "InitializationRandom",
+    "initialization": "InitializationCPURandom",
     "selection": "SelectionTournament",
     "crossover": "CrossoverOrder",
     "mutation": "MutationSwap",
@@ -145,7 +145,7 @@ EXPECTED_STRATEGIES: dict[str, dict[str, str]] = {
     "evaluation": "EvaluationCPUCost",
   },
   "HybridNaive": {
-    "initialization": "InitializationRandom",
+    "initialization": "InitializationCPURandom",
     "selection": "SelectionTournament",
     "crossover": "CrossoverOrder",
     "mutation": "MutationSwap",
@@ -153,7 +153,7 @@ EXPECTED_STRATEGIES: dict[str, dict[str, str]] = {
     "evaluation": "EvaluationCPUCost",
   },
   "HybridOptimized": {
-    "initialization": "InitializationRandom",
+    "initialization": "InitializationCPURandom",
     "selection": "SelectionTournament",
     "crossover": "CrossoverOrder",
     "mutation": "MutationSwap",
@@ -161,7 +161,7 @@ EXPECTED_STRATEGIES: dict[str, dict[str, str]] = {
     "evaluation": "EvaluationGPUCost",
   },
   "FullGPUModular": {
-    "initialization": "InitializationRandom",
+    "initialization": "InitializationGPURandom",
     "selection": "SelectionGPUTournament",
     "crossover": "CrossoverGPUOrder",
     "mutation": "MutationGPUSwap",

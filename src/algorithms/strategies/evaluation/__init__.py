@@ -2,4 +2,7 @@
 
 from .cost_evaluation import EvaluationCPUCost, EvaluationGPUCost
 
-__all__: list[str] = ["EvaluationCPUCost", "EvaluationGPUCost"]
+__all__: list[str] = [
+  "EvaluationCPUCost",
+  "EvaluationGPUCost",
+]

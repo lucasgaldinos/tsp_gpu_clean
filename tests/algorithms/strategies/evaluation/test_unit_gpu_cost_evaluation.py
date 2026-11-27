@@ -140,25 +140,52 @@ def test_gpu_cost_evaluation_counts_h2d_for_cpu_input() -> None:
   assert gpu_eval.h2d_bytes - baseline_bytes == batch_np.nbytes
 
 
-def test_cost_calculator_kernel_uses_warp_shuffle_and_stride() -> None:
-  """WHAT: Falsifiable test confirming cost_calculator.cu uses warp shuffle and stride.
+def test_tour_cost_kernel_uses_warp_shuffle_and_stride() -> None:
+  """WHAT: Falsifiable test confirming tour_cost.cu uses warp shuffle and stride.
 
-  WHY: Task 11.13 requires eliminating chunk partitioning and 5 shared-memory barriers.
+  WHY: Task 11.13 / 17.28 requires coalesced block-stride loops and `utils/kernels/block_reductions.cuh`.
   """
   from pathlib import Path
-  kernel_path = (
-    Path(__file__).resolve().parents[4]
-    / "src"
-    / "algorithms"
-    / "strategies"
-    / "evaluation"
-    / "kernels"
-    / "cost_calculator.cu"
-  )
+
+  root = Path(__file__).resolve().parents[4]
+  kernel_path = root / "src" / "algorithms" / "strategies" / "evaluation" / "kernels" / "tour_cost.cu"
+  header_path = root / "src" / "utils" / "kernels" / "block_reductions.cuh"
   source = kernel_path.read_text(encoding="utf-8")
-  assert "__shfl_down_sync" in source, "cost_calculator.cu must use __shfl_down_sync reduction"
-  assert "for (int i = tid; i < n; i += block_size)" in source, (
-    "cost_calculator.cu must use block-stride loop"
+  header_source = header_path.read_text(encoding="utf-8")
+  assert '#include "block_reductions.cuh"' in source
+  assert "block_reduce_sum<long long>" in source
+  assert "__shfl_down_sync" in header_source, "block_reductions.cuh must use __shfl_down_sync reduction"
+  assert "for (int i = tid; i < num_edges; i += block_size)" in source, (
+    "tour_cost.cu must use block-stride loop"
   )
-  assert "int chunk = " not in source, "cost_calculator.cu must not use chunk partitioning"
+  assert "int chunk = " not in source, "tour_cost.cu must not use chunk partitioning"
+
+
+def test_open_tsp_omits_closing_edge_cpu_and_gpu() -> None:
+  """WHAT: Open TSP (`return_to_depot=False`) omits the closing `tour[n-1] -> tour[0]` edge on CPU and GPU."""
+  from data_models.vrp_constraints import VRPConstraints
+
+  coords = np.array([[0.0, 0.0], [3.0, 0.0], [3.0, 4.0], [0.0, 4.0]], dtype=np.float64)
+  open_prob = Problem(
+    name="open_tsp4",
+    dimension=4,
+    problem_type="TSP",
+    edge_type="EUC_2D",
+    coordinates=coords,
+    distances=None,
+    capacity=None,
+    demands=None,
+    constraints=VRPConstraints(return_to_depot=False),
+  )
+  tour = np.array([[0, 1, 2, 3]], dtype=np.int32)
+  cpu_ctx = ProblemContext(open_prob, xp=np, seed=1)
+  cpu_cost = EvaluationCPUCost().evaluate_batch(tour, cpu_ctx)
+  # Edges: (0->1)=3 + (1->2)=4 + (2->3)=3 = 10 (omitting (3->0)=4).
+  assert float(cpu_cost[0]) == pytest.approx(10.0)
+
+  cp = cupy_backend()
+  if cp is not None:
+    gpu_ctx = ProblemContext(open_prob, xp=cp, seed=1)
+    gpu_cost = EvaluationGPUCost().evaluate_batch(tour, gpu_ctx)
+    assert float(gpu_cost[0]) == pytest.approx(10.0)
 

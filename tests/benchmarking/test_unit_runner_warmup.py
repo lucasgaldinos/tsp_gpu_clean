@@ -25,7 +25,7 @@ from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
 from algorithms.pipeline_steps import PeriodicLocalSearchStep
 from algorithms.strategies.crossover.order_crossover import CrossoverOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization.random_initialization import InitializationRandom
+from algorithms.strategies.initialization import InitializationCPURandom
 from algorithms.strategies.local_search.two_opt import LocalSearchCPUTwoOpt
 from algorithms.strategies.mutation.swap_mutation import MutationSwap
 from algorithms.strategies.selection.tournament_selection import SelectionTournament
@@ -307,7 +307,7 @@ def test_ga_warmup_covers_periodic_local_search_step(burma14_problem: Problem) -
     population_size=8,
     mutation_rate=0.02,
     seed=42,
-    initialization=InitializationRandom(seed=42),
+    initialization=InitializationCPURandom(seed=42),
     selection=SelectionTournament(k=3, seed=42),
     crossover=CrossoverOrder(seed=42),
     mutation=MutationSwap(seed=42),

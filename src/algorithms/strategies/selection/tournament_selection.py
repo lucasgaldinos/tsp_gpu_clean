@@ -159,14 +159,14 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
       )
     return self._kernel
 
-  def warmup(self, context: ProblemContext) -> None:
+  def _warmup_impl(self, context: ProblemContext) -> None:
     """Compile the kernel and launch it once on a valid permutation batch.
 
     `select_batch` returns early for a single route, so the warm-up batch carries two
     routes and two dummy fitness values. The routes are `arange`, never `cp.zeros`
     (`BUG-24`).
     """
-    super().warmup(context)
+    super()._warmup_impl(context)
     cp = require_gpu()
     batch = self._warmup_batch(context, rows=2)
     self.select_batch(batch, cp.zeros(2, dtype=cp.float64), num_parents=2, context=context)

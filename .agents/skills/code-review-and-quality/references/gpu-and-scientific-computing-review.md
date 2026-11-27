@@ -13,6 +13,12 @@ modifications:
           Created from the defect classes that survived Phase 11 review: decorator-level
           synchronization, unilateral RNG sampling changes, uncached host/device scalars,
           unverified DoD greps, and orphaned telemetry keys.
+  - date_modified: 2026-11-26
+    modifications:
+      - description: >
+          Added sections 6-8 from Phase 17 CVRP post-mortem: warmup() purity, CUDA warp
+          SIMD utilization and fair vectorized CPU baselines, and partial-feasibility
+          statistical invariance + doc/schema contract parity.
 status: review
 author:
   - "Lucas Galdino"
@@ -155,6 +161,69 @@ done
 ```
 
 A key present in four of five layers is a defect, not a follow-up.
+
+## 6. `warmup()` counter, timer, and RNG purity
+
+**What got missed:** New VRP strategy `warmup(context)` methods invoked the live
+`@time_strategy`-decorated `evaluate_batch`/`improve_batch` directly on `self` and
+`context`, mutating `h2d_bytes`, `kernel_launches`, `@time_strategy` buckets, and
+advancing `context.rng` before repetition 1 even began.
+
+**Inspection:** Every `warmup(context)` must compile/launch kernels via internal
+un-decorated helpers using a private scratch RNG (`np.random.default_rng(0)`), and leave
+`self.h2d_bytes`, `self.d2h_bytes`, `self.kernel_launches`, `context.h2d_bytes` (or
+documented cache-only delta), and `context.rng.bit_generator.state` unchanged.
+
+**Falsifiable check:** Snapshot `before = context.rng.bit_generator.state` and strategy
+counters before `strategy.warmup(context)`; assert identical RNG state and `0` leaked
+calls/timings afterward.
+
+## 7. CUDA warp SIMD utilization & fair vectorized CPU baselines
+
+**What got missed:**
+
+1. A CUDA Split DP kernel launched 32-thread blocks while executing the entire DP loop
+   inside `if (tid == 0)` (`3.1%` SIMD lane utilization, `96.9%` idle lanes) and stored
+   per-tour buffers with stride-`width` uncoalesced global loads.
+2. New CPU strategies (`EvaluationCPUCVRPCost`, `LocalSearchCPUCVRP`) iterated via
+   pure-python `.tolist()` loops while existing TSP CPU baselines (`two_opt.py`) were
+   NumPy-vectorized—artificially inflating reported GPU speedup ratios.
+
+**Inspection:**
+
+- In every `.cu` kernel, flag any inner `O(n)` or `O(n*B)` loop guarded by `if (tid == 0)`
+  that could either map 1 thread = 1 independent tour (for small `n`) or parallelize the
+  inner scan/reduction across warp lanes (`__shfl_down_sync`). Check global memory stride
+  across consecutive lanes (`tid` should stride contiguous elements when possible).
+- In every CPU sibling of a GPU strategy, verify the hot loop uses vectorized NumPy (or
+  documented algorithmic parity, e.g. compiled/vectorized distance lookups) rather than
+  nested `.tolist()` python loops, or explicitly flag it as a non-fair baseline.
+
+**Falsifiable check:** `rg -n "\.tolist\(\)" src/algorithms/strategies/` on hot paths, plus
+auditing `if (tid == 0)` block lengths in `src/algorithms/strategies/**/kernels/*.cu`.
+
+## 8. Statistical validity under partial feasibility & config/doc contract honesty
+
+**What got missed:**
+
+1. Mapping infeasible runs to a jump surrogate $C^{\max} + 1 + \nu$ broke scale-invariance
+   of cardinal-difference tests (`wilcoxon`, rank-biserial $r$, Hodges-Lehmann CI)—changing
+   the arbitrary `+ 1.0` offset altered `p_value`—while `not all(raw_is_feasible)` collapsed
+   `29/30` feasible runs below a `30/30` random baseline and summed incompatible units
+   ($\nu_Q + \nu_L + \nu_K$).
+2. Docs advertised `"Tier-1"` jargon (colliding with existing statistical Tiers) and
+   `problems.json` override keys that the loader never wired.
+
+**Inspection:**
+
+- **Ordinal vs. Cardinal Separation:** Verify rank-based tests (Friedman/Nemenyi) vs.
+  magnitude-sensitive paired tests (Wilcoxon/Hodges-Lehmann) are invariant to any positive
+  rescaling of penalty offsets and normalize multi-unit violations ($\nu_Q/Q + \nu_L/L_{\max} + \nu_K/K_{\max}$).
+- **Partial-Feasibility Test Case:** Require at least one unit test with mixed feasibility
+  (`0% < feasibility_rate < 100%`, e.g., `9/10` feasible) and a perturbation test asserting
+  changing an arbitrary jump constant does not change test p-values.
+- **Doc & Schema Contract Parity:** Every JSON key or CLI flag mentioned in `documentation/`
+  must be grepped in `src/` and validated against `configs/schemas/*.schema.json`.
 
 ## Related references
 

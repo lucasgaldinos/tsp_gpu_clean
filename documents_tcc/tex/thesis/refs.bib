@@ -100,6 +100,17 @@
   year      = {1967}
 }
 
+@article{arcuri2014hitchhiker,
+  author  = {Arcuri, Andrea and Briand, Lionel},
+  doi     = {10.1002/stvr.1486},
+  journal = {Software Testing, Verification and Reliability},
+  number  = {3},
+  pages   = {219--250},
+  title   = {A Hitchhiker's Guide to Statistical Tests for Assessing Randomized Algorithms in Software Engineering},
+  volume  = {24},
+  year    = {2014}
+}
+
 @article{article,
   author  = {Christofides, Nicos},
   doi     = {10.1007/s43069-021-00101-z},
@@ -227,6 +238,16 @@
   year      = {1964}
 }
 
+@incollection{coffman1996approximation,
+  author    = {Coffman, Jr., Edward G. and Garey, Michael R. and Johnson, David S.},
+  booktitle = {Approximation Algorithms for NP-Hard Problems},
+  editor    = {Hochbaum, Dorit S.},
+  pages     = {46--93},
+  publisher = {PWS Publishing Company},
+  title     = {Approximation Algorithms for Bin Packing: A Survey},
+  year      = {1996}
+}
+
 @book{cohen1988statistical,
   address   = {New York},
   author    = {Cohen, Jacob},
@@ -320,6 +341,18 @@
   publisher = {Cambridge University Press},
   title     = {Bootstrap Methods and Their Application},
   year      = {1997}
+}
+
+@article{deb2000efficient,
+  author  = {Deb, Kalyanmoy},
+  doi     = {10.1016/S0045-7825(99)00389-8},
+  journal = {Computer Methods in Applied Mechanics and Engineering},
+  number  = {2--4},
+  pages   = {311--338},
+  title   = {An efficient constraint handling method for genetic algorithms},
+  url     = {https://doi.org/10.1016/S0045-7825(99)00389-8},
+  volume  = {186},
+  year    = {2000}
 }
 
 @article{demsar2006statistical,
@@ -421,6 +454,7 @@
   year      = {2011}
 }
 
+
 @book{eiben2015introduction,
   author    = {Eiben, Agoston E and Smith, James E},
   doi       = {10.1007/978-3-662-44874-8},
@@ -442,7 +476,6 @@
   title     = {Discovering Statistics Using SPSS},
   year      = {2009}
 }
-
 
 @inproceedings{fleszar2002hybrid,
   author    = {Fleszar, Krzysztof and Hindi, Khalil S.},
@@ -491,7 +524,6 @@
   volume  = {32},
   year    = {1937}
 }
-
 @article{friedman1939corrections,
   author  = {Friedman, Milton},
   journal = {Journal of the American Statistical Association},
@@ -513,6 +545,7 @@
   volume  = {11},
   year    = {1940}
 }
+
 @inproceedings{fujimoto2011highly,
   author    = {Fujimoto, Noriyuki and Tsutsui, Shigeyoshi},
   booktitle = {Numerical Methods and Applications: 7th International Conference, NMA 2010, Borovets, Bulgaria, August 20-24, 2010. Revised Papers 7},
@@ -554,6 +587,18 @@
   year      = {2010}
 }
 
+@article{gillett1974heuristic,
+  author  = {Gillett, Billy E. and Miller, Leland R.},
+  doi     = {10.1287/opre.22.2.340},
+  journal = {Operations Research},
+  number  = {2},
+  pages   = {340--349},
+  title   = {A Heuristic Algorithm for the Vehicle-Dispatch Problem},
+  url     = {https://doi.org/10.1287/opre.22.2.340},
+  volume  = {22},
+  year    = {1974}
+}
+
 @article{glover1989tabu,
   author    = {Glover, Fred},
   journal   = {ORSA Journal on Computing},
@@ -572,6 +617,18 @@
   publisher = {Addison-Wesley},
   title     = {Genetic Algorithms in Search, Optimization, and Machine Learning},
   year      = {1989}
+}
+
+@article{goldberg1991what,
+  author  = {Goldberg, David},
+  doi     = {10.1145/103162.103163},
+  journal = {ACM Computing Surveys},
+  number  = {1},
+  pages   = {5--48},
+  title   = {What every computer scientist should know about floating-point arithmetic},
+  url     = {https://doi.org/10.1145/103162.103163},
+  volume  = {23},
+  year    = {1991}
 }
 
 @article{goldberg1992massive,
@@ -624,6 +681,7 @@
   year        = {2007}
 }
 
+
 @inproceedings{held1962dynamic,
   abstract  = {This paper explores a dynamic programming approach to the solution of three sequencing problems: a scheduling problem involving arbitrary cost functions, the traveling-salesman problem, and an assembly line balancing problem. Each of the problems is shown to admit of numerical solution through the use of a simple recursion scheme; these recursion schemes also exhibit similarities and contrasts in the structures of the three problems. For large problems, direct solution by means of dynamic programming is not practical, but procedures are given for obtaining good approximate results by solving sequences of smaller derived problems. Experience with a computer program for the solution of traveling-salesman problems is presented.},
   address   = {New York, NY, USA},
@@ -649,7 +707,6 @@
   year      = {2000}
 }
 
-
 @book{hollander1973nonparametric,
   author    = {Hollander, Myles and Wolfe, Douglas A.},
   isbn      = {978-0-471-40635-8},
@@ -673,6 +730,10 @@
   year    = {1979}
 }
 
+% ========================================
+% Section 2.4 Citations (Parallelization Strategies)
+% ========================================
+
 @article{hornstra2020simultaneous,
   abstract = {In this paper we introduce the vehicle routing problem with simultaneous pickup and delivery and handling costs (VRPSPD-H). In the VRPSPD-H, a fleet of vehicles operates from a single depot to service all customers, which have both a delivery and a pickup demand such that all delivery items originate from and all pickup items go to the depot. The items on the vehicles are organized as a single linear stack where only the last loaded item is accessible. Handling operations are required if the delivery items are not the last loaded ones. We implement a heuristic handling policy approximating the optimal decisions for the handling sub-problem, and we propose two bounds on the optimal policy, resulting in two new myopic policies. We show that one of the myopic policies outperforms the other one in all configurations, and that it is competitive with the heuristic handling policy if many routes are required. We propose an adaptive large neighborhood search (ALNS) metaheuristic to solve our problem, in which we embed the handling policies. Computational results indicate that our metaheuristic finds optimal solutions on instances of up to 15 customers. We also compare our ALNS metaheuristic against best solutions on benchmark instances of two special cases, the vehicle routing problem with simultaneous pickup and delivery (VRPSPD) and the traveling salesman problem with pickups, deliveries and handling costs (TSPPD-H), and on two related problems, the vehicle routing problem with divisible pickup and delivery (VRPDPD) and the vehicle routing problem with mixed pickup and delivery (VRPMPD). We find or improve 39 out of 54 best known solutions (BKS) for the VRPSPD, 36 out of 54 BKS for the VRPDPD, 15 out of 21 BKS for the VRPMPD, and 69 out of 80 BKS for the TSPPD-H. Finally, we introduce and analyze solutions for the variations of the VRPDPD and VRPMPD with handling costs – the VRPDPD-H and the VRPMPD-H, respectively.},
   author   = {Hornstra, Richard P. and Silva, Allyson and Roodbergen, Kees Jan and Coelho, Leandro C.},
@@ -695,10 +756,6 @@
   title   = {A theoretician's guide to the experimental analysis of algorithms},
   year    = {2002}
 }
-
-% ========================================
-% Section 2.4 Citations (Parallelization Strategies)
-% ========================================
 
 @article{kerby2014simple,
   author  = {Kerby, Dave S.},
@@ -797,6 +854,18 @@
   year    = {1985}
 }
 
+@article{li2005very,
+  author  = {Li, Feiyue and Golden, Bruce and Wasil, Edward},
+  doi     = {10.1016/j.cor.2003.10.002},
+  journal = {Computers \& Operations Research},
+  number  = {5},
+  pages   = {1165--1179},
+  title   = {Very large-scale vehicle routing: New test problems, algorithms, and results},
+  url     = {https://doi.org/10.1016/j.cor.2003.10.002},
+  volume  = {32},
+  year    = {2005}
+}
+
 @article{lima2018hybrid,
   author    = {Lima, Samuel Júnior Alves and Araújo, Sérgio André de Araújo and Schimit, Pedro Henrique Triguis},
   doi       = {10.4025/actascitechnol.v40i1.36708},
@@ -819,7 +888,6 @@
   volume    = {21},
   year      = {1973}
 }
-
 @inproceedings{luong2013gpu,
   author    = {Van Luong, Thé and Melab, Nouredine and Talbi, El-Ghazali},
   booktitle = {Proceedings of the 15th annual conference on Genetic and evolutionary computation},
@@ -841,6 +909,7 @@
   volume    = {33},
   year      = {2017}
 }
+
 @article{mayerle2022longhaul,
   abstract   = {This paper addresses the vehicle routing and driver scheduling problem of finding a low cost route and stoppage schedule for long-haul point-to-point full-load trips with intermediate stops due to refueling needs and driver hours-of-service regulatory restrictions. This is an important problem for long-haul truck drivers because in practice regulatory driving limits often do not coincide with availability of stoppage alternatives for quick rest, for meal, for overnight, or for weekly downtime required stops. The paper presents a methodology and algorithm to pick routes that optimize stoppages within the HOS constraints, an important factor of both highway safety and driver productivity. A solution for this variant of the vehicle routing and truck driver scheduling problem (VRTDS-HOS) that is fast enough to potentially be used in real time is proposed by modeling possible stoppage configurations as nodes in an iteratively built multi-dimensional state-space graph and by using heuristics to decrease processing time when searching for the lowest-cost path in that graph. Individual nodes in the graph are characterized by spatial, temporal, and stoppage attributes, and are expanded sequentially to search for low-cost paths between the origin and the destination. Within this multi-dimensional state-space graph, the paper proposes two heuristics applied to a shortest-path algorithmic solution based on the A∗ algorithm to increase processing speed enough to potentially permit real-time usage. An illustrative application to Brazilian regulations is provided. Results were successful and are reported together with sensitivity analyses comparing alternative routes and different heuristics processing speeds.},
   address    = {USA},
@@ -909,6 +978,12 @@
   year    = {2024}
 }
 
+% ========================================
+% STATISTICAL TESTS REFERENCES
+% Added for statistical\_tests\_comprehensive\_guide.md
+% ========================================
+
+% Student's t-distribution (Chapter 0 & 4)
 @inproceedings{okuta2017cupy,
   author    = {Okuta, Ryosuke and Unno, Yuya and Nishino, Daisuke and Hido, Shohei and Loomis, Crissman},
   booktitle = {Proceedings of Workshop on Machine Learning Systems (LearningSys) in The Thirty-first Annual Conference on Neural Information Processing Systems (NIPS)},
@@ -917,6 +992,7 @@
   year      = {2017}
 }
 
+% Normality Testing (Chapter 3)
 @inproceedings{oneil2015rethinking,
   author    = {O'Neil, M. A. and Burtscher, Martin},
   booktitle = {Proceedings of the 8th Workshop on General Purpose Processing using GPUs},
@@ -926,12 +1002,6 @@
   year      = {2015}
 }
 
-% ========================================
-% STATISTICAL TESTS REFERENCES
-% Added for statistical\_tests\_comprehensive\_guide.md
-% ========================================
-
-% Student's t-distribution (Chapter 0 & 4)
 @phdthesis{or1976traveling,
   author = {Or, Ilhan},
   school = {Northwestern University},
@@ -939,7 +1009,6 @@
   year   = {1976}
 }
 
-% Normality Testing (Chapter 3)
 @article{osaba2020gpu,
   author    = {Osaba, Eneko and Del Ser, Javier and Villar-Rodriguez, Esther and Nebro, Antonio J and Molina, Daniel and LaTorre, Antonio and Suganthan, Ponnuthurai Nagaratnam and Coello Coello, Carlos A and Herrera, Francisco},
   journal   = {Artificial Intelligence Review},
@@ -977,6 +1046,30 @@
 }
 
 % Paired t-Test Resources (Chapter 4)
+@article{potvin1995exchange,
+  author  = {Potvin, Jean-Yves and Rousseau, Jean-Marc},
+  doi     = {10.1057/jors.1995.204},
+  journal = {Journal of the Operational Research Society},
+  number  = {12},
+  pages   = {1433--1446},
+  title   = {An exchange heuristic for routing problems with time windows},
+  url     = {https://doi.org/10.1057/jors.1995.204},
+  volume  = {46},
+  year    = {1995}
+}
+
+@article{potvin1996vehicle,
+  author  = {Potvin, Jean-Yves and Bengio, Samy},
+  doi     = {10.1287/ijoc.8.2.165},
+  journal = {INFORMS Journal on Computing},
+  number  = {2},
+  pages   = {165--172},
+  title   = {The Vehicle Routing Problem with Time Windows Part {II}: Genetic Search},
+  url     = {https://doi.org/10.1287/ijoc.8.2.165},
+  volume  = {8},
+  year    = {1996}
+}
+
 @article{pratt1959remarks,
   author  = {Pratt, John W.},
   doi     = {10.1080/01621459.1959.10501526},
@@ -1005,6 +1098,7 @@
   year     = {2004}
 }
 
+% Non-Parametric Tests (Chapter 5)
 @misc{qiao2024multiple,
   author       = {Qiao, Wen-Bao and Créput, Jean-Charles and Wang, Nan and Meng, Kun},
   howpublished = {SSRN preprint},
@@ -1024,7 +1118,6 @@
   year      = {1983}
 }
 
-% Non-Parametric Tests (Chapter 5)
 @article{razali2011power,
   author  = {Razali, N. M. and Wah, Y. B.},
   journal = {Journal of Statistical Modeling and Analytics},
@@ -1046,6 +1139,14 @@
   title   = {TSPLIB—A Traveling Salesman Problem Library},
   volume  = {3},
   year    = {1991}
+}
+
+@misc{reinelt1995tsplib95,
+  author       = {Reinelt, Gerhard},
+  howpublished = {Interdisziplin{\"a}res Zentrum f{\"u}r Wissenschaftliches Rechnen (IWR), Universit{\"a}t Heidelberg},
+  title        = {{TSPLIB95}: A Traveling Salesman Problem Library},
+  url          = {http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/},
+  year         = {1995}
 }
 
 @inproceedings{rey2018cpu,
@@ -1079,6 +1180,7 @@
   year      = {2006}
 }
 
+% Post-Hoc Tests (Chapter 6)
 @article{rosenkrantz1977analysis,
   author  = {Rosenkrantz, Daniel J. and Stearns, Richard E. and Lewis, Philip M.},
   doi     = {10.1137/0206041},
@@ -1104,7 +1206,6 @@
   year    = {1992}
 }
 
-% Post-Hoc Tests (Chapter 6)
 @article{sawilowsky2009new,
   author  = {Sawilowsky, Shlomo S.},
   doi     = {10.22237/jmasm/1257035100},
@@ -1152,6 +1253,7 @@
   year    = {2023}
 }
 
+% Effect Sizes (Chapter 7)
 @article{shapiro1965analysis,
   author  = {Shapiro, S. S. and Wilk, M. B.},
   doi     = {10.1093/biomet/52.3-4.591},
@@ -1177,7 +1279,6 @@
   year      = {1997}
 }
 
-% Effect Sizes (Chapter 7)
 @book{simchi2005logic,
   address   = {New York},
   author    = {Simchi-Levi, David and Chen, Xin and Bramel, Julien},
@@ -1187,6 +1288,7 @@
   year      = {2005}
 }
 
+% Bootstrap Methods (Chapter 8)
 @manual{simpletex_ocr,
   author = {Chu, Xinyuan},
   note   = {R package version 1.0.4},
@@ -1204,7 +1306,6 @@
   year      = {2024}
 }
 
-% Bootstrap Methods (Chapter 8)
 @article{sonuc2018cooperative,
   author  = {Sonuc, Emrullah and Sen, Baha and Bayir, Safak},
   doi     = {10.1016/j.jestch.2018.08.002},
@@ -1222,6 +1323,16 @@
   note   = {Online resource detailing paired t-test assumptions (normality of differences, no outliers, dependent observations), SPSS implementation, and troubleshooting common violations. Emphasizes importance of Shapiro-Wilk pre-testing. Usage: Referenced in statistical\_tests\_comprehensive\_guide.md Chapter 4 for assumption validation checklist applied to GPU benchmark runtime data.},
   title  = {Paired Sample T-Test},
   url    = {https://www.statisticssolutions.com/paired-sample-t-test/}
+}
+
+@inproceedings{steele2014fast,
+  author    = {Steele, Jr., Guy L. and Lea, Doug and Flood, Christine H.},
+  booktitle = {Proceedings of the 2014 ACM International Conference on Object Oriented Programming Systems Languages \& Applications (OOPSLA '14)},
+  doi       = {10.1145/2660193.2660195},
+  pages     = {453--472},
+  publisher = {ACM},
+  title     = {Fast Splittable Pseudorandom Number Generators},
+  year      = {2014}
 }
 
 @article{strappaveccia2015many,
@@ -1329,6 +1440,18 @@
   year      = {2011}
 }
 
+@article{uchoa2017new,
+  author  = {Uchoa, Eduardo and Pecin, Diego and Pessoa, Artur and Poggi, Marcus and Vidal, Thibaut and Subramanian, Anand},
+  doi     = {10.1016/j.ejor.2016.08.012},
+  journal = {European Journal of Operational Research},
+  number  = {3},
+  pages   = {845--858},
+  title   = {New benchmark instances for the Capacitated Vehicle Routing Problem},
+  url     = {https://doi.org/10.1016/j.ejor.2016.08.012},
+  volume  = {257},
+  year    = {2017}
+}
+
 @online{ucla_power_ttest,
   author = {{UCLA Statistical Consulting}},
   note   = {R code examples demonstrating power.t.test() function for sample size determination given effect size, alpha, and desired power. Includes worked examples for planning paired-sample experiments. Usage: Cited in statistical\_tests\_comprehensive\_guide.md Chapter 4 for justifying n=15 runs design decision balancing statistical power (0.80 for d=0.8) against computational cost in GPU benchmarking.},
@@ -1348,6 +1471,29 @@
   year    = {2013}
 }
 
+@article{vargha2000critique,
+  author  = {Vargha, Andr{\'a}s and Delaney, Harold D.},
+  doi     = {10.3102/10769986025002101},
+  journal = {Journal of Educational and Behavioral Statistics},
+  number  = {2},
+  pages   = {101--132},
+  title   = {A Critique and Improvement of the {CL} Common Language Effect Size Statistics of {McGraw} and {Wong}},
+  volume  = {25},
+  year    = {2000}
+}
+
+@article{vidal2012hybrid,
+  author  = {Vidal, Thibaut and Crainic, Teodor Gabriel and Gendreau, Michel and Lahrichi, Nadia and Rei, Walter},
+  doi     = {10.1287/opre.1120.1048},
+  journal = {Operations Research},
+  number  = {3},
+  pages   = {611--624},
+  title   = {A Hybrid Genetic Algorithm for Multidepot and Periodic Vehicle Routing Problems},
+  url     = {https://doi.org/10.1287/opre.1120.1048},
+  volume  = {60},
+  year    = {2012}
+}
+
 @article{vidal2013hybrid,
   abstract = {We present a hybrid genetic algorithm with advanced diversity management for a very large class of vehicle routing problems with time windows. The algorithm relies on a giant tour representation and uses sophisticated local search procedures. An adaptive diversity management mechanism dynamically adjusts population size and controls survival of individuals based on fitness and diversity. The approach is validated on 30 VRP variants including multi-depot, periodic, and site-dependent problems, obtaining world-class results on benchmark instances.},
   author   = {Vidal, Thibaut and Crainic, Teodor Gabriel and Gendreau, Michel and Prins, Christian},
@@ -1361,6 +1507,18 @@
   url      = {https://www.sciencedirect.com/science/article/pii/S030505481200194X},
   volume   = {40},
   year     = {2013}
+}
+
+@article{vidal2014unified,
+  author  = {Vidal, Thibaut and Crainic, Teodor Gabriel and Gendreau, Michel and Prins, Christian},
+  doi     = {10.1016/j.ejor.2013.09.045},
+  journal = {European Journal of Operational Research},
+  number  = {3},
+  pages   = {658--673},
+  title   = {A unified solution framework for multi-attribute vehicle routing problems},
+  url     = {https://doi.org/10.1016/j.ejor.2013.09.045},
+  volume  = {234},
+  year    = {2014}
 }
 
 @article{voudouris1999tsp,

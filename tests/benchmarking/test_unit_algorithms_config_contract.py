@@ -17,12 +17,20 @@ import jsonschema  # type: ignore[import-untyped]
 import pytest
 
 from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
-from algorithms.strategies import STRATEGY_REGISTRY
+from algorithms.strategies import STRATEGY_REGISTRY, SUB_STRATEGY_REGISTRY
 from algorithms.strategies.local_search import TwoOptCPUMode, TwoOptGPUMode
-from benchmarking.runner.config_loader import load_algorithms_config
+from benchmarking.runner.config_loader import (
+  AlgorithmConfig,
+  BenchmarkConfig,
+  GAParams,
+  ProblemConfig,
+  load_algorithms_config,
+  validate_configs,
+)
 from benchmarking.runner.schema_generator import (
   DEFAULT_SCHEMA_PATH,
   STRATEGY_SLOT_PROTOCOLS,
+  SUB_STRATEGY_PROTOCOLS,
   generate_algorithms_schema,
   render_algorithms_schema,
   resolve_init_hints,
@@ -251,8 +259,8 @@ def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> 
   WHY: Hand-maintained schemas drift silently when new strategies or `Literal` modes are added,
   and a single flat `strategy_slot` fails to partition strategies by PEP 544 protocol slots.
   EXPECTED:
-    (a) 6 per-slot `strategy_slot_*` `$defs` partition `STRATEGY_REGISTRY` (18) via `oneOf`,
-        and `pipeline_step` covers `PIPELINE_STEP_REGISTRY` (3) via `oneOf` (no legacy `strategy_slot`);
+    (a) 6 per-slot `strategy_slot_*` `$defs` partition `STRATEGY_REGISTRY` (30) via `oneOf`,
+        and `pipeline_step` covers `PIPELINE_STEP_REGISTRY` (5) via `oneOf` (no legacy `strategy_slot`);
     (b) every `$defs/params_*` key set equals the constructor signature parameters;
     (c) every `Literal`-derived `enum` matches `typing.get_args`;
     (d) nested pipeline strategy refs point to protocol-specific slots;
@@ -280,7 +288,7 @@ def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> 
     strategy_branches.update(slot_branch_map)
 
   assert set(strategy_branches.keys()) == set(STRATEGY_REGISTRY.keys())
-  assert len(strategy_branches) == len(STRATEGY_REGISTRY) == 18
+  assert len(strategy_branches) == len(STRATEGY_REGISTRY) == 32
 
   pipeline_step = defs["pipeline_step"]
   pipeline_branches = _extract_oneof_builtin_branch_map(pipeline_step)
@@ -585,3 +593,107 @@ def test_schema_generator_extra_file_emits_typed_external_oneof_and_guards_core_
     "params": {"anything": True},
   }
   jsonschema.validate(instance=adhoc_ext, schema=local_schema)
+
+
+def test_sub_strategy_schema_defs_and_declarative_instantiation() -> None:
+  """WHAT: Sub-strategy `SUB_STRATEGY_PROTOCOLS` schema defs and declarative JSON instantiation (`Task 17.20`)."""
+  from algorithms.pipeline_steps import FleetBinPackStep, PenaltyAdaptationStep, SplitDecodeStep
+  from algorithms.strategies.bin_packing import BinPackingCPUFFD
+  from algorithms.strategies.decoding import GreedySplitDecoder
+  from algorithms.strategies.penalties import AdaptivePenaltyPolicy, StrictFeasibilityPolicy
+
+  schema = json.loads((SCHEMA_DIR / "algorithms.schema.json").read_text(encoding="utf-8"))
+  defs = schema["$defs"]
+
+  sub_branches: dict[str, str] = {}
+  for slot_name, proto, def_name in SUB_STRATEGY_PROTOCOLS:
+    slot_def = defs[def_name]
+    branch_map = _extract_oneof_builtin_branch_map(slot_def)
+    expected = {name for name, cls in SUB_STRATEGY_REGISTRY.items() if issubclass(cls, proto)}
+    assert set(branch_map.keys()) == expected, f"Sub-strategy slot mismatch for {slot_name}"
+    sub_branches.update(branch_map)
+
+  assert set(sub_branches.keys()) == set(SUB_STRATEGY_REGISTRY.keys())
+  assert len(sub_branches) == len(SUB_STRATEGY_REGISTRY) == 10
+
+  # Typed constructor refs on pipeline steps and modular GA params.
+  assert defs["params_penalty_adaptation_step"]["properties"]["penalty_policy"]["$ref"] == (
+    "#/$defs/sub_strategy_penalty_policy"
+  )
+  assert defs["params_split_decode_step"]["properties"]["decoder"]["$ref"] == ("#/$defs/sub_strategy_route_decoder")
+  assert defs["params_fleet_bin_pack_step"]["properties"]["bin_packing"]["$ref"] == ("#/$defs/sub_strategy_bin_packing")
+  modular_params_props = defs["algorithm_config"]["oneOf"][0]["properties"]["params"]["properties"]
+  assert modular_params_props["penalty_policy"]["$ref"] == "#/$defs/sub_strategy_penalty_policy"
+  assert modular_params_props["decoder"]["$ref"] == "#/$defs/sub_strategy_route_decoder"
+  assert modular_params_props["bin_packing"]["$ref"] == "#/$defs/sub_strategy_bin_packing"
+
+  # Schema + declarative instantiation + `step_defaults` sharing + nested per-step override.
+  base = json.loads(PROD_ALGORITHMS_JSON.read_text(encoding="utf-8"))
+  cfg_dict = json.loads(json.dumps(base))
+  cpu_cfg = cfg_dict["algorithm_configs"]["CPU"]
+  cpu_cfg["params"]["penalty_policy"] = {"class": "AdaptivePenaltyPolicy", "params": {"epsilon_tol": 0.08}}
+  cpu_cfg["params"]["decoder"] = {"class": "GreedySplitDecoder"}
+  cpu_cfg["params"]["bin_packing"] = {"class": "BinPackingCPUFFD"}
+  cpu_cfg["params"]["pipeline"] = [
+    {"class": "SplitDecodeStep", "params": {"target": "offspring"}},
+    {"class": "FleetBinPackStep", "params": {"target": "offspring"}},
+    {"class": "PenaltyAdaptationStep", "params": {"interval": 3}},
+    {
+      "class": "PenaltyAdaptationStep",
+      "params": {"penalty_policy": {"class": "StrictFeasibilityPolicy"}, "interval": 10},
+    },
+  ]
+  jsonschema.validate(instance=cfg_dict, schema=schema)
+
+  algo = AlgorithmConfig(
+    name="CPU",
+    metaheuristic=cpu_cfg["metaheuristic"],
+    use_gpu=cpu_cfg["use_gpu"],
+    description=cpu_cfg["description"],
+    strategies=cpu_cfg["strategies"],
+    params=cpu_cfg["params"],
+  )
+  warnings = validate_configs(
+    {
+      "ga_params": GAParams(),
+      "algorithms": {"CPU": algo},
+      "benchmark": BenchmarkConfig(),
+      "problems": [ProblemConfig(name="dummy", optimal=None, size=5)],
+    }
+  )
+  assert warnings == []
+
+  ga = algo.instantiate(GAParams(), seed=7, local_search_stage=None, param_overrides=None, strategy_overrides=None)
+  split_step = next(s for s in ga.pipeline if isinstance(s, SplitDecodeStep))
+  pack_step = next(s for s in ga.pipeline if isinstance(s, FleetBinPackStep))
+  adapt_steps = [s for s in ga.pipeline if isinstance(s, PenaltyAdaptationStep)]
+  assert isinstance(split_step.decoder, GreedySplitDecoder)
+  assert isinstance(pack_step.bin_packing, BinPackingCPUFFD)
+  assert len(adapt_steps) == 2
+  assert isinstance(adapt_steps[0].penalty_policy, AdaptivePenaltyPolicy)
+  assert adapt_steps[0].penalty_policy.epsilon_tol == pytest.approx(0.08)
+  assert isinstance(adapt_steps[1].penalty_policy, StrictFeasibilityPolicy)
+
+  # Cross-slot mismatch must fail both JSON Schema and `validate_configs`.
+  bad_cfg = json.loads(json.dumps(cfg_dict))
+  bad_cfg["algorithm_configs"]["CPU"]["params"]["penalty_policy"] = {"class": "BinPackingCPUFFD"}
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=bad_cfg, schema=schema)
+
+  bad_algo = AlgorithmConfig(
+    name="CPU",
+    metaheuristic=bad_cfg["algorithm_configs"]["CPU"]["metaheuristic"],
+    use_gpu=bad_cfg["algorithm_configs"]["CPU"]["use_gpu"],
+    description=bad_cfg["algorithm_configs"]["CPU"]["description"],
+    strategies=bad_cfg["algorithm_configs"]["CPU"]["strategies"],
+    params=bad_cfg["algorithm_configs"]["CPU"]["params"],
+  )
+  bad_warnings = validate_configs(
+    {
+      "ga_params": GAParams(),
+      "algorithms": {"CPU": bad_algo},
+      "benchmark": BenchmarkConfig(),
+      "problems": [ProblemConfig(name="dummy", optimal=None, size=5)],
+    }
+  )
+  assert any("PenaltyPolicy" in w for w in bad_warnings)

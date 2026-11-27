@@ -46,14 +46,15 @@ class BenchmarkRunInput(TypedDict):
   Mirrors `src/benchmarking/database/schema.sql`, which stays the
   authority for names and nullability. Two field groups:
 
-  * **required** — the 22 columns declared `NOT NULL` without a default. The
+  * **required** — the 18 columns declared `NOT NULL` without a default. The
     runtime validator derives its required-field list from
     `BenchmarkRunInput.__required_keys__`, so this class and
     `validate_benchmark_data` cannot drift apart.
-  * **`NotRequired`** — the 21 nullable columns (including `optimal_cost` and
-    gap fields for instances whose optimal tour cost is unknown). The writer
-    reads these with `dict.get`, so a checkpoint without them imports cleanly
-    and lands as SQL `NULL`.
+  * **`NotRequired`** — the 34 nullable or default-backed columns (including
+    `problem_type`, nullable cost/gap fields for `feasible_runs == 0` or
+    unknown-optimum runs, and VRP feasibility/fleet metrics). The writer
+    reads these with `dict.get`, so a legacy TSP checkpoint without them
+    imports cleanly with `problem_type = 'TSP'` and SQL `NULL` for VRP fields.
 
   `run_id` is absent on purpose: the database assigns it from
   `benchmark_runs_seq` and returns it from the insert.
@@ -79,12 +80,6 @@ class BenchmarkRunInput(TypedDict):
   min_time: float
   max_time: float
 
-  # --- required: solution quality ----------------------------------------
-  mean_cost: float
-  std_cost: float
-  best_cost: float
-  worst_cost: float
-
   # --- required: generations ---------------------------------------------
   mean_generations: float
   std_generations: float
@@ -97,12 +92,29 @@ class BenchmarkRunInput(TypedDict):
   algorithm_config: JsonPayload
   strategies: JsonPayload
 
+  # --- default-backed / nullable: problem type & solution quality ---------
+  problem_type: NotRequired[str | None]
+  mean_cost: NotRequired[float | None]
+  std_cost: NotRequired[float | None]
+  best_cost: NotRequired[float | None]
+  worst_cost: NotRequired[float | None]
+
   # --- nullable: optimal cost & gap (absent when optimum is unknown) ------
   optimal_cost: NotRequired[float | None]
   mean_gap: NotRequired[float | None]
   std_gap: NotRequired[float | None]
   best_gap: NotRequired[float | None]
-  raw_gaps: NotRequired[list[float] | None]
+  raw_gaps: NotRequired[list[float | None] | None]
+
+  # --- nullable: VRP feasibility & fleet metrics (DP17-4) -----------------
+  feasible_runs: NotRequired[int | None]
+  feasibility_rate: NotRequired[float | None]
+  mean_vehicles: NotRequired[float | None]
+  best_vehicles: NotRequired[int | None]
+  raw_is_feasible: NotRequired[list[bool] | None]
+  raw_unpenalized_costs: NotRequired[list[float] | None]
+  raw_violations: NotRequired[list[float] | None]
+  raw_num_vehicles: NotRequired[list[int] | None]
 
   # --- nullable: absent from older checkpoints ---------------------------
   mean_initial_cost: NotRequired[float | None]

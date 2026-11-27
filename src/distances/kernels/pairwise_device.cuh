@@ -209,4 +209,27 @@ __device__ __forceinline__ int gpu_pairwise_distance(
   }
 }
 
+/**
+ * Unified dense-matrix / on-the-fly coordinate edge distance helper (`Task 17.21`).
+ *
+ * Uses `distances[(size_t)u * dist_stride + v]` when `use_matrix` is true, and
+ * falls back to `gpu_pairwise_distance(..., nullptr, coords, ...)` otherwise.
+ */
+static __device__ __forceinline__ int gpu_edge_distance(
+    int u,
+    int v,
+    const int *__restrict__ distances,
+    const double *__restrict__ coords,
+    int dist_stride,
+    int edge_type_code,
+    bool use_matrix) {
+  if (u == v) {
+    return 0;
+  }
+  if (use_matrix) {
+    return distances[(size_t)u * (size_t)dist_stride + (size_t)v];
+  }
+  return gpu_pairwise_distance(u, v, nullptr, coords, dist_stride, edge_type_code);
+}
+
 #endif  // GPU_PAIRWISE_DEVICE_CUH

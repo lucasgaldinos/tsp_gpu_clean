@@ -79,3 +79,46 @@ def test_tsplib_cli_handles_euc3d_instance(tmp_path: Path, capsys: pytest.Captur
   assert tsplib_main(["--tsp-dir", str(tsp_dir), "--to-duckdb", str(db_path)]) == 0
   assert db_path.exists()
 
+
+def test_tsplib_cli_handles_vrp_and_disambiguates_twins(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+  """Verify tsp-ingest inspects, verifies, and ingests `.vrp` instances and supports `--problem-type` (`BUG-109`)."""
+  vrp_dir = tmp_path / "vrp_cli"
+  vrp_dir.mkdir()
+  (vrp_dir / "tiny_cvrp.vrp").write_text(
+    "NAME : tiny_cvrp\n"
+    "TYPE : CVRP\n"
+    "DIMENSION : 4\n"
+    "EDGE_WEIGHT_TYPE : EUC_2D\n"
+    "CAPACITY : 10\n"
+    "DISTANCE : 50\n"
+    "VEHICLES : 2\n"
+    "SERVICE_TIME : 3\n"
+    "NODE_COORD_SECTION\n"
+    "1 0 0\n"
+    "2 3 0\n"
+    "3 0 4\n"
+    "4 3 4\n"
+    "DEMAND_SECTION\n"
+    "1 0\n"
+    "2 4\n"
+    "3 5\n"
+    "4 3\n"
+    "DEPOT_SECTION\n"
+    "1\n"
+    "-1\n"
+    "EOF\n",
+    encoding="utf-8",
+  )
+
+  assert tsplib_main(["--tsp-dir", str(vrp_dir), "--instance", "tiny_cvrp", "--problem-type", "CVRP"]) == 0
+  captured = capsys.readouterr()
+  assert "Loaded tiny_cvrp: type=CVRP, dimension=4, edge_type=EUC_2D" in captured.out
+
+  assert tsplib_main(["--tsp-dir", str(vrp_dir)]) == 0
+  captured_verify = capsys.readouterr()
+  assert "Verified 1/1 .vrp files" in captured_verify.out
+
+  db_path = tmp_path / "vrp_cli.duckdb"
+  assert tsplib_main(["--tsp-dir", str(vrp_dir), "--to-duckdb", str(db_path)]) == 0
+  assert db_path.exists()
+

@@ -15,10 +15,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
-          "params": {
-            "return_gpu": false
-          }
+          "class": "InitializationCPURandom"
         },
         "selection": {
           "class": "SelectionTournament",
@@ -49,10 +46,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
-          "params": {
-            "return_gpu": false
-          }
+          "class": "InitializationCPURandom"
         },
         "selection": {
           "class": "SelectionRouletteWheel"
@@ -80,10 +74,9 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationNearestNeighbor",
+          "class": "InitializationCPUNearestNeighbor",
           "params": {
-            "k": 5,
-            "return_gpu": false
+            "k": 5
           }
         },
         "selection": {

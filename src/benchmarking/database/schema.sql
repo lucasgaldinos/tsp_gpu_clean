@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     -- Problem Identification (from checkpoint JSON)
     -- ========================================================================
     problem_name VARCHAR NOT NULL,
+    problem_type VARCHAR NOT NULL DEFAULT 'TSP',
     problem_size INTEGER NOT NULL,
     optimal_cost DOUBLE,
     
@@ -55,14 +56,22 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     max_time DOUBLE NOT NULL,
     
     -- ========================================================================
-    -- Aggregate Statistics: Solution Cost/Quality
+    -- Aggregate Statistics: Solution Cost/Quality (nullable when feasible_runs == 0)
     -- ========================================================================
-    mean_cost DOUBLE NOT NULL,
-    std_cost DOUBLE NOT NULL,
-    best_cost DOUBLE NOT NULL,
-    worst_cost DOUBLE NOT NULL,
+    mean_cost DOUBLE,
+    std_cost DOUBLE,
+    best_cost DOUBLE,
+    worst_cost DOUBLE,
     mean_initial_cost DOUBLE,           -- Average random initialization cost
     std_initial_cost DOUBLE,
+
+    -- ========================================================================
+    -- Aggregate Statistics: VRP Feasibility & Fleet (DP17-4; NULL for TSP)
+    -- ========================================================================
+    feasible_runs INTEGER,
+    feasibility_rate DOUBLE,
+    mean_vehicles DOUBLE,
+    best_vehicles INTEGER,
     
     -- ========================================================================
     -- Aggregate Statistics: Gap from Optimal (percentage; NULL when unknown)
@@ -106,6 +115,10 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
     raw_initial_costs DOUBLE[],         -- Initial costs before optimization
     raw_generations INTEGER[],          -- Generations taken per run
     raw_stop_reasons VARCHAR[],         -- Stop reason per run ("completed", "optimal reached", etc.)
+    raw_is_feasible BOOLEAN[],          -- VRP per-run feasibility indicator (NULL for TSP)
+    raw_unpenalized_costs DOUBLE[],     -- VRP per-run pure travel cost c(R) (NULL for TSP)
+    raw_violations DOUBLE[],            -- VRP per-run total violation nu(R) (NULL for TSP)
+    raw_num_vehicles INTEGER[],         -- VRP per-run active vehicle count (NULL for TSP)
     
     -- ========================================================================
     -- Configuration: Algorithm Parameters (JSON)
@@ -129,10 +142,10 @@ CREATE TABLE IF NOT EXISTS benchmark_runs (
 -- Note: DuckDB automatically optimizes index usage in WHERE/JOIN clauses
 -- ============================================================================
 
--- Index 1: Most common query pattern - filter by problem AND algorithm
--- Usage: SELECT * FROM benchmark_runs WHERE problem_name = 'berlin52' AND algorithm = 'MemeticGA';
+-- Index 1: Most common query pattern - filter by problem, type, AND algorithm
+-- Usage: SELECT * FROM benchmark_runs WHERE problem_name = 'berlin52' AND problem_type = 'TSP' AND algorithm = 'MemeticGA';
 CREATE INDEX IF NOT EXISTS idx_problem_algorithm 
-ON benchmark_runs(problem_name, algorithm);
+ON benchmark_runs(problem_name, problem_type, algorithm);
 
 -- Index 2: Algorithm performance comparison across problems
 -- Usage: SELECT * FROM benchmark_runs WHERE algorithm = 'FullGPU' ORDER BY mean_time;

@@ -17,7 +17,7 @@ from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
   CrossoverOrder,
   EvaluationCPUCost,
-  InitializationRandom,
+  InitializationCPURandom,
   MutationSwap,
   SelectionTournament,
 )
@@ -33,7 +33,7 @@ def _make_ga(population_size: int = 8) -> GeneticAlgorithm:
     population_size=population_size,
     mutation_rate=0.05,
     seed=42,
-    initialization=InitializationRandom(seed=42),
+    initialization=InitializationCPURandom(seed=42),
     selection=SelectionTournament(k=3, seed=42),
     crossover=CrossoverOrder(seed=42),
     mutation=MutationSwap(seed=42),
