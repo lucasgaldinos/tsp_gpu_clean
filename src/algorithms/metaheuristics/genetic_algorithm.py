@@ -39,6 +39,11 @@ from protocols.types import (
   Route,
   Routes,
 )
+from protocols.vrp_strategies import (
+  RouteAssessment,
+  assess_with_evaluator,
+  canonicalize_with_evaluator,
+)
 from utils.phase_timer import PhaseTimer
 from utils.route_helpers import is_gpu_array
 
@@ -71,6 +76,37 @@ class GenerationState:
   offspring: Routes | None = None
   offspring_fitness: Fitness | None = None
   generation: int = 0
+  population_assessment: RouteAssessment | None = None
+  offspring_assessment: RouteAssessment | None = None
+
+  def refresh_penalized_fitness(
+    self,
+    omega_q: float,
+    omega_l: float,
+    omega_k: float,
+  ) -> None:
+    """Recompute `fitness` and `population_assessment.objectives` in O(N) without re-scanning routes."""
+    assessment = self.population_assessment
+    if assessment is None or assessment.raw_violation_components is None:
+      return
+    on_gpu = is_gpu_array(assessment.travel_costs)
+    xp: Any = require_gpu() if on_gpu else np
+    comps = xp.asarray(assessment.raw_violation_components, dtype=xp.float64)
+    travel = xp.asarray(assessment.travel_costs, dtype=xp.float64)
+    pen_q = xp.where(comps[:, 0] > 0.0, xp.inf, 0.0) if math.isinf(omega_q) else float(omega_q) * comps[:, 0]
+    pen_l = xp.where(comps[:, 1] > 0.0, xp.inf, 0.0) if math.isinf(omega_l) else float(omega_l) * comps[:, 1]
+    pen_k = xp.where(comps[:, 2] > 0.0, xp.inf, 0.0) if math.isinf(omega_k) else float(omega_k) * comps[:, 2]
+    new_obj = travel + pen_q + pen_l + pen_k
+    self.fitness = new_obj
+    self.population_assessment = RouteAssessment(
+      objectives=new_obj,
+      travel_costs=assessment.travel_costs,
+      is_feasible=assessment.is_feasible,
+      violations=assessment.violations,
+      normalized_violations=assessment.normalized_violations,
+      raw_violation_components=assessment.raw_violation_components,
+      num_vehicles=assessment.num_vehicles,
+    )
 
 
 class GenerationStep(Protocol):
@@ -150,19 +186,31 @@ class EvaluationStep:
     if self.target == "offspring":
       if state.offspring is None:
         raise RuntimeError("EvaluationStep target='offspring' called with state.offspring is None.")
-      state.offspring_fitness = timer.measure(
+      on_gpu = is_gpu_array(state.offspring)
+      keep_gpu = bool(on_gpu and getattr(self.strategy, "return_gpu", False))
+      assessment = timer.measure(
         "evaluation",
-        self.strategy.evaluate_batch,
+        assess_with_evaluator,
+        self.strategy,
         state.offspring,
         state.context,
+        return_gpu=keep_gpu,
       )
+      state.offspring_assessment = assessment
+      state.offspring_fitness = assessment.objectives
     else:
-      state.fitness = timer.measure(
+      on_gpu = is_gpu_array(state.population)
+      keep_gpu = bool(on_gpu and getattr(self.strategy, "return_gpu", False))
+      assessment = timer.measure(
         "evaluation",
-        self.strategy.evaluate_batch,
+        assess_with_evaluator,
+        self.strategy,
         state.population,
         state.context,
+        return_gpu=keep_gpu,
       )
+      state.population_assessment = assessment
+      state.fitness = assessment.objectives
 
 
 class SurvivalStep:
@@ -174,6 +222,24 @@ class SurvivalStep:
   def run(self, state: GenerationState, timer: PhaseTimer) -> None:
     if state.offspring is None or state.offspring_fitness is None:
       raise RuntimeError("SurvivalStep called before offspring and offspring_fitness were available.")
+    owner = getattr(self.survivor_selector, "__self__", None)
+    assessed_fn = getattr(owner, "_select_survivors_assessed", None)
+    if (
+      callable(assessed_fn)
+      and state.population_assessment is not None
+      and state.offspring_assessment is not None
+      and getattr(self.survivor_selector, "__name__", "") == "_select_survivors"
+    ):
+      state.population, state.fitness, state.population_assessment = timer.measure(
+        "survival",
+        assessed_fn,
+        state.population,
+        state.population_assessment,
+        state.offspring,
+        state.offspring_assessment,
+      )
+      return
+
     state.population, state.fitness = timer.measure(
       "survival",
       self.survivor_selector,
@@ -182,6 +248,7 @@ class SurvivalStep:
       state.offspring,
       state.offspring_fitness,
     )
+    state.population_assessment = None
 
 
 class LocalSearchStep:
@@ -215,12 +282,18 @@ class LocalSearchStep:
         state.context,
       )
       if self.re_evaluate is not None:
-        state.fitness = timer.measure(
+        on_gpu = is_gpu_array(state.population)
+        keep_gpu = bool(on_gpu and getattr(self.re_evaluate, "return_gpu", False))
+        assessment = timer.measure(
           "evaluation",
-          self.re_evaluate.evaluate_batch,
+          assess_with_evaluator,
+          self.re_evaluate,
           state.population,
           state.context,
+          return_gpu=keep_gpu,
         )
+        state.population_assessment = assessment
+        state.fitness = assessment.objectives
 
 
 # =============================================================================
@@ -349,9 +422,7 @@ class GeneticAlgorithm:
         pipeline: Optional custom list of `GenerationStep`s (overrides default pipeline).
     """
     if local_search_stage not in STAGE_SPECS:
-      raise ValueError(
-        f"Invalid local_search_stage '{local_search_stage}'. Valid stages: {list(STAGE_SPECS.keys())}"
-      )
+      raise ValueError(f"Invalid local_search_stage '{local_search_stage}'. Valid stages: {list(STAGE_SPECS.keys())}")
 
     self.population_size: int = population_size
     self.mutation_rate: float = mutation_rate
@@ -376,8 +447,7 @@ class GeneticAlgorithm:
     self.custom_pipeline_steps: list[GenerationStep] = list(pipeline) if pipeline is not None else []
     if pipeline is not None:
       has_core_step = any(
-        isinstance(step, (SelectionStep, CrossoverStep, MutationStep, SurvivalStep))
-        for step in pipeline
+        isinstance(step, (SelectionStep, CrossoverStep, MutationStep, SurvivalStep)) for step in pipeline
       )
       if has_core_step:
         self.pipeline: list[GenerationStep] = pipeline
@@ -403,11 +473,7 @@ class GeneticAlgorithm:
         pre_selection_steps.append(step)
       elif anchor == "pre_evaluation":
         eval_idx = next(
-          (
-            i
-            for i, s in enumerate(steps)
-            if isinstance(s, EvaluationStep) and getattr(s, "target", "") == "offspring"
-          ),
+          (i for i, s in enumerate(steps) if isinstance(s, EvaluationStep) and getattr(s, "target", "") == "offspring"),
           len(steps),
         )
         steps.insert(eval_idx, step)
@@ -549,35 +615,172 @@ class GeneticAlgorithm:
     best_indices = xp.argsort(combined_fitness)[: self.population_size]
     return combined_pop[best_indices], combined_fitness[best_indices]
 
-  @staticmethod
-  def _best_cost(fitness: Fitness) -> float:
-    """Return only the best fitness value, transferring a single scalar D2H (`BUG-30`).
+  def _select_survivors_assessed(
+    self,
+    old_pop: Routes,
+    old_assessment: RouteAssessment,
+    new_pop: Routes,
+    new_assessment: RouteAssessment,
+  ) -> tuple[Routes, Fitness, RouteAssessment]:
+    """Feasible-first `(mu + lambda)` survival selection preserving `RouteAssessment` slices (`DP17-8`)."""
+    pop_on_gpu = is_gpu_array(old_pop)
+    pop_xp: Any = cupy_backend() if pop_on_gpu else np
+    combined_pop = pop_xp.vstack([old_pop, new_pop])
 
-    A generation that does not beat the incumbent needs the cost and nothing else;
-    materializing the winning route here is what used to copy a full `(n,)` tour
-    device-to-host on every generation.
-    """
-    if is_gpu_array(fitness):
-      return float(require_gpu().min(fitness).get())
-    return float(np.min(fitness))
+    obj_on_gpu = is_gpu_array(old_assessment.objectives)
+    fit_xp: Any = cupy_backend() if obj_on_gpu else np
+
+    combined_obj = fit_xp.concatenate(
+      [
+        fit_xp.asarray(old_assessment.objectives, dtype=fit_xp.float64),
+        fit_xp.asarray(new_assessment.objectives, dtype=fit_xp.float64),
+      ]
+    )
+    combined_travel = fit_xp.concatenate(
+      [
+        fit_xp.asarray(old_assessment.travel_costs, dtype=fit_xp.float64),
+        fit_xp.asarray(new_assessment.travel_costs, dtype=fit_xp.float64),
+      ]
+    )
+    combined_feas = fit_xp.concatenate(
+      [
+        fit_xp.asarray(old_assessment.is_feasible, dtype=bool),
+        fit_xp.asarray(new_assessment.is_feasible, dtype=bool),
+      ]
+    )
+    combined_viol = fit_xp.concatenate(
+      [
+        fit_xp.asarray(old_assessment.violations, dtype=fit_xp.float64),
+        fit_xp.asarray(new_assessment.violations, dtype=fit_xp.float64),
+      ]
+    )
+    combined_norm = fit_xp.concatenate(
+      [
+        fit_xp.asarray(old_assessment.normalized_violations, dtype=fit_xp.float64),
+        fit_xp.asarray(new_assessment.normalized_violations, dtype=fit_xp.float64),
+      ]
+    )
+
+    combined_comps: Any = None
+    if old_assessment.raw_violation_components is not None and new_assessment.raw_violation_components is not None:
+      combined_comps = fit_xp.vstack(
+        [
+          fit_xp.asarray(old_assessment.raw_violation_components, dtype=fit_xp.float64),
+          fit_xp.asarray(new_assessment.raw_violation_components, dtype=fit_xp.float64),
+        ]
+      )
+    combined_veh: Any = None
+    if old_assessment.num_vehicles is not None and new_assessment.num_vehicles is not None:
+      combined_veh = fit_xp.concatenate(
+        [
+          fit_xp.asarray(old_assessment.num_vehicles, dtype=fit_xp.int32),
+          fit_xp.asarray(new_assessment.num_vehicles, dtype=fit_xp.int32),
+        ]
+      )
+
+    # Deb feasible-first lexicographic ordering: feasible routes always rank ahead of infeasible ones
+    sort_keys = fit_xp.vstack(
+      [
+        combined_obj,
+        combined_norm,
+        (~combined_feas).astype(fit_xp.float64),
+      ]
+    )
+    best_indices = fit_xp.lexsort(sort_keys)[: self.population_size]
+    if pop_on_gpu == obj_on_gpu:
+      pop_indices = pop_xp.asarray(best_indices)
+    elif obj_on_gpu:
+      pop_indices = best_indices.get()
+    else:
+      pop_indices = pop_xp.asarray(best_indices)
+
+    merged = RouteAssessment(
+      objectives=combined_obj[best_indices],
+      travel_costs=combined_travel[best_indices],
+      is_feasible=combined_feas[best_indices],
+      violations=combined_viol[best_indices],
+      normalized_violations=combined_norm[best_indices],
+      raw_violation_components=combined_comps[best_indices] if combined_comps is not None else None,
+      num_vehicles=combined_veh[best_indices] if combined_veh is not None else None,
+    )
+    return combined_pop[pop_indices], merged.objectives, merged
 
   @staticmethod
-  def _extract_best(population: Routes, fitness: Fitness) -> tuple[Route, float]:
-    """Return `(best_route_np, best_cost_float)` from population and fitness."""
-    if is_gpu_array(fitness):
+  def _best_candidate_meta(
+    fitness: Fitness,
+    assessment: RouteAssessment | None,
+  ) -> tuple[int, float, bool]:
+    """Return `(best_idx, best_obj, best_is_feasible)` using feasible-first dominance with scalar D2H only."""
+    if assessment is None:
+      if is_gpu_array(fitness):
+        cp = require_gpu()
+        idx = int(cp.argmin(fitness).get())
+        return idx, float(fitness[idx].get()), True
+      idx = int(np.argmin(fitness))
+      return idx, float(fitness[idx]), True
+
+    obj = assessment.objectives
+    feas = assessment.is_feasible
+    if is_gpu_array(obj):
       cp = require_gpu()
-      best_idx = int(cp.argmin(fitness).get())
-      best_cost = float(fitness[best_idx].get())
-    else:
-      best_idx = int(np.argmin(fitness))
-      best_cost = float(fitness[best_idx])
+      any_feas = bool(cp.any(feas).get())
+      if any_feas:
+        idx = int(cp.argmin(cp.where(feas, obj, cp.inf)).get())
+        return idx, float(obj[idx].get()), True
+      idx = int(cp.argmin(obj).get())
+      return idx, float(obj[idx].get()), False
 
-    best_route_raw = population[best_idx]
-    if is_gpu_array(best_route_raw):
-      best_route: Route = require_gpu().asnumpy(best_route_raw).astype(np.int32)
-    else:
-      best_route = np.asarray(best_route_raw, dtype=np.int32).copy()
-    return best_route, best_cost
+    feas_np = np.asarray(feas, dtype=bool)
+    obj_np = np.asarray(obj, dtype=np.float64)
+    if bool(np.any(feas_np)):
+      idx = int(np.argmin(np.where(feas_np, obj_np, np.inf)))
+      return idx, float(obj_np[idx]), True
+    idx = int(np.argmin(obj_np))
+    return idx, float(obj_np[idx]), False
+
+  @staticmethod
+  def _initial_feasible_cost(assessment: RouteAssessment) -> float:
+    """Return minimum Gen-0 unpenalized travel cost among feasible routes, else ``NaN``."""
+    travel = assessment.travel_costs
+    feas = assessment.is_feasible
+    if is_gpu_array(travel) or is_gpu_array(feas):
+      cp = require_gpu()
+      feas_gpu = cp.asarray(feas, dtype=bool)
+      if not bool(cp.any(feas_gpu).get()):
+        return float("nan")
+      travel_gpu = cp.asarray(travel, dtype=np.float64)
+      return float(cp.min(cp.where(feas_gpu, travel_gpu, cp.inf)).get())
+    feas_np = np.asarray(feas, dtype=bool)
+    if not bool(np.any(feas_np)):
+      return float("nan")
+    travel_np = np.asarray(travel, dtype=np.float64)
+    return float(np.min(travel_np[feas_np]))
+
+  @staticmethod
+  def _extract_route_at(population: Routes, idx: int) -> Route:
+    """Copy a single winning route `(n_cities,)` to host `int32`."""
+    raw = population[idx]
+    if is_gpu_array(raw):
+      return np.asarray(require_gpu().asnumpy(raw), dtype=np.int32)
+    return np.asarray(raw, dtype=np.int32).copy()
+
+  @staticmethod
+  def _candidate_beats_incumbent(
+    cand_cost: float,
+    cand_feas: bool,
+    best_cost: float,
+    best_feas: bool,
+    *,
+    allow_equal: bool = False,
+  ) -> bool:
+    """Strict feasible-first dominance comparison (`DP17-8`)."""
+    if cand_feas and not best_feas:
+      return True
+    if not cand_feas and best_feas:
+      return False
+    if allow_equal:
+      return cand_cost <= best_cost
+    return cand_cost < best_cost - 1e-6
 
   # ===========================================================================
   # Main Evolutionary Loop
@@ -624,19 +827,30 @@ class GeneticAlgorithm:
     )
 
     # 2. Initial population evaluation (Generation 0 evaluated raw for all 5 stages; BUG-21)
-    fitness: Fitness = self.timer.measure(
+    pop_on_gpu = is_gpu_array(population)
+    keep_gpu = bool(pop_on_gpu and getattr(self.evaluation, "return_gpu", False))
+    pop_assessment: RouteAssessment = self.timer.measure(
       "evaluation",
-      self.evaluation.evaluate_batch,
+      assess_with_evaluator,
+      self.evaluation,
       population,
       context,
+      return_gpu=keep_gpu,
     )
+    fitness: Fitness = pop_assessment.objectives
 
-    best_tour, best_cost = self.timer.measure(
+    best_idx, best_cost, best_is_feasible = self.timer.measure(
       "host_sync",
-      self._extract_best,
-      population,
+      self._best_candidate_meta,
       fitness,
+      pop_assessment,
     )
+    initial_feasible_cost: float = self.timer.measure(
+      "host_sync",
+      self._initial_feasible_cost,
+      pop_assessment,
+    )
+    best_tour = self.timer.measure("host_sync", self._extract_route_at, population, best_idx)
     initial_best_cost: float = best_cost
     self.best_cost_history = [best_cost]
 
@@ -644,7 +858,12 @@ class GeneticAlgorithm:
     stopped_early = False
     stop_reason = "max_generations"
 
-    state = GenerationState(population=population, fitness=fitness, context=context)
+    state = GenerationState(
+      population=population,
+      fitness=fitness,
+      context=context,
+      population_assessment=pop_assessment,
+    )
 
     # 3. Generational evolution loop driven by the pipeline
     for gen in range(max_generations):
@@ -654,29 +873,26 @@ class GeneticAlgorithm:
       for step in self.pipeline:
         step.run(state, self.timer)
 
-      gen_best_cost = self.timer.measure(
+      cand_idx, cand_cost, cand_feas = self.timer.measure(
         "host_sync",
-        self._best_cost,
+        self._best_candidate_meta,
         state.fitness,
+        state.population_assessment,
       )
-      if gen_best_cost < best_cost - 1e-6:
+      if self._candidate_beats_incumbent(cand_cost, cand_feas, best_cost, best_is_feasible):
         # The route crosses PCIe only on strict improvement (`BUG-30`), so a stagnant
-        # generation pays one scalar read instead of a full `(n,)` device-to-host copy.
-        best_tour, _ = self.timer.measure(
-          "host_sync",
-          self._extract_best,
-          state.population,
-          state.fitness,
-        )
-        best_cost = gen_best_cost
+        # generation pays scalar reads instead of a full `(n,)` device-to-host copy.
+        best_tour = self.timer.measure("host_sync", self._extract_route_at, state.population, cand_idx)
+        best_cost = cand_cost
+        best_is_feasible = cand_feas
         generations_without_improvement = 0
       else:
         generations_without_improvement += 1
 
       self.best_cost_history.append(best_cost)
 
-      # Early stopping check 1: true optimal reached or within 1% of known optimal cost
-      if optimal_cost is not None and optimal_cost > 0:
+      # Early stopping check 1: feasible solution reached optimal or within 1% of known optimal cost
+      if best_is_feasible and optimal_cost is not None and optimal_cost > 0:
         if best_cost <= optimal_cost + 1e-6:
           stopped_early = True
           stop_reason = "hit_optimal"
@@ -702,29 +918,41 @@ class GeneticAlgorithm:
         state.population,
         context,
       )
-      state.fitness = self.timer.measure(
+      post_on_gpu = is_gpu_array(state.population)
+      post_keep_gpu = bool(post_on_gpu and getattr(self.evaluation, "return_gpu", False))
+      post_assessment = self.timer.measure(
         "evaluation",
-        self.evaluation.evaluate_batch,
+        assess_with_evaluator,
+        self.evaluation,
         state.population,
         context,
+        return_gpu=post_keep_gpu,
       )
-      post_best_tour, post_best_cost = self.timer.measure(
+      state.population_assessment = post_assessment
+      state.fitness = post_assessment.objectives
+      post_idx, post_cost, post_feas = self.timer.measure(
         "host_sync",
-        self._extract_best,
-        state.population,
+        self._best_candidate_meta,
         state.fitness,
+        state.population_assessment,
       )
-      if post_best_cost <= best_cost:
-        best_tour = post_best_tour
-        best_cost = post_best_cost
+      if self._candidate_beats_incumbent(post_cost, post_feas, best_cost, best_is_feasible, allow_equal=True):
+        best_tour = self.timer.measure("host_sync", self._extract_route_at, state.population, post_idx)
+        best_cost = post_cost
+        best_is_feasible = post_feas
         self.best_cost_history[-1] = best_cost
+
+    # 5. Polymorphic route canonicalization delegated to evaluator (`DP17-8`)
+    best_tour = canonicalize_with_evaluator(self.evaluation, best_tour, context)
 
     self._collect_strategy_metrics(context)
     phase_timings: dict[str, dict[str, float | int]] = self.timer.summary()
 
     stats: dict[str, Any] = {
       "initial_fitness": initial_best_cost,
+      "initial_feasible_cost": initial_feasible_cost,
       "best_fitness": best_cost,
+      "best_is_feasible": best_is_feasible,
       "generations_completed": self.generation,
       "stopped_early": stopped_early,
       "stop_reason": stop_reason,

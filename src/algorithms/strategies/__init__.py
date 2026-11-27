@@ -19,25 +19,64 @@ from protocols.algorithm_strategies import (
   MutationStrategy,
   SelectionStrategy,
 )
+from protocols.vrp_strategies import (
+  BinPackingStrategy,
+  PenaltyPolicy,
+  RouteDecoder,
+)
 
 from .base import StrategyBase
+from .bin_packing import (
+  BinPackingCPUBFD,
+  BinPackingCPUFFD,
+  BinPackingGPUBFD,
+  BinPackingGPUFFD,
+)
 from .crossover import (
   CrossoverGPUOrder,
   CrossoverGPUPartiallyMapped,
+  CrossoverGPURBX,
   CrossoverOrder,
   CrossoverPartiallyMapped,
+  CrossoverRBX,
 )
+from .decoding import GreedySplitDecoder, PrinsSplitDecoder
 from .evaluation import (
   EvaluationCPUCost,
   EvaluationGPUCost,
 )
-from .initialization import InitializationNearestNeighbor, InitializationRandom
-from .local_search import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt, LocalSearchNoOp
+from .initialization import (
+  InitializationCPUClarkeWright,
+  InitializationCPUNearestNeighbor,
+  InitializationCPURandom,
+  InitializationCPUSweep,
+  InitializationGPUClarkeWright,
+  InitializationGPUNearestNeighbor,
+  InitializationGPURandom,
+  InitializationGPUSweep,
+)
+from .local_search import (
+  LocalSearchCPUTwoOpt,
+  LocalSearchCPUTwoOptStar,
+  LocalSearchGPUTwoOpt,
+  LocalSearchGPUTwoOptStar,
+  LocalSearchNoOp,
+)
 from .mutation import (
   MutationGPUInversion,
+  MutationGPURouteRelocate,
+  MutationGPURouteSwap,
   MutationGPUSwap,
   MutationInversion,
+  MutationRouteRelocate,
+  MutationRouteSwap,
   MutationSwap,
+)
+from .penalties import (
+  AdaptivePenaltyPolicy,
+  FixedPenaltyPolicy,
+  InstanceScaledPenaltyPolicy,
+  StrictFeasibilityPolicy,
 )
 from .selection import (
   SelectionGPUTournament,
@@ -48,23 +87,70 @@ from .selection import (
 STRATEGY_REGISTRY: dict[str, type] = {
   "CrossoverGPUOrder": CrossoverGPUOrder,
   "CrossoverGPUPartiallyMapped": CrossoverGPUPartiallyMapped,
+  "CrossoverGPURBX": CrossoverGPURBX,
   "CrossoverOrder": CrossoverOrder,
   "CrossoverPartiallyMapped": CrossoverPartiallyMapped,
+  "CrossoverRBX": CrossoverRBX,
   "EvaluationCPUCost": EvaluationCPUCost,
   "EvaluationGPUCost": EvaluationGPUCost,
-  "InitializationNearestNeighbor": InitializationNearestNeighbor,
-  "InitializationRandom": InitializationRandom,
+  "InitializationCPUClarkeWright": InitializationCPUClarkeWright,
+  "InitializationCPUNearestNeighbor": InitializationCPUNearestNeighbor,
+  "InitializationCPURandom": InitializationCPURandom,
+  "InitializationCPUSweep": InitializationCPUSweep,
+  "InitializationGPUClarkeWright": InitializationGPUClarkeWright,
+  "InitializationGPUNearestNeighbor": InitializationGPUNearestNeighbor,
+  "InitializationGPURandom": InitializationGPURandom,
+  "InitializationGPUSweep": InitializationGPUSweep,
+  "LocalSearchCPUTwoOptStar": LocalSearchCPUTwoOptStar,
   "LocalSearchCPUTwoOpt": LocalSearchCPUTwoOpt,
+  "LocalSearchGPUTwoOptStar": LocalSearchGPUTwoOptStar,
   "LocalSearchGPUTwoOpt": LocalSearchGPUTwoOpt,
   "LocalSearchNoOp": LocalSearchNoOp,
   "MutationGPUInversion": MutationGPUInversion,
+  "MutationGPURouteRelocate": MutationGPURouteRelocate,
+  "MutationGPURouteSwap": MutationGPURouteSwap,
   "MutationGPUSwap": MutationGPUSwap,
   "MutationInversion": MutationInversion,
+  "MutationRouteRelocate": MutationRouteRelocate,
+  "MutationRouteSwap": MutationRouteSwap,
   "MutationSwap": MutationSwap,
   "SelectionGPUTournament": SelectionGPUTournament,
   "SelectionRouletteWheel": SelectionRouletteWheel,
   "SelectionTournament": SelectionTournament,
 }
+
+SUB_STRATEGY_REGISTRY: dict[str, type] = {
+  "AdaptivePenaltyPolicy": AdaptivePenaltyPolicy,
+  "BinPackingCPUBFD": BinPackingCPUBFD,
+  "BinPackingCPUFFD": BinPackingCPUFFD,
+  "BinPackingGPUBFD": BinPackingGPUBFD,
+  "BinPackingGPUFFD": BinPackingGPUFFD,
+  "FixedPenaltyPolicy": FixedPenaltyPolicy,
+  "GreedySplitDecoder": GreedySplitDecoder,
+  "InstanceScaledPenaltyPolicy": InstanceScaledPenaltyPolicy,
+  "PrinsSplitDecoder": PrinsSplitDecoder,
+  "StrictFeasibilityPolicy": StrictFeasibilityPolicy,
+}
+
+_SUB_STRATEGY_PROTOCOLS: tuple[type, ...] = (
+  PenaltyPolicy,
+  RouteDecoder,
+  BinPackingStrategy,
+)
+
+
+def register_sub_strategy(name: str, sub_strategy_cls: type, *, overwrite: bool = False) -> None:
+  """Register a custom composable sub-strategy class in ``SUB_STRATEGY_REGISTRY``."""
+  if not isinstance(name, str) or not name.strip():
+    raise ValueError("Sub-strategy name must be a non-empty string.")
+  if not isinstance(sub_strategy_cls, type):
+    raise TypeError(f"Expected a sub-strategy class (type), got {type(sub_strategy_cls).__name__}.")
+  if not any(issubclass(sub_strategy_cls, proto) for proto in _SUB_STRATEGY_PROTOCOLS):
+    expected = ", ".join(proto.__name__ for proto in _SUB_STRATEGY_PROTOCOLS)
+    raise TypeError(f"Sub-strategy class '{sub_strategy_cls.__name__}' does not implement any of: {expected}.")
+  if name in SUB_STRATEGY_REGISTRY and not overwrite:
+    raise ValueError(f"Sub-strategy '{name}' is already registered. Pass overwrite=True to replace it.")
+  SUB_STRATEGY_REGISTRY[name] = sub_strategy_cls
 
 
 _STRATEGY_PROTOCOLS: tuple[type, ...] = (
@@ -124,25 +210,51 @@ def register_strategy(name: str, strategy_cls: type, *, overwrite: bool = False)
 __all__: list[str] = [
   "PIPELINE_STEP_REGISTRY",
   "STRATEGY_REGISTRY",
+  "SUB_STRATEGY_REGISTRY",
+  "AdaptivePenaltyPolicy",
+  "BinPackingCPUBFD",
+  "BinPackingCPUFFD",
+  "BinPackingGPUBFD",
+  "BinPackingGPUFFD",
   "CrossoverGPUOrder",
   "CrossoverGPUPartiallyMapped",
+  "CrossoverGPURBX",
   "CrossoverOrder",
   "CrossoverPartiallyMapped",
+  "CrossoverRBX",
   "EvaluationCPUCost",
   "EvaluationGPUCost",
-  "InitializationNearestNeighbor",
-  "InitializationRandom",
+  "FixedPenaltyPolicy",
+  "GreedySplitDecoder",
+  "InitializationCPUClarkeWright",
+  "InitializationCPUNearestNeighbor",
+  "InitializationCPURandom",
+  "InitializationCPUSweep",
+  "InitializationGPUClarkeWright",
+  "InitializationGPUNearestNeighbor",
+  "InitializationGPURandom",
+  "InitializationGPUSweep",
+  "InstanceScaledPenaltyPolicy",
   "LocalSearchCPUTwoOpt",
+  "LocalSearchCPUTwoOptStar",
   "LocalSearchGPUTwoOpt",
+  "LocalSearchGPUTwoOptStar",
   "LocalSearchNoOp",
   "MutationGPUInversion",
+  "MutationGPURouteRelocate",
+  "MutationGPURouteSwap",
   "MutationGPUSwap",
   "MutationInversion",
+  "MutationRouteRelocate",
+  "MutationRouteSwap",
   "MutationSwap",
+  "PrinsSplitDecoder",
   "SelectionGPUTournament",
   "SelectionRouletteWheel",
   "SelectionTournament",
   "StrategyBase",
+  "StrictFeasibilityPolicy",
   "register_pipeline_step",
   "register_strategy",
+  "register_sub_strategy",
 ]

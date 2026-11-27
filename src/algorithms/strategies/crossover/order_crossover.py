@@ -183,13 +183,13 @@ class CrossoverGPUOrder(StrategyBase, CrossoverStrategy):
       )
     return self._kernel
 
-  def warmup(self, context: ProblemContext) -> None:
+  def _warmup_impl(self, context: ProblemContext) -> None:
     """Compile the kernel and launch it once on two valid parent permutations.
 
     `crossover_batch` needs at least two routes to launch, so the warm-up batch is
     `(2, n)`; both rows are `arange`, never `cp.zeros` (`BUG-24`).
     """
-    super().warmup(context)
+    super()._warmup_impl(context)
     self.crossover_batch(self._warmup_batch(context, rows=2), context=context)
 
   def crossover(

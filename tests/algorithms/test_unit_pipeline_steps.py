@@ -28,13 +28,17 @@ from algorithms.metaheuristics.genetic_algorithm import (
 from algorithms.pipeline_steps import (
   PIPELINE_STEP_REGISTRY,
   EliteOnlyLocalSearchStep,
+  FleetBinPackStep,
+  GiantTourEncodeStep,
+  PenaltyAdaptationStep,
   PeriodicLocalSearchStep,
   PostInitLocalSearchStep,
+  SplitDecodeStep,
   StageAnchor,
 )
 from algorithms.strategies.crossover.order_crossover import CrossoverOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization.random_initialization import InitializationRandom
+from algorithms.strategies.initialization.random_init import InitializationCPURandom
 from algorithms.strategies.local_search.two_opt import LocalSearchCPUTwoOpt
 from algorithms.strategies.mutation.swap_mutation import MutationSwap
 from algorithms.strategies.selection.tournament_selection import SelectionTournament
@@ -63,6 +67,10 @@ def test_pipeline_step_registry_contents() -> None:
     "PostInitLocalSearchStep": PostInitLocalSearchStep,
     "EliteOnlyLocalSearchStep": EliteOnlyLocalSearchStep,
     "PeriodicLocalSearchStep": PeriodicLocalSearchStep,
+    "SplitDecodeStep": SplitDecodeStep,
+    "GiantTourEncodeStep": GiantTourEncodeStep,
+    "PenaltyAdaptationStep": PenaltyAdaptationStep,
+    "FleetBinPackStep": FleetBinPackStep,
   }
   assert PIPELINE_STEP_REGISTRY == expected
 
@@ -80,7 +88,7 @@ def test_instantiate_unknown_step_class_raises_value_error() -> None:
       ],
     },
     strategies={
-      "initialization": {"class": "InitializationRandom"},
+      "initialization": {"class": "InitializationCPURandom"},
       "selection": {"class": "SelectionTournament"},
       "crossover": {"class": "CrossoverOrder"},
       "mutation": {"class": "MutationSwap"},
@@ -105,7 +113,7 @@ def test_instantiate_step_with_invalid_param_raises_value_error() -> None:
       ],
     },
     strategies={
-      "initialization": {"class": "InitializationRandom"},
+      "initialization": {"class": "InitializationCPURandom"},
       "selection": {"class": "SelectionTournament"},
       "crossover": {"class": "CrossoverOrder"},
       "mutation": {"class": "MutationSwap"},
@@ -181,7 +189,7 @@ def test_post_init_contract_identical_initial_fitness_different_best_fitness(bur
     population_size=16,
     mutation_rate=0.02,
     seed=seed,
-    initialization=InitializationRandom(seed=seed),
+    initialization=InitializationCPURandom(seed=seed),
     selection=SelectionTournament(k=3, seed=seed),
     crossover=CrossoverOrder(seed=seed),
     mutation=MutationSwap(seed=seed),
@@ -199,7 +207,7 @@ def test_post_init_contract_identical_initial_fitness_different_best_fitness(bur
     population_size=16,
     mutation_rate=0.02,
     seed=seed,
-    initialization=InitializationRandom(seed=seed),
+    initialization=InitializationCPURandom(seed=seed),
     selection=SelectionTournament(k=3, seed=seed),
     crossover=CrossoverOrder(seed=seed),
     mutation=MutationSwap(seed=seed),
@@ -277,7 +285,7 @@ def test_elite_only_step_refines_only_elites_preserving_non_elites(burma14_probl
   step = EliteOnlyLocalSearchStep(local_search=ls_strat, evaluation=eval_strat, elite_count=elite_count)
 
   customers = list(range(burma14_problem.dimension))
-  init_strat = InitializationRandom(seed=seed)
+  init_strat = InitializationCPURandom(seed=seed)
   pop = init_strat.initialize(customers, pop_size, context)
   fit = eval_strat.evaluate_batch(pop, context)
 
@@ -485,7 +493,7 @@ def test_elite_only_step_in_full_ga_evolution(burma14_problem: Problem) -> None:
     population_size=16,
     mutation_rate=0.05,
     seed=seed,
-    initialization=InitializationRandom(seed=seed),
+    initialization=InitializationCPURandom(seed=seed),
     selection=SelectionTournament(k=3, seed=seed),
     crossover=CrossoverOrder(seed=seed),
     mutation=MutationSwap(seed=seed),
@@ -534,7 +542,7 @@ def test_periodic_step_in_full_ga_evolution(burma14_problem: Problem) -> None:
     population_size=16,
     mutation_rate=0.05,
     seed=seed,
-    initialization=InitializationRandom(seed=seed),
+    initialization=InitializationCPURandom(seed=seed),
     selection=SelectionTournament(k=3, seed=seed),
     crossover=CrossoverOrder(seed=seed),
     mutation=MutationSwap(seed=seed),
@@ -633,7 +641,7 @@ def _make_ga(pipeline: list[GenerationStep], local_search: LocalSearchStrategy |
     population_size=8,
     mutation_rate=0.02,
     seed=42,
-    initialization=InitializationRandom(seed=42),
+    initialization=InitializationCPURandom(seed=42),
     selection=SelectionTournament(k=3, seed=42),
     crossover=CrossoverOrder(seed=42),
     mutation=MutationSwap(seed=42),
@@ -707,7 +715,7 @@ def test_custom_pipeline_steps_are_recorded_on_instance() -> None:
   eval_strat = EvaluationCPUCost()
   ga_default = GeneticAlgorithm(
     population_size=8,
-    initialization=InitializationRandom(seed=1),
+    initialization=InitializationCPURandom(seed=1),
     selection=SelectionTournament(k=3, seed=1),
     crossover=CrossoverOrder(seed=1),
     mutation=MutationSwap(seed=1),
@@ -824,7 +832,7 @@ def test_shared_gpu_distance_matrix_is_counted_once_across_strategies(burma14_pr
   upload increments `h2d_bytes`, and `_collect_strategy_metrics` reports `1x` (never `3x`).
   """
   from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
-  from algorithms.strategies.local_search.two_opt import _DistanceOperandCache
+  from algorithms.strategies.local_search.gpu_base import DistanceOperandCache
 
   class _FakeGPUContext:
     def __init__(self, problem: Problem) -> None:
@@ -844,7 +852,7 @@ def test_shared_gpu_distance_matrix_is_counted_once_across_strategies(burma14_pr
   fake_ctx = _FakeGPUContext(burma14_problem)
 
   evaluator = EvaluationGPUCost()
-  two_opt_cache = _DistanceOperandCache()
+  two_opt_cache = DistanceOperandCache()
 
   evaluator._distance_operands(fake_ctx, n)  # type: ignore[arg-type]
   _, two_opt_uploaded = two_opt_cache.resolve(fake_ctx, n, max_matrix_dimension=None)  # type: ignore[arg-type]

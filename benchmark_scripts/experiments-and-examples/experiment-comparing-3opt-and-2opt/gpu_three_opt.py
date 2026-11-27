@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 
 from algorithms.strategies.base import StrategyBase
-from algorithms.strategies.local_search.two_opt import _DistanceOperandCache
+from algorithms.strategies.local_search.gpu_base import DistanceOperandCache
 from protocols.algorithm_strategies import LocalSearchStrategy
 from protocols.backend import require_gpu
 from utils.gpu_helpers import DISTANCE_KERNELS_DIR, prev_power_of_2
@@ -334,7 +334,7 @@ class LocalSearchGPUThreeOpt(StrategyBase, LocalSearchStrategy):
     self.candidate_k: int | None = candidate_k
     self.inner_candidate_k: int | None = inner_candidate_k
     self._kernel: Any = None
-    self._operands: _DistanceOperandCache = _DistanceOperandCache()
+    self._operands: DistanceOperandCache = DistanceOperandCache()
 
   def reset_metrics(self) -> None:
     """Reset transfer and kernel launch counters."""
@@ -348,9 +348,9 @@ class LocalSearchGPUThreeOpt(StrategyBase, LocalSearchStrategy):
       self._kernel = _load_three_opt_kernel(source, entry_point)
     return self._kernel
 
-  def warmup(self, context: ProblemContext) -> None:
+  def _warmup_impl(self, context: ProblemContext) -> None:
     """Compile the selected CUDA kernel and launch it once on a valid permutation."""
-    super().warmup(context)
+    super()._warmup_impl(context)
     self.improve_batch(self._warmup_batch(context, rows=1), context)
 
   def _uses_candidates(self, context: ProblemContext, n: int, *, is_closed: bool) -> bool:

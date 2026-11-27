@@ -48,6 +48,7 @@ from utils.route_helpers import (
 )
 
 from ..base import StrategyBase
+from .gpu_base import BaseLocalSearchGPU
 
 if TYPE_CHECKING:
   from collections.abc import Iterator
@@ -77,81 +78,6 @@ _DEFAULT_MAX_SHARED_TOUR_CITIES: int = 11_520
 _TILE_SIZE: int = 2048
 
 
-class _DistanceOperandCache:
-  """Strategy-local mirror of the GPU buffers owned by `ProblemContext`.
-
-  The context is the single owner of the `int32` distance matrix and of the
-  coordinate buffer (`DP10-17`); this cache only records which buffers the strategy
-  bound last and how many bytes the first upload cost, so two GPU strategies running
-  in the same pipeline never allocate a second copy in VRAM (`BUG-14`).
-  """
-
-  def __init__(self) -> None:
-    self.distances: Any = None
-    self.distance_key: tuple[str, int, str, int] | None = None
-    self.coords: Any = None
-    self.coords_key: tuple[str, int, str, int] | None = None
-    self.candidates: Any = None
-    self.candidates_key: tuple[str, int, str, int] | None = None
-
-  def reset(self) -> None:
-    """Forget the mirrored buffers after a metrics reset."""
-    self.distances = None
-    self.distance_key = None
-    self.coords = None
-    self.coords_key = None
-    self.candidates = None
-    self.candidates_key = None
-
-  def resolve(
-    self,
-    context: ProblemContext,
-    n: int,
-    max_matrix_dimension: int | None,
-  ) -> tuple[tuple[Any, Any, int], int]:
-    """Return `((d_distances, d_coords, edge_type_code), uploaded_bytes)`.
-
-    `ProblemContext.get_gpu_distance_operands` decides between the dense matrix and
-    on-the-fly coordinates and hands back the context-owned buffers, so
-    `EvaluationGPUCost` and `LocalSearchGPUTwoOpt` bind the same VRAM objects
-    (`DP10-17`). `uploaded_bytes` reflects only the physical upload delta recorded
-    by `context.h2d_bytes` (`BUG-95`), so an already-cached buffer charges zero.
-    """
-    before_h2d = int(getattr(context, "h2d_bytes", 0))
-    d_distances, d_coords, edge_type_code = context.get_gpu_distance_operands(n, max_matrix_dimension)
-    uploaded_bytes = max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)
-    problem = context.problem
-    problem_key = (problem.name, problem.dimension, problem.edge_type, id(problem))
-    if isinstance(d_distances, int):
-      self.coords = d_coords
-      self.coords_key = problem_key
-      self.distances = None
-      self.distance_key = None
-    else:
-      self.distances = d_distances
-      self.distance_key = problem_key
-      self.coords = None
-      self.coords_key = None
-    return (d_distances, d_coords, edge_type_code), uploaded_bytes
-
-  def resolve_candidates(self, context: ProblemContext, k: int) -> tuple[Any, int]:
-    """Return `(d_candidates, uploaded_bytes)` for the context-owned `N_k` table.
-
-    `ProblemContext.get_gpu_candidate_list` caches the device table per `k`, so the
-    first strategy that triggers the physical upload pays `context.h2d_bytes`'s delta
-    and every later generation or sibling strategy binds it for zero bytes
-    (`BUG-27`, `BUG-95`).
-    """
-    before_h2d = int(getattr(context, "h2d_bytes", 0))
-    d_candidates = context.get_gpu_candidate_list(k)
-    uploaded_bytes = max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)
-    problem = context.problem
-    problem_key = (problem.name, problem.dimension, problem.edge_type, id(problem))
-    self.candidates = d_candidates
-    self.candidates_key = problem_key
-    return d_candidates, uploaded_bytes
-
-
 def _shared_mem_bytes(block_size: int, n: int, tile_size: int, use_candidates: bool = False) -> int:
   """Return dynamic shared-memory bytes for the per-block buffers.
 
@@ -168,6 +94,26 @@ def _shared_mem_bytes(block_size: int, n: int, tile_size: int, use_candidates: b
   return (block_size * 3 + tour_ints) * 4
 
 
+def _resolve_topology(context: ProblemContext) -> tuple[bool, bool, bool]:
+  """Return `(is_closed, is_cyclic, fixed_start)` from `context` metadata.
+
+  - `is_closed`: `True` for closed depot-bounded VRP sub-routes `[0, ..., 0]`
+    (`context.is_closed`), where both endpoints `0` and `n - 1` stay fixed.
+  - `is_cyclic`: `True` when the route closes with a wrap-around edge
+    `(tour[n - 1], tour[0])` (`not is_closed` and `return_to_depot`).
+  - `fixed_start`: `True` when `tour[0]` is a fixed depot or cycle anchor
+    (`is_closed`, `is_cyclic`, or `problem_type in {"CVRP", "OVRP", "DCVRP"}`).
+  """
+  is_closed: bool = bool(getattr(context, "is_closed", False))
+  return_to_depot: bool = bool(getattr(context, "return_to_depot", True))
+  has_depot: bool = str(context.problem.problem_type) in {"CVRP", "OVRP", "DCVRP"}
+  if is_closed:
+    return True, False, True
+  is_cyclic: bool = return_to_depot
+  fixed_start: bool = is_cyclic or has_depot
+  return False, is_cyclic, fixed_start
+
+
 def _resolve_candidates(
   context: ProblemContext,
   tour: np.ndarray,
@@ -175,19 +121,26 @@ def _resolve_candidates(
 ) -> np.ndarray | None:
   """Return the `(n, k_eff)` candidate table for `candidate_k`, or `None` to disable.
 
-  `None` (the default) keeps the classic exhaustive scan. A non-positive `k` or a
-  route holding node ids outside the context candidate table also fall back to the
-  exhaustive scan, so a mismatched route can never index out of bounds.
+  `None` (the default) keeps the classic exhaustive scan. Non-positive `k`, closed or
+  non-cyclic topologies, sub-routes whose length differs from `context.dimension`, or
+  routes holding node ids outside the candidate table fall back to the exhaustive scan
+  (`BUG-107`).
 
   Args:
       context: Problem context owning the cached `N_k` table.
-      tour: 1D route or 2D batch whose largest node id bounds the lookup.
+      tour: 1D route or 2D batch whose length and node ids bound the lookup.
       candidate_k: Requested neighbours per node; `None` disables candidate mode.
 
   Returns:
       The candidate table, or `None` when the exhaustive scan must be used.
   """
   if candidate_k is None or candidate_k <= 0:
+    return None
+  is_closed, is_cyclic, _ = _resolve_topology(context)
+  if is_closed or not is_cyclic or str(context.problem.problem_type) in {"CVRP", "OVRP", "DCVRP"}:
+    return None
+  route_len = int(tour.shape[-1]) if tour.ndim >= 1 and tour.size > 0 else 0
+  if route_len != context.dimension:
     return None
   candidates = context.get_cpu_candidate_list(candidate_k)
   largest_node = int(tour.max()) if tour.size else -1
@@ -202,26 +155,50 @@ def _resolve_candidates(
 _PAIR_BLOCK: int = 1 << 18
 
 
-@lru_cache(maxsize=2)
-def _exhaustive_pairs(n: int) -> tuple[np.ndarray, np.ndarray]:
+@lru_cache(maxsize=8)
+def _exhaustive_pairs(
+  n: int,
+  is_closed: bool = False,
+  is_cyclic: bool = True,
+  fixed_start: bool = True,
+) -> tuple[np.ndarray, np.ndarray]:
   """Return the exhaustive 2-opt pair set `(i, j)` in ascending scan order.
 
-  The neighbourhood is every pair with `i + 2 <= j`, minus the pair `(0, n - 1)`:
-  reversing `tour[1:n]` is the identity move, so a sequential scan stops one short
-  at `j = i` and at `j = n - 1` when `i == 0`. `np.triu_indices` produces exactly
-  that order in one vectorised pass, which lets the three acceptance rules share a
-  single enumeration instead of three copies of the same nested loop.
+  Each pair `(i, j)` reverses `tour[i + 1 : j + 1]`:
+
+  - **Cyclic tour** (`is_closed=False, is_cyclic=True`): `0 <= i < j <= n - 1`
+    with `j >= i + 2`, excluding `(0, n - 1)` whose reversal `tour[1:n]` is the
+    identity move.
+  - **Closed depot-bounded route** (`is_closed=True`): `0 <= i < j <= n - 2`
+    with `j >= i + 2`, keeping both `tour[0]` and `tour[n - 1]` fixed (`BUG-107`).
+  - **Open path** (`is_closed=False, is_cyclic=False`): allows `j == n - 1`
+    including `(0, n - 1)` because there is no closing edge `(tour[n - 1], tour[0])`;
+    when `fixed_start=False` (Open TSP), also prepends prefix reversals
+    `i == -1` for `1 <= j <= n - 2` (`tour[0 : j + 1]`).
 
   Args:
-      n: Tour length. Cached per `n` because the pair set depends on nothing else,
-          and every route of a population shares the same length.
+      n: Route length.
+      is_closed: True for depot-bounded `[0, ..., 0]` routes.
+      is_cyclic: True for closed-loop tours with wrap-around edge `(n - 1, 0)`.
+      fixed_start: True when `tour[0]` cannot move (depot or cycle anchor).
 
   Returns:
       `(i_idx, j_idx)` `int32` arrays aligned by position.
   """
-  i_idx, j_idx = np.triu_indices(n, k=2)
-  keep: np.ndarray = ~((i_idx == 0) & (j_idx == n - 1))
-  return i_idx[keep].astype(np.int32, copy=False), j_idx[keep].astype(np.int32, copy=False)
+  i_raw, j_raw = np.triu_indices(n, k=2)
+  i_idx: np.ndarray = i_raw.astype(np.int32, copy=False)
+  j_idx: np.ndarray = j_raw.astype(np.int32, copy=False)
+  if is_closed:
+    keep: np.ndarray = j_idx < n - 1
+    return i_idx[keep], j_idx[keep]
+  if is_cyclic:
+    keep = ~((i_idx == 0) & (j_idx == n - 1))
+    return i_idx[keep], j_idx[keep]
+  if fixed_start:
+    return i_idx, j_idx
+  prefix_j: np.ndarray = np.arange(1, max(1, n - 1), dtype=np.int32)
+  prefix_i: np.ndarray = np.full(prefix_j.shape, -1, dtype=np.int32)
+  return np.concatenate((prefix_i, i_idx)), np.concatenate((prefix_j, j_idx))
 
 
 def _pair_deltas(
@@ -231,39 +208,57 @@ def _pair_deltas(
   distances: np.ndarray,
   i_idx: np.ndarray,
   j_idx: np.ndarray,
+  *,
+  is_closed: bool = False,
+  is_cyclic: bool = True,
 ) -> np.ndarray:
   """Return the `int64` gain of reversing `tour[i + 1 : j + 1]` for each pair.
 
-  The move replaces edges `(a, b)` and `(c, d)` with `(a, c)` and `(b, d)`, so the
-  gain is `d(a, c) + d(b, d) - d(a, b) - d(c, d)`; negative means the reversal
-  shortens the tour.
-
-  `next_node` is `tour` rotated left by one and `edge_costs[k]` is `d(tour[k],
-  tour[k + 1])`, so the two retired edges are two lookups into a length-`n` vector
-  instead of two more gathers from the dense `(n, n)` matrix. Arithmetic is widened
-  to `int64` before summing: the matrix is `int32` and a tour cost near the TSPLIB
-  ceiling makes `d(a, c) + d(b, d)` exceed the `int32` range even though each edge
-  fits.
+  For interior and cyclic moves the reversal replaces edges `(a, b)` and `(c, d)`
+  with `(a, c)` and `(b, d)`, giving `d(a, c) + d(b, d) - d(a, b) - d(c, d)`.
+  On open paths (`not is_closed and not is_cyclic`), prefix moves (`i == -1`)
+  replace `(c, d)` with `(tour[0], d)` and suffix moves (`j == n - 1`) replace
+  `(a, b)` with `(a, c)` (`BUG-107`). Arithmetic is widened to `int64` before
+  summing so edge sums near the TSPLIB ceiling cannot overflow `int32`.
 
   Args:
       tour: Current tour, `(n,)` node ids.
       next_node: `tour` rotated left by one, `(n,)`.
       edge_costs: `int64` cost of each consecutive edge, `(n,)`.
-      distances: `(n, n)` `int32` distance matrix.
+      distances: `(dist_stride, dist_stride)` `int32` distance matrix.
       i_idx: Positions of the first break point, `(p,)`.
       j_idx: Positions of the second break point, `(p,)`.
+      is_closed: True for closed depot-bounded `[0, ..., 0]` routes.
+      is_cyclic: True for cyclic tours with wrap-around edge `(n - 1, 0)`.
 
   Returns:
       `int64` array `(p,)` of gains, aligned with `i_idx` and `j_idx`.
   """
-  a: np.ndarray = tour[i_idx]
-  b: np.ndarray = next_node[i_idx]
-  c: np.ndarray = tour[j_idx]
-  d: np.ndarray = next_node[j_idx]
-  d_ac: np.ndarray = np.asarray(distances[a, c], dtype=np.int64)
-  d_bd: np.ndarray = np.asarray(distances[b, d], dtype=np.int64)
-  gain: np.ndarray = d_ac + d_bd - edge_costs[i_idx] - edge_costs[j_idx]
-  return gain
+  if is_closed or is_cyclic:
+    a: np.ndarray = tour[i_idx]
+    b: np.ndarray = next_node[i_idx]
+    c: np.ndarray = tour[j_idx]
+    d: np.ndarray = next_node[j_idx]
+    d_ac: np.ndarray = np.asarray(distances[a, c], dtype=np.int64)
+    d_bd: np.ndarray = np.asarray(distances[b, d], dtype=np.int64)
+    gain: np.ndarray = d_ac + d_bd - edge_costs[i_idx] - edge_costs[j_idx]
+    return gain
+
+  n: int = tour.size
+  is_prefix: np.ndarray = i_idx < 0
+  is_suffix: np.ndarray = j_idx == n - 1
+  safe_i: np.ndarray = np.maximum(i_idx, 0)
+  safe_j: np.ndarray = np.minimum(j_idx, max(0, n - 2))
+  a = tour[safe_i]
+  b = np.where(is_prefix, tour[0], next_node[safe_i])
+  c = tour[j_idx]
+  d = next_node[safe_j]
+  d_ac = np.where(is_prefix, np.int64(0), np.asarray(distances[a, c], dtype=np.int64))
+  d_bd = np.where(is_suffix, np.int64(0), np.asarray(distances[b, d], dtype=np.int64))
+  old_ab: np.ndarray = np.where(is_prefix, np.int64(0), edge_costs[safe_i])
+  old_cd: np.ndarray = np.where(is_suffix, np.int64(0), edge_costs[safe_j])
+  open_gain: np.ndarray = d_ac + d_bd - old_ab - old_cd
+  return open_gain
 
 
 class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
@@ -310,6 +305,10 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     tour: np.ndarray,
     positions: np.ndarray | None,
     candidates: np.ndarray | None,
+    *,
+    is_closed: bool = False,
+    is_cyclic: bool = True,
+    fixed_start: bool = True,
   ) -> Iterator[tuple[np.ndarray, np.ndarray]]:
     """Yield the `(i, j)` break-point pairs of one scan, in ascending scan order.
 
@@ -317,8 +316,8 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     three acceptance rules consume one generator instead of each carrying its own
     nested loop:
 
-    - exhaustive (`candidates is None`): every pair with `i + 2 <= j`, in blocks of
-      `_PAIR_BLOCK` to bound temporaries;
+    - exhaustive (`candidates is None`): every pair matching the route topology, in
+      blocks of `_PAIR_BLOCK` to bound temporaries;
     - candidate mode: exactly the pairs a sequential `for r in range(k)` visit
       would reach, including duplicates when two neighbours of `a` share a
       position — the acceptance rules are order- and multiplicity-sensitive, so
@@ -328,15 +327,21 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
         tour: Current tour, `(n,)` node ids.
         positions: `inverse_positions(tour)` in candidate mode, `None` otherwise.
         candidates: `(n, k_eff)` nearest-neighbour table, or `None`.
+        is_closed: True for depot-bounded `[0, ..., 0]` routes.
+        is_cyclic: True for closed-loop tours with wrap-around edge `(n - 1, 0)`.
+        fixed_start: True when `tour[0]` is fixed.
 
     Yields:
         `(i_idx, j_idx)` `int32` arrays aligned by position.
     """
     n: int = len(tour)
     if candidates is None or positions is None:
-      i_all, j_all = _exhaustive_pairs(n)
+      i_all, j_all = _exhaustive_pairs(n, is_closed=is_closed, is_cyclic=is_cyclic, fixed_start=fixed_start)
       for start in range(0, i_all.size, _PAIR_BLOCK):
-        yield i_all[start : start + _PAIR_BLOCK], j_all[start : start + _PAIR_BLOCK]
+        yield (
+          i_all[start : start + _PAIR_BLOCK],
+          j_all[start : start + _PAIR_BLOCK],
+        )
       return
 
     rows: int = n - 2
@@ -348,7 +353,11 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     if bool(in_range.all()):
       j_mat = positions[neighbours]
     else:
-      j_mat = np.where(in_range, positions[np.clip(neighbours, 0, max(positions.size - 1, 0))], -1)
+      j_mat = np.where(
+        in_range,
+        positions[np.clip(neighbours, 0, max(positions.size - 1, 0))],
+        -1,
+      )
     i_mat: np.ndarray = np.arange(rows, dtype=np.int32)[:, np.newaxis]
     # `i == 0` must stop at `n - 1`: reversing `tour[1:n]` is the identity move.
     keep: np.ndarray = (j_mat > i_mat + 1) & (j_mat < n)
@@ -374,7 +383,16 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     positions: np.ndarray | None = inverse_positions(tour) if candidates is not None else None
     return next_node, edge_costs, positions
 
-  def _step_best(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
+  def _step_best(
+    self,
+    tour: np.ndarray,
+    distances: np.ndarray,
+    candidates: np.ndarray | None,
+    *,
+    is_closed: bool = False,
+    is_cyclic: bool = True,
+    fixed_start: bool = True,
+  ) -> bool:
     """Apply the single steepest improving move; return whether one was applied.
 
     Ties resolve to the first pair in scan order, matching the strict `<` of a
@@ -389,10 +407,26 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     best_delta: int = 0
     best_i: int = -1
     best_j: int = -1
-    for i_idx, j_idx in self._pair_blocks(tour, positions, candidates):
+    for i_idx, j_idx in self._pair_blocks(
+      tour,
+      positions,
+      candidates,
+      is_closed=is_closed,
+      is_cyclic=is_cyclic,
+      fixed_start=fixed_start,
+    ):
       if i_idx.size == 0:
         continue
-      deltas: np.ndarray = _pair_deltas(tour, next_node, edge_costs, distances, i_idx, j_idx)
+      deltas: np.ndarray = _pair_deltas(
+        tour,
+        next_node,
+        edge_costs,
+        distances,
+        i_idx,
+        j_idx,
+        is_closed=is_closed,
+        is_cyclic=is_cyclic,
+      )
       pos: int = int(np.argmin(deltas))
       gain: int = int(deltas[pos])
       if gain < best_delta:
@@ -405,17 +439,45 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
       return True
     return False
 
-  def _step_first(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
+  def _step_first(
+    self,
+    tour: np.ndarray,
+    distances: np.ndarray,
+    candidates: np.ndarray | None,
+    *,
+    is_closed: bool = False,
+    is_cyclic: bool = True,
+    fixed_start: bool = True,
+  ) -> bool:
     """Apply the first improving move found in scan order; return whether one was applied."""
     n: int = len(tour)
     if n < 4:
       return False
     next_node, edge_costs, positions = self._scan_context(tour, distances, candidates)
 
-    for i_idx, j_idx in self._pair_blocks(tour, positions, candidates):
+    for i_idx, j_idx in self._pair_blocks(
+      tour,
+      positions,
+      candidates,
+      is_closed=is_closed,
+      is_cyclic=is_cyclic,
+      fixed_start=fixed_start,
+    ):
       if i_idx.size == 0:
         continue
-      improving: np.ndarray = _pair_deltas(tour, next_node, edge_costs, distances, i_idx, j_idx) < 0
+      improving: np.ndarray = (
+        _pair_deltas(
+          tour,
+          next_node,
+          edge_costs,
+          distances,
+          i_idx,
+          j_idx,
+          is_closed=is_closed,
+          is_cyclic=is_cyclic,
+        )
+        < 0
+      )
       if not bool(improving.any()):
         continue
       # `argmax` on a boolean mask returns the first `True` in scan order.
@@ -426,7 +488,16 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
       return True
     return False
 
-  def _step_multi_move(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> bool:
+  def _step_multi_move(
+    self,
+    tour: np.ndarray,
+    distances: np.ndarray,
+    candidates: np.ndarray | None,
+    *,
+    is_closed: bool = False,
+    is_cyclic: bool = True,
+    fixed_start: bool = True,
+  ) -> bool:
     """Apply every mutually disjoint improving move of one scan; return whether any was applied.
 
     The disjoint selection is inherently sequential — each accepted reversal removes
@@ -434,7 +505,7 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     improving moves of the pass rather than over all `O(n^2)` pairs. A boolean
     occupancy vector replaces the quadratic `any()` overlap check: two windows
     conflict exactly when their inclusive index ranges intersect, which is what
-    marking `[i, j]` and testing the slice reports.
+    marking `[max(0, i), j]` and testing the slice reports.
     """
     n: int = len(tour)
     if n < 4:
@@ -444,10 +515,26 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     gains: list[np.ndarray] = []
     starts: list[np.ndarray] = []
     ends: list[np.ndarray] = []
-    for i_idx, j_idx in self._pair_blocks(tour, positions, candidates):
+    for i_idx, j_idx in self._pair_blocks(
+      tour,
+      positions,
+      candidates,
+      is_closed=is_closed,
+      is_cyclic=is_cyclic,
+      fixed_start=fixed_start,
+    ):
       if i_idx.size == 0:
         continue
-      deltas: np.ndarray = _pair_deltas(tour, next_node, edge_costs, distances, i_idx, j_idx)
+      deltas: np.ndarray = _pair_deltas(
+        tour,
+        next_node,
+        edge_costs,
+        distances,
+        i_idx,
+        j_idx,
+        is_closed=is_closed,
+        is_cyclic=is_cyclic,
+      )
       improving: np.ndarray = deltas < 0
       if not bool(improving.any()):
         continue
@@ -467,14 +554,24 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     for slot in order:
       i: int = int(from_idx[slot])
       j: int = int(to_idx[slot])
-      if occupied[i : j + 1].any():
+      occ_start: int = max(0, i)
+      if occupied[occ_start : j + 1].any():
         continue
       tour[i + 1 : j + 1] = tour[i + 1 : j + 1][::-1]
-      occupied[i : j + 1] = True
+      occupied[occ_start : j + 1] = True
       applied = True
     return applied
 
-  def _refine(self, tour: np.ndarray, distances: np.ndarray, candidates: np.ndarray | None) -> np.ndarray:
+  def _refine(
+    self,
+    tour: np.ndarray,
+    distances: np.ndarray,
+    candidates: np.ndarray | None,
+    *,
+    is_closed: bool = False,
+    is_cyclic: bool = True,
+    fixed_start: bool = True,
+  ) -> np.ndarray:
     """Run up to `max_iterations` acceptance steps on a copy of `tour`."""
     improved: np.ndarray = tour.copy()
     if len(tour) < 4 or self.max_iterations <= 0:
@@ -486,7 +583,14 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
       "multi_move": self._step_multi_move,
     }[self.mode]
     for _ in range(self.max_iterations):
-      if not step(improved, distances, candidates):
+      if not step(
+        improved,
+        distances,
+        candidates,
+        is_closed=is_closed,
+        is_cyclic=is_cyclic,
+        fixed_start=fixed_start,
+      ):
         break
     return improved
 
@@ -494,7 +598,15 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     """Improve a single 1D route `(n_cities,)` using CPU 2-opt."""
     distances = context.get_cpu_distances()
     route_np = np.asarray(route, dtype=np.int32)
-    return self._refine(route_np, distances, _resolve_candidates(context, route_np, self.candidate_k))
+    is_closed, is_cyclic, fixed_start = _resolve_topology(context)
+    return self._refine(
+      route_np,
+      distances,
+      _resolve_candidates(context, route_np, self.candidate_k),
+      is_closed=is_closed,
+      is_cyclic=is_cyclic,
+      fixed_start=fixed_start,
+    )
 
   @time_strategy
   def improve_batch(self, routes: RouteOrRoutes, context: ProblemContext) -> RouteOrRoutes:
@@ -502,13 +614,21 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     batch_np, was_1d, was_gpu = to_cpu_batch(routes)
     distances = context.get_cpu_distances()
     candidates = _resolve_candidates(context, batch_np, self.candidate_k)
+    is_closed, is_cyclic, fixed_start = _resolve_topology(context)
     improved: np.ndarray = np.empty_like(batch_np, dtype=np.int32)
     for idx in range(len(batch_np)):
-      improved[idx] = self._refine(batch_np[idx], distances, candidates)
+      improved[idx] = self._refine(
+        batch_np[idx],
+        distances,
+        candidates,
+        is_closed=is_closed,
+        is_cyclic=is_cyclic,
+        fixed_start=fixed_start,
+      )
     return restore_routes_shape(improved, was_1d, to_gpu=was_gpu)
 
 
-class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
+class LocalSearchGPUTwoOpt(BaseLocalSearchGPU):
   """
   GPU 2-opt local search with a selectable kernel family.
 
@@ -559,24 +679,18 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
             of each node as the second break point (`DP10-20`). `None` keeps the
             exhaustive scan.
     """
-    super().__init__()
+    super().__init__(
+      threads_per_block=threads_per_block,
+      max_matrix_dimension=max_matrix_dimension,
+      candidate_k=candidate_k,
+    )
     if mode not in _GPU_MODES:
       raise ValueError(f"Invalid 2-opt GPU mode {mode!r}; expected one of {sorted(_GPU_MODES)}")
     if max_iterations < 0:
       raise ValueError(f"max_iterations must be >= 0, got {max_iterations}")
     self.mode: TwoOptGPUMode = mode
     self.max_iterations: int = max_iterations
-    self.threads_per_block: int = threads_per_block
-    self.max_matrix_dimension: int | None = max_matrix_dimension
     self.max_shared_tour_cities: int = max_shared_tour_cities
-    self.candidate_k: int | None = candidate_k
-    self._kernel: Any = None
-    self._operands: _DistanceOperandCache = _DistanceOperandCache()
-
-  def reset_metrics(self) -> None:
-    """Reset transfer and kernel launch counters."""
-    super().reset_metrics()
-    self._operands.reset()
 
   def _get_kernel(self) -> Any:
     """Lazily compile and return the CUDA kernel selected by `mode`."""
@@ -585,15 +699,9 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       self._kernel = load_kernel(source, entry_point, __file__)
     return self._kernel
 
-  def warmup(self, context: ProblemContext) -> None:
-    """Compile the selected kernel and launch it once on a valid permutation.
-
-    The first launch is what makes the driver load the module; doing it here keeps
-    that cost out of the measured repetitions, including for periodic pipeline steps
-    that would only launch it at generation 10 (`BUG-25`). The batch is `arange`,
-    never `cp.zeros` (`BUG-24`).
-    """
-    super().warmup(context)
+  def _warmup_impl(self, context: ProblemContext) -> None:
+    """Compile the selected kernel and launch it once on a valid permutation (`BUG-24`, `BUG-25`)."""
+    super()._warmup_impl(context)
     self.improve_batch(self._warmup_batch(context, rows=1), context)
 
   def _tile_size(self, n: int) -> int:
@@ -604,13 +712,14 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     """Return whether the kernel candidate path is admissible for this batch.
 
     The kernel builds the inverse map `pos[tour[idx]] = idx` in a `(batch, n)` buffer
-    and indexes it by node id, so it needs a dense `0..n-1` permutation. Sparse CVRP
-    sub-routes (`problem_type == "CVRP"`) and batches narrower than the problem
-    (`n < context.dimension`) therefore keep the exhaustive scan.
+    and indexes it by node id, so it needs a dense `0..n-1` cyclic permutation.
+    Closed depot-bounded routes, non-cyclic open paths, VRP variants, and batches
+    whose route width differs from `context.dimension` keep the exhaustive scan
+    (`BUG-107`).
 
-    The decision is taken from host metadata only — `problem_type`, `dimension` and the
-    batch width — so the hot path never calls `int(tour.max())` on a GPU array, which
-    used to force one D2H synchronization per generation (`BUG-27`).
+    The decision is taken from host metadata only — topology, `problem_type`,
+    `dimension` and the batch width — so the hot path never calls `int(tour.max())`
+    on a GPU array, which used to force one D2H synchronization per generation (`BUG-27`).
     """
     if self.candidate_k is None or self.candidate_k <= 0:
       return False
@@ -619,9 +728,12 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       # streams the tour through shared memory, so the `positions` scratch would
       # compete with the window for the 48 KB budget for no throughput gain.
       return False
-    if context.problem.problem_type == "CVRP":
+    is_closed, is_cyclic, _ = _resolve_topology(context)
+    if is_closed or not is_cyclic:
       return False
-    return n >= context.dimension
+    if str(context.problem.problem_type) in {"CVRP", "OVRP", "DCVRP"}:
+      return False
+    return n == context.dimension
 
   def improve(self, route: Route, context: ProblemContext) -> Route:
     """Improve a single 1D route `(n_cities,)` through the selected GPU kernel family."""
@@ -657,8 +769,11 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     batch_np = cp.asnumpy(batch) if input_on_gpu else np.asarray(batch, dtype=np.int32)
 
     distances_cpu = context.get_cpu_distances()
+    dist_stride: int = int(distances_cpu.shape[1])
     distances_gpu = cp.asarray(distances_cpu, dtype=cp.int32)
     self.h2d_bytes += int(distances_cpu.nbytes)
+
+    is_closed, is_cyclic, fixed_start = _resolve_topology(context)
 
     # Candidate-list mode (`DP10-20`, `BUG-57`): bind the same context-owned `N_k` table
     # and charge the same upload as `_improve_grid`, so `naive` searches the same
@@ -667,8 +782,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     d_candidates: Any = 0
     d_positions: Any = 0
     if self._uses_candidates(context, n):
-      d_candidates, candidate_bytes = self._operands.resolve_candidates(context, int(self.candidate_k or 0))
-      self.h2d_bytes += candidate_bytes
+      d_candidates = self._resolve_candidate_table(context, int(self.candidate_k or 0))
       candidate_count = int(d_candidates.shape[1])
       # Inverse map in VRAM, mirroring `_improve_grid`: keeping it in shared memory
       # would halve this kernel's capacity, which is already bounded by `s_tour`.
@@ -690,7 +804,19 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
         kernel(
           (1,),
           (threads_per_block,),
-          (d_tour, distances_gpu, np.int32(n), np.int32(0), d_candidates, np.int32(candidate_count), d_positions),
+          (
+            d_tour,
+            distances_gpu,
+            np.int32(n),
+            np.int32(dist_stride),
+            np.int32(1 if is_closed else 0),
+            np.int32(1 if is_cyclic else 0),
+            np.int32(1 if fixed_start else 0),
+            np.int32(0),
+            d_candidates,
+            np.int32(candidate_count),
+            d_positions,
+          ),
           shared_mem=shared_mem,
         )
         self.kernel_launches += 1
@@ -718,10 +844,9 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
       d_population = cp.asarray(batch_np, dtype=cp.int32)
       self.h2d_bytes += int(batch_np.nbytes)
 
-    (d_distances, d_coords, edge_type_code), uploaded_bytes = self._operands.resolve(
-      context, n, self.max_matrix_dimension
-    )
-    self.h2d_bytes += uploaded_bytes
+    is_closed, is_cyclic, fixed_start = _resolve_topology(context)
+    d_distances, d_coords, edge_type_code = self._resolve_distance_operands(context, int(context.dimension))
+    dist_stride: int = int(context.dimension if isinstance(d_distances, int) else d_distances.shape[1])
     block_size: int = prev_power_of_2(min(self.threads_per_block, max(1, n - 2)), min_val=1, max_val=256)
     tile_size: int = self._tile_size(n)
 
@@ -732,8 +857,7 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
     d_candidates: Any = 0
     d_positions: Any = 0
     if self._uses_candidates(context, n):
-      d_candidates, candidate_bytes = self._operands.resolve_candidates(context, int(self.candidate_k or 0))
-      self.h2d_bytes += candidate_bytes
+      d_candidates = self._resolve_candidate_table(context, int(self.candidate_k or 0))
       candidate_count = int(d_candidates.shape[1])
       d_positions = cp.empty((batch_size, n), dtype=cp.int32)
 
@@ -749,8 +873,12 @@ class LocalSearchGPUTwoOpt(StrategyBase, LocalSearchStrategy):
           d_distances,
           d_coords,
           np.int32(n),
+          np.int32(dist_stride),
           np.int32(batch_size),
           np.int32(edge_type_code),
+          np.int32(1 if is_closed else 0),
+          np.int32(1 if is_cyclic else 0),
+          np.int32(1 if fixed_start else 0),
           np.int32(tile_size),
           d_candidates,
           np.int32(candidate_count),

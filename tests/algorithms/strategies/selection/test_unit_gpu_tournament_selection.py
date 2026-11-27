@@ -155,8 +155,10 @@ def test_gpu_tournament_kernel_emits_1d_winner_indices() -> None:
     / "kernels"
     / "tournament_selection.cu"
   )
+  import re
+
   source = kernel_path.read_text(encoding="utf-8")
-  assert "int* __restrict__ winner_indices" in source, (
+  assert re.search(r"int\s*\*\s*__restrict__\s+winner_indices", source), (
     "tournament_selection.cu must emit 1D winner_indices"
   )
   assert "parents_out" not in source, "tournament_selection.cu must delegate 2D gather to CuPy"

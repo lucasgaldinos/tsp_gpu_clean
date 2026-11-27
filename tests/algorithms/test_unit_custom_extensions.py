@@ -21,7 +21,7 @@ from algorithms.strategies import (
   STRATEGY_REGISTRY,
   CrossoverOrder,
   EvaluationCPUCost,
-  InitializationRandom,
+  InitializationCPURandom,
   SelectionTournament,
   StrategyBase,
 )
@@ -89,7 +89,7 @@ def test_direct_python_injection_runs_external_strategy_and_step(burma14_problem
     population_size=12,
     mutation_rate=0.25,
     seed=7,
-    initialization=InitializationRandom(seed=7),
+    initialization=InitializationCPURandom(seed=7),
     selection=SelectionTournament(k=3, seed=7),
     crossover=CrossoverOrder(seed=7),
     mutation=mutation,
@@ -148,7 +148,7 @@ def test_register_strategy_and_pipeline_step_helpers(
       description="Registered custom strategy and step",
       params={"pipeline": [{"class": "ExternalTraceStep", "params": {"tag": "reg"}}]},
       strategies={
-        "initialization": {"class": "InitializationRandom"},
+        "initialization": {"class": "InitializationCPURandom"},
         "selection": {"class": "SelectionTournament", "params": {"k": 3}},
         "crossover": {"class": "CrossoverOrder"},
         "mutation": {"class": "ExternalShiftMutation", "params": {"shift_by": 3}},
@@ -248,7 +248,7 @@ def test_json_module_spec_loads_external_strategy_and_pipeline_step(
       ],
     },
     strategies={
-      "initialization": {"class": "InitializationRandom"},
+      "initialization": {"class": "InitializationCPURandom"},
       "selection": {"class": "SelectionTournament", "params": {"k": 3}},
       "crossover": {"class": "CrossoverOrder"},
       "mutation": {"class": "MutationSwap"},
@@ -395,7 +395,7 @@ def test_config_relative_py_path_loads_from_hyphenated_experiment_dir(
               ],
             },
             "strategies": {
-              "initialization": {"class": "InitializationRandom"},
+              "initialization": {"class": "InitializationCPURandom"},
               "selection": {"class": "SelectionTournament", "params": {"k": 3}},
               "crossover": {"class": "CrossoverOrder"},
               "mutation": {

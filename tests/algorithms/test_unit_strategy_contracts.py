@@ -16,7 +16,7 @@ from algorithms.strategies import (
   CrossoverOrder,
   CrossoverPartiallyMapped,
   EvaluationCPUCost,
-  InitializationRandom,
+  InitializationCPURandom,
   LocalSearchCPUTwoOpt,
   LocalSearchGPUTwoOpt,
   LocalSearchNoOp,
@@ -78,7 +78,7 @@ def test_all_strategies_satisfy_protocols_and_route_contracts(burma14_problem: P
   customers: list[int] = list(range(burma14_problem.dimension))
   n = len(customers)
 
-  init_strat = InitializationRandom(seed=42)
+  init_strat = InitializationCPURandom(seed=42)
   assert isinstance(init_strat, InitializationStrategy)
   routes: Routes = init_strat.initialize(customers, population_size=10, context=context)
   assert routes.shape == (10, n)

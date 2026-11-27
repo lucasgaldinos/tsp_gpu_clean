@@ -21,7 +21,7 @@ from algorithms.metaheuristics.genetic_algorithm import (
 )
 from algorithms.strategies.crossover.order_crossover import CrossoverOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization.random_initialization import InitializationRandom
+from algorithms.strategies.initialization.random_init import InitializationCPURandom
 from algorithms.strategies.mutation.swap_mutation import MutationSwap
 from algorithms.strategies.selection.tournament_selection import SelectionTournament
 from protocols.problem_context import ProblemContext
@@ -35,22 +35,22 @@ if TYPE_CHECKING:
 def test_best_tour_is_transferred_only_on_strict_improvement(
   burma14_problem: Problem, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-  """Verify `_extract_best` runs once (generation 0) when no generation improves.
+  """Verify `_extract_route_at` runs once (generation 0) when no generation improves.
 
-  WHY: `_extract_best` performs the `asnumpy` device-to-host copy of the winning route.
+  WHY: `_extract_route_at` performs the `asnumpy` device-to-host copy of the winning route.
   Doing it every generation moves `(n,)` int32 across PCIe for a route that is then
   thrown away; the frozen-population pipeline below makes "no improvement" a property
   of the configuration, so the call count is deterministic — and the previous
   one-call-per-generation behaviour fails the assertion by `max_generations`.
   """
   extract_calls: list[int] = []
-  original_extract = GeneticAlgorithm._extract_best
+  original_extract = GeneticAlgorithm._extract_route_at
 
-  def _spy(population: Any, fitness: Any) -> tuple[np.ndarray, float]:
+  def _spy(population: Any, idx: int) -> np.ndarray:
     extract_calls.append(1)
-    return original_extract(population, fitness)
+    return original_extract(population, idx)
 
-  monkeypatch.setattr(GeneticAlgorithm, "_extract_best", staticmethod(_spy))
+  monkeypatch.setattr(GeneticAlgorithm, "_extract_route_at", staticmethod(_spy))
 
   evaluator = EvaluationCPUCost()
   selection = SelectionTournament(k=3, seed=42)
@@ -58,7 +58,7 @@ def test_best_tour_is_transferred_only_on_strict_improvement(
     population_size=8,
     mutation_rate=0.0,
     seed=42,
-    initialization=InitializationRandom(seed=42),
+    initialization=InitializationCPURandom(seed=42),
     selection=selection,
     crossover=CrossoverOrder(seed=42),
     mutation=MutationSwap(seed=42),

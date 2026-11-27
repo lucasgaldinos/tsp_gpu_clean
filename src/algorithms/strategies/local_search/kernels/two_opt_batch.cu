@@ -1,16 +1,16 @@
 /**
  * GPU 2-opt Batch Processing Kernel
- * 
+ *
  * Performs one pass of 2-opt improvement for multiple TSP tours in parallel.
  * Each CUDA block processes one tour independently.
- * 
+ *
  * Algorithm:
  *   1. Each block loads its tour into shared memory
  *   2. Parallel evaluation of all (i,j) swap pairs within block
  *   3. Block-level reduction finds best improvement
  *   4. Apply best swap in-place
  *   5. Write back improved tour
- * 
+ *
  * Performance Notes:
  *   - No inter-block synchronization (tours are independent)
  *   - Shared memory per block reduces global memory traffic
@@ -28,12 +28,12 @@
  *   - With `candidate_k > 0` each block builds the inverse tour map
  *     `pos[tour[idx]] = idx` in `O(n)` and replaces the `j` scan with
  *     `j = pos[candidates[tour[i] * candidate_k + r]]`, i.e. `Theta(n * k)` per pass.
- * 
+ *
  * Usage Pattern (Phase 3 Batch API):
  *   - Genetic Algorithm: Improve entire population in one kernel launch
  *   - Multistart: Process multiple independent runs in parallel
  *   - Grid: num_tours blocks, each with up to 256 threads
- * 
+ *
  * References:
  *   - Fujimoto, N., & Tsutsui, S. (2011). "A Highly-Parallel TSP Solver for a
  *     GPU Computing Platform." ICNAAM, Vol. 1389, pp. 264-267. (One CUDA block
@@ -48,32 +48,44 @@
 
 #include "two_opt_common.cuh"
 
-extern "C" __global__
-void two_opt_batch_kernel(
-    int *tours,             // Flattened: num_tours * n
-    const int *dist,        // n * n distance matrix (int32), or nullptr for coordinate mode
-    const double *coords,   // Row-major coordinates (ignored if dist != nullptr)
-    int n,                  // Number of nodes per tour
-    int num_tours,          // Number of tours
-    int edge_type_code,     // `GpuEdgeTypeCode` for the coordinate mode
-    int tour_tile_size,     // 0 = full-tour shared memory, else tile width (2048)
-    const int *candidates,  // n * candidate_k nearest-neighbour table, or nullptr
-    int candidate_k,        // 0 = exhaustive scan, else neighbours per node (k_eff)
-    int *positions          // num_tours * n inverse map scratch (candidate mode only)
-) {
+extern "C" __global__ void two_opt_batch_kernel(
+    int *tours,            // Flattened: num_tours * n
+    const int *dist,       // dist_stride * dist_stride distance matrix (int32), or nullptr for coordinate mode
+    const double *coords,  // Row-major coordinates (ignored if dist != nullptr)
+    int n,                 // Number of stops per route
+    int dist_stride,       // Distance matrix row stride / problem dimension
+    int num_tours,         // Number of tours
+    int edge_type_code,    // `GpuEdgeTypeCode` for the coordinate mode
+    int is_closed,         // 1 = closed depot-bounded route [0, ..., 0] (j <= n - 2)
+    int is_cyclic,         // 1 = cyclic wrap-around edge (tour[n - 1], tour[0])
+    int fixed_start,       // 1 = tour[0] is fixed (no prefix reversal i == -1)
+    int tour_tile_size,    // 0 = full-tour shared memory, else tile width (2048)
+    const int *candidates, // dist_stride * candidate_k nearest-neighbour table, or nullptr
+    int candidate_k,       // 0 = exhaustive scan, else neighbours per node (k_eff)
+    int *positions         // num_tours * n inverse map scratch (candidate mode only)
+)
+{
     extern __shared__ int shared_mem[];
 
     const bool tiled = tour_tile_size > 0;
     const bool use_matrix = dist != nullptr;
-    const bool use_candidates = candidate_k > 0 && candidates != nullptr && positions != nullptr;
+    const bool closed = is_closed != 0;
+    const bool cyclic = !closed && (is_cyclic != 0);
+    const bool allow_prefix = !closed && !cyclic && (fixed_start == 0);
+    const bool use_candidates = !closed && cyclic && candidate_k > 0 && candidates != nullptr && positions != nullptr;
 
-    int tour_idx = blockIdx.x;  // Which tour this block processes
+    const int i_start = allow_prefix ? -1 : 0;
+    const int i_end = closed ? (n - 3) : (n - 2);
+    const int j_end = closed ? (n - 1) : n;
+
+    int tour_idx = blockIdx.x; // Which tour this block processes
     int tid = threadIdx.x;
     int block_size = blockDim.x;
 
     // Grid bounds guard (`BUG-29`): a launch wider than `num_tours` would otherwise
     // let the surplus blocks write shared memory and index `tours` past its end.
-    if (tour_idx >= num_tours) return;
+    if (tour_idx >= num_tours)
+        return;
 
     // Partition shared memory (per-block): the tour buffer comes first so the
     // tiled and untiled layouts share one allocation. Candidate mode never caches the
@@ -82,16 +94,18 @@ void two_opt_batch_kernel(
     int *s_tour = shared_mem;
     int *s_deltas = use_candidates
                         ? shared_mem
-                        : (tiled ? (int*)&s_tour[tour_tile_size + 1] : (int*)&s_tour[n]);
-    int *s_swap_i = (int*)&s_deltas[block_size];
-    int *s_swap_j = (int*)&s_swap_i[block_size];
+                        : (tiled ? (int *)&s_tour[tour_tile_size + 1] : (int *)&s_tour[n]);
+    int *s_swap_i = (int *)&s_deltas[block_size];
+    int *s_swap_j = (int *)&s_swap_i[block_size];
 
     // Offset to this tour's data
     int *tour = tours + (tour_idx * n);
 
     // Untiled path: load the whole tour once (candidate mode reads global memory instead).
-    if (!tiled && !use_candidates) {
-        for (int i = tid; i < n; i += block_size) {
+    if (!tiled && !use_candidates)
+    {
+        for (int i = tid; i < n; i += block_size)
+        {
             s_tour[i] = tour[i];
         }
         __syncthreads();
@@ -105,111 +119,140 @@ void two_opt_batch_kernel(
     int tile_start = 0;
     int tile_end = -1;
 
-    if (use_candidates) {
+    if (use_candidates)
+    {
         // Inverse tour map: `pos[tour[idx]] = idx` in one O(n) pass (`DP10-20`).
         int *pos = positions + (tour_idx * n);
-        for (int idx = tid; idx < n; idx += block_size) {
+        for (int idx = tid; idx < n; idx += block_size)
+        {
             pos[tour[idx]] = idx;
         }
         __syncthreads();
 
-        for (int i = tid; i < n - 2; i += block_size) {
+        for (int i = tid; i < n - 2; i += block_size)
+        {
             // Hoisted row endpoints and current edge cost (`Task 10.16`).
             int node_i = tour[i];
             int node_i1 = tour[i + 1];
-            const int *row_i = use_matrix ? dist + (size_t)node_i * (size_t)n : nullptr;
-            const int *row_i1 = use_matrix ? dist + (size_t)node_i1 * (size_t)n : nullptr;
+            const int *row_i = use_matrix ? dist + (size_t)node_i * (size_t)dist_stride : nullptr;
+            const int *row_i1 = use_matrix ? dist + (size_t)node_i1 * (size_t)dist_stride : nullptr;
             int d_ab = use_matrix
                            ? row_i[node_i1]
-                           : gpu_pairwise_distance(node_i, node_i1, nullptr, coords, n, edge_type_code);
+                           : gpu_pairwise_distance(node_i, node_i1, nullptr, coords, dist_stride, edge_type_code);
 
-            for (int r = 0; r < candidate_k; ++r) {
+            for (int r = 0; r < candidate_k; ++r)
+            {
                 int j = pos[candidates[(size_t)node_i * (size_t)candidate_k + (size_t)r]];
-                if (j <= i + 1 || (i == 0 && j == n - 1)) continue;
+                if (j <= i + 1 || (i == 0 && j == n - 1))
+                    continue;
                 int node_j = tour[j];
                 int node_j1 = tour[(j + 1) % n];
                 two_opt_consider(
                     i, j,
-                    two_opt_delta(node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, coords, n,
+                    two_opt_delta(node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, coords, dist_stride,
                                   edge_type_code, use_matrix),
                     s_deltas, s_swap_i, s_swap_j, tid);
             }
         }
-    } else if (!tiled) {
+    }
+    else if (!tiled)
+    {
         // Full-tour scan: upper triangle only, hoisted row endpoints + carry-over.
-        for (int i = tid; i < n - 2; i += block_size) {
-            int node_i = s_tour[i];
+        for (int i = i_start + tid; i < i_end; i += block_size)
+        {
+            int node_i = (i >= 0) ? s_tour[i] : -1;
             int node_i1 = s_tour[i + 1];
-            const int *row_i = use_matrix ? dist + (size_t)node_i * (size_t)n : nullptr;
-            const int *row_i1 = use_matrix ? dist + (size_t)node_i1 * (size_t)n : nullptr;
-            int d_ab = use_matrix
-                           ? row_i[node_i1]
-                           : gpu_pairwise_distance(node_i, node_i1, nullptr, coords, n, edge_type_code);
+            const int *row_i = (use_matrix && i >= 0) ? dist + (size_t)node_i * (size_t)dist_stride : nullptr;
+            const int *row_i1 = use_matrix ? dist + (size_t)node_i1 * (size_t)dist_stride : nullptr;
+            int d_ab = (i < 0)
+                           ? 0
+                           : (use_matrix
+                                  ? row_i[node_i1]
+                                  : gpu_pairwise_distance(node_i, node_i1, nullptr, coords, dist_stride, edge_type_code));
             // Carry-over: `node_j` of iteration `j + 1` is `node_j1` of iteration `j`
             int node_j = s_tour[i + 2];
 
-            for (int j = i + 2; j < n; ++j) {
-                int node_j1 = s_tour[(j + 1) % n];
-                if (!(i == 0 && j == n - 1)) {
+            for (int j = i + 2; j < j_end; ++j)
+            {
+                int node_j1 = (j + 1 < n) ? s_tour[j + 1] : s_tour[0];
+                if (!((cyclic && i == 0 && j == n - 1) || (i == -1 && j == n - 1)))
+                {
                     two_opt_consider(
                         i, j,
-                        two_opt_delta(node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, coords, n,
-                                      edge_type_code, use_matrix),
+                        two_opt_delta_topology(
+                            i, j, n, closed, cyclic,
+                            node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, coords, dist_stride,
+                            edge_type_code, use_matrix),
                         s_deltas, s_swap_i, s_swap_j, tid);
                 }
                 node_j = node_j1;
             }
         }
-    } else {
+    }
+    else
+    {
         // Windowed scan (`Task 10.18` refinement): the block owns the rows
         // `[i_base, i_base + block_size)` and walks the `j` windows from `i_base + 2`,
         // so every inner-loop `j` read hits shared memory `s_tour[j - window_start]`.
         const int stride = tour_tile_size;
-        for (int i_base = 0; i_base < n - 2; i_base += block_size) {
+        for (int i_base = i_start; i_base < i_end; i_base += block_size)
+        {
             const int row = i_base + tid;
-            const bool active = row < n - 2;
+            const bool active = row < i_end;
             // Hoisted row endpoints stay in registers across every `j` window.
-            int node_i = 0;
+            int node_i = -1;
             int node_i1 = 0;
             int d_ab = 0;
             const int *row_i = nullptr;
             const int *row_i1 = nullptr;
-            if (active) {
-                node_i = tour[row];
+            if (active)
+            {
+                node_i = (row >= 0) ? tour[row] : -1;
                 node_i1 = tour[row + 1];
-                row_i = use_matrix ? dist + (size_t)node_i * (size_t)n : nullptr;
-                row_i1 = use_matrix ? dist + (size_t)node_i1 * (size_t)n : nullptr;
-                d_ab = use_matrix
-                           ? row_i[node_i1]
-                           : gpu_pairwise_distance(node_i, node_i1, nullptr, coords, n, edge_type_code);
+                row_i = (use_matrix && row >= 0) ? dist + (size_t)node_i * (size_t)dist_stride : nullptr;
+                row_i1 = use_matrix ? dist + (size_t)node_i1 * (size_t)dist_stride : nullptr;
+                d_ab = (row < 0)
+                           ? 0
+                           : (use_matrix
+                                  ? row_i[node_i1]
+                                  : gpu_pairwise_distance(node_i, node_i1, nullptr, coords, dist_stride, edge_type_code));
             }
 
-            for (int window_start = i_base + 2; window_start < n; window_start += stride) {
+            for (int window_start = i_base + 2; window_start < j_end; window_start += stride)
+            {
                 int window_end = window_start + stride;
-                if (window_end > n) window_end = n;
+                if (window_end > j_end)
+                    window_end = j_end;
                 const int window_len = window_end - window_start;
 
                 __syncthreads();
-                for (int idx = window_start + tid; idx < window_end; idx += block_size) {
+                for (int idx = window_start + tid; idx < window_end; idx += block_size)
+                {
                     s_tour[idx - window_start] = tour[idx];
                 }
-                if (tid == 0) {
+                if (tid == 0)
+                {
                     // One extra slot holds the `j + 1` endpoint; it wraps to `tour[0]`
-                    // on the last window (`tour[(idx) % n]`).
-                    s_tour[window_len] = tour[window_end % n];
+                    // only when `window_end == n` (safe fallback even on open paths).
+                    s_tour[window_len] = tour[window_end < n ? window_end : 0];
                 }
                 __syncthreads();
 
                 int j_begin = row + 2 > window_start ? row + 2 : window_start;
-                if (active && j_begin < window_end) {
+                if (active && j_begin < window_end)
+                {
                     int node_j = s_tour[j_begin - window_start];
-                    for (int j = j_begin; j < window_end; ++j) {
+                    for (int j = j_begin; j < window_end; ++j)
+                    {
                         int node_j1 = s_tour[j - window_start + 1];
-                        if (!(row == 0 && j == n - 1)) {
+                        if (!((cyclic && row == 0 && j == n - 1) || (row == -1 && j == n - 1)))
+                        {
                             two_opt_consider(
                                 row, j,
-                                two_opt_delta(node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, coords,
-                                              n, edge_type_code, use_matrix),
+                                two_opt_delta_topology(
+                                    row, j, n, closed, cyclic,
+                                    node_i, node_i1, d_ab, node_j, node_j1, row_i, row_i1, dist, coords,
+                                    dist_stride, edge_type_code, use_matrix),
                                 s_deltas, s_swap_i, s_swap_j, tid);
                         }
                         node_j = node_j1;
@@ -224,25 +267,30 @@ void two_opt_batch_kernel(
         tile_end = 0;
     }
     __syncthreads();
-    
+
     // Block reduction to the exact minimum delta of this block.
     //
     // Phase 1 folds thread partials in parallel while the stride still spans more than
     // one warp. Phase 2 lets thread 0 fold only the surviving `min(block_size, 64)`
     // partials -- the pre-fix code rescanned all `block_size` of them, i.e. up to 255
     // serial comparisons after a reduction that had already covered them (`BUG-29`).
-    for (unsigned int s = block_size / 2; s > 32; s >>= 1) {
-        if (tid < s && tid + s < block_size && s_deltas[tid + s] < s_deltas[tid]) {
+    for (unsigned int s = block_size / 2; s > 32; s >>= 1)
+    {
+        if (tid < s && tid + s < block_size && s_deltas[tid + s] < s_deltas[tid])
+        {
             s_deltas[tid] = s_deltas[tid + s];
             s_swap_i[tid] = s_swap_i[tid + s];
             s_swap_j[tid] = s_swap_j[tid + s];
         }
         __syncthreads();
     }
-    if (tid == 0) {
+    if (tid == 0)
+    {
         const int remaining = block_size < 64 ? block_size : 64;
-        for (int i = 1; i < remaining; i++) {
-            if (s_deltas[i] < s_deltas[0]) {
+        for (int i = 1; i < remaining; i++)
+        {
+            if (s_deltas[i] < s_deltas[0])
+            {
                 s_deltas[0] = s_deltas[i];
                 s_swap_i[0] = s_swap_i[i];
                 s_swap_j[0] = s_swap_j[i];
@@ -253,23 +301,29 @@ void two_opt_batch_kernel(
 
     // `s_deltas[0]` is now the exact block minimum, so a block with no improving move
     // skips the reversal branch instead of synchronizing for nothing (`BUG-29`).
-    if (s_deltas[0] < 0) {
+    if (s_deltas[0] < 0)
+    {
         int swap_i = s_swap_i[0];
         int swap_j = s_swap_j[0];
-        
+
         // Reverse segment [swap_i + 1, swap_j]
         int left = swap_i + 1;
         int right = swap_j;
         int num_swaps = (right - left + 1) / 2;
-        if (use_candidates) {
+        if (use_candidates)
+        {
             // Candidate mode never cached the tour: edit global memory directly.
-            for (int k = tid; k < num_swaps; k += block_size) {
+            for (int k = tid; k < num_swaps; k += block_size)
+            {
                 int temp = tour[left + k];
                 tour[left + k] = tour[right - k];
                 tour[right - k] = temp;
             }
-        } else {
-            for (int k = tid; k < num_swaps; k += block_size) {
+        }
+        else
+        {
+            for (int k = tid; k < num_swaps; k += block_size)
+            {
                 int temp = TOUR_AT(left + k);
                 TOUR_SET(left + k, TOUR_AT(right - k));
                 TOUR_SET(right - k, temp);
@@ -277,10 +331,12 @@ void two_opt_batch_kernel(
         }
     }
     __syncthreads();
-    
+
     // Write back to global memory (the tiled and candidate paths already wrote through)
-    if (!tiled && !use_candidates) {
-        for (int i = tid; i < n; i += block_size) {
+    if (!tiled && !use_candidates)
+    {
+        for (int i = tid; i < n; i += block_size)
+        {
             tour[i] = s_tour[i];
         }
     }

@@ -39,13 +39,17 @@
 
 extern "C" __global__ void two_opt_multi_move_batch_kernel(
     int *__restrict__ population,      // [population_size, n]
-    const int *__restrict__ distances, // [n, n], or nullptr for coordinate mode
+    const int *__restrict__ distances, // [dist_stride, dist_stride], or nullptr for coordinate mode
     const double *__restrict__ coords, // Row-major coordinates (ignored if distances != nullptr)
     const int n,
+    const int dist_stride,             // Distance matrix row stride / problem dimension
     const int population_size,
     const int edge_type_code,           // `GpuEdgeTypeCode` for the coordinate mode
+    const int is_closed,                // 1 = closed depot-bounded route [0, ..., 0] (j <= n - 2)
+    const int is_cyclic,                // 1 = cyclic wrap-around edge (tour[n - 1], tour[0])
+    const int fixed_start,              // 1 = tour[0] is fixed (no prefix reversal i == -1)
     const int tour_tile_size,           // 0 = full-tour shared memory, else tile width (2048)
-    const int *__restrict__ candidates, // [n, cand_k] nearest-neighbour table, or nullptr
+    const int *__restrict__ candidates, // [dist_stride, cand_k] nearest-neighbour table, or nullptr
     const int cand_k,                   // 0 = exhaustive scan, else neighbours per node
     int *__restrict__ positions         // [population_size, n] inverse-map scratch
 )
@@ -60,10 +64,17 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
     extern __shared__ int shared_mem[];
     const bool tiled = tour_tile_size > 0;
     const bool use_matrix = distances != nullptr;
+    const bool closed = is_closed != 0;
+    const bool cyclic = !closed && (is_cyclic != 0);
+    const bool allow_prefix = !closed && !cyclic && (fixed_start == 0);
     // Candidate mode never caches the tour: the `j` scan becomes `Theta(n * k)` over
     // `pos[candidates[tour[i] * cand_k + r]]`, which needs global-memory tour reads
-    // (`DP10-20`). It is only enabled on the untiled path.
-    const bool use_candidates = !tiled && candidates != nullptr && cand_k > 0 && positions != nullptr;
+    // (`DP10-20`). Disabled when tiled, closed, or non-cyclic (`BUG-107`).
+    const bool use_candidates = !tiled && !closed && cyclic && candidates != nullptr && cand_k > 0 && positions != nullptr;
+
+    const int i_start = allow_prefix ? -1 : 0;
+    const int i_end = closed ? (n - 3) : (n - 2);
+    const int j_end = closed ? (n - 1) : n;
 
     int *s_tour = shared_mem;                                         // [n] or [tour_tile_size + 1]
     // Candidate mode never caches the tour, so its counters start at the first slot and
@@ -106,11 +117,11 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
             // Hoisted row endpoints and current edge cost (`Task 10.16`).
             int a = tour[i];
             int b = tour[i + 1];
-            const int *row_a = use_matrix ? distances + (size_t)a * (size_t)n : nullptr;
-            const int *row_b = use_matrix ? distances + (size_t)b * (size_t)n : nullptr;
+            const int *row_a = use_matrix ? distances + (size_t)a * (size_t)dist_stride : nullptr;
+            const int *row_b = use_matrix ? distances + (size_t)b * (size_t)dist_stride : nullptr;
             int d_ab = use_matrix
                            ? row_a[b]
-                           : gpu_pairwise_distance(a, b, nullptr, coords, n, edge_type_code);
+                           : gpu_pairwise_distance(a, b, nullptr, coords, dist_stride, edge_type_code);
 
             for (int r = 0; r < cand_k; ++r)
             {
@@ -121,7 +132,7 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
                 int d = tour[(j + 1) % n];
                 two_opt_consider(
                     i, j,
-                    two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, n, edge_type_code,
+                    two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, dist_stride, edge_type_code,
                                   use_matrix),
                     s_deltas, s_swap_i, s_swap_j, tid);
             }
@@ -130,27 +141,31 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
     else if (!tiled)
     {
         // Full-tour scan: upper triangle only, hoisted row endpoints + carry-over.
-        for (int i = tid; i < n - 2; i += block_size)
+        for (int i = i_start + tid; i < i_end; i += block_size)
         {
-            int a = s_tour[i];
+            int a = (i >= 0) ? s_tour[i] : -1;
             int b = s_tour[i + 1];
-            const int *row_a = use_matrix ? distances + (size_t)a * (size_t)n : nullptr;
-            const int *row_b = use_matrix ? distances + (size_t)b * (size_t)n : nullptr;
-            int d_ab = use_matrix
-                           ? row_a[b]
-                           : gpu_pairwise_distance(a, b, nullptr, coords, n, edge_type_code);
+            const int *row_a = (use_matrix && i >= 0) ? distances + (size_t)a * (size_t)dist_stride : nullptr;
+            const int *row_b = use_matrix ? distances + (size_t)b * (size_t)dist_stride : nullptr;
+            int d_ab = (i < 0)
+                           ? 0
+                           : (use_matrix
+                                  ? row_a[b]
+                                  : gpu_pairwise_distance(a, b, nullptr, coords, dist_stride, edge_type_code));
             // Carry-over: `c` of iteration `j + 1` is `d` of iteration `j`
             int c = s_tour[i + 2];
 
-            for (int j = i + 2; j < n; ++j)
+            for (int j = i + 2; j < j_end; ++j)
             {
-                int d = s_tour[(j + 1) % n];
-                if (!(i == 0 && j == n - 1))
+                int d = (j + 1 < n) ? s_tour[j + 1] : s_tour[0];
+                if (!((cyclic && i == 0 && j == n - 1) || (i == -1 && j == n - 1)))
                 {
                     two_opt_consider(
                         i, j,
-                        two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, n, edge_type_code,
-                                      use_matrix),
+                        two_opt_delta_topology(
+                            i, j, n, closed, cyclic,
+                            a, b, d_ab, c, d, row_a, row_b, distances, coords, dist_stride, edge_type_code,
+                            use_matrix),
                         s_deltas, s_swap_i, s_swap_j, tid);
                 }
                 c = d;
@@ -163,32 +178,34 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
         // `[i_base, i_base + block_size)` and walks the `j` windows from `i_base + 2`,
         // so every inner-loop `j` read hits shared memory `s_tour[j - window_start]`.
         const int stride = tour_tile_size;
-        for (int i_base = 0; i_base < n - 2; i_base += block_size)
+        for (int i_base = i_start; i_base < i_end; i_base += block_size)
         {
             const int row = i_base + tid;
-            const bool active = row < n - 2;
+            const bool active = row < i_end;
             // Hoisted row endpoints stay in registers across every `j` window.
-            int a = 0;
+            int a = -1;
             int b = 0;
             int d_ab = 0;
             const int *row_a = nullptr;
             const int *row_b = nullptr;
             if (active)
             {
-                a = tour[row];
+                a = (row >= 0) ? tour[row] : -1;
                 b = tour[row + 1];
-                row_a = use_matrix ? distances + (size_t)a * (size_t)n : nullptr;
-                row_b = use_matrix ? distances + (size_t)b * (size_t)n : nullptr;
-                d_ab = use_matrix
-                           ? row_a[b]
-                           : gpu_pairwise_distance(a, b, nullptr, coords, n, edge_type_code);
+                row_a = (use_matrix && row >= 0) ? distances + (size_t)a * (size_t)dist_stride : nullptr;
+                row_b = use_matrix ? distances + (size_t)b * (size_t)dist_stride : nullptr;
+                d_ab = (row < 0)
+                           ? 0
+                           : (use_matrix
+                                  ? row_a[b]
+                                  : gpu_pairwise_distance(a, b, nullptr, coords, dist_stride, edge_type_code));
             }
 
-            for (int window_start = i_base + 2; window_start < n; window_start += stride)
+            for (int window_start = i_base + 2; window_start < j_end; window_start += stride)
             {
                 int window_end = window_start + stride;
-                if (window_end > n)
-                    window_end = n;
+                if (window_end > j_end)
+                    window_end = j_end;
                 const int window_len = window_end - window_start;
 
                 __syncthreads();
@@ -199,8 +216,8 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
                 if (tid == 0)
                 {
                     // One extra slot holds the `j + 1` endpoint; it wraps to `tour[0]`
-                    // on the last window (`tour[(idx) % n]`).
-                    s_tour[window_len] = tour[window_end % n];
+                    // only when `window_end == n` (safe fallback even on open paths).
+                    s_tour[window_len] = tour[window_end < n ? window_end : 0];
                 }
                 __syncthreads();
 
@@ -211,12 +228,14 @@ extern "C" __global__ void two_opt_multi_move_batch_kernel(
                     for (int j = j_begin; j < window_end; ++j)
                     {
                         int d = s_tour[j - window_start + 1];
-                        if (!(row == 0 && j == n - 1))
+                        if (!((cyclic && row == 0 && j == n - 1) || (row == -1 && j == n - 1)))
                         {
                             two_opt_consider(
                                 row, j,
-                                two_opt_delta(a, b, d_ab, c, d, row_a, row_b, distances, coords, n, edge_type_code,
-                                              use_matrix),
+                                two_opt_delta_topology(
+                                    row, j, n, closed, cyclic,
+                                    a, b, d_ab, c, d, row_a, row_b, distances, coords, dist_stride, edge_type_code,
+                                    use_matrix),
                                 s_deltas, s_swap_i, s_swap_j, tid);
                         }
                         c = d;

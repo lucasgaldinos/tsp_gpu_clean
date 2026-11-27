@@ -13,13 +13,16 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import numpy as np
 
-from protocols.backend import cupy_backend
-from utils.route_helpers import is_gpu_array
+from algorithms.vrp_pipeline_steps import FleetBinPackStep, PenaltyAdaptationStep
+from protocols.backend import cupy_backend, require_gpu
+from protocols.vrp_strategies import RouteAssessment, assess_with_evaluator
+from utils.route_helpers import ensure_routes_batch, is_gpu_array
 
 if TYPE_CHECKING:
   from algorithms.metaheuristics.genetic_algorithm import GenerationState
   from protocols.algorithm_strategies import EvaluationStrategy, LocalSearchStrategy
   from protocols.problem_context import ProblemContext
+  from protocols.vrp_strategies import PenaltyPolicy, RouteDecoder
   from utils.phase_timer import PhaseTimer
 
 #: Declarative insertion anchor of a pipeline step inside a generation.
@@ -108,12 +111,18 @@ class PostInitLocalSearchStep(_BaseLocalSearchPipelineStep):
       state.population,
       state.context,
     )
-    state.fitness = timer.measure(
+    pop_on_gpu = is_gpu_array(state.population)
+    keep_gpu = bool(pop_on_gpu and getattr(self.evaluation, "return_gpu", False))
+    assessment = timer.measure(
       "evaluation",
-      self.evaluation.evaluate_batch,
+      assess_with_evaluator,
+      self.evaluation,
       state.population,
       state.context,
+      return_gpu=keep_gpu,
     )
+    state.population_assessment = assessment
+    state.fitness = assessment.objectives
 
 
 class EliteOnlyLocalSearchStep(_BaseLocalSearchPipelineStep):
@@ -160,15 +169,30 @@ class EliteOnlyLocalSearchStep(_BaseLocalSearchPipelineStep):
       elite_routes,
       state.context,
     )
-    improved_fitness = timer.measure(
+    pop_on_gpu = is_gpu_array(improved_elites)
+    keep_gpu = bool(pop_on_gpu and getattr(self.evaluation, "return_gpu", False))
+    elite_assessment = timer.measure(
       "evaluation",
-      self.evaluation.evaluate_batch,
+      assess_with_evaluator,
+      self.evaluation,
       improved_elites,
       state.context,
+      return_gpu=keep_gpu,
     )
 
     state.population[elite_indices] = improved_elites
-    state.fitness[elite_indices] = improved_fitness
+    state.fitness[elite_indices] = elite_assessment.objectives
+    if state.population_assessment is not None:
+      pa = state.population_assessment
+      pa.objectives[elite_indices] = elite_assessment.objectives
+      pa.travel_costs[elite_indices] = elite_assessment.travel_costs
+      pa.is_feasible[elite_indices] = elite_assessment.is_feasible
+      pa.violations[elite_indices] = elite_assessment.violations
+      pa.normalized_violations[elite_indices] = elite_assessment.normalized_violations
+      if pa.raw_violation_components is not None and elite_assessment.raw_violation_components is not None:
+        pa.raw_violation_components[elite_indices] = elite_assessment.raw_violation_components
+      if pa.num_vehicles is not None and elite_assessment.num_vehicles is not None:
+        pa.num_vehicles[elite_indices] = elite_assessment.num_vehicles
 
 
 class PeriodicLocalSearchStep:
@@ -247,12 +271,169 @@ class PeriodicLocalSearchStep:
         state.context,
       )
       if self.re_evaluate is not None:
-        state.fitness = timer.measure(
+        pop_on_gpu = is_gpu_array(state.population)
+        keep_gpu = bool(pop_on_gpu and getattr(self.re_evaluate, "return_gpu", False))
+        assessment = timer.measure(
           "evaluation",
-          self.re_evaluate.evaluate_batch,
+          assess_with_evaluator,
+          self.re_evaluate,
           state.population,
           state.context,
+          return_gpu=keep_gpu,
         )
+        state.population_assessment = assessment
+        state.fitness = assessment.objectives
+
+
+class SplitDecodeStep:
+  """Decode `(N, n_cust)` Giant-Tours into `(N, W)` `0`-delimited routes (`DP17-2`, `DP17-3`).
+
+  Note:
+      `LocalSearchCPUTwoOptStar` and `LocalSearchGPUTwoOptStar` decode Giant-Tour `(N, n - 1)` inputs
+      natively, so `PeriodicLocalSearchStep` alone suffices without inserting off-generation
+      `SplitDecodeStep` passes. When present, `SplitDecodeStep` skips already `0`-delimited
+      batches (`width >= context.dimension`) to prevent redundant double `Split` (`BUG-112`).
+  """
+
+  def __init__(
+    self,
+    mode: Literal["prins", "greedy"] = "prins",
+    target: Literal["offspring", "population"] = "offspring",
+    stage_anchor: StageAnchor = "pre_evaluation",
+    use_gpu: bool | None = None,
+    max_vehicles: int | None = None,
+    max_shared_customers: int = 2048,
+    max_matrix_dimension: int | None = None,
+    penalty_policy: PenaltyPolicy | None = None,
+    decoder: RouteDecoder | None = None,
+  ) -> None:
+    if mode not in ("prins", "greedy"):
+      raise ValueError(f"mode must be 'prins' or 'greedy', got {mode!r}")
+    if target not in ("offspring", "population"):
+      raise ValueError(f"target must be 'offspring' or 'population', got {target!r}")
+    if stage_anchor not in ("pre_selection", "pre_evaluation", "post_survival"):
+      raise ValueError(f"Invalid stage_anchor {stage_anchor!r}")
+    self.mode: Literal["prins", "greedy"] = mode
+    self.target: Literal["offspring", "population"] = target
+    self._stage_anchor: StageAnchor = stage_anchor
+    if decoder is not None:
+      self.decoder: Any = decoder
+    else:
+      from algorithms.strategies.decoding import GreedySplitDecoder, PrinsSplitDecoder
+
+      decoder_cls = PrinsSplitDecoder if mode == "prins" else GreedySplitDecoder
+      self.decoder = decoder_cls(
+        use_gpu=use_gpu,
+        max_vehicles=max_vehicles,
+        max_shared_customers=max_shared_customers,
+        max_matrix_dimension=max_matrix_dimension,
+        penalty_policy=penalty_policy,
+      )
+
+  @property
+  def stage_anchor(self) -> StageAnchor:
+    """Where `GeneticAlgorithm._compose_pipeline` inserts this decoding step."""
+    return self._stage_anchor
+
+  def strategies(self) -> list[Any]:
+    """Return the owned Split decoder so telemetry and warm-up propagate."""
+    return [self.decoder]
+
+  def public_params(self) -> dict[str, Any]:
+    """Expose declarative parameters for checkpoint serialization."""
+    return {"mode": self.mode, "target": self.target, "stage_anchor": self._stage_anchor}
+
+  def warmup(self, context: ProblemContext) -> None:
+    """Compile CUDA Split/Strip kernels ahead of the measured loop (`BUG-25`)."""
+    _warmup_owned_strategies(self.strategies(), context)
+
+  def run(self, state: GenerationState, timer: PhaseTimer) -> None:
+    """Transform `state.offspring` or `state.population` from Giant-Tour to `0`-delimited routes."""
+    if self.target == "offspring":
+      if state.offspring is None:
+        raise RuntimeError("SplitDecodeStep target='offspring' called before state.offspring was populated.")
+      batch, _ = ensure_routes_batch(state.offspring)
+      if batch.shape[1] >= state.context.dimension:
+        return
+      res = timer.measure("decoding", self.decoder.decode_batch, state.offspring, state.context)
+      state.offspring = res.routes
+    else:
+      batch, _ = ensure_routes_batch(state.population)
+      if batch.shape[1] >= state.context.dimension:
+        return
+      res = timer.measure("decoding", self.decoder.decode_batch, state.population, state.context)
+      state.population = res.routes
+      if isinstance(state.population_assessment, RouteAssessment):
+        state.population_assessment = None
+
+
+class GiantTourEncodeStep:
+  """Strip `0` depot delimiters from `(N, W)` routes back to `(N, n_cust)` Giant-Tours (`DP17-2`)."""
+
+  def __init__(
+    self,
+    target: Literal["offspring", "population"] = "offspring",
+    stage_anchor: StageAnchor = "pre_evaluation",
+  ) -> None:
+    if target not in ("offspring", "population"):
+      raise ValueError(f"target must be 'offspring' or 'population', got {target!r}")
+    if stage_anchor not in ("pre_selection", "pre_evaluation", "post_survival"):
+      raise ValueError(f"Invalid stage_anchor {stage_anchor!r}")
+    self.target: Literal["offspring", "population"] = target
+    self._stage_anchor: StageAnchor = stage_anchor
+
+  @property
+  def stage_anchor(self) -> StageAnchor:
+    """Where `GeneticAlgorithm._compose_pipeline` inserts this encoding step."""
+    return self._stage_anchor
+
+  def strategies(self) -> list[Any]:
+    """Return empty list (kernel telemetry is minimal and stateless)."""
+    return []
+
+  def public_params(self) -> dict[str, Any]:
+    """Expose declarative parameters for checkpoint serialization."""
+    return {"target": self.target, "stage_anchor": self._stage_anchor}
+
+  def warmup(self, context: ProblemContext) -> None:
+    """Compile and launch `strip_depot_delimiters_kernel` once when GPU is active."""
+    if not hasattr(context.xp, "RawKernel") or context.dimension <= 1:
+      return
+    from algorithms.strategies.decoding import strip_depot_delimiters
+
+    cp = require_gpu()
+    n_cust = context.dimension - 1
+    probe = cp.zeros((1, context.dimension + 1), dtype=cp.int32)
+    probe[0, 1 : n_cust + 1] = cp.arange(1, context.dimension, dtype=cp.int32)
+    strip_depot_delimiters(probe, n_cust)
+
+  def run(self, state: GenerationState, timer: PhaseTimer) -> None:
+    """Strip depot `0` delimiters from `state.offspring` or `state.population`."""
+    from algorithms.strategies.decoding import strip_depot_delimiters
+
+    n_customers = state.context.dimension - 1
+    if self.target == "offspring":
+      if state.offspring is None:
+        raise RuntimeError("GiantTourEncodeStep target='offspring' called before state.offspring was populated.")
+      batch, _ = ensure_routes_batch(state.offspring)
+      if batch.shape[1] == n_customers:
+        return
+      state.offspring = timer.measure(
+        "decoding",
+        strip_depot_delimiters,
+        state.offspring,
+        n_customers,
+      )
+    else:
+      batch, _ = ensure_routes_batch(state.population)
+      if batch.shape[1] == n_customers:
+        return
+      state.population = timer.measure(
+        "decoding",
+        strip_depot_delimiters,
+        state.population,
+        n_customers,
+      )
 
 
 PIPELINE_STEP_REGISTRY: dict[str, type] = {
@@ -285,11 +466,21 @@ def register_pipeline_step(name: str, step_cls: type, *, overwrite: bool = False
   PIPELINE_STEP_REGISTRY[name] = step_cls
 
 
+register_pipeline_step("SplitDecodeStep", SplitDecodeStep)
+register_pipeline_step("GiantTourEncodeStep", GiantTourEncodeStep)
+register_pipeline_step("PenaltyAdaptationStep", PenaltyAdaptationStep)
+register_pipeline_step("FleetBinPackStep", FleetBinPackStep)
+
+
 __all__: list[str] = [
   "PIPELINE_STEP_REGISTRY",
   "EliteOnlyLocalSearchStep",
+  "FleetBinPackStep",
+  "GiantTourEncodeStep",
+  "PenaltyAdaptationStep",
   "PeriodicLocalSearchStep",
   "PostInitLocalSearchStep",
+  "SplitDecodeStep",
   "StageAnchor",
   "register_pipeline_step",
 ]

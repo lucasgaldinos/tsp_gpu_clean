@@ -86,7 +86,7 @@ def _make_symmetric_explicit_problem(
     coordinates=None,
     distances=distances.astype(np.int32, copy=False),
     capacity=100 if problem_type == "CVRP" else None,
-    demands=np.ones(n, dtype=np.int32) if problem_type == "CVRP" else None,
+    demands=np.array([0, *([1] * (n - 1))], dtype=np.int32) if problem_type == "CVRP" else None,
   )
 
 

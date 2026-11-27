@@ -128,9 +128,9 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
       )
     return self._kernel
 
-  def warmup(self, context: ProblemContext) -> None:
+  def _warmup_impl(self, context: ProblemContext) -> None:
     """Compile the kernel and launch it once on a valid permutation (`BUG-24`, `BUG-25`)."""
-    super().warmup(context)
+    super()._warmup_impl(context)
     self.mutate_batch(self._warmup_batch(context, rows=1), 1.0, context=context)
 
   def mutate(

@@ -590,8 +590,10 @@ def test_batch_kernel_guards_grid_bounds_and_reduces_exactly() -> None:
     assert "block_size < 64 ? block_size : 64" in source, (
       f"{kernel_file} must bound the serial tail by min(block_size, 64)"
     )
+  import re
+
   batch_source = (kernels_dir / "two_opt_batch.cu").read_text(encoding="utf-8")
-  assert "if (tour_idx >= num_tours) return;" in batch_source
+  assert re.search(r"if\s*\(\s*tour_idx\s*>=\s*num_tours\s*\)\s*return\s*;", batch_source)
 
 
 def test_candidate_mode_skips_the_shared_tour_buffer() -> None:
