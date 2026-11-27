@@ -3,10 +3,13 @@ title: Architecture Guide for algorithms and strategies
 description: >
   Implementation-ready architectural guide covering `src/algorithms/`:
   composable `GeneticAlgorithm` pipeline steps and `STAGE_SPECS`,
-  `pipeline_steps.py` declarative hooks, the 17 Design B `StrategyBase` operator
-  classes across 6 slots, all 8 modular CUDA kernels (2-opt batch/multi-move/naive
-  tiling & candidate lists, Format A 1-warp/route OX, coalesced evaluation,
-  selection, and mutation), and the isolated `archive/` monolithic baseline.
+  `pipeline_steps.py` & `vrp_pipeline_steps.py` declarative hooks (`SplitDecodeStep`,
+  `GiantTourEncodeStep`, `FleetBinPackStep`, `PenaltyAdaptationStep`),
+  the 32 core `StrategyBase` operator classes across 6 slots + 10 composable sub-strategies
+  (TSP & VRP Tier 1), modular CUDA kernels (2-opt, Format A OX, 32-lane warp-parallel
+  `vrp_split.cu`, 32-lane Kogge-Stone `vrp_delimited_cost.cu`, `bin_packing.cu`,
+  `rbx_crossover.cu`, `route_{relocate,swap}_mutation.cu`, `two_opt_star_*.cu`, GPU initializers),
+  and the isolated `archive/` baseline.
 created: 2026-11-21
 status: final
 author:
@@ -22,10 +25,20 @@ modifications:
           aligned with the Wave 1 Standardization Contract, updated §6 Telemetry
           Accounting to reflect single-attribution `context.h2d_bytes` delta
           tracking, and polished title and cross-guide `related_files` symmetry.
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Synchronized Phase 17 / 17R / 17R-2 VRP Tier 1 strategies and pipeline steps: updated
+          `STRATEGY_REGISTRY` (`32` core classes) + `SUB_STRATEGY_REGISTRY` (`10` composable
+          sub-strategies in `decoding/`, `penalties/`, `bin_packing/`), added `FleetBinPackStep`
+          / `PenaltyAdaptationStep`, and indexed `tour_cost.cu`, `vrp_split.cu`,
+          `vrp_delimited_cost.cu`, `bin_packing.cu`, `two_opt_star_*.cu`, `rbx_crossover.cu`,
+          and `SplitMix64` GPU initializers.
 related_files:
   - "[design-patterns-links.md](../../design-patterns-links.md)"
   - "[table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md)"
   - "[guide-project-architecture-blueprint.md](../guide-project-architecture-blueprint.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](../knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[analysis-strategy-hierarchy-and-context-contracts.md](../knowledge-base/analysis-strategy-hierarchy-and-context-contracts.md)"
   - "[analysis-gpu-distance-and-shared-memory-limits.md](../knowledge-base/analysis-gpu-distance-and-shared-memory-limits.md)"
   - "[guide-architecture-protocols-and-data-models.md](./guide-architecture-protocols-and-data-models.md)"
@@ -53,7 +66,7 @@ tags:
 
 # Architecture Guide for `algorithms` and `strategies`
 
-This guide documents the evolutionary metaheuristic orchestrator, composable generational pipeline steps, the 17 slot-prefixed `Design B` operator strategies (`DP11-1`), all 8 modular CUDA kernels, cross-package `utils` integration, and the isolated `archive/` monolithic baseline in `src/algorithms/`.
+This guide documents the evolutionary metaheuristic orchestrator, composable generational pipeline steps, the 26 slot-prefixed `Design B` operator strategies (`DP11-1`, `DP17-2`–`DP17-3`), all 16 modular CUDA kernels, cross-package `utils` integration, and the isolated `archive/` monolithic baseline in `src/algorithms/`.
 
 ---
 
@@ -64,8 +77,8 @@ This guide documents the evolutionary metaheuristic orchestrator, composable gen
 | Subpackage / Module | Responsibility | Key Symbols |
 | :--- | :--- | :--- |
 | `src/algorithms/metaheuristics/` | Step-driven GA orchestrator, 6 core steps, and `STAGE_SPECS` dispatch | [`GeneticAlgorithm`](../../src/algorithms/metaheuristics/genetic_algorithm.py), [`GenerationState`](../../src/algorithms/metaheuristics/genetic_algorithm.py), [`STAGE_SPECS`](../../src/algorithms/metaheuristics/genetic_algorithm.py) |
-| `src/algorithms/pipeline_steps.py` | Declarative extension steps (`PostInit`, `EliteOnly`, `Periodic`) | [`PostInitLocalSearchStep`](../../src/algorithms/pipeline_steps.py), [`EliteOnlyLocalSearchStep`](../../src/algorithms/pipeline_steps.py), [`PeriodicLocalSearchStep`](../../src/algorithms/pipeline_steps.py), [`PIPELINE_STEP_REGISTRY`](../../src/algorithms/pipeline_steps.py) |
-| `src/algorithms/strategies/` | `StrategyBase` + `STRATEGY_REGISTRY` over 6 operator subpackages & 8 `.cu` kernels | [`StrategyBase`](../../src/algorithms/strategies/base.py), [`STRATEGY_REGISTRY`](../../src/algorithms/strategies/__init__.py) |
+| `src/algorithms/pipeline_steps.py` | Declarative extension steps (`PostInit`, `EliteOnly`, `Periodic`, `SplitDecode`, `GiantTourEncode`) | [`PostInitLocalSearchStep`](../../src/algorithms/pipeline_steps.py), [`EliteOnlyLocalSearchStep`](../../src/algorithms/pipeline_steps.py), [`PeriodicLocalSearchStep`](../../src/algorithms/pipeline_steps.py), [`SplitDecodeStep`](../../src/algorithms/pipeline_steps.py), [`GiantTourEncodeStep`](../../src/algorithms/pipeline_steps.py), [`PIPELINE_STEP_REGISTRY`](../../src/algorithms/pipeline_steps.py) |
+| `src/algorithms/strategies/` | `StrategyBase` + `STRATEGY_REGISTRY` over 6 operator subpackages (26 classes) & 16 `.cu` kernels | [`StrategyBase`](../../src/algorithms/strategies/base.py), [`STRATEGY_REGISTRY`](../../src/algorithms/strategies/__init__.py) |
 | `src/algorithms/archive/` | Isolated pre-modularization fused-kernel GA for Chapter 4 baselines (`DP9-4`, `DP10-2`) | [`GeneticAlgorithmFullGPUMonolithic`](../../src/algorithms/archive/full_gpu_monolithic.py), [`ga_fujimoto_early_stop.cu`](../../src/algorithms/archive/kernels/ga_fujimoto_early_stop.cu) |
 
 ### Verified Package Exports and Architectural Notes
@@ -122,11 +135,11 @@ flowchart TD
     subgraph ALG["algorithms Package"]
         direction TB
         GA["metaheuristics/genetic_algorithm.py<br/>(GeneticAlgorithm, Core Steps, STAGE_SPECS)"]:::meta
-        PSTEP["pipeline_steps.py<br/>(PostInit, EliteOnly, Periodic Steps)"]:::meta
-        REG["strategies/__init__.py<br/>(STRATEGY_REGISTRY: 17 Classes)"]:::strat
+        PSTEP["pipeline_steps.py<br/>(PostInit, EliteOnly, Periodic, SplitDecode, GiantTourEncode)"]:::meta
+        REG["strategies/__init__.py<br/>(STRATEGY_REGISTRY: 32 Classes)"]:::strat
         BASE["strategies/base.py<br/>(StrategyBase)"]:::strat
         SLOTS["6 Operator Slots<br/>(init, sel, cx, mut, ls, eval)"]:::strat
-        CU["8 Modular CUDA Kernels<br/>(order_crossover, cost_calculator,<br/>two_opt_*, tournament, swap, inversion)"]:::cuda
+        CU["Modular CUDA Kernels<br/>(two_opt_*, ox/pmx, vrp_split,<br/>vrp_delimited_cost, bin_packing,<br/>two_opt_star_*, rbx, init)"]:::cuda
         ARC["archive/full_gpu_monolithic.py<br/>(GeneticAlgorithmFullGPUMonolithic)"]:::arch
         ARCCU["archive/kernels/ga_fujimoto*.cu"]:::arch
     end
@@ -180,19 +193,23 @@ A single lookup table [`STAGE_SPECS`](../../src/algorithms/metaheuristics/geneti
 | [`PostInitLocalSearchStep`](../../src/algorithms/pipeline_steps.py) | `"pre_selection"` | Runs `local_search.improve_batch` + re-evaluation **only when `state.generation == 1`**, preserving raw Generation-0 `initial_fitness` (`DP11-6`, `BUG-30`). |
 | [`EliteOnlyLocalSearchStep`](../../src/algorithms/pipeline_steps.py) | `"post_survival"` | Refines only the top `k = min(elite_count, pop_size)` routes via `xp.argsort(state.fitness)[:k]` and updates them in place (`DP11-10`). |
 | [`PeriodicLocalSearchStep`](../../src/algorithms/pipeline_steps.py) | `"pre_evaluation"` if `target="offspring"`, else `"post_survival"` | Executes local search every `interval` generations (`state.generation % interval == 0`); requires `re_evaluate` when `target="population"` (`DP11-10`). |
+| [`SplitDecodeStep`](../../src/algorithms/pipeline_steps.py) | `"pre_evaluation"` | Decodes `(N, n - 1)` Giant-Tours into `0`-delimited `(N, n + K_max)` routes via `PrinsSplitDecoder` / `GreedySplitDecoder` before inter-route VRP local search (`DP17-2`). |
+| [`GiantTourEncodeStep`](../../src/algorithms/pipeline_steps.py) | `"pre_evaluation"` | Strips depot `0` delimiters back into `(N, n - 1)` Giant-Tours via `strip_depot_delimiters_kernel` with `d2h_bytes == 0` (`DP17-2`). |
+| [`FleetBinPackStep`](../../src/algorithms/vrp_pipeline_steps.py) | `"pre_evaluation"` | Applies `BinPacking[CPU\|GPU]{FFD,BFD}` repacking under hard $K_{\max}$ fleet limits (`DP17-9`, `BUG-117`). |
+| [`PenaltyAdaptationStep`](../../src/algorithms/vrp_pipeline_steps.py) | `"post_survival"` | Updates `AdaptivePenaltyPolicy` multipliers from population feasibility ratios (`DP17-9`). |
 
 Notice that [`GeneticAlgorithm._compose_pipeline`](../../src/algorithms/metaheuristics/genetic_algorithm.py) inserts extension steps without inspecting class names, [`GeneticAlgorithm._all_strategies`](../../src/algorithms/metaheuristics/genetic_algorithm.py) deduplicates strategy identities across both GA slots and `step.strategies()` so H2D/D2H/kernel telemetry is never missed (`BUG-30`), and [`GeneticAlgorithm.warmup`](../../src/algorithms/metaheuristics/genetic_algorithm.py) invokes every step's `warmup(context)` regardless of generation cadence (`DP11-21`, `BUG-25`).
 
-### 3.3 `StrategyBase` and the 17 Design B Strategy Classes (`DP11-1`)
+### 3.3 `StrategyBase`, 32 Core Strategies, and 10 Composable Sub-Strategies (`DP11-1`, `DP17-2`, `DP17-7`–`DP17-9`)
 
 [`StrategyBase`](../../src/algorithms/strategies/base.py) centralizes `seed`, `rng = make_rng(seed)`, `h2d_bytes`, `d2h_bytes`, `kernel_launches`, `reset_metrics()`, `warmup(context)`, and `_warmup_batch(context, rows)` (which produces `xp.tile(xp.arange(n, dtype=xp.int32), (rows, 1))`, preventing `cp.zeros` warm-up poisoning of closed-route heuristics per `BUG-24`). Per `BUG-27`, `@time_strategy` telemetry fields (`last_elapsed_ms`, `total_elapsed_ms`, `call_count`) are only type-annotated at class scope and assigned on `self` in `__init__` so they cannot shadow instance state.
 
-[`STRATEGY_REGISTRY`](../../src/algorithms/strategies/__init__.py) maps all **17** slot-prefixed Design B classes (`DP11-1`):
+[`STRATEGY_REGISTRY`](../../src/algorithms/strategies/__init__.py) maps all **32** slot-prefixed core classes (explicit CPU/GPU initializers, selection, TSP/VRP crossover & mutation, `2-opt` & `2-opt*` local search, and unified `Evaluation[CPU|GPU]Cost`), complemented by **10** composable sub-strategies in [`SUB_STRATEGY_REGISTRY`](../../src/algorithms/strategies/__init__.py) (`strategies/{decoding,penalties,bin_packing}/`: `PrinsSplitDecoder`, `GreedySplitDecoder`, `InstanceScaledPenaltyPolicy`, `StrictFeasibilityPolicy`, `FixedPenaltyPolicy`, `AdaptivePenaltyPolicy`, and `BinPacking[CPU|GPU]{FFD,BFD}`; see [analysis-cvrp-gpu-split-and-deb-statistics.md](../knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)):
 
 | Slot | Class Name | Backend / Kernel | Key Constructor Parameters & Contract |
 | :--- | :--- | :--- | :--- |
-| `Initialization*` | [`InitializationRandom`](../../src/algorithms/strategies/initialization/random_initialization.py) | CPU Fisher–Yates (`rng.permutation`) | `seed=None, return_gpu=False` ($\Theta(n)$ per route) |
-| `Initialization*` | [`InitializationNearestNeighbor`](../../src/algorithms/strategies/initialization/random_initialization.py) | CPU GRASP RCL over $\mathcal{N}_k$ | `k=20, seed=None, return_gpu=False, candidate_k=None` ($\Theta(n \cdot k)$) |
+| `Initialization*` | [`InitializationCPURandom`](../../src/algorithms/strategies/initialization/random_init.py) / [`InitializationGPURandom`](../../src/algorithms/strategies/initialization/random_init.py) | CPU NumPy / CUDA [`random_init.cu`](../../src/algorithms/strategies/initialization/kernels/random_init.cu) (`SplitMix64`) | `seed=None` (GPU adds `return_gpu=True`; $\Theta(n)$ per route) |
+| `Initialization*` | [`InitializationCPUNearestNeighbor`](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) / [`InitializationGPUNearestNeighbor`](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) | CPU GRASP RCL / CUDA [`nearest_neighbor_init.cu`](../../src/algorithms/strategies/initialization/kernels/nearest_neighbor_init.cu) | `k=20, seed=None` ($\Theta(n \cdot k)$) |
 | `Selection*` | [`SelectionTournament`](../../src/algorithms/strategies/selection/tournament_selection.py) | CPU NumPy or GPU CuPy array indexing | `k=3, seed=None`; unified host RNG (`BUG-28`) |
 | `Selection*` | [`SelectionRouletteWheel`](../../src/algorithms/strategies/selection/roulette_wheel_selection.py) | CPU inverse-cost weights | `seed=None`; $w_i = 1 / (\max(c_i, 0) + 10^{-6})$ |
 | `Selection*` | [`SelectionGPUTournament`](../../src/algorithms/strategies/selection/tournament_selection.py) | CUDA [`tournament_selection.cu::tournament_selection_kernel`](../../src/algorithms/strategies/selection/kernels/tournament_selection.cu) | `k=5, seed=None`; outputs `winner_indices`, coalesced CuPy gather (`DP11-16`) |
@@ -207,7 +224,7 @@ Notice that [`GeneticAlgorithm._compose_pipeline`](../../src/algorithms/metaheur
 | `LocalSearch*` | [`LocalSearchCPUTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) | CPU vectorized NumPy (`_pair_deltas` in `int64`) | `max_iterations=10, mode="best" \| "first" \| "multi_move", candidate_k=None` (`DP13-5`) |
 | `LocalSearch*` | [`LocalSearchGPUTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) | CUDA [`two_opt_batch.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) / [`two_opt_multi_move.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu) / [`two_opt_single.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) | `max_iterations=10, mode="batch" \| "multi_move" \| "naive", threads_per_block=256, max_matrix_dimension=None, max_shared_tour_cities=11_520, candidate_k=None` |
 | `Evaluation*` | [`EvaluationCPUCost`](../../src/algorithms/strategies/evaluation/cost_evaluation.py) | CPU flat 1D gather (`float64` sum) | `()` — enforces `Fitness = NDArray[np.float64]` (`DP12-13`, `DP12-15`, `BUG-40`) |
-| `Evaluation*` | [`EvaluationGPUCost`](../../src/algorithms/strategies/evaluation/cost_evaluation.py) | CUDA [`cost_calculator.cu::cost_calculator_kernel`](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) | `return_gpu=False, threads_per_block=256, max_matrix_dimension=None` (`EVAL-A`, `DP11-15`) |
+| `Evaluation*` | [`EvaluationGPUCost`](../../src/algorithms/strategies/evaluation/cost_evaluation.py) | CUDA [`tour_cost.cu::tour_cost_kernel`](../../src/algorithms/strategies/evaluation/kernels/tour_cost.cu) & [`vrp_delimited_cost.cu::vrp_delimited_cost_kernel`](../../src/algorithms/strategies/evaluation/kernels/vrp_delimited_cost.cu) | `return_gpu=False, threads_per_block=256, max_matrix_dimension=None, decoder=None, penalty_policy=None` (`EVAL-A`, `DP11-15`, `DP17-7`) |
 
 ---
 
@@ -219,7 +236,7 @@ Notice that [`GeneticAlgorithm._compose_pipeline`](../../src/algorithms/metaheur
 | **Template Method** | `GeneticAlgorithm.evolve` fixes initialization, Gen-0 evaluation, stopping rules, and metric collection while steps vary; `StrategyBase.warmup` provides a compile-and-launch hook | [Behavioral patterns](../../design-patterns-links.md#behavioral-patterns) |
 | **Chain / Pipeline & Command** | `GenerationStep` objects (`SelectionStep`, `PostInitLocalSearchStep`, etc.) mutate `GenerationState` sequentially along declarative `StageAnchor` slots | [Behavioral patterns](../../design-patterns-links.md#behavioral-patterns) |
 | **Factory / Registry** | `STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY` resolve declarative JSON classes (validated reflexively by `schema_generator.py`, `BUG-85`) | [Creational patterns](../../design-patterns-links.md#creational-patterns) |
-| **Flyweight / Mirror Cache** | `_DistanceOperandCache` in `two_opt.py` tracks context-owned VRAM buffers without duplicate allocations (`DP10-17`, `BUG-14`) | [Structural patterns](../../design-patterns-links.md#structural-patterns) |
+| **Flyweight / Mirror Cache** | `DistanceOperandCache` in `gpu_base.py` tracks context-owned VRAM buffers without duplicate allocations (`DP10-17`, `BUG-14`, `DP17-8`) | [Structural patterns](../../design-patterns-links.md#structural-patterns) |
 
 ---
 
@@ -423,7 +440,7 @@ $$
 
 #### 3. Coalesced Evaluation, Selection Gather, and Cooperative Mutation (`DP11-14`–`DP11-17`)
 
-- **Evaluation (`cost_calculator.cu`):** [`cost_calculator.cu::cost_calculator_kernel`](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) walks tour edges with a coalesced block-stride loop (`for (i = tid; i < n; i += block_size)`), accumulates into `long long` (`int64`), reduces shared partials down to stride `32`, and completes warp 0 via `__shfl_down_sync` (`EVAL-A`, `DP11-15`), casting to `float64` on return (`DP12-15`, `BUG-40`).
+- **Evaluation (`tour_cost.cu` & `vrp_delimited_cost.cu`):** [`tour_cost.cu::tour_cost_kernel`](../../src/algorithms/strategies/evaluation/kernels/tour_cost.cu) walks flat tour edges with a coalesced block-stride loop (`for (i = tid; i < n; i += block_size)`), accumulates into `long long` (`int64`), and reduces via [`block_reductions.cuh::block_reduce_sum`](../../src/utils/kernels/block_reductions.cuh) (`EVAL-A`, `DP11-15`), casting to `float64` on return (`DP12-15`, `BUG-40`); [`vrp_delimited_cost.cu::vrp_delimited_cost_kernel`](../../src/algorithms/strategies/evaluation/kernels/vrp_delimited_cost.cu) evaluates `0`-delimited VRP routes with a 32-lane Kogge-Stone segmented scan.
 - **Selection (`tournament_selection.cu`):** [`tournament_selection.cu::tournament_selection_kernel`](../../src/algorithms/strategies/selection/kernels/tournament_selection.cu) emits only 1D `winner_indices[N]` and delegates the 2D population gather (`d_pop[d_winner_indices]`) to CuPy/CUB (`SEL-A`, `DP11-16`), using host `rng.integers(..., dtype=np.int32)` so CPU and GPU tournament selection share one RNG sequence (`BUG-28`).
 - **Mutation (`swap_mutation.cu`, `inversion_mutation.cu`):** Both CPU and GPU mutation call `sample_mutation_positions` (`route_helpers.py`), preserving identical seeds and `candidate_k` behavior (`SWAP-A`, `INV-A`). [`inversion_mutation.cu::inversion_mutation_kernel`](../../src/algorithms/strategies/mutation/kernels/inversion_mutation.cu) assigns 1 warp per route so all 32 lanes reverse `[left, right]` cooperatively under zero intra-warp divergence (`DP11-17`).
 
@@ -438,7 +455,7 @@ $$
 - **Asynchronous Stream Ordering (`DP10-18`, `DP11-22`, `BUG-15`, `BUG-26`):** GPU strategies no longer invoke `cp.cuda.Stream.null.synchronize()`, and `@time_strategy` defaults to `time.perf_counter()` without forcing `end_evt.synchronize()` on every call. Synchronization occurs implicitly only on D2H copies (`.get()` / `cp.asnumpy()`) or when `use_gpu_events = True` / `PhaseTimer(use_cuda_events=True)` is explicitly requested (`BUG-51`).
 - **Route Topology Bounds (`DP11-19`, `BUG-24`, `BUG-28`):** `resolve_route_bounds(n, context, route_sample)` checks host endpoints (`O(1)`) or `context.is_closed` on GPU batches, returning `(1, n - 1)` for closed depot tours (`CVRP`) and `(0, n)` for open `TSP`/`ATSP` permutations without D2H syncs or sample-cache poisoning.
 - **AOT Warm-Up & SHA-256 Recompilation (`DP11-21`, `BUG-25`, `BUG-58`):** `load_kernel` hashes `.cu` bytes via SHA-256 to invalidate `_compile_kernel_cached` on live source edits, while `GeneticAlgorithm.warmup` pre-compiles and exercises every step/strategy on `arange(n)` permutations prior to timed runs.
-- **Telemetry Accounting (`BUG-30`):** [`GeneticAlgorithm._collect_strategy_metrics`](../../src/algorithms/metaheuristics/genetic_algorithm.py) sets `_ = context` and sums `h2d_bytes`, `d2h_bytes`, and `kernel_launches` solely across `_all_strategies()`, explicitly **not** re-adding `context._gpu_distances.nbytes`. Instead, `ProblemContext.h2d_bytes` records physical host-to-device uploads inside lazy context accessors, and both [`two_opt.py::_DistanceOperandCache.resolve, _DistanceOperandCache.resolve_candidates`](../../src/algorithms/strategies/local_search/two_opt.py) and [`cost_evaluation.py::EvaluationGPUCost._distance_operands`](../../src/algorithms/strategies/evaluation/cost_evaluation.py) measure `max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)` around context lookups—charging the physical upload delta **once** to whichever strategy first triggers the transfer while charging `0` bytes on subsequent cached bindings across sibling strategies and generations.
+- **Telemetry Accounting (`BUG-30`):** [`GeneticAlgorithm._collect_strategy_metrics`](../../src/algorithms/metaheuristics/genetic_algorithm.py) sets `_ = context` and sums `h2d_bytes`, `d2h_bytes`, and `kernel_launches` solely across `_all_strategies()`, explicitly **not** re-adding `context._gpu_distances.nbytes`. Instead, `ProblemContext.h2d_bytes` records physical host-to-device uploads inside lazy context accessors, and both [`gpu_base.py::DistanceOperandCache.resolve, DistanceOperandCache.resolve_candidates`](../../src/algorithms/strategies/local_search/gpu_base.py) and [`base.py::EvaluationGPUBase._distance_operands`](../../src/algorithms/strategies/evaluation/base.py) measure `max(0, int(getattr(context, "h2d_bytes", 0)) - before_h2d)` around context lookups—charging the physical upload delta **once** to whichever strategy first triggers the transfer while charging `0` bytes on subsequent cached bindings across sibling strategies and generations.
 - **Test Boundaries:** `tests/algorithms/` covers contracts ([`test_unit_strategy_contracts.py`](../../tests/algorithms/test_unit_strategy_contracts.py)), pipeline composition ([`test_unit_pipeline_steps.py`](../../tests/algorithms/test_unit_pipeline_steps.py)), fail-loud GPU guards ([`test_unit_gpu_strategy_fail_loud.py`](../../tests/algorithms/test_unit_gpu_strategy_fail_loud.py)), GA invariants (`metaheuristics/`), and per-operator CPU/GPU bit-parity (`crossover/`, `evaluation/`, `initialization/`, `local_search/`, `mutation/`), plus `tests/validation/` ([`test_early_stopping.py`](../../tests/validation/test_early_stopping.py), [`test_incremental_checkpoints.py`](../../tests/validation/test_incremental_checkpoints.py)).
 
 ---

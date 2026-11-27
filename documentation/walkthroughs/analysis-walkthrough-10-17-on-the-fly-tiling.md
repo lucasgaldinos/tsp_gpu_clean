@@ -18,7 +18,7 @@ related_files:
   - "[plan-reorganization-and-typing.plan.md](../../documents_tcc/plan/plan-reorganization-and-typing.plan.md)"
   - "[knowledge_on_the_fly_distances_and_shared_memory_tiling.md](../../documents_tcc/plan/knowledge-base/knowledge_on_the_fly_distances_and_shared_memory_tiling.md)"
   - "[pairwise_device.cuh](../../src/distances/kernels/pairwise_device.cuh)"
-  - "[cost_calculator.cu](../../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu)"
+  - "[tour_cost.cu](../../src/algorithms/strategies/evaluation/kernels/tour_cost.cu)"
   - "[two_opt_batch.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu)"
   - "[two_opt_multi_move.cu](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu)"
   - "[two_opt.py](../../src/algorithms/strategies/local_search/two_opt.py)"

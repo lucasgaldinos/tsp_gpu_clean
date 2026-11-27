@@ -21,10 +21,18 @@ modifications:
           and `src/data_models/` aligned with the Wave 1 Standardization Contract,
           and polished title formatting, cross-guide `related_files` symmetry,
           and `Problem.is_symmetric` property notation in the class diagram.
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Synchronized Phase 17 / 17R VRP Tier 1 contracts: documented `VRPConstraints`
+          (Vidal et al., 2014), `RouteAssessment`, `PenaltyPolicy`, `RouteDecoder`,
+          `BinPackingStrategy`, expanded `VALID_PROBLEM_TYPES` (`OVRP`, `DCVRP`), and
+          updated `BenchmarkRunInput` key counts (`18` required + `34` optional, `DP17-4`).
 related_files:
   - "[design-patterns-links.md](../../design-patterns-links.md)"
   - "[table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md)"
   - "[guide-project-architecture-blueprint.md](../guide-project-architecture-blueprint.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](../knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[analysis-strategy-hierarchy-and-context-contracts.md](../knowledge-base/analysis-strategy-hierarchy-and-context-contracts.md)"
   - "[guide-architecture-loaders-and-distances.md](./guide-architecture-loaders-and-distances.md)"
   - "[guide-architecture-algorithms-and-strategies.md](./guide-architecture-algorithms-and-strategies.md)"
@@ -61,7 +69,7 @@ Together, `src/data_models/` and `src/protocols/` form the **Domain Model and In
 
 | Package / Module | Responsibility | Key Exported & Internal Symbols |
 | :--- | :--- | :--- |
-| `src/data_models/` | Immutable problem value objects, TypedDict exchange schemas, and domain exceptions | [`Problem`](../../src/data_models/problem.py), [`exceptions.py`](../../src/data_models/exceptions.py), [`records.py`](../../src/data_models/records.py) |
+| `src/data_models/` | Immutable problem & VRP constraint value objects, TypedDict exchange schemas, and domain exceptions | [`Problem`](../../src/data_models/problem.py), [vrp_constraints.py::VRPConstraints](../../src/data_models/vrp_constraints.py), [`exceptions.py`](../../src/data_models/exceptions.py), [`records.py`](../../src/data_models/records.py) |
 | `src/protocols/types.py` | PEP 695 standardized array, seed, and stage type aliases | [`types.py`](../../src/protocols/types.py) (`SeedLike`, `Route`, `Routes`, `Fitness`, `LocalSearchStage`) |
 | `src/protocols/backend.py` | NumPy/CuPy structural protocol and lazy CUDA capability probe | [`BackendModule`](../../src/protocols/backend.py), [`GPUCapabilityProbe`](../../src/protocols/backend.py), [`require_gpu`](../../src/protocols/backend.py) |
 | `src/protocols/algorithm_strategies.py` | `@runtime_checkable` PEP 544 operator interfaces for the 6 GA slots | [`InitializationStrategy`](../../src/protocols/algorithm_strategies.py), [`LocalSearchStrategy`](../../src/protocols/algorithm_strategies.py), etc. |
@@ -249,7 +257,7 @@ Key contracts:
 ### 3.5 Immutable `Problem` Value Object, Exceptions & Records (`src/data_models/`)
 
 [`Problem`](../../src/data_models/problem.py) is a `@dataclass(frozen=True)` value object enforcing domain invariants inside [`Problem.__post_init__`](../../src/data_models/problem.py):
-- `dimension > 0`, `problem_type in VALID_PROBLEM_TYPES` (`{"TSP", "ATSP", "CVRP"}`), `edge_type in VALID_EDGE_TYPES` (`{"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"}`).
+- `dimension > 0`, `problem_type in VALID_PROBLEM_TYPES` (`{"TSP", "ATSP", "CVRP", "OVRP", "DCVRP"}`), `edge_type in VALID_EDGE_TYPES` (`{"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"}`), and immutable [vrp_constraints.py::VRPConstraints](../../src/data_models/vrp_constraints.py) (`capacity`, `max_vehicles`, `max_route_distance`, `return_to_depot`, plus reserved Tier-2 `time_windows`/`service_times`; `DP17-1`).
 - `edge_type == "EXPLICIT"` requires non-null `distances` of shape `(dimension, dimension)`; all other edge types require `coordinates` of shape `(dimension, expected_coordinate_dimension(edge_type))`—`(n, 3)` for `EUC_3D` (`DP14-6`) and `(n, 2)` for 2D metrics—coerced via `np.ascontiguousarray(..., dtype=np.float64)` and checked with `np.isfinite`.
 - `display_coords` (optional for `EXPLICIT`) must be finite `(dimension, 2)` `float64`.
 - `CVRP` requires positive `capacity` and `demands` of shape `(dimension,)`.
@@ -257,7 +265,7 @@ Key contracts:
 
 [`exceptions.py`](../../src/data_models/exceptions.py) separates **8 loader exceptions** rooted at [`ProblemLoaderError`](../../src/data_models/exceptions.py) ([`InstanceNotFoundError`](../../src/data_models/exceptions.py), [`InvalidEdgeTypeError`](../../src/data_models/exceptions.py), [`MissingCoordinatesError`](../../src/data_models/exceptions.py), [`DatabaseConnectionError`](../../src/data_models/exceptions.py), [`InvalidProblemDataError`](../../src/data_models/exceptions.py), [`DatabaseNotEmptyError`](../../src/data_models/exceptions.py), [`UnsupportedProblemTypeError`](../../src/data_models/exceptions.py)) from **2 hardware/runtime exceptions** deriving from `RuntimeError` ([`GPUUnavailableError`](../../src/data_models/exceptions.py), [`VRAMInsufficientError`](../../src/data_models/exceptions.py) storing `required_bytes` and `available_bytes`).
 
-[`records.py`](../../src/data_models/records.py) defines [`NemenyiResult`](../../src/data_models/records.py), [`JsonPayload`](../../src/data_models/records.py), and [`BenchmarkRunInput`](../../src/data_models/records.py) (`22` required keys matching `NOT NULL` columns of `schema.sql` plus `21` `NotRequired` nullable fields — including `optimal_cost` and gap fields for unknown-optimum instances, `BUG-31`).
+[`records.py`](../../src/data_models/records.py) defines [`NemenyiResult`](../../src/data_models/records.py), [`JsonPayload`](../../src/data_models/records.py), and [`BenchmarkRunInput`](../../src/data_models/records.py) (`18` required keys matching `NOT NULL` columns of `schema.sql` plus `34` `NotRequired` nullable/default-backed fields — including `problem_type`, nullable cost/gap fields for `feasible_runs == 0` or unknown-optimum runs, and VRP feasibility/fleet metrics, `BUG-31`, `DP17-4`).
 
 ---
 

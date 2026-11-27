@@ -23,17 +23,28 @@ modifications:
       - description: >
           Documented single-pass `benchmarking.analysis` (`analyze_cohort`) to
           `benchmarking.reporting` (`generate_result_tables`) Python workflow,
-          PEP 544 slot-protocol preflight validation (`BUG-101`), checkpoint
-          drift/quarantine behavior (`BUG-98`), and retroactive `optimal_cost`
-          gap computation in `tsp-report` (`BUG-96`, `BUG-100`).
+          PEP 544 slot-protocol preflight validation, checkpoint
+          drift/quarantine behavior, and retroactive `optimal_cost`
+          gap computation in `tsp-report`.
       - description: >
           Added Section 7 ("JSON-First Experiment Cookbook & External Script
           Templates") putting `algorithms.json`, `benchmark.json`, `problems.json`,
           and `report_style.json`, `--config-dir` precedence, and Level 1 / Level 2
           external experiment script templates side-by-side.
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Standardized VRP Tier 1 / VRP Tier 2 taxonomy (Vidal et al., 2014),
+          updated strategy catalog (`32` core strategies + `10` composable sub-strategies:
+          explicit CPU/GPU initializers, unified `EvaluationCPUCost`/`EvaluationGPUCost`,
+          `Crossover[GPU]RBX`, `LocalSearch[CPU|GPU]TwoOptStar`, and `BinPacking[CPU|GPU]{FFD,BFD}`),
+          removed internal plan/bug identifiers, aligned VRP JSON examples with
+          `configs/vrp-pipelines.example.json` and `configs/schemas/algorithms.schema.json`,
+          and documented `vargha_delaney_a12` constrained reporting.
 related_files:
   - "[README.md](../README.md)"
   - "[documentation/README.md](./README.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](./knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[guide-thesis-reproduction.md](./guide-thesis-reproduction.md)"
   - "[guide-local-search-pipeline-stages.md](./guide-local-search-pipeline-stages.md)"
   - "[guide-project-architecture-blueprint.md](./guide-project-architecture-blueprint.md)"
@@ -71,7 +82,7 @@ flowchart LR
     CFG["Algorithm JSON config + optional external module"] --> RUN["tsp-benchmark (collection-only default)"]
     LOAD --> RUN
     RUN --> CKPT["Atomic checkpoints/*.json + problem_statistics/*.json"]
-    CKPT --> REP["tsp-report or Python analysis generators"]
+    CKPT --> REP["tsp-report or python analysis generators"]
     STYLE["Optional ReportStyle JSON"] --> REP
     REP --> OUT["Markdown, LaTeX, Macros, CD TikZ, Scaling PDF/SVG"]
     CKPT -. optional .-> DB["results.duckdb (tsp-import-checkpoints)"]
@@ -81,7 +92,7 @@ flowchart LR
 
 Requirements:
 
-- Python `>= 3.12`
+- python `>= 3.12`
 - [`uv`](https://docs.astral.sh/uv/) and `git` (fetches the public TSPLIB parser `routing-data` at tag `v0.2.0` from GitHub)
 - Optional: NVIDIA GPU (Compute Capability `>= 5.0`) + CUDA 12.x driver for `use_gpu: true` strategies
 
@@ -112,18 +123,60 @@ print(problem.name, problem.dimension, problem.edge_type, "optimal:", optimal)
 
 Supported TSPLIB95 `EDGE_WEIGHT_TYPE` formats include `EUC_2D`, `EUC_3D`, `CEIL_2D`, `GEO`, `ATT`, and `EXPLICIT` (`FULL_MATRIX`, `UPPER_ROW`, `LOWER_ROW`, `UPPER_DIAG_ROW`, `LOWER_DIAG_ROW`).
 
-## 4. Composing Built-In Strategies & Pipelines in Python
+### Loading VRP Tier 1 (`.vrp` / `.sol`) Instances
 
-[`GeneticAlgorithm`](../src/algorithms/metaheuristics/genetic_algorithm.py) uses explicit dependency injection across six operator slots. Every slot has CPU and/or CUDA implementations in [`src/algorithms/strategies/`](../src/algorithms/strategies/__init__.py):
+Following the Unified Multi-Attribute VRP taxonomy of **Vidal, Crainic, Gendreau & Prins (2014)**, the framework separates vehicle routing variants into two explicit tiers (distinct from the two-tier statistical testing protocol in [guide-statistical-multicomparison-tests.md](./knowledge-base/guide-statistical-multicomparison-tests.md)):
 
-- **Initialization:** `InitializationRandom`, `InitializationNearestNeighbor`
+| VRP Taxonomy Tier | Variants | Constraint Structure | Status in `VRPConstraints` |
+| :--- | :--- | :--- | :--- |
+| **VRP Tier 1** | `CVRP`, `OVRP`, `DCVRP`, Bounded-Fleet (`K_max`) | Symmetric prefix-additive constraints ($Q$, $L_{\max}$, $K_{\max}$, `return_to_depot`) | Active across loaders, CPU/GPU evaluators, split decoders, and inter-route local search |
+| **VRP Tier 2** | `VRPTW`, `SDVRP` | Asymmetric time-warp monoids (`time_windows`, `service_times`) | Reserved fields on `VRPConstraints` (zero future schema migration) |
+
+[`load_tsplib_file`](../src/loaders/tsplib_loader.py) loads CVRPLIB `.vrp` instances (`CVRP`, `OVRP`, `DCVRP`) with `CAPACITY`, `DEMAND_SECTION`, `DEPOT_SECTION`, and optional `DISTANCE` / `VEHICLES` constraints mapped into [vrp_constraints.py::VRPConstraints](../src/data_models/vrp_constraints.py). When a sibling `<name>.sol` exists, [`resolve_opt_tour_cost`](../src/loaders/tsplib_loader.py) recomputes the exact integer TSPLIB95 `nint` BKS from the `.sol` routes. In `problems.json`, specify `"problem_type": "CVRP"` (or `"OVRP"` / `"DCVRP"`) alongside optional `"capacity"`, `"max_vehicles"`, `"max_route_distance"`, or `"return_to_depot"` overrides.
+
+## 4. Composing Built-In Strategies & Pipelines in python
+
+[`GeneticAlgorithm`](../src/algorithms/metaheuristics/genetic_algorithm.py) uses explicit dependency injection across six operator slots. Every slot has explicit CPU and/or CUDA implementations (`32` core strategies plus `10` composable sub-strategies in [`src/algorithms/strategies/`](../src/algorithms/strategies/__init__.py)):
+
+- **Initialization (CPU & GPU, `SplitMix64` parity):** `InitializationCPURandom`, `InitializationCPUNearestNeighbor`, `InitializationCPUClarkeWright`, `InitializationCPUSweep`, `InitializationGPURandom`, `InitializationGPUNearestNeighbor`, `InitializationGPUClarkeWright`, `InitializationGPUSweep`
 - **Selection:** `SelectionTournament`, `SelectionRouletteWheel`, `SelectionGPUTournament`
-- **Crossover:** `CrossoverOrder`, `CrossoverPartiallyMapped`, `CrossoverGPUOrder`
-- **Mutation:** `MutationSwap`, `MutationInversion`, `MutationGPUSwap`, `MutationGPUInversion`
-- **Local Search:** `LocalSearchCPUTwoOpt` (`mode="first" | "best" | "multi_move"`), `LocalSearchGPUTwoOpt` (`mode="naive" | "batch"`), `LocalSearchNoOp`
-- **Evaluation:** `EvaluationCPUCost`, `EvaluationGPUCost`
+- **Crossover:** `CrossoverOrder`, `CrossoverPartiallyMapped`, `CrossoverRBX`, `CrossoverGPUOrder`, `CrossoverGPUPartiallyMapped`, `CrossoverGPURBX`
+- **Mutation:** `MutationSwap`, `MutationInversion`, `MutationRouteRelocate`, `MutationRouteSwap`, `MutationGPUSwap`, `MutationGPUInversion`, `MutationGPURouteRelocate`, `MutationGPURouteSwap`
+- **Local Search:** `LocalSearchCPUTwoOpt` (`mode="first" | "best" | "multi_move"`), `LocalSearchGPUTwoOpt` (`mode="naive" | "batch" | "multi_move"`), `LocalSearchCPUTwoOptStar`, `LocalSearchGPUTwoOptStar`, `LocalSearchNoOp`
+- **Evaluation (unified TSP/ATSP & VRP Tier 1):** `EvaluationCPUCost`, `EvaluationGPUCost` — polymorphically evaluate flat TSP/ATSP tours (`tour_cost.py` / `tour_cost.cu`), giant tours via an injected `RouteDecoder`, and `0`-delimited VRP routes (`delimited_cost.py` / `vrp_delimited_cost.cu`) with pluggable `PenaltyPolicy` weights.
+- **Composable Sub-Strategies (`SUB_STRATEGY_REGISTRY`):** `PrinsSplitDecoder`, `GreedySplitDecoder` (`strategies/decoding/`), `InstanceScaledPenaltyPolicy`, `StrictFeasibilityPolicy`, `FixedPenaltyPolicy`, `AdaptivePenaltyPolicy` (`strategies/penalties/`), and `BinPackingCPUFFD`, `BinPackingGPUFFD`, `BinPackingCPUBFD`, `BinPackingGPUBFD` (`strategies/bin_packing/`, Coffman-Garey-Johnson First-Fit / Best-Fit Decreasing fleet repair).
 
-Within each generation, you can either pick a built-in `local_search_stage` (`"post_crossover"`, `"post_mutation"`, `"post_evaluation"`, `"post_evolution"`, `"none"`) or pass custom steps from [`src/algorithms/pipeline_steps.py`](../src/algorithms/pipeline_steps.py) (`PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`, `PeriodicLocalSearchStep`). See [Local Search Pipeline Stages](./guide-local-search-pipeline-stages.md) for the exact execution order of every stage anchor (`pre_selection`, `pre_evaluation`, `post_survival`).
+Within each generation, you can either pick a built-in `local_search_stage` (`"post_crossover"`, `"post_mutation"`, `"post_evaluation"`, `"post_evolution"`, `"none"`) or pass custom steps from [`src/algorithms/pipeline_steps.py`](../src/algorithms/pipeline_steps.py) (`PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`, `PeriodicLocalSearchStep`, `SplitDecodeStep`, `GiantTourEncodeStep`, `FleetBinPackStep`, and `PenaltyAdaptationStep`). See [`configs/vrp-pipelines.example.json`](../configs/vrp-pipelines.example.json), [Local Search Pipeline Stages](./guide-local-search-pipeline-stages.md), and [analysis-cvrp-gpu-split-and-deb-statistics.md](./knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md) for full examples.
+
+```json
+{
+  "$schema": "./configs/schemas/algorithms.schema.json",
+  "default_params": { "population_size": 128, "mutation_rate": 0.05, "seed": 42 },
+  "algorithm_configs": {
+    "CVRP_HybridSplit_GPU": {
+      "metaheuristic": "GeneticAlgorithm",
+      "use_gpu": true,
+      "description": "Hybrid Split-Memetic GPU pipeline with periodic inter-route 2-opt* local search",
+      "strategies": {
+        "initialization": { "class": "InitializationGPURandom" },
+        "selection": { "class": "SelectionGPUTournament", "params": { "k": 3 } },
+        "crossover": { "class": "CrossoverGPUOrder" },
+        "mutation": { "class": "MutationGPUInversion" },
+        "local_search": { "class": "LocalSearchGPUTwoOptStar", "params": { "mode": "multi_move", "max_iterations": 10 } },
+        "evaluation": { "class": "EvaluationGPUCost" }
+      },
+      "params": {
+        "local_search_stage": "none",
+        "pipeline": [
+          { "class": "SplitDecodeStep" },
+          { "class": "PeriodicLocalSearchStep", "params": { "interval": 5, "target": "offspring" } },
+          { "class": "GiantTourEncodeStep" }
+        ]
+      }
+    }
+  }
+}
+```
 
 ```python
 import numpy as np
@@ -133,7 +186,7 @@ from algorithms.pipeline_steps import PeriodicLocalSearchStep, PostInitLocalSear
 from algorithms.strategies import (
   CrossoverOrder,
   EvaluationCPUCost,
-  InitializationRandom,
+  InitializationCPURandom,
   LocalSearchCPUTwoOpt,
   MutationInversion,
   SelectionRouletteWheel,
@@ -151,7 +204,7 @@ ga = GeneticAlgorithm(
   population_size=128,
   mutation_rate=0.05,
   seed=42,
-  initialization=InitializationRandom(seed=42),
+  initialization=InitializationCPURandom(seed=42),
   selection=SelectionRouletteWheel(seed=42),
   crossover=CrossoverOrder(seed=42),
   mutation=MutationInversion(seed=42),
@@ -260,7 +313,7 @@ class BestOnlyLocalSearchStep:
 > [!TIP]
 > Subclassing [`StrategyBase`](../src/algorithms/strategies/base.py) gives your custom operator a deterministic `self.rng` (seeded automatically by `AlgorithmConfig.instantiate`) plus telemetry counters (`h2d_bytes`, `d2h_bytes`, `kernel_launches`). Any plain class implementing the required protocol methods also works via structural subtyping.
 
-### Option 1 — Direct Python injection into `GeneticAlgorithm`
+### Option 1 — Direct python injection into `GeneticAlgorithm`
 
 ```python
 import numpy as np
@@ -269,7 +322,7 @@ from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
   CrossoverOrder,
   EvaluationCPUCost,
-  InitializationRandom,
+  InitializationCPURandom,
   LocalSearchCPUTwoOpt,
   SelectionTournament,
 )
@@ -286,7 +339,7 @@ ga = GeneticAlgorithm(
   population_size=64,
   mutation_rate=0.1,
   seed=42,
-  initialization=InitializationRandom(seed=42),
+  initialization=InitializationCPURandom(seed=42),
   selection=SelectionTournament(k=5, seed=42),
   crossover=CrossoverOrder(seed=42),
   mutation=ScrambleMutation(max_span=8, seed=42),
@@ -298,9 +351,9 @@ ga = GeneticAlgorithm(
 best_tour, stats = ga.evolve(context, list(range(problem.dimension)), max_generations=30)
 ```
 
-### Option 2 — Runtime registration for Python benchmark scripts
+### Option 2 — Runtime registration for python benchmark scripts
 
-When orchestrating multi-repetition experiments in Python via [`run_comprehensive_benchmark`](../src/benchmarking/runner/orchestration.py), register your external classes at startup with [`register_strategy`](../src/algorithms/strategies/__init__.py) and [`register_pipeline_step`](../src/algorithms/pipeline_steps.py):
+When orchestrating multi-repetition experiments in python via [`run_comprehensive_benchmark`](../src/benchmarking/runner/orchestration.py), register your external classes at startup with [`register_strategy`](../src/algorithms/strategies/__init__.py) and [`register_pipeline_step`](../src/algorithms/pipeline_steps.py):
 
 ```python
 from algorithms import register_pipeline_step, register_strategy
@@ -321,7 +374,7 @@ results = run_comprehensive_benchmark(
 
 ### Option 3 — Dynamic `"module"` loading directly from JSON & `tsp-benchmark` CLI
 
-To benchmark custom external classes directly from the CLI without writing any wrapper script, include `"module"` alongside `"class"` in your algorithm JSON config (validated by [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json)). `"module"` accepts **either** a dotted Python module path (e.g., `"my_experiment.my_ops"`) **or** a `.py` file path relative to `algorithms.json` (e.g., `"../my_ops.py"`), so experiments living inside hyphenated directories require neither `PYTHONPATH` nor packaging (`DP16-3`, `BUG-104`):
+To benchmark custom external classes directly from the CLI without writing any wrapper script, include `"module"` alongside `"class"` in your algorithm JSON config (validated by [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json)). `"module"` accepts **either** a dotted python module path (e.g., `"my_experiment.my_ops"`) **or** a `.py` file path relative to `algorithms.json` (e.g., `"../my_ops.py"`), so experiments living inside hyphenated directories require neither `PYTHONPATH` nor packaging:
 
 ```json
 {
@@ -343,7 +396,7 @@ To benchmark custom external classes directly from the CLI without writing any w
         ]
       },
       "strategies": {
-        "initialization": { "class": "InitializationRandom" },
+        "initialization": { "class": "InitializationCPURandom" },
         "selection": { "class": "SelectionTournament", "params": { "k": 5 } },
         "crossover": { "class": "CrossoverOrder" },
         "mutation": {
@@ -362,7 +415,7 @@ To benchmark custom external classes directly from the CLI without writing any w
 }
 ```
 
-**Editor autocomplete for custom operations (`BUG-103`, `DP16-3`):** The core [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json) partitions all 17 built-in strategies across 6 protocol-specific `oneOf` slots and keeps a generic `{"module", "class", "params"}` fallback branch for ad-hoc external classes. To get full VS Code IntelliSense for your experiment's custom classes and constructor `params` without modifying `src/` or the core schema, generate an experiment-local schema with `--extra-file` (or `--extra-module`) and `--output`:
+**Editor autocomplete for custom operations:** The core [`configs/schemas/algorithms.schema.json`](../configs/schemas/algorithms.schema.json) partitions all 32 built-in core strategies across 6 protocol-specific `oneOf` slots (plus 10 composable sub-strategies) and keeps a generic `{"module", "class", "params"}` fallback branch for ad-hoc external classes. To get full VS Code IntelliSense for your experiment's custom classes and constructor `params` without modifying `src/` or the core schema, generate an experiment-local schema with `--extra-file` (or `--extra-module`) and `--output`:
 
 ```bash
 uv run python -m benchmarking.runner.schema_generator \
@@ -428,7 +481,7 @@ uv run tsp-benchmark \
 ```
 
 > [!NOTE]
-> **Preflight & Resume Guarantees (`DP16-1`, `BUG-96`, `BUG-98`, `BUG-101`):** Before executing any solver, `tsp-benchmark` validates strategy slot names (`VALID_STRATEGY_SLOTS`), PEP 544 `@runtime_checkable` protocol conformance for both built-in and external custom strategies, per-algorithm `params` bounds, and existing checkpoint compatibility (`local_search_stage`, `strategy_params`, `pipeline`, and raw array lengths). Checkpoints collected on custom `.tsp` instances without a known optimal cost (`optimal_cost: null`, `raw_gaps: null`) validate and resume cleanly. Truncated/corrupt JSON files fail `--dry-run` without mutating disk and are automatically quarantined to `*.corrupt.<timestamp>.bak` on live runs.
+> **Preflight & Resume Guarantees:** Before executing any solver, `tsp-benchmark` validates strategy slot names (`VALID_STRATEGY_SLOTS`), PEP 544 `@runtime_checkable` protocol conformance for both built-in and external custom strategies, per-algorithm `params` bounds, and existing checkpoint compatibility (`local_search_stage`, `strategy_params`, `pipeline`, and raw array lengths). Checkpoints collected on custom `.tsp` instances without a known optimal cost (`optimal_cost: null`, `raw_gaps: null`) validate and resume cleanly. Truncated/corrupt JSON files fail `--dry-run` without mutating disk and are automatically quarantined to `*.corrupt.<timestamp>.bak` on live runs.
 
 ## 7. JSON-First Experiment Cookbook & External Script Templates
 
@@ -499,7 +552,7 @@ Configuration resolution in [`resolve_benchmark_configs`](../src/benchmarking/ru
 }
 ```
 
-Run the bundle without writing any Python code:
+Run the bundle without writing any python code:
 
 ```bash
 uv run tsp-benchmark \
@@ -514,7 +567,7 @@ uv run tsp-report \
   --benchmark-name my_study
 ```
 
-### 7.3 Level 1 External Script Template (Direct Python Orchestration)
+### 7.3 Level 1 External Script Template (Direct python Orchestration)
 
 Use this template when you want a self-contained script outside `src/` that registers custom operators, sweeps variants (e.g., building `algorithm_configs_override` like [`compare_local_search_stages.py`](../benchmark_scripts/experiments-and-examples/chapter4/compare_local_search_stages.py)), or pins defaults like [`run_selected_problems.py`](../benchmark_scripts/experiments-and-examples/chapter4/run_selected_problems.py):
 
@@ -606,9 +659,9 @@ if __name__ == "__main__":
   sys.exit(main())
 ```
 
-## 8. Composable Reporting & External Styling (`tsp-report` & Python API)
+## 8. Composable Reporting & External Styling (`tsp-report` & python API)
 
-Because `tsp-benchmark` is collection-only by default (`--reports none`), you can iterate on report layouts, display names, language, or subsets of outputs without re-running any solver. Passing `--problems-config <problems.json>` also derives optimality gaps retroactively for checkpoints that were collected without known optima (`BUG-96`), while nonexistent `--config-dir` paths fail fast with exit code `2` (`BUG-100`):
+Because `tsp-benchmark` is collection-only by default (`--reports none`), you can iterate on report layouts, display names, language, or subsets of outputs without re-running any solver. Passing `--problems-config <problems.json>` also derives optimality gaps retroactively for checkpoints that were collected without known optima, while nonexistent `--config-dir` paths fail fast with exit code `2`:
 
 ```bash
 # Generate every report artifact with neutral English defaults
@@ -633,7 +686,7 @@ All presentation parameters live in [`ReportStyle`](../src/benchmarking/reportin
 - `size_thresholds` & `show_size_guides`: `[small_max, medium_max]` stratum cutoffs (default `[100, 400]`) and vertical plot guides
 - `cd_*` & `plot_*`: customizable metric, rank, and axis titles in any language
 
-Pure statistical computation lives in [`benchmarking.analysis`](../src/benchmarking/analysis/__init__.py) (`analyze_problem`, `analyze_cohort`, `OmnibusTestResult`), while pure rendering lives in [`benchmarking.reporting`](../src/benchmarking/reporting/__init__.py). You can compute a `CohortAnalysis` snapshot once and pass it to the facade or invoke individual renderers in Python:
+Pure statistical computation lives in [`benchmarking.analysis`](../src/benchmarking/analysis/__init__.py) (`analyze_problem`, `analyze_cohort`, `OmnibusTestResult`), while pure rendering lives in [`benchmarking.reporting`](../src/benchmarking/reporting/__init__.py). For constrained VRP cohorts containing infeasible runs, pairwise comparisons automatically report [`StatisticalSummary.vargha_delaney_a12`](../src/benchmarking/analysis/statistics.py) (Vargha–Delaney stochastic dominance $\hat{A}_{12} \in [0, 1]$ alongside exact Binomial Sign $p$-values) and cohort tables use seed-averaged Deb ranks $\bar{R}_{p,j}$ (see [analysis-cvrp-gpu-split-and-deb-statistics.md](./knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)). You can compute a `CohortAnalysis` snapshot once and pass it to the facade or invoke individual renderers in python:
 
 ```python
 from benchmarking.analysis import analyze_cohort

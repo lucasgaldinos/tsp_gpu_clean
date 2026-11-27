@@ -30,9 +30,20 @@ modifications:
           relocated Chapter 4 configs and drivers under `benchmark_scripts/experiments-and-examples/chapter4/`, added
           external custom strategy/step loading, linked `guide-getting-started.md` and
           `guide-thesis-reproduction.md`, and recorded Phase 16 hardening (`DP16-1`, `DP16-2`).
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Synchronized Phase 17 / 17R / 17R-2 VRP Tier 1 architecture (`DP17-1`–`DP17-10`):
+          `32` core strategies + `10` composable sub-strategies (`decoding/`, `penalties/`,
+          `bin_packing/`), unified `Evaluation[CPU|GPU]Cost`, `RouteAssessment`, `PenaltyPolicy`,
+          `BinPacking[CPU|GPU]{FFD,BFD}` + `FleetBinPackStep`, `SplitMix64` CPU/GPU initializers,
+          `vrp_split.cu`, `vrp_delimited_cost.cu`, `two_opt_star_*.cu`, `src/utils/kernels/block_reductions.cuh`,
+          modularized `config_loader`/`orchestration`/`checkpoint_io`/`table_reports`,
+          and constrained Deb statistics (`hat_nu`, exact Binomial Sign + `A_12`, `R_bar`).
 related_files:
   - "[design-patterns-links.md](../design-patterns-links.md)"
   - "[README.md](./README.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](./knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[guide-getting-started.md](./guide-getting-started.md)"
   - "[guide-thesis-reproduction.md](./guide-thesis-reproduction.md)"
   - "[guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md)"
@@ -153,10 +164,10 @@ flowchart TD
     CLI --> DB
     CLI --> LOAD["src/loaders/<br/>(DatabaseLoader, TsplibLoader, Handlers)"]:::data
 
-    ORCH --> ALG["src/algorithms/<br/>(GeneticAlgorithm, pipeline_steps, 17 Strategies, 8 .cu)"]:::solver
+    ORCH --> ALG["src/algorithms/<br/>(GeneticAlgorithm, pipeline_steps, 26 Strategies, 16 .cu)"]:::solver
     ORCH --> LOAD
     ORCH -. "private _compile_kernel_cached" .-> UTIL["src/utils/<br/>(gpu_helpers, phase_timer, rng, route_helpers)"]:::found
-    DB --> DM["src/data_models/<br/>(Problem, 10 Exceptions, records.py)"]:::found
+    DB --> DM["src/data_models/<br/>(Problem, VRPConstraints, 10 Exceptions, records.py)"]:::found
 
     ALG --> PROTO["src/protocols/<br/>(6 Protocols, BackendModule, ProblemContext, types)"]:::found
     ALG --> UTIL
@@ -444,12 +455,12 @@ flowchart LR
 | Package | Primary Responsibility | Deep-Dive Companion Guide |
 | :--- | :--- | :--- |
 | `src/protocols/` | 6 `@runtime_checkable` strategy protocols, `BackendModule`, `GPUCapabilityProbe`, PEP 695 aliases, `ProblemContext` | [guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md) |
-| `src/data_models/` | Frozen `Problem` dataclass (`DP14-6`), 10 domain exceptions, `BenchmarkRunInput` / `NemenyiResult` TypedDicts | [guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md) |
-| `src/loaders/` | `DatabaseLoader`, `TsplibLoader`, `PROBLEM_TYPE_HANDLERS`, `routing_data` ETL & DuckDB ingestion | [guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md) |
+| `src/data_models/` | Frozen `Problem` dataclass (`DP14-6`), immutable `VRPConstraints` (`DP17-1`), 10 domain exceptions, `BenchmarkRunInput` / `NemenyiResult` TypedDicts | [guide-architecture-protocols-and-data-models.md](./analysis/guide-architecture-protocols-and-data-models.md) |
+| `src/loaders/` | `DatabaseLoader`, `TsplibLoader` (`.tsp`/`.vrp`/`.sol` with `int32` `nint` BKS recomputation, `DP17-6`), `PROBLEM_TYPE_HANDLERS`, `routing_data` ETL & DuckDB ingestion | [guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md) |
 | `src/distances/` | 3-tier TSPLIB95 distances (`pairwise_device.cuh`, vectorized chunked `matrix.py`, `pairwise.py` w/ `BUG-32`) | [guide-architecture-loaders-and-distances.md](./analysis/guide-architecture-loaders-and-distances.md) |
-| `src/algorithms/` | `GeneticAlgorithm`, `STAGE_SPECS`, `pipeline_steps.py`, 17 `Design B` strategies, 8 `.cu` kernels, `archive/` | [guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md) |
-| `src/utils/` | `load_kernel` (`-I` + SHA-256), `PhaseTimer` / `@time_strategy`, `make_rng` / `resolve_rng`, `route_helpers` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
-| `src/benchmarking/` | `runner/` (`orchestration`, `algorithm_runner`, `checkpoint_io`, `config_loader`, `schema_generator`), `analysis/` (`cohort`, `statistics`, `stats_utils`, `problem_statistics`, `cohort_analysis`), `reporting/` (`style`, `console`, `table_reports`, `latex_macros`, `cd_diagram`, `scaling_plots`, `generator`), `database/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
+| `src/algorithms/` | `GeneticAlgorithm`, `STAGE_SPECS`, `pipeline_steps.py` & `vrp_pipeline_steps.py` (`SplitDecodeStep`, `GiantTourEncodeStep`, `FleetBinPackStep`, `PenaltyAdaptationStep`), 32 core strategies + 10 composable sub-strategies (`decoding/`, `penalties/`, `bin_packing/`), CUDA kernels (`tour_cost.cu`, `vrp_delimited_cost.cu`, `vrp_split.cu`, `bin_packing.cu`, `two_opt_star_*.cu`, `rbx_crossover.cu`, `route_{relocate,swap}_mutation.cu`, GPU initializers), `archive/` | [guide-architecture-algorithms-and-strategies.md](./analysis/guide-architecture-algorithms-and-strategies.md) |
+| `src/utils/` | `load_kernel` (`-I` + SHA-256), `PhaseTimer` / `@time_strategy`, `make_rng` / `resolve_rng`, `splitmix64.py`, `route_helpers`, shared CUDA headers (`block_reductions.cuh`, `splitmix64.cuh`) | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
+| `src/benchmarking/` | `runner/` (`orchestration`, `orchestration_helpers`, `orchestration_runtime`, `algorithm_runner`, `checkpoint_io`, `checkpoint_validation`, `checkpoint_stats`, `config_loader`, `config_models`, `config_instantiation`, `schema_generator`), `analysis/` (`cohort`, `statistics`, `constrained_statistics`, `stats_utils`, `problem_statistics`, `cohort_analysis`), `reporting/` (`style`, `console`, `table_reports`, `table_markdown`, `table_latex`, `latex_macros`, `cd_diagram`, `scaling_plots`, `generator`), `database/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 | `src/cli/` | 5 entry points (`benchmark.py`, `report.py`, `checkpoints.py`, `tsplib.py`) invoked directly or via `benchmark_scripts/` | [guide-architecture-benchmarking-cli-and-utils.md](./analysis/guide-architecture-benchmarking-cli-and-utils.md) |
 
 Outside `src/`, [`configs/`](../configs/cpu-operators.example.json) stores generic example configurations and Draft 2020-12 JSON Schemas (`configs/schemas/`), while `benchmark_scripts/` isolates thesis Chapter 4 configs (`benchmark_scripts/experiments-and-examples/chapter4/configs/`), thesis drivers ([run_chapter4_benchmark.py](../benchmark_scripts/experiments-and-examples/chapter4/run_chapter4_benchmark.py)), and verification gates ([check_docs.py](../benchmark_scripts/check_docs.py), [check_thesis.py](../benchmark_scripts/check_thesis.py)).
@@ -477,10 +488,11 @@ Dependencies are structured to flow downward from orchestration/CLI into domain 
 
 ## 6. Data Architecture
 
-- **Immutable Domain Value Object:** [`Problem`](../src/data_models/problem.py) validates positive `dimension`, `problem_type in {"TSP", "ATSP", "CVRP"}`, `edge_type in {"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"}`, strict `(n, 2)` vs `(n, 3)` coordinate shapes (`DP14-6`), C-contiguous finite `float64` coordinates, `CVRP` demands/capacity, and content-based `__eq__`/`__hash__` (`BUG-1`).
+- **Immutable Domain Value Objects:** [`Problem`](../src/data_models/problem.py) validates positive `dimension`, `problem_type in {"TSP", "ATSP", "CVRP", "OVRP", "DCVRP"}`, `edge_type in {"EUC_2D", "EUC_3D", "CEIL_2D", "GEO", "ATT", "EXPLICIT"}`, strict `(n, 2)` vs `(n, 3)` coordinate shapes (`DP14-6`), C-contiguous finite `float64` coordinates, [vrp_constraints.py::VRPConstraints](../src/data_models/vrp_constraints.py) ($Q$, $L_{\max}$, $K_{\max}$, `return_to_depot`, plus reserved VRP Tier 2 `time_windows`/`service_times`; `DP17-1`), and content-based `__eq__`/`__hash__` (`BUG-1`).
 - **Dual DuckDB Schemas:**
   - **Input Corpus (`tsp.duckdb`):** Owned by `routing_data` `DatabaseManager` (`DP10-14`), separating normalized hub tables (`problems`, `tsp_problems`, `atsp_problems`, `cvrp_problems`, `edge_weight_matrices`, `file_tracking`, `solutions`), read via [`DatabaseLoader`](../src/loaders/database_loader.py) and [`PROBLEM_TYPE_HANDLERS`](../src/loaders/problem_type_handlers.py).
-  - **Results Store (`results.duckdb`, optional):** Defined in [`schema.sql`](../src/benchmarking/database/schema.sql) as a single denormalized `benchmark_runs` table (`43` keys matching [`BenchmarkRunInput`](../src/data_models/records.py): `22` required + `21` nullable, allowing `NULL` `optimal_cost`/gap columns on custom `.tsp` instances) with `LIST` (`raw_*`), `JSON` (`mean_phase_timings`, `algorithm_config`), `VIRTUAL` `is_test`, and 6 indexes, imported idempotently via `(problem_name, algorithm)` natural-key upsert (`BUG-49`).
+  - **Results Store (`results.duckdb`, optional):** Defined in [`schema.sql`](../src/benchmarking/database/schema.sql) as a single denormalized `benchmark_runs` table (`54` columns: `run_id`, `is_test`, and `52` payload keys matching [`BenchmarkRunInput`](../src/data_models/records.py) — `18` required + `34` nullable/default-backed, including `problem_type VARCHAR NOT NULL DEFAULT 'TSP'`, nullable cost/gap columns for `feasible_runs == 0` or unknown-optimum runs, and VRP feasibility/fleet scalars & `LIST` arrays; `DP17-4`) with `JSON` telemetry columns and 6 indexes, imported idempotently via `(problem_name, problem_type, algorithm)` natural-key upsert (`BUG-49`, `DP17-4`).
+- **Deb (2000) Constrained Statistics & Conditional VRP Reporting (`DP17-4`, `DP17-10`):** When 100% of runs are feasible, exact Demšar (2006) Wilcoxon/Friedman/Nemenyi executes unchanged; when any seed is infeasible, [constrained_statistics.py](../src/benchmarking/analysis/constrained_statistics.py) uses dimensionless $\hat{\nu}$, per-seed Deb lexicographic ranks for Friedman/Nemenyi, exact Binomial Sign Test + Kerby-signed dominance + $\hat{A}_{12}$ for Tier-1 pairwise comparisons, and seed-averaged Deb ranks $\bar{R}_{p,j}$ in `BenchmarkCohort.quality_score_matrix`; [table_reports.py::generate_markdown_tables](../src/benchmarking/reporting/table_reports.py) and [table_reports.py::generate_latex_tables](../src/benchmarking/reporting/table_reports.py) (backed by `table_markdown.py` and `table_latex.py`) conditionally add `Feas. (%)` and `Vehicles` columns only for VRP cohorts.
 - **GPU Memory & VRAM Capacity Model:** [`ProblemContext.estimate_vram_bytes`](../src/protocols/problem_context.py) predicts VRAM needs for population $P$, cities $n$, and coordinate dimension $d$:
 
 $$
@@ -507,9 +519,9 @@ Chunked matrix/candidate construction in [`matrix.py`](../src/distances/matrix.p
 
 ## 8. Boundary & Host–Device Communication Patterns
 
-1. **Stream-Ordered GPU Pipelines (`DP10-18`, `BUG-15`):** In `FullGPUModular` (`InitializationRandom(return_gpu=True)` $\to$ `EvaluationGPUCost(return_gpu=True)`), population `(N, n)` `int32` and fitness `(N,)` `float64` arrays remain resident in VRAM across generations. Host–device synchronization occurs only on scalar fitness checks ([`GeneticAlgorithm._best_cost`](../src/algorithms/metaheuristics/genetic_algorithm.py)) or on strict improvement (`gen_best_cost < best_cost - 1e-6`) via [`GeneticAlgorithm._extract_best`](../src/algorithms/metaheuristics/genetic_algorithm.py) (`BUG-30`).
-2. **Host-Oracle Parity for Stochastic Operators (`DP11-19`, `DP11-20`):** Crossover and mutation generate cut points and mutation positions on the host (`sample_distinct_pairs`, `sample_mutation_positions`) and upload compact `int32`/`float64` vectors `(N,)` to GPU kernels, guaranteeing CPU/GPU bit-identity (`OX-A`, `SWAP-A`, `INV-A`) without device PRNG divergence.
-3. **NVRTC Header Injection & Intrinsics:** [`load_kernel`](../src/utils/gpu_helpers.py) supplies `-I<src/distances/kernels>` without `#include <math.h>`, enabling [`pairwise_device.cuh`](../src/distances/kernels/pairwise_device.cuh) and [`two_opt_common.cuh`](../src/distances/kernels/two_opt_common.cuh) to inline metric and delta arithmetic directly into strategy kernels.
+2. **Stream-Ordered GPU Pipelines (`DP10-18`, `BUG-15`):** In `FullGPUModular` (`InitializationGPURandom(return_gpu=True)` $\to$ `EvaluationGPUCost(return_gpu=True)`), population `(N, n)` `int32` and fitness `(N,)` `float64` arrays remain resident in VRAM across generations. Host–device synchronization occurs only on scalar fitness checks ([`GeneticAlgorithm._best_cost`](../src/algorithms/metaheuristics/genetic_algorithm.py)) or on strict improvement (`gen_best_cost < best_cost - 1e-6`) via [`GeneticAlgorithm._extract_best`](../src/algorithms/metaheuristics/genetic_algorithm.py) (`BUG-30`).
+3. **Host-Oracle Parity for Stochastic Operators (`DP11-19`, `DP11-20`):** Crossover and mutation generate cut points and mutation positions on the host (`sample_distinct_pairs`, `sample_mutation_positions`) and upload compact `int32`/`float64` vectors `(N,)` to GPU kernels, guaranteeing CPU/GPU bit-identity (`OX-A`, `SWAP-A`, `INV-A`) without device PRNG divergence.
+4. **NVRTC Header Injection & Intrinsics:** [`load_kernel`](../src/utils/gpu_helpers.py) supplies `-I<src/distances/kernels>` without `#include <math.h>`, enabling [`pairwise_device.cuh`](../src/distances/kernels/pairwise_device.cuh) and [`two_opt_common.cuh`](../src/distances/kernels/two_opt_common.cuh) to inline metric and delta arithmetic directly into strategy kernels.
 
 ---
 
@@ -520,7 +532,7 @@ Chunked matrix/candidate construction in [`matrix.py`](../src/distances/matrix.p
 - **CUDA Warp & Shared-Memory Optimizations:**
   - **Format A 1-Warp/Route Order Crossover (`DP11-11`):** [`order_crossover.cu::order_crossover_kernel`](../src/algorithms/strategies/crossover/kernels/order_crossover.cu) assigns 32 threads per route, allocates `1` byte/city/warp in shared memory (`warps_per_block` scaling down from `8` to `1` to support up to $n = 49{,}152$), and compacts `parent2` genes deterministically via `__ballot_sync` and `__popc`.
   - **Shared-Memory Tiled 2-Opt (`DP10-19`):** Above $n = 11{,}520$ ($48\text{ KiB}$ per-block ceiling), [`two_opt_batch.cu::two_opt_batch_kernel`](../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) and [`two_opt_multi_move.cu::two_opt_multi_move_batch_kernel`](../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu) stream windows of `TWO_OPT_TILE_SIZE = 2048` (`11,268 B` shared memory, `8` blocks/SM = `100%` Pascal CC 6.1 occupancy, `256:1` global tour read reduction).
-  - **Warp-Shuffle & CUB Gather (`DP11-15`–`DP11-17`):** [`cost_calculator.cu::cost_calculator_kernel`](../src/algorithms/strategies/evaluation/kernels/cost_calculator.cu) pairs block-stride coalesced loads with `__shfl_down_sync` warp reductions; [`tournament_selection.cu::tournament_selection_kernel`](../src/algorithms/strategies/selection/kernels/tournament_selection.cu) outputs `winner_indices` for coalesced CuPy/CUB gather; [`inversion_mutation.cu::inversion_mutation_kernel`](../src/algorithms/strategies/mutation/kernels/inversion_mutation.cu) reverses segments across 32 warp lanes.
+  - **Warp-Shuffle & CUB Gather (`DP11-15`–`DP11-17`):** [`tour_cost.cu::tour_cost_kernel`](../src/algorithms/strategies/evaluation/kernels/tour_cost.cu) pairs block-stride coalesced loads with [`block_reductions.cuh::block_reduce_sum`](../src/utils/kernels/block_reductions.cuh) warp reductions; [`tournament_selection.cu::tournament_selection_kernel`](../src/algorithms/strategies/selection/kernels/tournament_selection.cu) outputs `winner_indices` for coalesced CuPy/CUB gather; [`inversion_mutation.cu::inversion_mutation_kernel`](../src/algorithms/strategies/mutation/kernels/inversion_mutation.cu) reverses segments across 32 warp lanes.
 
 ---
 
@@ -528,13 +540,13 @@ Chunked matrix/candidate construction in [`matrix.py`](../src/distances/matrix.p
 
 | Pattern (GoF / Fowler) | Architectural Realization | Catalog Link |
 | :--- | :--- | :--- |
-| **Strategy** | 6 PEP 544 `*Strategy` protocols + 17 `StrategyBase` subclasses; `StatisticalAnalyzer` metric dispatch; `ProblemTypeHandler` | [Behavioral patterns](../design-patterns-links.md#behavioral-patterns) |
+| **Strategy** | 6 PEP 544 `*Strategy` protocols + 32 core `StrategyBase` subclasses & 10 composable sub-strategies (TSP & VRP Tier 1); `StatisticalAnalyzer` metric dispatch; `ProblemTypeHandler` | [Behavioral patterns](../design-patterns-links.md#behavioral-patterns) |
 | **Template Method** | `GeneticAlgorithm.evolve` invariant loop; `StrategyBase.warmup`; `cli.benchmark.main` hooks (`preflight_validator`, `on_complete`) | [Behavioral patterns](../design-patterns-links.md#behavioral-patterns) |
 | **Abstract Factory & Factory Method** | `AlgorithmConfig.instantiate` building coordinated pipelines from registries; `get_distance_function` / `get_edge_type_code` | [Creational patterns](../design-patterns-links.md#creational-patterns) |
 | **Facade** | `DatabaseLoader` (DuckDB + `TsplibLoader` + `matrix.py`), `run_comprehensive_benchmark`, `cli/*` wrappers | [Structural patterns](../design-patterns-links.md#structural-patterns) |
 | **Adapter** | `tsplib_loader.py` over `routing_data`; `route_helpers` (`ensure_routes_batch`, `to_cpu_batch`, `restore_routes_shape`) | [Structural patterns](../design-patterns-links.md#structural-patterns) |
 | **Decorator** | `@time_strategy` wrapping operator methods with non-blocking timing counters (`DP11-22`) | [Structural patterns](../design-patterns-links.md#structural-patterns) |
-| **Proxy / Flyweight Cache** | `ProblemContext` lazy CPU/GPU matrix and candidate caches; `_DistanceOperandCache` buffer tracking | [Structural patterns](../design-patterns-links.md#structural-patterns) |
+| **Proxy / Flyweight Cache** | `ProblemContext` lazy CPU/GPU matrix and candidate caches; `DistanceOperandCache` buffer tracking | [Structural patterns](../design-patterns-links.md#structural-patterns) |
 | **Command / Pipeline** | `GenerationStep` implementations (`SelectionStep`..`SurvivalStep`, `PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`, `PeriodicLocalSearchStep`) | [Behavioral patterns](../design-patterns-links.md#behavioral-patterns) |
 
 ---

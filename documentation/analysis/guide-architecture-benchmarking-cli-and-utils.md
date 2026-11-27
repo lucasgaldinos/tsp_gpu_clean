@@ -34,11 +34,19 @@ modifications:
           with the acyclic `benchmarking/analysis/` vs `benchmarking/reporting/` package
           split, `src/cli/report.py` (`tsp-report`), and Phase 16 hardening (`DP16-1`,
           `DP16-2`, `BUG-96`–`BUG-102`).
+  - date_modified: 2026-11-25
+    modifications:
+      - description: >
+          Synchronized Phase 17 (`DP17-4`) VRP persistence, Deb (2000) lexicographic
+          feasibility scoring (`build_feasibility_aware_scores`, `quality_score_matrix`,
+          `paired_quality_vectors`), `(problem_name, problem_type, algorithm)` natural-key
+          disambiguation (`54`-column `benchmark_runs`), and conditional VRP reporting columns.
 related_files:
   - "[AGENTS.md](../../AGENTS.md)"
   - "[design-patterns-links.md](../../design-patterns-links.md)"
   - "[README.md](../README.md)"
   - "[guide-project-architecture-blueprint.md](../guide-project-architecture-blueprint.md)"
+  - "[analysis-cvrp-gpu-split-and-deb-statistics.md](../knowledge-base/analysis-cvrp-gpu-split-and-deb-statistics.md)"
   - "[guide-architecture-protocols-and-data-models.md](./guide-architecture-protocols-and-data-models.md)"
   - "[guide-architecture-loaders-and-distances.md](./guide-architecture-loaders-and-distances.md)"
   - "[guide-architecture-algorithms-and-strategies.md](./guide-architecture-algorithms-and-strategies.md)"
@@ -272,25 +280,25 @@ summary = timer.summary()  # {"local_search": {"total_ms": ..., "calls": 1, "mea
   + [config_loader.py::build_problem_configs_from_duckdb](../../src/benchmarking/runner/config_loader.py) and [config_loader.py::build_problem_configs_from_tsp_files](../../src/benchmarking/runner/config_loader.py) resolve optimal costs from DuckDB `solutions` or `problems.json` (`DP11-4`), leaving `optimal=None` when unknown.
 - **Reflective JSON Schema Generator** ([schema_generator.py](../../src/benchmarking/runner/schema_generator.py)):
   + Introspects `__init__` signatures via `inspect.signature` and `typing.get_type_hints` across `STRATEGY_REGISTRY` and `PIPELINE_STEP_REGISTRY` ([schema_generator.py::build_class_params_schema](../../src/benchmarking/runner/schema_generator.py), [schema_generator.py::annotation_to_json_schema](../../src/benchmarking/runner/schema_generator.py)) and reflects `ReportStyle` fields into [report_style.schema.json](../../configs/schemas/report_style.schema.json), overlaying `ADVISORY_PARAM_METADATA` to emit protocol-partitioned `$defs/strategy_slot_*` and `pipeline_step` discriminated `oneOf` branches, modular vs. monolithic `algorithm_config` branches, and per-class `$defs/params_<snake_name>` in [algorithms.schema.json](../../configs/schemas/algorithms.schema.json) (`BUG-85`, `BUG-103`, `DP16-3`). Supports `--extra-file`/`--extra-module` + `--output` for experiment-local custom-operator schemas (refusing writes into the core schema) and `--check` for drift detection.
-- **Atomic Checkpoint I/O** ([checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py)):
-  + [checkpoint_io.py::CheckpointManager](../../src/benchmarking/runner/checkpoint_io.py) resolves file paths (`<problem>_<algorithm>.json` and `<problem>_stats.json`) and delegates validation/persistence to module-level helpers: [checkpoint_io.py::save_checkpoint_atomic](../../src/benchmarking/runner/checkpoint_io.py) (`tempfile.mkstemp` + `os.fsync` + `os.replace`), [checkpoint_io.py::quarantine_checkpoint](../../src/benchmarking/runner/checkpoint_io.py) (`<path>.corrupt.<ts>.bak`), [checkpoint_io.py::_validate_checkpoint_arrays](../../src/benchmarking/runner/checkpoint_io.py) (accepting nullable `raw_gaps: None` for unknown-optimal instances, `BUG-96`), [checkpoint_io.py::is_valid_checkpoint](../../src/benchmarking/runner/checkpoint_io.py), [checkpoint_io.py::can_resume_checkpoint](../../src/benchmarking/runner/checkpoint_io.py), [checkpoint_io.py::save_problem_statistics](../../src/benchmarking/runner/checkpoint_io.py) (deriving retroactive gaps from `optimal_cost` and handling summary-only entries), and [checkpoint_io.py::validate_existing_checkpoints](../../src/benchmarking/runner/checkpoint_io.py) checking `REQUIRED_MODULAR_CHECKPOINT_KEYS`, raw array lengths, `local_search_stage`, `strategy_params`, `pipeline`, and `allow_corrupt` separation (`BUG-98`).
-- **Execution & Orchestration** ([algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py), [orchestration.py](../../src/benchmarking/runner/orchestration.py)):
+- **Atomic Checkpoint I/O** ([checkpoint_io.py](../../src/benchmarking/runner/checkpoint_io.py), [checkpoint_validation.py](../../src/benchmarking/runner/checkpoint_validation.py), [checkpoint_stats.py](../../src/benchmarking/runner/checkpoint_stats.py)):
+  + [checkpoint_io.py::CheckpointManager](../../src/benchmarking/runner/checkpoint_io.py) resolves file paths (`<problem>_<algorithm>.json` and `<problem>_stats.json`) and coordinates atomic persistence ([checkpoint_io.py::save_checkpoint_atomic](../../src/benchmarking/runner/checkpoint_io.py), [checkpoint_io.py::quarantine_checkpoint](../../src/benchmarking/runner/checkpoint_io.py)), validation ([checkpoint_validation.py::_validate_checkpoint_arrays](../../src/benchmarking/runner/checkpoint_validation.py) accepting nullable `raw_gaps: None` and validating `raw_normalized_violations`, [checkpoint_validation.py::is_valid_checkpoint](../../src/benchmarking/runner/checkpoint_validation.py), [checkpoint_validation.py::can_resume_checkpoint](../../src/benchmarking/runner/checkpoint_validation.py), [checkpoint_validation.py::validate_existing_checkpoints](../../src/benchmarking/runner/checkpoint_validation.py)), and per-problem stats serialization ([checkpoint_stats.py::save_problem_statistics](../../src/benchmarking/runner/checkpoint_stats.py)).
+- **Execution & Orchestration** ([algorithm_runner.py](../../src/benchmarking/runner/algorithm_runner.py), [orchestration.py](../../src/benchmarking/runner/orchestration.py), [orchestration_helpers.py](../../src/benchmarking/runner/orchestration_helpers.py), [orchestration_runtime.py](../../src/benchmarking/runner/orchestration_runtime.py)):
   + [algorithm_runner.py::run_single_algorithm](../../src/benchmarking/runner/algorithm_runner.py) creates a shared `candidate_cache` across repetitions (`BUG-59`), runs an isolated AOT `warmup(warmup_context)` on a factory-built or `copy.deepcopy` instance (`DP11-21`), verifies `_compile_kernel_cached.cache_info().currsize` invariance (`BUG-25`), executes `repetitions` with collision-free sequential seeds (`BUG-37`), calls `on_repetition_completed` for atomic mid-run persistence (`DP12-7`), and computes sample aggregates (`ddof=1`, `BUG-38`) via [algorithm_runner.py::compute_series_stats](../../src/benchmarking/runner/algorithm_runner.py) and [algorithm_runner.py::_build_summary_payload](../../src/benchmarking/runner/algorithm_runner.py).
   + [orchestration.py::run_comprehensive_benchmark](../../src/benchmarking/runner/orchestration.py) sequences logging setup, config loading, [orchestration.py::_run_preflight](../../src/benchmarking/runner/orchestration.py) (`validate_configs`, `validate_gpu_backend_for_algorithms`, `validate_existing_checkpoints` with `allow_corrupt=not dry_run`, `BUG-79`, `BUG-98`), problem loading + dimension guard (`problem_config.size != problem.dimension`, `BUG-84`), corrupt-checkpoint quarantine with clean restart, custom `strategy_overrides` metadata capture, per-problem stats JSON, cross-problem Demšar analysis, and opt-in final tables/figures.
 
 ### 3.4 Persistence, Statistical Analysis & Reporting (`src/benchmarking/database/`, `analysis/`, `reporting/`)
 
 - **DuckDB Results Store** ([schema.sql](../../src/benchmarking/database/schema.sql), [db_operations.py](../../src/benchmarking/database/db_operations.py), [import_checkpoints.py](../../src/benchmarking/database/import_checkpoints.py), [validate_consistency.py](../../src/benchmarking/database/validate_consistency.py)):
-  + [db_operations.py::validate_benchmark_data](../../src/benchmarking/database/db_operations.py) validates records against `BenchmarkRunInput.__required_keys__` ([records.py](../../src/data_models/records.py)), rejects `NaN`s, allows nullable `optimal_cost`/`raw_gaps`, and checks array lengths against `successful_runs` (`BUG-36`).
-  + [import_checkpoints.py::check_duplicate](../../src/benchmarking/database/import_checkpoints.py) enforces natural-key idempotency on `(problem_name, algorithm)` (keeping higher `repetitions`, or newer UTC `timestamp` on tie), replacing existing rows inside an explicit `begin/commit/rollback` transaction (`BUG-49`).
-  + [db_operations.py::compute_speedup_matrix](../../src/benchmarking/database/db_operations.py) aggregates cross-algorithm speedups in a single SQL query without N+1 round-trips (`BUG-39`), and [validate_consistency.py::compare_databases](../../src/benchmarking/database/validate_consistency.py) closes connections via `try/finally`, handles empty tables, and compares every row ordered by `(problem_name, algorithm, timestamp, run_id)` across all data columns (`BUG-102`).
+  + [db_operations.py::validate_benchmark_data](../../src/benchmarking/database/db_operations.py) validates records against `BenchmarkRunInput.__required_keys__` ([records.py](../../src/data_models/records.py): `18` required + `34` optional/default-backed), rejects `NaN`s, allows nullable cost/gap/VRP columns (including `feasible_runs == 0`), and checks array lengths against `successful_runs` (`BUG-36`, `DP17-4`).
+  + [import_checkpoints.py::check_duplicate](../../src/benchmarking/database/import_checkpoints.py) enforces natural-key idempotency on `(problem_name, problem_type, algorithm)` (defaulting legacy checkpoints to `problem_type = 'TSP'`, keeping higher `repetitions`, or newer UTC `timestamp` on tie), replacing existing rows inside an explicit `begin/commit/rollback` transaction (`BUG-49`, `DP17-4`).
+  + [db_operations.py::compute_speedup_matrix](../../src/benchmarking/database/db_operations.py) aggregates cross-algorithm speedups in a single SQL query without N+1 round-trips (`BUG-39`), and [validate_consistency.py::compare_databases](../../src/benchmarking/database/validate_consistency.py) closes connections via `try/finally`, handles empty tables, and compares every row ordered by `(problem_name, problem_type, algorithm, timestamp, run_id)` across all data columns (`BUG-102`, `DP17-4`).
 - **Pure Statistical Analysis Engine** ([cohort.py](../../src/benchmarking/analysis/cohort.py), [statistics.py](../../src/benchmarking/analysis/statistics.py), [stats_utils.py](../../src/benchmarking/analysis/stats_utils.py), [problem_statistics.py](../../src/benchmarking/analysis/problem_statistics.py), [cohort_analysis.py](../../src/benchmarking/analysis/cohort_analysis.py)):
-  + [cohort.py::BenchmarkCohort](../../src/benchmarking/analysis/cohort.py) parses raw nested result dictionaries once at the boundary, centralizing finite-metric extraction ([stats_utils.py::finite_metric](../../src/benchmarking/analysis/stats_utils.py)), complete-case matrices, gap-vs-cost fallback (`all(...)`), paired Fleming & Wallace geometric speedups, and checkpoint-derived `ProblemConfig` fallback ([cohort.py::derive_problem_configs](../../src/benchmarking/analysis/cohort.py)).
-  + [statistics.py::StatisticalAnalyzer](../../src/benchmarking/analysis/statistics.py) executes unconditional Wilcoxon signed-rank paired tests (`DP13-4`, `BUG-60`) with exact small-$n$ $p = 2^{-(n-1)}$, scale-invariant `1e-10` zero-difference tolerance shared by `paired_comparison` and [statistics.py::StatisticalAnalyzer.wilcoxon_paired_summary](../../src/benchmarking/analysis/statistics.py) (`BUG-97`), distribution-free Hodges–Lehmann marginal and difference CIs guarded when $2^{-(n-1)} > \alpha$, correlation-scale Kerby rank-biserial classification (`0.1/0.3/0.5`, [statistics.py::interpret_rank_biserial](../../src/benchmarking/analysis/statistics.py)), descriptive Shapiro–Wilk diagnostics (`(nan, False)` for $n < 3$ or zero variance), unified Friedman + Iman–Davenport $F_F$ + Nemenyi post-hoc ([statistics.py::run_friedman_nemenyi_analysis](../../src/benchmarking/analysis/statistics.py) returning [statistics.py::OmnibusTestResult](../../src/benchmarking/analysis/statistics.py) for $k \ge 3, N \ge 2$ with `low_power` and `omnibus_significant` flags, `DP13-3`, `BUG-61`, `DP12-24`, `BUG-47`).
-  + [problem_statistics.py::analyze_problem](../../src/benchmarking/analysis/problem_statistics.py) returns pure [problem_statistics.py::ProblemAnalysis](../../src/benchmarking/analysis/problem_statistics.py) across `cost` and `time` with step-down [stats_utils.py::holm_bonferroni_correction](../../src/benchmarking/analysis/stats_utils.py) (`BUG-46`, propagating `analyzer.alpha`) and baseline resolution via [stats_utils.py::resolve_baseline_algorithm](../../src/benchmarking/analysis/stats_utils.py) (`DP12-9`, `BUG-56`).
+  + [cohort.py::BenchmarkCohort](../../src/benchmarking/analysis/cohort.py) parses raw nested result dictionaries once at the boundary, centralizing finite-metric extraction ([stats_utils.py::finite_metric](../../src/benchmarking/analysis/stats_utils.py)), complete-case matrices, Deb (2000) feasibility-aware scoring ([cohort.py::BenchmarkCohort.quality_score_matrix](../../src/benchmarking/analysis/cohort.py), [cohort.py::BenchmarkCohort.paired_quality_vectors](../../src/benchmarking/analysis/cohort.py)), gap-vs-cost fallback (`all(...)`), paired Fleming & Wallace geometric speedups, and checkpoint-derived `ProblemConfig` fallback ([cohort.py::derive_problem_configs](../../src/benchmarking/analysis/cohort.py)).
+  + [statistics.py::StatisticalAnalyzer](../../src/benchmarking/analysis/statistics.py) executes unconditional Wilcoxon signed-rank paired tests (`DP13-4`, `BUG-60`) with exact small-$n$ $p = 2^{-(n-1)}$, scale-invariant `1e-10` zero-difference tolerance shared by `paired_comparison` and [statistics.py::StatisticalAnalyzer.wilcoxon_paired_summary](../../src/benchmarking/analysis/statistics.py) (`BUG-97`), distribution-free Hodges–Lehmann marginal and difference CIs guarded when $2^{-(n-1)} > \alpha$, correlation-scale Kerby rank-biserial classification (`0.1/0.3/0.5`, [statistics.py::interpret_rank_biserial](../../src/benchmarking/analysis/statistics.py)), descriptive Shapiro–Wilk diagnostics (`(nan, False)` for $n < 3$ or zero variance), Deb (2000) lexicographic feasibility scoring ([statistics.py::build_feasibility_aware_scores](../../src/benchmarking/analysis/statistics.py), `DP17-4`), and unified Friedman + Iman–Davenport $F_F$ + Nemenyi post-hoc ([statistics.py::run_friedman_nemenyi_analysis](../../src/benchmarking/analysis/statistics.py) returning [statistics.py::OmnibusTestResult](../../src/benchmarking/analysis/statistics.py) for $k \ge 3, N \ge 2$ with `low_power` and `omnibus_significant` flags, `DP13-3`, `BUG-61`, `DP12-24`, `BUG-47`).
+  + [problem_statistics.py::analyze_problem](../../src/benchmarking/analysis/problem_statistics.py) returns pure [problem_statistics.py::ProblemAnalysis](../../src/benchmarking/analysis/problem_statistics.py) across `cost` (Deb-scored when any repetition is infeasible) and `time` with step-down [stats_utils.py::holm_bonferroni_correction](../../src/benchmarking/analysis/stats_utils.py) (`BUG-46`, propagating `analyzer.alpha`) and baseline resolution via [stats_utils.py::resolve_baseline_algorithm](../../src/benchmarking/analysis/stats_utils.py) (`DP12-9`, `BUG-56`).
   + [cohort_analysis.py::analyze_cohort](../../src/benchmarking/analysis/cohort_analysis.py) computes a single-pass [cohort_analysis.py::CohortAnalysis](../../src/benchmarking/analysis/cohort_analysis.py) snapshot (aggregates, paired geometric speedups, quality & time `OmnibusTestResult`, baseline Wilcoxon + Holm comparisons, and stratum coverage, `DP14-2`, `BUG-92`), with [cohort_analysis.py::compare_algorithms](../../src/benchmarking/analysis/cohort_analysis.py) as a thin convenience wrapper.
 - **Pure Reporting Layer** ([style.py](../../src/benchmarking/reporting/style.py), [console.py](../../src/benchmarking/reporting/console.py), [table_reports.py](../../src/benchmarking/reporting/table_reports.py), [latex_macros.py](../../src/benchmarking/reporting/latex_macros.py), [cd_diagram.py](../../src/benchmarking/reporting/cd_diagram.py), [scaling_plots.py](../../src/benchmarking/reporting/scaling_plots.py), [generator.py](../../src/benchmarking/reporting/generator.py)):
-  + [generator.py::generate_result_tables](../../src/benchmarking/reporting/generator.py) builds or reuses a single `CohortAnalysis` snapshot and passes `cohort.results` / `cohort.problem_configs` to [table_reports.py::generate_markdown_tables](../../src/benchmarking/reporting/table_reports.py), [table_reports.py::generate_latex_tables](../../src/benchmarking/reporting/table_reports.py), [latex_macros.py::generate_latex_macros](../../src/benchmarking/reporting/latex_macros.py), [cd_diagram.py::export_cd_diagram_tikz](../../src/benchmarking/reporting/cd_diagram.py) (with coordinate-ID deduplication), and [scaling_plots.py::generate_scaling_plots](../../src/benchmarking/reporting/scaling_plots.py) (`DP13-9`, `DP14-3`, `DP14-5`, `BUG-99`), parameterized uniformly by [style.py::ReportStyle](../../src/benchmarking/reporting/style.py) (`DP16-2`). [console.py::log_problem_analysis](../../src/benchmarking/reporting/console.py) and [console.py::log_cohort_analysis](../../src/benchmarking/reporting/console.py) isolate all terminal reporting from statistical computation.
+  + [generator.py::generate_result_tables](../../src/benchmarking/reporting/generator.py) builds or reuses a single `CohortAnalysis` snapshot and passes `cohort.results` / `cohort.problem_configs` to [table_reports.py::generate_markdown_tables](../../src/benchmarking/reporting/table_reports.py) and [table_reports.py::generate_latex_tables](../../src/benchmarking/reporting/table_reports.py) (which conditionally add `Feas. (%)` and `Vehicles` columns for VRP cohorts while preserving byte-identical TSP tables; `DP17-4`), [latex_macros.py::generate_latex_macros](../../src/benchmarking/reporting/latex_macros.py), [cd_diagram.py::export_cd_diagram_tikz](../../src/benchmarking/reporting/cd_diagram.py) (with coordinate-ID deduplication), and [scaling_plots.py::generate_scaling_plots](../../src/benchmarking/reporting/scaling_plots.py) (`DP13-9`, `DP14-3`, `DP14-5`, `BUG-99`), parameterized uniformly by [style.py::ReportStyle](../../src/benchmarking/reporting/style.py) (`DP16-2`). [console.py::log_problem_analysis](../../src/benchmarking/reporting/console.py) and [console.py::log_cohort_analysis](../../src/benchmarking/reporting/console.py) isolate all terminal reporting from statistical computation.
 
 ---
 
@@ -436,9 +444,10 @@ config:
     fontSize: 14
 ---
 erDiagram
-    CHECKPOINT_JSON ||--o| BENCHMARK_RUNS : "imported via natural key (problem_name, algorithm)"
+    CHECKPOINT_JSON ||--o| BENCHMARK_RUNS : "imported via natural key (problem_name, problem_type, algorithm)"
     CHECKPOINT_JSON {
         string problem_name
+        string problem_type
         string algorithm
         int repetitions
         int successful_runs
@@ -449,10 +458,15 @@ erDiagram
         list raw_times
         list raw_costs
         list raw_gaps
+        list raw_is_feasible
+        list raw_unpenalized_costs
+        list raw_violations
+        list raw_num_vehicles
     }
     BENCHMARK_RUNS {
         integer run_id PK "sequence benchmark_runs_seq"
         varchar problem_name "idx_problem_algorithm"
+        varchar problem_type "DEFAULT 'TSP'"
         integer problem_size "idx_problem_size"
         double optimal_cost
         varchar algorithm "idx_algorithm_time"
@@ -465,6 +479,10 @@ erDiagram
         double std_time
         double mean_cost
         double mean_gap
+        integer feasible_runs
+        double feasibility_rate
+        double mean_vehicles
+        integer best_vehicles
         double mean_h2d_mb
         double mean_d2h_mb
         double mean_kernels
@@ -477,6 +495,10 @@ erDiagram
         double_list raw_initial_costs
         int_list raw_generations
         varchar_list raw_stop_reasons
+        boolean_list raw_is_feasible
+        double_list raw_unpenalized_costs
+        double_list raw_violations
+        int_list raw_num_vehicles
         json algorithm_config
         json strategies
         varchar construction_heuristic
