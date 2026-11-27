@@ -127,7 +127,8 @@ def _parse_timestamp(ts_val: Any) -> datetime:
 def check_duplicate(conn: duckdb.DuckDBPyConnection, data: Mapping[str, Any]) -> bool:
   """Check if benchmark run already exists in database with equal/higher fidelity.
 
-  Natural key: (problem_name, algorithm).
+  Natural key: (problem_name, problem_type, algorithm), defaulting
+  ``problem_type`` to ``'TSP'`` for legacy checkpoints.
   If an existing row exists:
     - If existing repetitions > incoming repetitions: return True (skip, keep larger cohort).
     - If existing repetitions == incoming repetitions and existing timestamp >= incoming timestamp:
@@ -135,16 +136,18 @@ def check_duplicate(conn: duckdb.DuckDBPyConnection, data: Mapping[str, Any]) ->
     - Otherwise (incoming has higher repetitions, or same repetitions with newer timestamp):
       return False (proceed to replace existing row).
   """
+  problem_type = str(data.get("problem_type") or "TSP")
   row = conn.execute(
     f"""
         SELECT repetitions, timestamp
         FROM {TABLE_RUNS}
         WHERE problem_name = ?
+          AND problem_type = ?
           AND algorithm = ?
         ORDER BY repetitions DESC, timestamp DESC
         LIMIT 1
     """,
-    [data["problem_name"], data["algorithm"]],
+    [data["problem_name"], problem_type, data["algorithm"]],
   ).fetchone()
 
   if row is None:
@@ -223,9 +226,10 @@ def import_checkpoints(input_path: str | Path, output_dir: str | Path) -> None:
 
       conn.begin()
       try:
+        problem_type = str(record.get("problem_type") or "TSP")
         conn.execute(
-          f"DELETE FROM {TABLE_RUNS} WHERE problem_name = ? AND algorithm = ?",
-          [record["problem_name"], record["algorithm"]],
+          f"DELETE FROM {TABLE_RUNS} WHERE problem_name = ? AND problem_type = ? AND algorithm = ?",
+          [record["problem_name"], problem_type, record["algorithm"]],
         )
         run_id = insert_benchmark_run(conn, record)
         conn.commit()

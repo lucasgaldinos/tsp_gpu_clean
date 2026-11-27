@@ -33,6 +33,7 @@ if "CUPY_CACHE_DIR" not in os.environ and not os.access(os.path.expanduser("~"),
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
+from protocols.vrp_strategies import assess_with_evaluator
 from utils.gpu_helpers import _compile_kernel_cached
 
 # =============================================================================
@@ -90,6 +91,11 @@ def compute_series_stats(arr: np.ndarray, total_successful: int) -> tuple[float,
   return mean_val, std_val, min_val, max_val
 
 
+def _is_vrp_problem(problem: Problem) -> bool:
+  """Return True when ``problem`` is a VRP variant or carries active VRP constraints."""
+  return bool(getattr(problem, "is_vrp", False))
+
+
 def _initialize_results_dict(existing_checkpoint: dict[str, Any] | None = None) -> dict[str, list[Any]]:
   """Initialize an empty results dictionary or copy existing checkpoint lists."""
   if existing_checkpoint:
@@ -103,7 +109,15 @@ def _initialize_results_dict(existing_checkpoint: dict[str, Any] | None = None) 
       initial_costs = [np.nan] * len(raw_costs)
 
     raw_gaps = existing_checkpoint.get("raw_gaps")
-    gaps_list: list[Any] = list(raw_gaps) if raw_gaps is not None else [np.nan] * len(raw_costs)
+    gaps_list: list[Any] = (
+      [np.nan if g is None else g for g in raw_gaps] if raw_gaps is not None else [np.nan] * len(raw_costs)
+    )
+
+    raw_is_feasible = existing_checkpoint.get("raw_is_feasible")
+    raw_unpenalized_costs = existing_checkpoint.get("raw_unpenalized_costs")
+    raw_violations = existing_checkpoint.get("raw_violations")
+    raw_normalized_violations = existing_checkpoint.get("raw_normalized_violations")
+    raw_num_vehicles = existing_checkpoint.get("raw_num_vehicles")
 
     return {
       "times": existing_checkpoint.get("raw_times", []).copy(),
@@ -119,6 +133,13 @@ def _initialize_results_dict(existing_checkpoint: dict[str, Any] | None = None) 
       "kernel_launches": [],
       "best_tours": existing_checkpoint.get("raw_best_tours", []).copy(),
       "seeds": existing_checkpoint.get("raw_seeds", []).copy(),
+      "is_feasible": list(raw_is_feasible) if raw_is_feasible is not None else [],
+      "unpenalized_costs": list(raw_unpenalized_costs) if raw_unpenalized_costs is not None else [],
+      "violations": list(raw_violations) if raw_violations is not None else [],
+      "normalized_violations": (
+        list(raw_normalized_violations) if raw_normalized_violations is not None else []
+      ),
+      "num_vehicles": list(raw_num_vehicles) if raw_num_vehicles is not None else [],
     }
   return {
     "times": [],
@@ -134,10 +155,15 @@ def _initialize_results_dict(existing_checkpoint: dict[str, Any] | None = None) 
     "kernel_launches": [],
     "best_tours": [],
     "seeds": [],
+    "is_feasible": [],
+    "unpenalized_costs": [],
+    "violations": [],
+    "normalized_violations": [],
+    "num_vehicles": [],
   }
 
 
-def _record_failure(results: dict[str, list[Any]]) -> None:
+def _record_failure(results: dict[str, list[Any]], *, is_vrp: bool = False) -> None:
   """Record sentinel NaN and zero values for a failed repetition."""
   results["times"].append(np.nan)
   results["initial_costs"].append(np.nan)
@@ -151,6 +177,12 @@ def _record_failure(results: dict[str, list[Any]]) -> None:
   results["d2h_bytes"].append(0)
   results["kernel_launches"].append(0)
   results["best_tours"].append(None)
+  if is_vrp:
+    results["is_feasible"].append(False)
+    results["unpenalized_costs"].append(np.nan)
+    results["violations"].append(np.nan)
+    results["normalized_violations"].append(np.nan)
+    results["num_vehicles"].append(0)
 
 
 # =============================================================================
@@ -180,7 +212,7 @@ def _build_summary_payload(
   generations_arr = np.array(results["generations"])
   seeds_arr = np.array(results["seeds"])
 
-  valid_init = ~np.isnan(initial_costs_arr) & (initial_costs_arr > 0)
+  valid_init = ~np.isnan(initial_costs_arr) & (initial_costs_arr > 0) & ~np.isnan(final_costs)
   improvements = np.full_like(initial_costs_arr, np.nan, dtype=np.float64)
   np.divide(initial_costs_arr - final_costs, initial_costs_arr, out=improvements, where=valid_init)
   improvements *= 100.0
@@ -194,7 +226,12 @@ def _build_summary_payload(
   valid_tours = [
     results["best_tours"][i] for i in range(len(valid_mask)) if valid_mask[i] and results["best_tours"][i] is not None
   ]
-  best_run_idx: int = int(np.nanargmin(final_costs[valid_mask])) if total_successful > 0 else 0
+  valid_final = final_costs[valid_mask]
+  best_run_idx: int = (
+    int(np.nanargmin(valid_final))
+    if (total_successful > 0 and bool(np.any(~np.isnan(valid_final))))
+    else 0
+  )
   best_tour = valid_tours[best_run_idx] if valid_tours and best_run_idx < len(valid_tours) else None
 
   # Aggregate phase statistics across successful runs (Task 11.7, DP11-7, DP11-13)
@@ -248,21 +285,109 @@ def _build_summary_payload(
     (float(np.sum(results["kernel_launches"])) + carried_kernel_launches) / transfer_runs if transfer_runs else 0.0
   )
 
+  is_vrp = _is_vrp_problem(problem)
+
   mean_time, std_time, min_time, max_time = compute_series_stats(times, total_successful)
-  mean_cost, std_cost, best_cost, worst_cost = compute_series_stats(final_costs, total_successful)
   mean_initial_cost, std_initial_cost, _, _ = compute_series_stats(initial_costs_arr, total_successful)
+  mean_cost: float | None
+  std_cost: float | None
+  best_cost: float | None
+  worst_cost: float | None
   mean_gap: float | None
   std_gap: float | None
   best_gap: float | None
-  raw_gaps_out: list[float] | None
-  if has_known_optimal:
-    mean_gap, std_gap, best_gap, _ = compute_series_stats(gaps, total_successful)
-    raw_gaps_out = gaps[valid_mask].tolist()
+  raw_gaps_out: list[float | None] | None
+  vrp_fields: dict[str, Any] = {}
+
+  if is_vrp:
+    valid_indices = [i for i in range(len(valid_mask)) if valid_mask[i]]
+    raw_is_feasible: list[bool] = [
+      bool(results["is_feasible"][i]) for i in valid_indices if i < len(results.get("is_feasible", []))
+    ]
+    raw_unpenalized_costs: list[float] = [
+      float(results["unpenalized_costs"][i]) for i in valid_indices if i < len(results.get("unpenalized_costs", []))
+    ]
+    raw_violations: list[float] = [
+      float(results["violations"][i]) for i in valid_indices if i < len(results.get("violations", []))
+    ]
+    raw_normalized_violations: list[float] = [
+      float(results["normalized_violations"][i])
+      for i in valid_indices
+      if i < len(results.get("normalized_violations", []))
+    ]
+    raw_num_vehicles: list[int] = [
+      int(results["num_vehicles"][i]) for i in valid_indices if i < len(results.get("num_vehicles", []))
+    ]
+
+    feasible_indices = [idx for idx, is_feas in enumerate(raw_is_feasible) if is_feas]
+    feasible_runs = len(feasible_indices)
+    feasibility_rate = (100.0 * feasible_runs / total_successful) if total_successful > 0 else 0.0
+
+    mean_vehicles: float | None = None
+    best_vehicles: int | None = None
+
+    if feasible_runs > 0:
+      feas_costs_arr = np.array([raw_unpenalized_costs[i] for i in feasible_indices], dtype=np.float64)
+      mean_cost, std_cost, best_cost, worst_cost = compute_series_stats(feas_costs_arr, feasible_runs)
+      feas_vehicles_arr = np.array([raw_num_vehicles[i] for i in feasible_indices], dtype=np.float64)
+      mean_vehicles = float(np.mean(feas_vehicles_arr))
+      best_feas_pos = int(np.argmin(feas_costs_arr))
+      best_valid_idx = feasible_indices[best_feas_pos]
+      best_vehicles = int(raw_num_vehicles[best_valid_idx])
+      if valid_tours and best_valid_idx < len(valid_tours):
+        best_tour = valid_tours[best_valid_idx]
+
+      if has_known_optimal:
+        valid_gaps_arr = np.array(gaps[valid_mask], dtype=np.float64)
+        feas_gaps_arr = np.array([valid_gaps_arr[i] for i in feasible_indices], dtype=np.float64)
+        mean_gap, std_gap, best_gap, _ = compute_series_stats(feas_gaps_arr, feasible_runs)
+        raw_gaps_out = [None if math.isnan(float(g)) else float(g) for g in valid_gaps_arr]
+      else:
+        mean_gap = None
+        std_gap = None
+        best_gap = None
+        raw_gaps_out = None
+    else:
+      mean_cost = None
+      std_cost = None
+      best_cost = None
+      worst_cost = None
+      mean_gap = None
+      std_gap = None
+      best_gap = None
+      raw_gaps_out = [None] * total_successful if has_known_optimal else None
+      best_viol_src = (
+        raw_normalized_violations
+        if len(raw_normalized_violations) == len(valid_tours)
+        else raw_violations
+      )
+      if best_viol_src and valid_tours:
+        best_viol_idx = int(np.argmin(np.array(best_viol_src, dtype=np.float64)))
+        if best_viol_idx < len(valid_tours):
+          best_tour = valid_tours[best_viol_idx]
+
+    vrp_fields = {
+      "raw_is_feasible": raw_is_feasible,
+      "raw_unpenalized_costs": raw_unpenalized_costs,
+      "raw_violations": raw_violations,
+      "raw_normalized_violations": raw_normalized_violations,
+      "raw_num_vehicles": raw_num_vehicles,
+      "feasible_runs": feasible_runs,
+      "feasibility_rate": feasibility_rate,
+      "mean_vehicles": mean_vehicles,
+      "best_vehicles": best_vehicles,
+    }
   else:
-    mean_gap = None
-    std_gap = None
-    best_gap = None
-    raw_gaps_out = None
+    mean_cost, std_cost, best_cost, worst_cost = compute_series_stats(final_costs, total_successful)
+    if has_known_optimal:
+      mean_gap, std_gap, best_gap, _ = compute_series_stats(gaps, total_successful)
+      raw_gaps_out = gaps[valid_mask].tolist()
+    else:
+      mean_gap = None
+      std_gap = None
+      best_gap = None
+      raw_gaps_out = None
+
   mean_generations, std_generations, min_generations, max_generations = compute_series_stats(
     generations_arr, total_successful
   )
@@ -312,6 +437,8 @@ def _build_summary_payload(
     "phase_share_pct": phase_share_pct,
     "phase_share_cv_pct": phase_share_cv_pct,
   }
+  if vrp_fields:
+    summary.update(vrp_fields)
   return summary
 
 
@@ -340,6 +467,11 @@ def run_single_algorithm(
 
   if patience is None:
     patience = adaptive_patience(problem_size)
+
+  is_vrp = _is_vrp_problem(problem)
+  effective_customers: list[int] = (
+    problem.default_evolutionary_nodes if len(customers) == problem.dimension else customers
+  )
 
   # Telemetry carried from the runs already on disk (incremental mode). `results`
   # below starts its per-run lists empty and only the *new* repetitions land there,
@@ -440,7 +572,7 @@ def run_single_algorithm(
     try:
       tour, stats = current_algo.evolve(
         context,
-        customers,
+        effective_customers,
         max_generations,
         optimal_cost=optimal_cost,
         patience=patience,
@@ -450,21 +582,62 @@ def run_single_algorithm(
       initial_cost = stats["initial_fitness"]
       final_cost = stats["best_fitness"]
       has_known_optimal = optimal_cost is not None and optimal_cost > 0
-      gap = (
-        (final_cost - optimal_cost) / optimal_cost * 100.0
-        if (optimal_cost is not None and optimal_cost > 0)
-        else np.nan
-      )
-      if math.isfinite(initial_cost) and initial_cost > 0:
-        improvement = (initial_cost - final_cost) / initial_cost * 100.0
+      tour_list = tour.tolist() if hasattr(tour, "tolist") else list(tour)
+
+      if is_vrp:
+        evaluator = getattr(current_algo, "evaluation", None)
+        if evaluator is None:
+          raise AttributeError(
+            f"Algorithm '{algorithm_name}' must expose an 'evaluation' strategy to assess constrained/VRP routes."
+          )
+        assessment = assess_with_evaluator(
+          evaluator,
+          np.asarray(tour_list, dtype=np.int32),
+          context,
+          return_gpu=False,
+        )
+        unpenalized_cost = float(assessment.travel_costs[0])
+        violation = float(assessment.violations[0])
+        norm_violation = float(assessment.normalized_violations[0])
+        is_feasible = bool(assessment.is_feasible[0])
+        num_vehicles = int(assessment.num_vehicles[0]) if assessment.num_vehicles is not None else 1
+        results["unpenalized_costs"].append(unpenalized_cost)
+        results["violations"].append(violation)
+        results["normalized_violations"].append(norm_violation)
+        results["is_feasible"].append(is_feasible)
+        results["num_vehicles"].append(num_vehicles)
+        recorded_final_cost = unpenalized_cost if is_feasible else float("nan")
+        gap = (
+          (unpenalized_cost - optimal_cost) / optimal_cost * 100.0
+          if (has_known_optimal and optimal_cost is not None and is_feasible)
+          else np.nan
+        )
+        initial_feas_raw = stats.get("initial_feasible_cost")
+        initial_feas_cost = float(initial_feas_raw) if initial_feas_raw is not None else float(initial_cost)
+        recorded_initial_cost = initial_feas_cost
+        if is_feasible and math.isfinite(initial_feas_cost) and initial_feas_cost > 0:
+          improvement = (initial_feas_cost - unpenalized_cost) / initial_feas_cost * 100.0
+        else:
+          improvement = float("nan")
       else:
-        improvement = np.nan
+        recorded_initial_cost = initial_cost
+        recorded_final_cost = final_cost
+        gap = (
+          (final_cost - optimal_cost) / optimal_cost * 100.0
+          if (optimal_cost is not None and optimal_cost > 0)
+          else np.nan
+        )
+        if math.isfinite(initial_cost) and initial_cost > 0:
+          improvement = (initial_cost - final_cost) / initial_cost * 100.0
+        else:
+          improvement = np.nan
+
       generations = stats.get("generations_completed", 0)
       stop_reason = stats.get("stop_reason", "completed")
 
       results["times"].append(elapsed)
-      results["initial_costs"].append(initial_cost)
-      results["final_costs"].append(final_cost)
+      results["initial_costs"].append(recorded_initial_cost)
+      results["final_costs"].append(recorded_final_cost)
       results["gaps"].append(gap)
       results["improvements"].append(improvement)
       results["generations"].append(generations)
@@ -473,13 +646,13 @@ def run_single_algorithm(
       results["d2h_bytes"].append(stats.get("d2h_bytes", 0))
       results["kernel_launches"].append(stats.get("kernel_launches", 0))
       results["phase_timings"].append(stats.get("phase_timings", {}))
-      tour_list = tour.tolist() if hasattr(tour, "tolist") else list(tour)
       results["best_tours"].append(tour_list)
 
+      cost_log = f"{recorded_final_cost:.0f}" if math.isfinite(recorded_final_cost) else "N/A (infeasible)"
       gap_log = f"gap: {gap:.2f}%" if has_known_optimal and math.isfinite(gap) else "gap: N/A"
       logging.info(
         f"      → Completed in {elapsed:.2f}s | "
-        f"Cost: {final_cost:.0f} ({gap_log}) | "
+        f"Cost: {cost_log} ({gap_log}) | "
         f"Generations: {generations}/{max_generations}"
       )
 
@@ -489,7 +662,7 @@ def run_single_algorithm(
 
       traceback.print_exc()
 
-      _record_failure(results)
+      _record_failure(results, is_vrp=is_vrp)
 
     if on_repetition_completed is not None:
       current_summary = _build_summary_payload(
@@ -524,6 +697,11 @@ def run_single_algorithm(
     has_known_optimal=optimal_cost is not None and optimal_cost > 0,
   )
 
+  cost_summary = (
+    f"Cost={summary['mean_cost']:.0f}±{summary['std_cost']:.1f}"
+    if summary["mean_cost"] is not None and summary["std_cost"] is not None
+    else "Cost=N/A"
+  )
   gap_summary = (
     f"Gap={summary['mean_gap']:.2f}%±{summary['std_gap']:.2f}%"
     if summary["mean_gap"] is not None and summary["std_gap"] is not None
@@ -533,14 +711,14 @@ def run_single_algorithm(
     logging.info(
       f"\n    ✓ {algorithm_name} INCREMENTAL summary for {problem_name} "
       f"({summary['successful_runs']} total runs): "
-      f"Cost={summary['mean_cost']:.0f}±{summary['std_cost']:.1f} | "
+      f"{cost_summary} | "
       f"{gap_summary} | "
       f"Time={summary['mean_time']:.2f}s±{summary['std_time']:.2f}s"
     )
   else:
     logging.info(
       f"\n    ✓ {algorithm_name} summary for {problem_name}: "
-      f"Cost={summary['mean_cost']:.0f}±{summary['std_cost']:.1f} | "
+      f"{cost_summary} | "
       f"{gap_summary} | "
       f"Time={summary['mean_time']:.2f}s±{summary['std_time']:.2f}s"
     )

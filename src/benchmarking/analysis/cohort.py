@@ -14,11 +14,16 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
+from benchmarking.analysis.constrained_statistics import (
+  compute_seed_averaged_deb_ranks,
+  extract_entry_normalized_violations,
+)
 from benchmarking.analysis.stats_utils import (
   finite_metric,
   geometric_mean_ratios,
   resolve_baseline_algorithm,
 )
+from data_models.problem import VRP_PROBLEM_TYPES
 
 if TYPE_CHECKING:
   from collections.abc import Sequence
@@ -129,6 +134,8 @@ class AlgorithmAggregate:
   std_cost: float | None
   mean_time: float | None
   std_time: float | None
+  mean_feasibility_rate: float | None = None
+  mean_vehicles: float | None = None
 
 
 def _mean_and_sample_std(values: Sequence[float]) -> tuple[float | None, float | None]:
@@ -254,6 +261,121 @@ class BenchmarkCohort:
       if p in self.results and all(self.metric(p, a, metric_key) is not None for a in target_algs)
     ]
 
+  @property
+  def is_vrp_cohort(self) -> bool:
+    """Return True when any cell is a VRP variant or exhibits feasibility_rate < 100%."""
+    for prob_res in self.results.values():
+      for rec in prob_res.values():
+        if rec.get("problem_type") in VRP_PROBLEM_TYPES:
+          return True
+        feas_rate = finite_metric(rec.get("feasibility_rate"))
+        if feas_rate is not None and feas_rate < 100.0 - 1e-9:
+          return True
+    return False
+
+  def _entry_is_infeasible(self, rec: Mapping[str, Any]) -> bool:
+    """Return True when a ``(problem, algorithm)`` cell contains any infeasible repetition."""
+    raw_feas = rec.get("raw_is_feasible")
+    if isinstance(raw_feas, list) and raw_feas:
+      return not all(bool(v) for v in raw_feas)
+    feas_rate = finite_metric(rec.get("feasibility_rate"))
+    if feas_rate is not None:
+      return feas_rate < 100.0 - 1e-9
+    feas_runs = rec.get("feasible_runs")
+    succ_runs = rec.get("successful_runs")
+    if isinstance(feas_runs, int) and isinstance(succ_runs, int) and succ_runs > 0:
+      return feas_runs < succ_runs
+    if isinstance(feas_runs, int) and feas_runs == 0 and finite_metric(rec.get("mean_cost")) is None:
+      return True
+    return False
+
+  def _entry_mean_violation(self, rec: Mapping[str, Any]) -> float:
+    """Return mean dimensionless violation ``hat_nu`` for an infeasible cell."""
+    viols = extract_entry_normalized_violations(rec)
+    if viols:
+      arr = np.asarray(viols, dtype=np.float64)
+      finite = arr[np.isfinite(arr)]
+      if finite.size > 0:
+        return float(np.mean(finite))
+    feas_rate = finite_metric(rec.get("feasibility_rate"))
+    if feas_rate is not None:
+      return max(0.0, 100.0 - feas_rate)
+    return 1.0
+
+  def has_infeasibility(
+    self,
+    algorithms: Sequence[str] | None = None,
+    problems: Sequence[str] | None = None,
+  ) -> bool:
+    """Return True when any cell in the requested slice contains infeasible runs."""
+    target_algs = self.algorithms if algorithms is None else algorithms
+    target_probs = self.problems if problems is None else problems
+    for p in target_probs:
+      prob_res = self.results.get(p)
+      if prob_res is None:
+        continue
+      for a in target_algs:
+        rec = prob_res.get(a)
+        if rec is not None and self._entry_is_infeasible(rec):
+          return True
+    return False
+
+  def quality_score_matrix(
+    self,
+    metric_key: str,
+    algorithms: Sequence[str] | None = None,
+    problems: Sequence[str] | None = None,
+  ) -> tuple[list[str], NDArray[np.float64]]:
+    """Build complete-case ``(valid_problems, matrix[N, k])`` with seed-averaged Deb ranks when infeasible.
+
+    When every cell in the slice is 100% feasible, delegates directly to ``metric_matrix``
+    for bit-identical unconstrained TSP behavior. When any cell has ``feasibility_rate < 100%``,
+    computes the seed-averaged Deb (2000) rank ``R_bar_{p,j}`` across all ``R_p`` paired seeds
+    (falling back to summary-level ranking when per-seed arrays are absent).
+    """
+    target_algs = list(self.algorithms if algorithms is None else algorithms)
+    if metric_key not in ("mean_cost", "mean_gap") or not self.has_infeasibility(
+      algorithms=target_algs, problems=problems
+    ):
+      return self.metric_matrix(metric_key, algorithms=target_algs, problems=problems)
+
+    candidate_probs = self.complete_problems(algorithms=target_algs, problems=problems, metric_key=None)
+    if not candidate_probs or not target_algs:
+      return [], np.empty((0, len(target_algs)), dtype=np.float64)
+
+    valid_probs: list[str] = []
+    scored_rows: list[NDArray[np.float64]] = []
+    for p in candidate_probs:
+      entries = [self.results[p][a] for a in target_algs]
+      row_ranks = compute_seed_averaged_deb_ranks(entries, metric_key)
+      if row_ranks is None:
+        continue
+      valid_probs.append(p)
+      scored_rows.append(row_ranks)
+
+    if not valid_probs:
+      return [], np.empty((0, len(target_algs)), dtype=np.float64)
+    return valid_probs, np.vstack(scored_rows)
+
+  def paired_quality_vectors(
+    self,
+    alg_a: str,
+    alg_b: str,
+    metric_key: str,
+    problems: Sequence[str] | None = None,
+  ) -> tuple[list[str], NDArray[np.float64], NDArray[np.float64]]:
+    """Extract aligned Deb (2000) quality vectors ``(paired_problems, vec_a, vec_b)``."""
+    if metric_key not in ("mean_cost", "mean_gap") or not self.has_infeasibility(
+      algorithms=(alg_a, alg_b), problems=problems
+    ):
+      return self.paired_metric_vectors(alg_a, alg_b, metric_key, problems=problems)
+
+    valid_probs, mat = self.quality_score_matrix(metric_key, algorithms=(alg_a, alg_b), problems=problems)
+    if not valid_probs:
+      empty = np.empty(0, dtype=np.float64)
+      return [], empty, empty
+    return valid_probs, mat[:, 0], mat[:, 1]
+
   def metric_matrix(
     self,
     metric_key: str,
@@ -340,6 +462,8 @@ class BenchmarkCohort:
     gaps = self.algorithm_metric_values(algorithm, "mean_gap", problems=problems)
     costs = self.algorithm_metric_values(algorithm, "mean_cost", problems=problems)
     times = self.algorithm_metric_values(algorithm, "mean_time", problems=problems)
+    feas_rates = self.algorithm_metric_values(algorithm, "feasibility_rate", problems=problems)
+    vehicles = self.algorithm_metric_values(algorithm, "mean_vehicles", problems=problems)
     n_problems = max(len(gaps), len(costs), len(times))
     if n_problems == 0:
       return None
@@ -347,6 +471,8 @@ class BenchmarkCohort:
     mean_gap, std_gap = _mean_and_sample_std(gaps)
     mean_cost, std_cost = _mean_and_sample_std(costs)
     mean_time, std_time = _mean_and_sample_std(times)
+    mean_feas, _ = _mean_and_sample_std(feas_rates)
+    mean_veh, _ = _mean_and_sample_std(vehicles)
     return AlgorithmAggregate(
       algorithm=algorithm,
       n_problems=n_problems,
@@ -356,6 +482,8 @@ class BenchmarkCohort:
       std_cost=std_cost,
       mean_time=mean_time,
       std_time=std_time,
+      mean_feasibility_rate=mean_feas,
+      mean_vehicles=mean_veh,
     )
 
   def repetition_counts(self) -> list[int]:

@@ -103,7 +103,7 @@ def _compute_baseline_wilcoxon(
 
   raw_records: list[tuple[str, int, float, float, float]] = []
   for cand in non_baseline:
-    paired_probs, base_vals, cand_vals = cohort.paired_metric_vectors(baseline, cand, metric_key)
+    paired_probs, base_vals, cand_vals = cohort.paired_quality_vectors(baseline, cand, metric_key)
     if len(paired_probs) < 2:
       continue
     w_stat, p_val, r_eff = analyzer.wilcoxon_paired_summary(base_vals, cand_vals)
@@ -148,14 +148,27 @@ def _compute_stratum(
 ) -> StratumAnalysis:
   """Compute descriptive means, geometric speedups, and unified omnibus stats for a subset."""
   algo_list = list(algorithms)
-  valid_problems, matrix = cohort.metric_matrix(metric_key, algorithms=algo_list, problems=problems)
+  valid_problems, matrix = cohort.quality_score_matrix(metric_key, algorithms=algo_list, problems=problems)
 
   metric_means: dict[str, tuple[float, float]] = {}
   if valid_problems:
-    for idx, algo in enumerate(algo_list):
-      col = matrix[:, idx]
-      std_val = float(np.std(col, ddof=1)) if col.size > 1 else 0.0
-      metric_means[algo] = (float(np.mean(col)), std_val)
+    has_infeas = metric_key in ("mean_cost", "mean_gap") and cohort.has_infeasibility(
+      algorithms=algo_list, problems=valid_problems
+    )
+    if not has_infeas:
+      for idx, algo in enumerate(algo_list):
+        col = matrix[:, idx]
+        std_val = float(np.std(col, ddof=1)) if col.size > 1 else 0.0
+        metric_means[algo] = (float(np.mean(col)), std_val)
+    else:
+      for algo in algo_list:
+        vals = cohort.algorithm_metric_values(algo, metric_key, problems=valid_problems)
+        if vals:
+          arr = np.asarray(vals, dtype=np.float64)
+          std_val = float(np.std(arr, ddof=1)) if arr.size > 1 else 0.0
+          metric_means[algo] = (float(np.mean(arr)), std_val)
+        else:
+          metric_means[algo] = (float("nan"), float("nan"))
 
   speedups: dict[str, SpeedupSummary] = {}
   if baseline_algorithm and baseline_algorithm in algo_list and valid_problems:
@@ -283,7 +296,7 @@ def analyze_cohort(
   quality_omnibus: OmnibusTestResult | None = None
   time_omnibus: OmnibusTestResult | None = None
   if len(algorithms) >= 3 and len(problems) >= 2:
-    valid_q, mat_q = cohort.metric_matrix(quality_metric_key)
+    valid_q, mat_q = cohort.quality_score_matrix(quality_metric_key)
     if len(valid_q) >= 2:
       quality_omnibus = run_friedman_nemenyi_analysis(mat_q, algorithms, alpha=alpha, higher_is_better=False)
 

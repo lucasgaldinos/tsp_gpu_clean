@@ -15,10 +15,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
-          "params": {
-            "return_gpu": false
-          }
+          "class": "InitializationCPURandom"
         },
         "selection": {
           "class": "SelectionTournament",
@@ -54,10 +51,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
-          "params": {
-            "return_gpu": false
-          }
+          "class": "InitializationCPURandom"
         },
         "selection": {
           "class": "SelectionTournament",
@@ -96,7 +90,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
@@ -138,7 +132,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }

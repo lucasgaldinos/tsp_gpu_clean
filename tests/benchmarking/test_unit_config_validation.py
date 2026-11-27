@@ -623,15 +623,14 @@ def test_periodic_local_search_step_schema_rejects_malformed_params(
     pytest.param({"edge_weight_type": "EUC_2D"}, id="edge_weight_type"),
     pytest.param({"comment": "17-city problem from Groetschel"}, id="comment"),
     pytest.param({"source": "TSPLIB95"}, id="source"),
-    pytest.param({"problem_type": "TSP"}, id="problem_type"),
   ],
 )
 def test_problems_schema_rejects_tsplib_metadata(metadata_update: dict[str, Any]) -> None:
   """WHAT: problems.schema.json rejects duplicate TSPLIB metadata fields (BUG-83).
 
-  WHY: Task 13.27(ii) — `routing_data` (`Problem`) is the single source of truth for
-  `edge_type`, `problem_type`, `comment`, and `source`; `ProblemConfig` stores strictly
-  `(name, optimal, size)` and `additionalProperties: false` must reject extra keys.
+  WHY: `routing_data` (`Problem`) is the single source of truth for `edge_weight_type`,
+  `comment`, and `source`; `ProblemConfig` only allows `(name, optimal, size, problem_type)`
+  and `additionalProperties: false` must reject extra keys.
   EXPECTED: jsonschema.ValidationError raised for Additional properties.
   """
   base = json.loads((CHAPTER4_CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
@@ -641,6 +640,66 @@ def test_problems_schema_rejects_tsplib_metadata(metadata_update: dict[str, Any]
 
   with pytest.raises(jsonschema.ValidationError, match="Additional properties are not allowed"):
     jsonschema.validate(instance=base, schema=schema)
+
+
+@pytest.mark.parametrize("problem_type", ["TSP", "ATSP", "CVRP", "OVRP", "DCVRP"])
+def test_problems_schema_accepts_optional_problem_type(problem_type: str) -> None:
+  """WHAT: problems.schema.json accepts optional disambiguating `problem_type` enum (`BUG-109`)."""
+  base = json.loads((CHAPTER4_CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+
+  base["problems"][0]["problem_type"] = problem_type
+  jsonschema.validate(instance=base, schema=schema)
+
+
+def test_problems_schema_rejects_invalid_problem_type() -> None:
+  """WHAT: problems.schema.json rejects unsupported `problem_type` enum values (`BUG-109`)."""
+  base = json.loads((CHAPTER4_CONFIGS_DIR / "problems.json").read_text(encoding="utf-8"))
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+
+  base["problems"][0]["problem_type"] = "MDVRP"
+  with pytest.raises(jsonschema.ValidationError, match="is not one of"):
+    jsonschema.validate(instance=base, schema=schema)
+
+
+def test_problems_schema_accepts_declarative_constraint_overrides() -> None:
+  """WHAT: problems.schema.json accepts optional VRP constraint overrides (`DP17-10`)."""
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+  payload = {
+    "problems": [
+      {
+        "name": "eil51",
+        "size": 51,
+        "problem_type": "OVRP",
+        "return_to_depot": False,
+        "max_vehicles": 5,
+        "max_route_distance": 250.5,
+        "capacity": 120,
+      }
+    ]
+  }
+  jsonschema.validate(instance=payload, schema=schema)
+
+
+@pytest.mark.parametrize(
+  "bad_override",
+  [
+    {"max_vehicles": 0},
+    {"max_vehicles": True},
+    {"capacity": -10},
+    {"capacity": False},
+    {"max_route_distance": 0},
+    {"max_route_distance": -5.0},
+    {"max_route_distance": True},
+    {"return_to_depot": "no"},
+  ],
+)
+def test_problems_schema_rejects_invalid_constraint_overrides(bad_override: dict[str, Any]) -> None:
+  """WHAT: problems.schema.json rejects negative/zero/bool/wrong-type overrides (`DP17-10`)."""
+  schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
+  payload: dict[str, Any] = {"problems": [{"name": "eil51", "size": 51, **bad_override}]}
+  with pytest.raises(jsonschema.ValidationError):
+    jsonschema.validate(instance=payload, schema=schema)
 
 
 @pytest.mark.parametrize(
@@ -842,3 +901,154 @@ def test_benchmark_and_problems_schemas_accept_omitted_patience_and_optimal() ->
 
   prob_schema = json.loads((SCHEMAS_DIR / "problems.schema.json").read_text(encoding="utf-8"))
   jsonschema.validate(instance={"problems": [{"name": "custom50", "size": 50}]}, schema=prob_schema)
+
+
+def test_spec_resolver_unwrap_type_annotation_shared_and_problem_catalog_finalize() -> None:
+  """WHAT: Shared `unwrap_type_annotation` and `_finalize_problem_config` helper (`BUG-116`)."""
+  from typing import Annotated, Literal
+
+  from benchmarking.runner import problem_catalog, schema_generator, spec_resolver
+
+  assert schema_generator.unwrap_type_annotation is spec_resolver.unwrap_type_annotation
+
+  type DummyMode = Annotated[Literal["a", "b"], "doc"]
+  assert spec_resolver.unwrap_type_annotation(DummyMode) == Literal["a", "b"]
+
+  existing_cvrp = ProblemConfig(name="eil51", optimal=521.0, size=51, problem_type="CVRP")
+  res_tsp = problem_catalog._finalize_problem_config(
+    name="berlin52",
+    parsed_type="TSP",
+    dimension=52,
+    resolved_optimal=7542.0,
+    disambiguate_twins=False,
+    existing_by_type={},
+    existing_by_name={},
+  )
+  assert res_tsp == ProblemConfig(name="berlin52", optimal=7542.0, size=52, problem_type=None)
+
+  res_cvrp = problem_catalog._finalize_problem_config(
+    name="eil51",
+    parsed_type="CVRP",
+    dimension=51,
+    resolved_optimal=None,
+    disambiguate_twins=True,
+    existing_by_type={("eil51", "CVRP"): existing_cvrp},
+    existing_by_name={"eil51": existing_cvrp},
+  )
+  assert res_cvrp == existing_cvrp
+
+
+def test_plan_checkpoint_resume_covers_fresh_complete_partial_incremental_and_corrupt(tmp_path: Path) -> None:
+  """WHAT: `plan_checkpoint_resume` returns exact `ResumePlan` across all checkpoint lifecycle branches (`BUG-116`)."""
+  from benchmarking.runner.checkpoint_io import save_checkpoint_atomic
+  from benchmarking.runner.orchestration import ResumePlan, plan_checkpoint_resume
+
+  ckpt_path = tmp_path / "p_alg.json"
+
+  fresh = plan_checkpoint_resume(
+    ckpt_path,
+    effective_repetitions=5,
+    incremental_runs=False,
+    alg_name="CPU",
+    algo_idx=1,
+    total_algos=1,
+    backend_type="CPU",
+  )
+  assert fresh == ResumePlan(existing_checkpoint=None, actual_repetitions=5, incremental_mode=False, skip=False)
+
+  save_checkpoint_atomic(ckpt_path, {"successful_runs": 3})
+  partial = plan_checkpoint_resume(
+    ckpt_path,
+    effective_repetitions=5,
+    incremental_runs=False,
+    alg_name="CPU",
+    algo_idx=1,
+    total_algos=1,
+    backend_type="CPU",
+  )
+  assert partial.skip is False
+  assert partial.incremental_mode is True
+  assert partial.actual_repetitions == 2
+
+  complete = plan_checkpoint_resume(
+    ckpt_path,
+    effective_repetitions=3,
+    incremental_runs=False,
+    alg_name="CPU",
+    algo_idx=1,
+    total_algos=1,
+    backend_type="CPU",
+  )
+  assert complete.skip is True
+  assert complete.actual_repetitions == 0
+
+  incremental = plan_checkpoint_resume(
+    ckpt_path,
+    effective_repetitions=4,
+    incremental_runs=True,
+    alg_name="CPU",
+    algo_idx=1,
+    total_algos=1,
+    backend_type="CPU",
+  )
+  assert incremental.skip is False
+  assert incremental.incremental_mode is True
+  assert incremental.actual_repetitions == 4
+
+  ckpt_path.write_text("{corrupt json", encoding="utf-8")
+  corrupted = plan_checkpoint_resume(
+    ckpt_path,
+    effective_repetitions=5,
+    incremental_runs=False,
+    alg_name="CPU",
+    algo_idx=1,
+    total_algos=1,
+    backend_type="CPU",
+  )
+  assert corrupted == ResumePlan(existing_checkpoint=None, actual_repetitions=5, incremental_mode=False, skip=False)
+  assert not ckpt_path.exists()
+
+
+def test_vrp_pipelines_example_and_getting_started_doc_json_blocks_match_schemas() -> None:
+  """WHAT: Validate ``configs/vrp-pipelines.example.json`` and JSON blocks in ``guide-getting-started.md``.
+
+  WHY: Task 17.27 (`DP17-10`, `BUG-111`) — documentation config snippets and example JSON files
+  must stay strictly synchronized with ``configs/schemas/{algorithms,problems}.schema.json``.
+  """
+  import json
+  import re
+  from pathlib import Path
+
+  import jsonschema
+
+  repo_root = Path(__file__).resolve().parents[2]
+  alg_schema = json.loads((repo_root / "configs/schemas/algorithms.schema.json").read_text(encoding="utf-8"))
+  prob_schema = json.loads((repo_root / "configs/schemas/problems.schema.json").read_text(encoding="utf-8"))
+
+  # 1. Validate configs/vrp-pipelines.example.json against algorithms.schema.json
+  vrp_example = json.loads((repo_root / "configs/vrp-pipelines.example.json").read_text(encoding="utf-8"))
+  jsonschema.validate(instance=vrp_example, schema=alg_schema)
+  assert set(vrp_example["algorithm_configs"].keys()) >= {
+    "VRP_GiantTour_GPU",
+    "VRP_HybridPeriodic_InterRoute_GPU",
+    "VRP_DirectDelimited_Adaptive_GPU",
+  }
+
+  # 2. Validate every ```json algorithms/problems block inside documentation/guide-getting-started.md
+  guide_text = (repo_root / "documentation/guide-getting-started.md").read_text(encoding="utf-8")
+  json_blocks = re.findall(r"```json\s*\n(.*?)\n```", guide_text, flags=re.DOTALL)
+  assert len(json_blocks) >= 3
+
+  validated_algs = 0
+  validated_probs = 0
+  for raw_block in json_blocks:
+    payload = json.loads(raw_block)
+    if "algorithm_configs" in payload:
+      jsonschema.validate(instance=payload, schema=alg_schema)
+      validated_algs += 1
+    elif "problems" in payload:
+      jsonschema.validate(instance=payload, schema=prob_schema)
+      validated_probs += 1
+
+  assert validated_algs >= 2
+  assert validated_probs >= 1

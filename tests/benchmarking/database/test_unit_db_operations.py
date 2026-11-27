@@ -51,16 +51,16 @@ NAN_CHECKED_REQUIRED_FIELDS: list[str] = [
   "std_time",
   "min_time",
   "max_time",
-  "mean_cost",
-  "std_cost",
-  "best_cost",
-  "worst_cost",
   "mean_generations",
   "std_generations",
 ]
 
 #: Nullable numeric fields that are NaN-checked only when present.
 NAN_CHECKED_OPTIONAL_FIELDS: list[str] = [
+  "mean_cost",
+  "std_cost",
+  "best_cost",
+  "worst_cost",
   "optimal_cost",
   "mean_gap",
   "std_gap",
@@ -72,13 +72,24 @@ NAN_CHECKED_OPTIONAL_FIELDS: list[str] = [
   "mean_d2h_mb",
   "total_transfer_mb",
   "mean_kernels",
+  "feasibility_rate",
+  "mean_vehicles",
 ]
 
 #: Required raw arrays whose length must equal `repetitions`.
 REQUIRED_RAW_ARRAYS: list[str] = ["raw_times", "raw_costs"]
 
 #: Nullable raw arrays whose length must equal `repetitions` when present.
-OPTIONAL_RAW_ARRAYS: list[str] = ["raw_gaps", "raw_initial_costs", "raw_generations", "raw_stop_reasons"]
+OPTIONAL_RAW_ARRAYS: list[str] = [
+  "raw_gaps",
+  "raw_initial_costs",
+  "raw_generations",
+  "raw_stop_reasons",
+  "raw_is_feasible",
+  "raw_unpenalized_costs",
+  "raw_violations",
+  "raw_num_vehicles",
+]
 
 #: Either a mapping or a pre-serialised JSON string is accepted for these columns.
 JSON_PAYLOAD: dict[str, int | float] = {"population_size": 256, "mutation_rate": 0.02}
@@ -200,8 +211,9 @@ def test_create_database_creates_runs_table_and_sequence(db_conn: duckdb.DuckDBP
   columns: dict[str, tuple[str, str, str]] = describe_columns(db_conn)
   first_id: tuple[Any, ...] | None = db_conn.execute("SELECT nextval('benchmark_runs_seq')").fetchone()
 
-  assert len(columns) == 45, sorted(columns)
+  assert len(columns) == 54, sorted(columns)
   assert "run_id" in columns
+  assert "problem_type" in columns
   assert first_id == (1,)
 
 
@@ -1353,3 +1365,129 @@ def test_compare_databases_handles_empty_dbs_reordered_rows_and_tail_differences
   identical_diff, diffs = compare_databases(db1, db3)
   assert identical_diff is False
   assert any("p4 / CPU" in d and "mean_cost" in d for d in diffs)
+
+
+def test_vrp_zero_feasible_and_feasible_runs_import_cleanly(db_conn: duckdb.DuckDBPyConnection) -> None:
+  """WHAT: VRP checkpoints with 0% and partial feasibility persist cleanly into DuckDB (DP17-4).
+
+  WHY: `feasible_runs == 0` produces NULL aggregate cost/gap/vehicle scalars while keeping
+  `raw_is_feasible`, `raw_unpenalized_costs`, `raw_violations`, and `raw_num_vehicles` intact.
+  EXPECTED: Both rows insert without error, NULLs round-trip as None, and native LIST/scalar
+  columns match the source payload.
+  """
+  zero_feas_id = insert_run(
+    db_conn,
+    problem_name="A-n32-k5",
+    problem_type="CVRP",
+    algorithm="CVRP_Penalized",
+    mean_cost=None,
+    std_cost=None,
+    best_cost=None,
+    worst_cost=None,
+    mean_gap=None,
+    std_gap=None,
+    best_gap=None,
+    raw_gaps=[None, None, None],
+    feasible_runs=0,
+    feasibility_rate=0.0,
+    mean_vehicles=None,
+    best_vehicles=None,
+    raw_is_feasible=[False, False, False],
+    raw_unpenalized_costs=[700.0, 710.0, 720.0],
+    raw_violations=[15.0, 10.0, 20.0],
+    raw_num_vehicles=[4, 4, 4],
+  )
+  zero_row = fetch_run(db_conn, zero_feas_id)
+  assert zero_row["problem_type"] == "CVRP"
+  assert zero_row["mean_cost"] is None
+  assert zero_row["std_cost"] is None
+  assert zero_row["best_cost"] is None
+  assert zero_row["worst_cost"] is None
+  assert zero_row["feasible_runs"] == 0
+  assert zero_row["feasibility_rate"] == pytest.approx(0.0)
+  assert zero_row["mean_vehicles"] is None
+  assert zero_row["best_vehicles"] is None
+  assert zero_row["raw_is_feasible"] == [False, False, False]
+  assert zero_row["raw_violations"] == [15.0, 10.0, 20.0]
+
+  feas_id = insert_run(
+    db_conn,
+    problem_name="A-n32-k5",
+    problem_type="CVRP",
+    algorithm="CVRP_Split",
+    mean_cost=790.0,
+    std_cost=10.0,
+    best_cost=784.0,
+    worst_cost=800.0,
+    feasible_runs=2,
+    feasibility_rate=66.6666666667,
+    mean_vehicles=5.0,
+    best_vehicles=5,
+    raw_is_feasible=[True, False, True],
+    raw_unpenalized_costs=[784.0, 650.0, 796.0],
+    raw_violations=[0.0, 12.0, 0.0],
+    raw_num_vehicles=[5, 4, 5],
+  )
+  feas_row = fetch_run(db_conn, feas_id)
+  assert feas_row["problem_type"] == "CVRP"
+  assert feas_row["feasible_runs"] == 2
+  assert feas_row["mean_vehicles"] == pytest.approx(5.0)
+  assert feas_row["best_vehicles"] == 5
+  assert feas_row["raw_num_vehicles"] == [5, 4, 5]
+
+
+def test_import_checkpoints_disambiguates_twin_problem_name_across_tsp_and_cvrp(tmp_path: Path) -> None:
+  """WHAT: Importing `(eil51, TSP, GA)` and `(eil51, CVRP, GA)` preserves both rows (DP17-4).
+
+  WHY: TSPLIB and CVRPLIB share instance names such as `eil51`; deduplicating only on
+  `(problem_name, algorithm)` would silently overwrite TSP data with CVRP data or vice versa.
+  EXPECTED: Both rows coexist in `results.duckdb` with distinct `problem_type` values, and
+  `validate_against_checkpoints` validates both cleanly.
+  """
+  from benchmarking.database.import_checkpoints import import_checkpoints
+  from benchmarking.database.validate_consistency import validate_against_checkpoints
+
+  ckpt_dir = tmp_path / "checkpoints"
+  ckpt_dir.mkdir()
+  out_dir = tmp_path / "db_out"
+
+  tsp_payload = run_payload(problem_name="eil51", algorithm="GA", mean_cost=430.0)
+  # Legacy TSP checkpoint omits problem_type -> defaults to 'TSP'
+  assert "problem_type" not in tsp_payload
+  (ckpt_dir / "eil51_GA.json").write_text(json.dumps(tsp_payload), encoding="utf-8")
+
+  cvrp_payload = run_payload(
+    problem_name="eil51",
+    problem_type="CVRP",
+    algorithm="GA",
+    mean_cost=525.0,
+    feasible_runs=3,
+    feasibility_rate=100.0,
+    mean_vehicles=5.0,
+    best_vehicles=5,
+    raw_is_feasible=[True, True, True],
+    raw_unpenalized_costs=[520.0, 525.0, 530.0],
+    raw_violations=[0.0, 0.0, 0.0],
+    raw_num_vehicles=[5, 5, 5],
+  )
+  (ckpt_dir / "eil51_CVRP_GA.json").write_text(json.dumps(cvrp_payload), encoding="utf-8")
+
+  import_checkpoints(ckpt_dir, out_dir)
+
+  db_path = out_dir / "results.duckdb"
+  conn = create_database(str(db_path))
+  try:
+    rows = conn.execute(
+      "SELECT problem_name, problem_type, algorithm, mean_cost FROM benchmark_runs ORDER BY problem_type"
+    ).fetchall()
+  finally:
+    conn.close()
+
+  assert rows == [
+    ("eil51", "CVRP", "GA", 525.0),
+    ("eil51", "TSP", "GA", 430.0),
+  ]
+
+  ok, mismatches = validate_against_checkpoints(str(db_path), str(ckpt_dir))
+  assert ok is True
+  assert mismatches.empty

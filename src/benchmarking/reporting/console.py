@@ -144,14 +144,15 @@ def log_problem_analysis(
   logging.info(short_sep)
 
   for row in analysis.rows:
+    cost_cell = f"{row.mean_cost:<15.2f}" if row.mean_cost is not None else f"{'—':<15}"
     gap_cell = f"{row.mean_gap:<12.2f}" if row.mean_gap is not None else f"{'—':<12}"
     if show_gpu_transfers:
       logging.info(
-        f"{row.algorithm:<20} {row.mean_cost:<15.2f} {gap_cell} {row.mean_time:<12.2f} "
+        f"{row.algorithm:<20} {cost_cell} {gap_cell} {row.mean_time:<12.2f} "
         f"{row.mean_h2d_mb:<12.2f} {row.mean_d2h_mb:<12.2f}"
       )
     else:
-      logging.info(f"{row.algorithm:<20} {row.mean_cost:<15.2f} {gap_cell} {row.mean_time:<12.2f}")
+      logging.info(f"{row.algorithm:<20} {cost_cell} {gap_cell} {row.mean_time:<12.2f}")
 
   logging.info("\nSpeedups (relative to %s):", analysis.baseline_algorithm)
   for row in analysis.rows:

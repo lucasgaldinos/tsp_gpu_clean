@@ -704,7 +704,7 @@ def _modular_checkpoint_payload(
     "raw_costs": [2085.0, 2090.0],
     "raw_times": [0.1, 0.12],
     "strategies": {
-      "initialization": "InitializationRandom",
+      "initialization": "InitializationCPURandom",
       "selection": "SelectionTournament",
       "crossover": "CrossoverOrder",
       "mutation": "MutationSwap",
@@ -726,7 +726,7 @@ def _sample_algo_configs() -> dict[str, AlgorithmConfig]:
       use_gpu=False,
       description="CPU",
       strategies={
-        "initialization": {"class": "InitializationRandom"},
+        "initialization": {"class": "InitializationCPURandom"},
         "selection": {"class": "SelectionTournament"},
         "crossover": {"class": "CrossoverOrder"},
         "mutation": {"class": "MutationSwap"},
@@ -739,7 +739,7 @@ def _sample_algo_configs() -> dict[str, AlgorithmConfig]:
       use_gpu=True,
       description="GPU",
       strategies={
-        "initialization": {"class": "InitializationRandom"},
+        "initialization": {"class": "InitializationCPURandom"},
         "selection": {"class": "SelectionTournament"},
         "crossover": {"class": "CrossoverOrder"},
         "mutation": {"class": "MutationSwap"},
@@ -1059,7 +1059,7 @@ def test_run_comprehensive_benchmark_quarantines_corrupt_checkpoint_and_runs_cle
         use_gpu=False,
         description="Custom CPU",
         strategies={
-          "initialization": {"class": "InitializationRandom"},
+          "initialization": {"class": "InitializationCPURandom"},
           "selection": {"class": "SelectionTournament", "params": {"k": 3}},
           "crossover": {"class": "CrossoverOrder"},
           "mutation": {"class": "MutationSwap"},
@@ -1090,3 +1090,234 @@ def test_run_comprehensive_benchmark_quarantines_corrupt_checkpoint_and_runs_cle
   assert saved["successful_runs"] == 1
   assert saved["algorithm_config"]["strategy_params"]["local_search"]["max_iterations"] == 3
   assert saved["algorithm_config"]["strategy_params"]["local_search"]["custom_span"] == 7
+
+
+def test_vrp_checkpoint_validation_accepts_zero_feasible_and_rejects_bad_arrays(tmp_path: Path) -> None:
+  """WHAT: VRP checkpoint validation accepts 0%-feasible runs and rejects malformed VRP arrays (DP17-4).
+
+  WHY: VRP checkpoints add optional `raw_is_feasible`, `raw_unpenalized_costs`, `raw_violations`,
+  and `raw_num_vehicles` arrays and allow `mean_cost=None` strictly when `feasible_runs == 0`.
+  Legacy TSP checkpoints without these keys must remain valid.
+  """
+  # Legacy TSP without VRP keys
+  tsp_path = tmp_path / "tsp_GA.json"
+  tsp_payload = {
+    "algorithm": "GA",
+    "repetitions": 2,
+    "successful_runs": 2,
+    "mean_time": 0.1,
+    "mean_cost": 100.0,
+    "raw_times": [0.1, 0.1],
+    "raw_costs": [95.0, 105.0],
+    "raw_seeds": [42, 43],
+  }
+  tsp_path.write_text(json.dumps(tsp_payload), encoding="utf-8")
+  assert is_valid_checkpoint(tsp_path, expected_reps=2) is True
+
+  # TSP with null mean_cost (not zero-feasible) must fail
+  bad_null_path = tmp_path / "bad_null_GA.json"
+  bad_null_path.write_text(json.dumps({**tsp_payload, "mean_cost": None}), encoding="utf-8")
+  assert is_valid_checkpoint(bad_null_path, expected_reps=2) is False
+
+  # VRP 0%-feasible checkpoint with null mean_cost must pass
+  vrp_zero_path = tmp_path / "vrp_zero_GA.json"
+  vrp_zero_payload = {
+    **tsp_payload,
+    "problem_type": "CVRP",
+    "mean_cost": None,
+    "std_cost": None,
+    "best_cost": None,
+    "worst_cost": None,
+    "feasible_runs": 0,
+    "feasibility_rate": 0.0,
+    "mean_vehicles": None,
+    "best_vehicles": None,
+    "raw_is_feasible": [False, False],
+    "raw_unpenalized_costs": [80.0, 82.0],
+    "raw_violations": [5.0, 7.0],
+    "raw_num_vehicles": [2, 2],
+  }
+  vrp_zero_path.write_text(json.dumps(vrp_zero_payload), encoding="utf-8")
+  assert is_valid_checkpoint(vrp_zero_path, expected_reps=2) is True
+
+  # Malformed VRP arrays fail validation
+  for bad_field, bad_val in (
+    ("raw_is_feasible", [True]),  # wrong length
+    ("raw_is_feasible", [1, 0]),  # int instead of bool
+    ("raw_unpenalized_costs", [80.0, float("inf")]),  # non-finite
+    ("raw_violations", [0.0, -1.0]),  # negative violation
+    ("raw_num_vehicles", [2, -1]),  # negative vehicles
+    ("raw_num_vehicles", [2, True]),  # bool instead of int
+  ):
+    bad_path = tmp_path / f"bad_{bad_field}.json"
+    bad_path.write_text(json.dumps({**vrp_zero_payload, bad_field: bad_val}, allow_nan=True), encoding="utf-8")
+    assert is_valid_checkpoint(bad_path, expected_reps=2) is False
+
+
+def test_run_single_algorithm_vrp_metrics_feasible_only_and_incremental_resume(tmp_path: Path) -> None:
+  """WHAT: `run_single_algorithm` computes feasible-only VRP stats, preserves TSP keys, and merges on resume.
+
+  WHY: Mixing infeasible routes into `mean_cost`/`mean_gap` creates false negative gaps vs BKS;
+  TSP runs must not emit VRP keys; incremental resume must merge VRP raw arrays cleanly.
+  """
+  import numpy as np
+
+  from benchmarking.runner.algorithm_runner import run_single_algorithm
+  from data_models.problem import Problem
+
+  # Small 4-node CVRP: depot 0 at (0,0), customers 1:(3,0), 2:(0,4), 3:(3,4); Q=10, demands=[0, 6, 6, 4]
+  coords = np.array([[0.0, 0.0], [3.0, 0.0], [0.0, 4.0], [3.0, 4.0]], dtype=np.float64)
+  cvrp = Problem(
+    name="mini_cvrp4",
+    dimension=4,
+    problem_type="CVRP",
+    edge_type="EUC_2D",
+    coordinates=coords,
+    distances=None,
+    capacity=10,
+    demands=np.array([0, 6, 6, 4], dtype=np.int32),
+  )
+  tsp = Problem(
+    name="mini_tsp4",
+    dimension=4,
+    problem_type="TSP",
+    edge_type="EUC_2D",
+    coordinates=coords,
+    distances=None,
+  )
+
+  # Route A (feasible, 2 vehicles): [0, 1, 3, 0, 2, 0] -> load (6+4=10, 6<=10), dist = (3+4+5)+(4+4) = 20
+  # Route B (infeasible, 1 vehicle): [0, 1, 2, 3, 0] -> load 16 > 10 (viol=6), dist = 3+5+3+5 = 16 (shorter!)
+  # Route C (feasible, 2 vehicles): [0, 2, 3, 0, 1, 0] -> load (6+4=10, 6<=10), dist = (4+3+5)+(3+3) = 18
+  from algorithms.strategies.evaluation import EvaluationCPUCost
+
+  class _StubAlgo:
+    def __init__(self, script: list[tuple[list[int], float]], evaluation: Any) -> None:
+      self._script = script
+      self._idx = 0
+      self.evaluation = evaluation
+
+    def evolve(
+      self,
+      context: Any,
+      customers: list[int],
+      max_generations: int,
+      optimal_cost: float | None = None,
+      patience: int | None = None,
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+      tour, fitness = self._script[self._idx]
+      self._idx += 1
+      return np.asarray(tour, dtype=np.int32), {
+        "initial_fitness": fitness + 10.0,
+        "best_fitness": fitness,
+        "generations_completed": 5,
+        "stop_reason": "completed",
+      }
+
+  # 1. TSP run must NOT emit VRP keys
+  tsp_summary = run_single_algorithm(
+    algorithm_name="StubTSP",
+    algorithm_instance=_StubAlgo([([0, 1, 3, 2], 14.0)], EvaluationCPUCost()),
+    problem=tsp,
+    problem_name="mini_tsp4",
+    problem_size=4,
+    customers=[0, 1, 2, 3],
+    max_generations=5,
+    optimal_cost=14.0,
+    repetitions=1,
+    use_gpu=False,
+  )
+  for vrp_key in ("raw_is_feasible", "raw_unpenalized_costs", "raw_violations", "raw_num_vehicles", "feasible_runs"):
+    assert vrp_key not in tsp_summary
+
+  # 2. VRP run with 1 feasible (cost=20) + 1 infeasible (unpenalized=16, viol=6)
+  vrp_part1 = run_single_algorithm(
+    algorithm_name="StubCVRP",
+    algorithm_instance=_StubAlgo([([0, 1, 3, 0, 2, 0], 20.0), ([0, 1, 2, 3, 0], 6016.0)], EvaluationCPUCost()),
+    problem=cvrp,
+    problem_name="mini_cvrp4",
+    problem_size=4,
+    customers=[1, 2, 3],
+    max_generations=5,
+    optimal_cost=18.0,
+    repetitions=2,
+    use_gpu=False,
+  )
+  assert vrp_part1["problem_type"] == "CVRP"
+  assert vrp_part1["raw_is_feasible"] == [True, False]
+  assert vrp_part1["raw_unpenalized_costs"] == pytest.approx([20.0, 16.0])
+  assert vrp_part1["raw_violations"] == pytest.approx([0.0, 6.0])
+  assert vrp_part1["raw_num_vehicles"] == [2, 1]
+  assert vrp_part1["feasible_runs"] == 1
+  assert vrp_part1["feasibility_rate"] == pytest.approx(50.0)
+  # Aggregate quality strictly excludes the infeasible run (cost=16)
+  assert vrp_part1["mean_cost"] == pytest.approx(20.0)
+  assert vrp_part1["std_cost"] == pytest.approx(0.0)
+  assert vrp_part1["best_cost"] == pytest.approx(20.0)
+  assert vrp_part1["mean_vehicles"] == pytest.approx(2.0)
+  assert vrp_part1["best_vehicles"] == 2
+
+  # 3. Incremental resume adds 1 more feasible run (cost=18) -> 2/3 feasible, mean_cost=19.0, best_cost=18.0
+  vrp_resumed = run_single_algorithm(
+    algorithm_name="StubCVRP",
+    algorithm_instance=_StubAlgo([([0, 2, 3, 0, 1, 0], 18.0)], EvaluationCPUCost()),
+    problem=cvrp,
+    problem_name="mini_cvrp4",
+    problem_size=4,
+    customers=[1, 2, 3],
+    max_generations=5,
+    optimal_cost=18.0,
+    repetitions=1,
+    use_gpu=False,
+    existing_checkpoint=vrp_part1,
+    incremental_mode=True,
+  )
+  assert vrp_resumed["successful_runs"] == 3
+  assert vrp_resumed["feasible_runs"] == 2
+  assert vrp_resumed["raw_is_feasible"] == [True, False, True]
+  assert vrp_resumed["raw_unpenalized_costs"] == pytest.approx([20.0, 16.0, 18.0])
+  assert vrp_resumed["mean_cost"] == pytest.approx(19.0)
+  assert vrp_resumed["best_cost"] == pytest.approx(18.0)
+  assert vrp_resumed["worst_cost"] == pytest.approx(20.0)
+  assert vrp_resumed["best_gap"] == pytest.approx(0.0)
+
+  # 4. 0%-feasible VRP run sets aggregate quality scalars to None
+  vrp_zero = run_single_algorithm(
+    algorithm_name="StubInfeas",
+    algorithm_instance=_StubAlgo([([0, 1, 2, 3, 0], 6016.0)], EvaluationCPUCost()),
+    problem=cvrp,
+    problem_name="mini_cvrp4",
+    problem_size=4,
+    customers=[1, 2, 3],
+    max_generations=5,
+    optimal_cost=18.0,
+    repetitions=1,
+    use_gpu=False,
+  )
+  assert vrp_zero["feasible_runs"] == 0
+  assert vrp_zero["feasibility_rate"] == pytest.approx(0.0)
+  assert vrp_zero["mean_cost"] is None
+  assert vrp_zero["std_cost"] is None
+  assert vrp_zero["best_cost"] is None
+  assert vrp_zero["worst_cost"] is None
+  assert vrp_zero["mean_gap"] is None
+  assert vrp_zero["mean_vehicles"] is None
+  assert vrp_zero["best_vehicles"] is None
+
+  # 5. save_problem_statistics writes feasible-only mean_cost/mean_gap and VRP fields
+  from benchmarking.runner.checkpoint_io import save_problem_statistics
+
+  mgr = CheckpointManager(tmp_path / "ckpts", tmp_path / "stats")
+  save_problem_statistics(
+    problem_name="mini_cvrp4",
+    problem_size=4,
+    optimal_cost=18.0,
+    problem_results={"StubCVRP": vrp_resumed, "StubInfeas": vrp_zero},
+    statistical_test_results={},
+    checkpoint_manager=mgr,
+  )
+  saved_stats = json.loads(mgr.get_problem_stats_path("mini_cvrp4").read_text(encoding="utf-8"))
+  assert saved_stats["algorithms"]["StubCVRP"]["mean_cost"] == pytest.approx(19.0)
+  assert saved_stats["algorithms"]["StubCVRP"]["feasible_runs"] == 2
+  assert saved_stats["algorithms"]["StubInfeas"]["mean_cost"] is None
+  assert saved_stats["algorithms"]["StubInfeas"]["feasible_runs"] == 0

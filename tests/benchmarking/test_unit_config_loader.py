@@ -19,11 +19,14 @@ import pytest
 from benchmarking.runner.config_loader import (
   BenchmarkConfig,
   ProblemConfig,
+  build_problem_configs_from_duckdb,
+  build_problem_configs_from_tsp_files,
   load_algorithms_config,
   load_all_configs,
   load_benchmark_config,
   load_problems_config,
 )
+from data_models.exceptions import AmbiguousProblemError
 
 if TYPE_CHECKING:
   from pathlib import Path
@@ -323,7 +326,115 @@ def test_load_benchmark_and_problems_optional_fields_and_bool_guards(tmp_path: P
   for bad_prob in (
     {"problems": [{"name": "custom50", "size": True}]},
     {"problems": [{"name": "custom50", "size": 50, "optimal": False}]},
+    {"problems": [{"name": "custom50", "size": 50, "problem_type": "MDVRP"}]},
   ):
     _write_json(tmp_path / "problems.json", bad_prob)
     with pytest.raises(ValueError):
       load_problems_config(tmp_path)
+
+
+def test_problems_config_supports_problem_type_and_vrp_builders(tmp_path: Path) -> None:
+  """WHAT: `ProblemConfig` and DuckDB/TSPLIB builders support `problem_type` and `.vrp`/`.sol` (`BUG-109`)."""
+  _write_json(
+    tmp_path / "problems.json",
+    {"problems": [{"name": "eil51", "size": 51, "optimal": 521.0, "problem_type": "cvrp"}]},
+  )
+  parsed = load_problems_config(tmp_path)
+  assert parsed == [ProblemConfig(name="eil51", optimal=521.0, size=51, problem_type="CVRP")]
+
+  vrp_dir = tmp_path / "vrp_files"
+  vrp_dir.mkdir()
+  vrp_path = vrp_dir / "mini4.vrp"
+  vrp_path.write_text(
+    "NAME : mini4\n"
+    "TYPE : CVRP\n"
+    "DIMENSION : 4\n"
+    "EDGE_WEIGHT_TYPE : EUC_2D\n"
+    "CAPACITY : 10\n"
+    "NODE_COORD_SECTION\n"
+    "1 0 0\n2 1 1\n3 4 1\n4 4 5\n"
+    "DEMAND_SECTION\n"
+    "1 0\n2 4\n3 5\n4 3\n"
+    "DEPOT_SECTION\n"
+    "1\n-1\nEOF\n",
+    encoding="utf-8",
+  )
+  (vrp_dir / "mini4.sol").write_text("Route #1: 1 2\nRoute #2: 3\nCost 19.75\n", encoding="utf-8")
+
+  configs, path_map = build_problem_configs_from_tsp_files(["mini4"], tsp_dir=vrp_dir)
+  assert configs == [ProblemConfig(name="mini4", optimal=20.0, size=4, problem_type="CVRP")]
+  assert path_map["mini4"] == vrp_path.resolve()
+
+  from loaders.tsplib_loader import ingest_tsplib_directory_to_duckdb
+
+  (vrp_dir / "mini4.tsp").write_text(
+    "NAME : mini4\nTYPE : TSP\nDIMENSION : 4\nEDGE_WEIGHT_TYPE : EUC_2D\n"
+    "NODE_COORD_SECTION\n1 0 0\n2 3 0\n3 3 4\n4 0 4\nEOF\n",
+    encoding="utf-8",
+  )
+  (vrp_dir / "mini4.opt.tour").write_text(
+    "NAME : mini4.opt.tour\nCOMMENT : Length 14\nTYPE : TOUR\nDIMENSION : 4\n"
+    "TOUR_SECTION\n1\n2\n3\n4\n-1\nEOF\n",
+    encoding="utf-8",
+  )
+  db_path = tmp_path / "mini.duckdb"
+  assert ingest_tsplib_directory_to_duckdb(vrp_dir, db_path) == 2
+
+  with pytest.raises(AmbiguousProblemError):
+    build_problem_configs_from_duckdb(db_path, problem_names=["mini4"])
+
+  disambiguated = build_problem_configs_from_duckdb(
+    db_path,
+    problem_names=["mini4"],
+    existing_configs=[ProblemConfig(name="mini4", optimal=None, size=4, problem_type="CVRP")],
+  )
+  assert disambiguated == [ProblemConfig(name="mini4", optimal=20.0, size=4, problem_type="CVRP")]
+
+  all_db_configs = build_problem_configs_from_duckdb(db_path)
+  assert sorted((c.name, c.problem_type, c.optimal) for c in all_db_configs) == [
+    ("mini4", "CVRP", 20.0),
+    ("mini4", "TSP", 14.0),
+  ]
+
+
+def test_problem_config_declarative_overrides_and_validation(tmp_path: Path) -> None:
+  """WHAT: `load_problems_config` and `ProblemConfig` validate declarative constraint overrides (`DP17-10`)."""
+  _write_json(
+    tmp_path / "problems.json",
+    {
+      "problems": [
+        {
+          "name": "eil51",
+          "size": 51,
+          "problem_type": "OVRP",
+          "return_to_depot": False,
+          "max_vehicles": 5,
+          "max_route_distance": 250,
+          "capacity": 120,
+        }
+      ]
+    },
+  )
+  parsed = load_problems_config(tmp_path)
+  assert len(parsed) == 1
+  cfg = parsed[0]
+  assert cfg.problem_type == "OVRP"
+  assert cfg.return_to_depot is False
+  assert cfg.max_vehicles == 5
+  assert cfg.max_route_distance == pytest.approx(250.0)
+  assert cfg.capacity == 120
+  assert cfg.has_constraint_overrides() is True
+
+  for bad_kwargs in (
+    {"max_vehicles": True},
+    {"max_vehicles": 0},
+    {"capacity": False},
+    {"capacity": -1},
+    {"max_route_distance": True},
+    {"max_route_distance": 0.0},
+    {"max_route_distance": float("nan")},
+    {"max_route_distance": float("inf")},
+    {"return_to_depot": "false"},
+  ):
+    with pytest.raises(ValueError):
+      ProblemConfig(name="eil51", optimal=None, size=51, **bad_kwargs)

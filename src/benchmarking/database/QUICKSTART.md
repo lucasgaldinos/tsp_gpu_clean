@@ -15,7 +15,14 @@ modifications:
           and adding YAML frontmatter compliant with repository standards.
       - description: >
           Noted full-table deterministic `(problem_name, algorithm)` comparison and
-          guaranteed connection cleanup in `validate_consistency.py::compare_databases` (`BUG-102`).
+          guaranteed connection cleanup in `validate_consistency.py::compare_databases`.
+  - date_modified: 2026-11-27
+    modifications:
+      - description: >
+          Updated schema notes for VRP Tier 1 support: `54`-column `benchmark_runs`
+          table with `problem_type` (`DEFAULT 'TSP'`), nullable cost/gap/VRP columns,
+          and `(problem_name, problem_type, algorithm)` natural-key disambiguation;
+          removed internal plan/bug identifiers from user-facing guide.
 related_files:
   - "[schema.sql](./schema.sql)"
   - "[db_operations.py](./db_operations.py)"
@@ -43,11 +50,11 @@ tags:
 
 **Directory:** `src/benchmarking/database/`
 
-- [schema.sql](./schema.sql) — DuckDB `benchmark_runs` table DDL and indexes (`optimal_cost` and gap columns are nullable for custom `.tsp` instances without a known optimum).
+- [schema.sql](./schema.sql) — DuckDB `benchmark_runs` table DDL (`54` columns) and indexes (`problem_type VARCHAR NOT NULL DEFAULT 'TSP'`, nullable `mean_cost`/`std_cost`/`best_cost`/`worst_cost` for `feasible_runs == 0`, nullable `optimal_cost`/gap columns, and optional VRP feasibility/fleet scalars and `LIST` arrays).
 - [schema.py](./schema.py) — Table name and reusable SQL query constants.
 - [db_operations.py](./db_operations.py) — Schema creation, payload validation ([db_operations.py::validate_benchmark_data](./db_operations.py)), insertion ([db_operations.py::insert_benchmark_run](./db_operations.py)), and query helpers.
-- [import_checkpoints.py](./import_checkpoints.py) — Idempotent batch importer exposed through the `tsp-import-checkpoints` CLI.
-- [validate_consistency.py](./validate_consistency.py) — Cross-validation between DuckDB and source JSON checkpoints (`validate_against_checkpoints`), plus full-table row-by-row database comparison ordered by `(problem_name, algorithm, timestamp, run_id)` ([validate_consistency.py::compare_databases](./validate_consistency.py), `BUG-102`), exposed through the `tsp-validate-db` CLI.
+- [import_checkpoints.py](./import_checkpoints.py) — Idempotent batch importer keyed on `(problem_name, problem_type, algorithm)` exposed through the `tsp-import-checkpoints` CLI.
+- [validate_consistency.py](./validate_consistency.py) — Cross-validation between DuckDB and source JSON checkpoints (`validate_against_checkpoints`), plus full-table row-by-row database comparison ordered by `(problem_name, problem_type, algorithm, timestamp, run_id)` ([validate_consistency.py::compare_databases](./validate_consistency.py)), exposed through the `tsp-validate-db` CLI.
 
 ## 1. Import Checkpoints via CLI
 

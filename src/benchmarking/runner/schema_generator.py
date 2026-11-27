@@ -30,15 +30,22 @@ import sys
 import types
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypeAliasType, Union, get_args, get_origin, get_type_hints
+from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
 import protocols.algorithm_strategies as _strategy_protocols
 import protocols.types as _protocol_types
+import protocols.vrp_strategies as _vrp_strategies
 from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
-from algorithms.strategies import STRATEGY_REGISTRY
+from algorithms.strategies import STRATEGY_REGISTRY, SUB_STRATEGY_REGISTRY
 from algorithms.strategies.base import StrategyBase
 from benchmarking.reporting.style import ReportStyle
-from benchmarking.runner.config_loader import is_file_module_ref, load_external_module
+from benchmarking.runner.spec_resolver import (
+  is_file_module_ref,
+  load_external_module,
+)
+from benchmarking.runner.spec_resolver import (
+  unwrap_type_annotation as unwrap_type_annotation,
+)
 
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
 SCHEMA_ID = "https://github.com/lucasgaldinos/gpu_accelerated_clean/configs/schemas/algorithms.schema.json"
@@ -57,6 +64,12 @@ STRATEGY_SLOT_PROTOCOLS: tuple[tuple[str, type, str], ...] = (
   ("mutation", _strategy_protocols.MutationStrategy, "strategy_slot_mutation"),
   ("local_search", _strategy_protocols.LocalSearchStrategy, "strategy_slot_local_search"),
   ("evaluation", _strategy_protocols.EvaluationStrategy, "strategy_slot_evaluation"),
+)
+
+SUB_STRATEGY_PROTOCOLS: tuple[tuple[str, type, str], ...] = (
+  ("penalty_policy", _vrp_strategies.PenaltyPolicy, "sub_strategy_penalty_policy"),
+  ("decoder", _vrp_strategies.RouteDecoder, "sub_strategy_route_decoder"),
+  ("bin_packing", _vrp_strategies.BinPackingStrategy, "sub_strategy_bin_packing"),
 )
 
 
@@ -162,30 +175,19 @@ def ext_param_def_name(module_ref: str, class_name: str) -> str:
   return f"params_ext_{mod_slug}_{camel_to_snake(class_name)}"
 
 
-def unwrap_type_annotation(annotation: Any) -> Any:
-  """Recursively unwrap PEP 695 `TypeAliasType` and `Annotated` type wrappers."""
-  while True:
-    if isinstance(annotation, TypeAliasType):
-      annotation = annotation.__value__
-      continue
-    if get_origin(annotation) is Annotated:
-      annotation = get_args(annotation)[0]
-      continue
-    return annotation
-
-
 def _strategy_slot_ref_for_type(tp: Any) -> dict[str, Any] | None:
-  """Return the slot-specific `$ref` schema when `tp` is a strategy protocol or `StrategyBase` subclass."""
+  """Return the slot-specific `$ref` schema for core strategies, sub-strategies, or `StrategyBase`."""
   unwrapped = unwrap_type_annotation(tp)
   if not isinstance(unwrapped, type):
     return None
-  matched_defs = [
-    def_name for _, proto, def_name in STRATEGY_SLOT_PROTOCOLS if unwrapped is proto or issubclass(unwrapped, proto)
-  ]
-  if len(matched_defs) == 1:
-    return {"$ref": f"#/$defs/{matched_defs[0]}"}
-  if len(matched_defs) > 1:
-    return {"anyOf": [{"$ref": f"#/$defs/{def_name}"} for def_name in matched_defs]}
+  for protocols_group in (STRATEGY_SLOT_PROTOCOLS, SUB_STRATEGY_PROTOCOLS):
+    matched_defs = [
+      def_name for _, proto, def_name in protocols_group if unwrapped is proto or issubclass(unwrapped, proto)
+    ]
+    if len(matched_defs) == 1:
+      return {"$ref": f"#/$defs/{matched_defs[0]}"}
+    if len(matched_defs) > 1:
+      return {"anyOf": [{"$ref": f"#/$defs/{def_name}"} for def_name in matched_defs]}
   if issubclass(unwrapped, StrategyBase):
     return {"anyOf": [{"$ref": f"#/$defs/{def_name}"} for _, _, def_name in STRATEGY_SLOT_PROTOCOLS]}
   return None
@@ -217,6 +219,7 @@ def resolve_init_hints(cls: type) -> dict[str, Any]:
     "Sequence": Sequence,
     **vars(_protocol_types),
     **vars(_strategy_protocols),
+    **vars(_vrp_strategies),
   }
   module = sys.modules.get(cls.__module__)
   if module is not None:
@@ -350,18 +353,27 @@ def build_class_params_schema(cls: type) -> dict[str, Any]:
   }
 
 
-def _partition_strategy_registry(strategies: Mapping[str, type]) -> dict[str, dict[str, type]]:
-  """Partition `strategies` into the 6 canonical slots via `@runtime_checkable` PEP 544 protocols."""
-  partitioned: dict[str, dict[str, type]] = {slot_name: {} for slot_name, _, _ in STRATEGY_SLOT_PROTOCOLS}
-  for class_name, cls in sorted(strategies.items(), key=lambda item: item[0]):
-    matched_slots = [slot_name for slot_name, proto, _ in STRATEGY_SLOT_PROTOCOLS if issubclass(cls, proto)]
+def _partition_by_protocols(
+  registry: Mapping[str, type],
+  protocols: Sequence[tuple[str, type, str]],
+  protocol_module_desc: str,
+) -> dict[str, dict[str, type]]:
+  """Partition `registry` across ``@runtime_checkable`` PEP 544 protocols."""
+  partitioned: dict[str, dict[str, type]] = {slot_name: {} for slot_name, _, _ in protocols}
+  for class_name, cls in sorted(registry.items(), key=lambda item: item[0]):
+    matched_slots = [slot_name for slot_name, proto, _ in protocols if issubclass(cls, proto)]
     if not matched_slots:
       raise ValueError(
-        f"Strategy '{class_name}' does not implement any PEP 544 strategy protocol in protocols.algorithm_strategies."
+        f"Component '{class_name}' does not implement any PEP 544 protocol in {protocol_module_desc}."
       )
     for slot_name in matched_slots:
       partitioned[slot_name][class_name] = cls
   return partitioned
+
+
+def _partition_strategy_registry(strategies: Mapping[str, type]) -> dict[str, dict[str, type]]:
+  """Partition `strategies` into the 6 canonical slots via `@runtime_checkable` PEP 544 protocols."""
+  return _partition_by_protocols(strategies, STRATEGY_SLOT_PROTOCOLS, "protocols.algorithm_strategies")
 
 
 def _normalize_external_module_ref(
@@ -559,13 +571,17 @@ def generate_algorithms_schema(
   strategy_registry: Mapping[str, type] | None = None,
   pipeline_step_registry: Mapping[str, type] | None = None,
   *,
+  sub_strategy_registry: Mapping[str, type] | None = None,
   external_strategies: Mapping[str, Sequence[ExternalClassSpec]] | None = None,
+  external_sub_strategies: Mapping[str, Sequence[ExternalClassSpec]] | None = None,
   external_pipeline_steps: Sequence[ExternalClassSpec] = (),
 ) -> dict[str, Any]:
   """Generate the complete `algorithms.schema.json` document reflectively from registries."""
   strategies = STRATEGY_REGISTRY if strategy_registry is None else strategy_registry
   pipeline_steps = PIPELINE_STEP_REGISTRY if pipeline_step_registry is None else pipeline_step_registry
+  sub_strategies = SUB_STRATEGY_REGISTRY if sub_strategy_registry is None else sub_strategy_registry
   ext_by_slot = external_strategies or {}
+  ext_sub_by_slot = external_sub_strategies or {}
 
   partitioned_strategies = _partition_strategy_registry(strategies)
   strategy_slot_defs: dict[str, dict[str, Any]] = {}
@@ -580,6 +596,22 @@ def generate_algorithms_schema(
     )
     strategy_slot_defs[def_name] = slot_schema
     strategy_param_defs.update(slot_params)
+
+  partitioned_sub_strategies = _partition_by_protocols(
+    sub_strategies, SUB_STRATEGY_PROTOCOLS, "protocols.vrp_strategies"
+  )
+  sub_strategy_slot_defs: dict[str, dict[str, Any]] = {}
+  sub_strategy_param_defs: dict[str, dict[str, Any]] = {}
+  for slot_name, proto, def_name in SUB_STRATEGY_PROTOCOLS:
+    slot_schema, slot_params = _build_slot_definition(
+      partitioned_sub_strategies[slot_name],
+      slot_label=f"{slot_name} sub-strategy",
+      class_description=f"Built-in `{proto.__name__}` implementation registered in `SUB_STRATEGY_REGISTRY`.",
+      params_description=f"Constructor keyword arguments for this `{slot_name}` sub-strategy class.",
+      external_specs=ext_sub_by_slot.get(slot_name, ()),
+    )
+    sub_strategy_slot_defs[def_name] = slot_schema
+    sub_strategy_param_defs.update(slot_params)
 
   pipeline_step_schema, pipeline_param_defs = _build_slot_definition(
     pipeline_steps,
@@ -649,6 +681,10 @@ def generate_algorithms_schema(
             "items": {
               "$ref": "#/$defs/pipeline_step",
             },
+          },
+          **{
+            slot_name: {"$ref": f"#/$defs/{def_name}"}
+            for slot_name, _, def_name in SUB_STRATEGY_PROTOCOLS
           },
           **shared_ga_param_properties,
         },
@@ -721,8 +757,10 @@ def generate_algorithms_schema(
     },
     "local_search_stage": local_search_stage_schema,
     **strategy_slot_defs,
+    **sub_strategy_slot_defs,
     "pipeline_step": pipeline_step_schema,
     **strategy_param_defs,
+    **sub_strategy_param_defs,
     **pipeline_param_defs,
   }
 
@@ -786,14 +824,18 @@ def render_algorithms_schema(
   strategy_registry: Mapping[str, type] | None = None,
   pipeline_step_registry: Mapping[str, type] | None = None,
   *,
+  sub_strategy_registry: Mapping[str, type] | None = None,
   external_strategies: Mapping[str, Sequence[ExternalClassSpec]] | None = None,
+  external_sub_strategies: Mapping[str, Sequence[ExternalClassSpec]] | None = None,
   external_pipeline_steps: Sequence[ExternalClassSpec] = (),
 ) -> str:
   """Render `generate_algorithms_schema(...)` as deterministic formatted JSON."""
   schema = generate_algorithms_schema(
     strategy_registry=strategy_registry,
     pipeline_step_registry=pipeline_step_registry,
+    sub_strategy_registry=sub_strategy_registry,
     external_strategies=external_strategies,
+    external_sub_strategies=external_sub_strategies,
     external_pipeline_steps=external_pipeline_steps,
   )
   return f"{json.dumps(schema, indent=2)}\n"

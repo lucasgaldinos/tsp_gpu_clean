@@ -217,10 +217,10 @@ def test_run_comprehensive_benchmark_fixture(
   # `BUG-18`: a checkpoint must describe the strategy parameters it actually ran.
   algorithm_config = results["gr17"]["CPU"]["algorithm_config"]
   strategy_params = algorithm_config["strategy_params"]
-  assert strategy_params["initialization"]["class"] == "InitializationRandom"
+  assert strategy_params["initialization"]["class"] == "InitializationCPURandom"
   assert strategy_params["selection"]["k"] == 3, "configured tournament size must survive into the checkpoint"
   assert strategy_params["local_search"]["max_iterations"] >= 1
-  assert results["gr17"]["CPU"]["construction_heuristic"] == "InitializationRandom"
+  assert results["gr17"]["CPU"]["construction_heuristic"] == "InitializationCPURandom"
 
   # Phase timings persistence (Task 11.7, DP11-7, DP11-13)
   cpu_res = results["gr17"]["CPU"]
@@ -559,7 +559,7 @@ def test_run_comprehensive_benchmark_rejects_incompatible_checkpoint(
     **old_payload,
     "problem_name": "gr17",
     "strategies": {
-      "initialization": "InitializationRandom",
+      "initialization": "InitializationCPURandom",
       "selection": "SelectionTournament",
       "crossover": "CrossoverOrder",
       "mutation": "MutationSwap",
