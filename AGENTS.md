@@ -80,7 +80,7 @@ Applies to every task in this repository.
 4. **Executable anchors.** An explanation is incomplete without a runnable snippet, the
    exact `path::symbol` reference, and the expected output. A concept explained a third
    time becomes a knowledge-base note, not another chat answer.
-   Never use terse "caveman" phrasing when explaining Python internals, GPU hardware models,
+   Never use terse "caveman" phrasing when explaining python internals, GPU hardware models,
    mathematical trade-offs, or code reviews: pair an intuitive mental model ("why" in domain
    terms, not restating syntax) with KaTeX equations and primary academic/spec citations
    (e.g., Reinelt TSPLIB95, Rocki & Suda, O'Neil & Burtscher) where applicable.
@@ -129,7 +129,7 @@ Applies to every task in this repository.
     for code, `[file.md §Heading](path#heading)` for Markdown, `[file.tex §label](path#label)`
     for LaTeX. The `::` separator is the pytest node-ID idiom and works for `.py`, `.cu`,
     and `.cuh`; it is validated by `benchmark_scripts.check_docs` (use `check_docs` for
-    Markdown, plans, walkthroughs, and Python/CUDA docstrings; use `benchmark_scripts.check_thesis`
+    Markdown, plans, walkthroughs, and python/CUDA docstrings; use `benchmark_scripts.check_thesis`
     for LaTeX `.tex` and BibTeX `refs.bib` integrity under `documents_tcc/tex/thesis/`).
     `#L<line>` is allowed only for targets with no nameable unit (logs, generated tables,
     frozen audit snapshots). Line numbers drift with every refactor; symbols do not.
@@ -146,6 +146,19 @@ Applies to every task in this repository.
       must be executed directly or in an isolated stage with explicit progress logging, rather than wrapping
       physical hardware time inside multi-pass recursive subagent review loops (avoiding redundant post-run
       audits and 40+ minute opaque wait times).
+14. **Wave-boundary quality review & phased human checkpoints.** Automated checks
+    (`pytest`, `mypy`, `ruff`, `check_docs`) are necessary but never sufficient to mark
+    a task `[x]` or merge a subagent wave. Before flipping any task checkbox to `[x]`,
+    audit the wave diff against `code-review-and-quality` (including
+    `references/gpu-and-scientific-computing-review.md` for CUDA, RNG, `warmup()`,
+    baseline fairness, and statistical code). On large multi-wave changes ($>2$ waves, $>1,500$ LOC cumulative, or cross-repo work), pause between major phases for user
+    review instead of executing every wave end-to-end unreviewed.
+15. **Escalate unasked design decisions & protect terminology.** Never silently invent
+    magic defaults (e.g. arbitrary penalty weights), undocumented fallback semantics,
+    divergent CPU/GPU class naming, or jargon that collides with existing repository/thesis
+    terms (e.g. reusing `"Tier-1"` when `Tier 1 / Tier 2` already denotes statistical
+    testing tiers). When an unasked design choice surfaces during planning *or* inside a
+    subagent wave, pause and resolve it with the user via `ask-clarification-questions`.
 
 ## Repository rules that still apply
 
