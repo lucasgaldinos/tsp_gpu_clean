@@ -1,0 +1,186 @@
+% ============================================================================
+% ufsc-metropolis.sty — Identidade visual UFSC/EMC sobre Beamer Metropolis
+%
+% Responsabilidade: tema base, paleta institucional UFSC (Pantone 2728 C),
+% tipografia Libertinus sem avisos de forma ausente, capa institucional,
+% rodapé com reserva fixa de altura e bibliografia ABNT NBR 10520:2023 / 6023.
+% Macros de layout, tabelas e figuras ficam em ufsc-components.sty.
+% ============================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ufsc-metropolis}[2026/11/25 Tema UFSC/EMC sobre Metropolis]
+
+% --- Tema base Metropolis (16:9, alto contraste, barra de progresso) --------
+\usetheme[
+  progressbar=frametitle,
+  numbering=fraction,
+  block=fill,
+  sectionpage=progressbar
+]{metropolis}
+
+% --- Idioma e tipografia (alinhada a second_draft.tex, sem fontes faltantes)
+\RequirePackage[portuguese]{babel}
+\RequirePackage{csquotes}
+\usefonttheme{professionalfonts}
+\RequirePackage{amsmath}
+\RequirePackage{fontspec}
+\RequirePackage{unicode-math}
+\setsansfont{Libertinus Sans}[
+  BoldFont={Libertinus Sans Bold},
+  ItalicFont={Libertinus Sans Italic},
+  BoldItalicFont={Libertinus Sans Bold},
+  BoldItalicFeatures={FakeSlant=0.18}
+]
+\setmainfont{Libertinus Serif}
+\setmonofont{Libertinus Mono}[
+  Scale=MatchLowercase,
+  BoldFont={Libertinus Mono Regular},
+  BoldFeatures={FakeBold=1.5}
+]
+\setmathfont{Libertinus Math}
+
+% --- Pacotes estruturais ----------------------------------------------------
+\RequirePackage{appendixnumberbeamer}
+\RequirePackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit,backgrounds}
+
+% --- Margens laterais padronizadas (16:9 -> 160 mm - 16 mm = 144 mm úteis) --
+\setbeamersize{text margin left=8mm, text margin right=8mm}
+
+% --- Paleta institucional UFSC (Pantone 2728 C + tons de apoio) -------------
+\definecolor{ufscBlue}{RGB}{0, 75, 145}
+\definecolor{ufscDark}{RGB}{0, 46, 93}
+\definecolor{ufscLight}{RGB}{237, 243, 250}
+\definecolor{ufscAccent}{RGB}{196, 122, 12}
+\definecolor{ufscGreen}{RGB}{14, 118, 72}
+\definecolor{ufscGreenLight}{RGB}{233, 246, 239}
+\definecolor{ufscSlate}{RGB}{74, 85, 104}
+\definecolor{ufscBorder}{RGB}{203, 213, 225}
+\definecolor{ufscCanvas}{RGB}{252, 253, 255}
+\definecolor{ufscText}{RGB}{24, 30, 38}
+
+\setbeamercolor{normal text}{fg=ufscText, bg=ufscCanvas}
+\setbeamercolor{structure}{fg=ufscBlue}
+\setbeamercolor{palette primary}{bg=ufscDark, fg=white}
+\setbeamercolor{frametitle}{bg=ufscDark, fg=white}
+\setbeamercolor{title}{fg=ufscDark}
+\setbeamercolor{subtitle}{fg=ufscBlue}
+\setbeamercolor{title separator}{fg=ufscAccent}
+\setbeamercolor{progress bar}{fg=ufscAccent, bg=ufscBorder}
+\setbeamercolor{progress bar in section page}{fg=ufscBlue, bg=ufscBorder}
+\setbeamercolor{alerted text}{fg=ufscAccent}
+\setbeamercolor{example text}{fg=ufscGreen}
+\setbeamercolor{block title}{bg=ufscBlue, fg=white}
+\setbeamercolor{block body}{bg=ufscLight, fg=ufscText}
+\setbeamercolor{block title alerted}{bg=ufscAccent, fg=white}
+\setbeamercolor{block body alerted}{bg=ufscAccent!10!white, fg=ufscText}
+\setbeamercolor{block title example}{bg=ufscGreen, fg=white}
+\setbeamercolor{block body example}{bg=ufscGreenLight, fg=ufscText}
+\setbeamercolor{section in toc}{fg=ufscDark}
+\setbeamercolor{subsection in toc}{fg=ufscSlate}
+\setbeamercolor{footnote}{fg=ufscSlate}
+
+% --- Tipografia e espaçamento de blocos/listas ------------------------------
+\setbeamerfont{frametitle}{size=\normalsize, series=\bfseries}
+\setbeamerfont{block title}{size=\footnotesize, series=\bfseries}
+\setbeamerfont{block body}{size=\footnotesize}
+\setbeamerfont{caption}{size=\scriptsize}
+\setbeamerfont{footnote}{size=\scriptsize}
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{navigation symbols}{}
+
+% Compacta padding interno dos blocos do Metropolis para reduzir desperdício vertical
+\setlength{\metropolis@blocksep}{0.55ex}
+\setlength{\metropolis@blockadjust}{0.20ex}
+\setlength{\metropolis@frametitle@padding}{1.4ex}
+
+% --- Rodapé sempre medido pelo Beamer (omitido automaticamente em [plain]) --
+\setbeamertemplate{footline}{%
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.75\paperwidth,ht=2.3ex,dp=1.0ex,leftskip=2.5ex]{normal text}%
+      {\scriptsize\color{ufscSlate}\insertshortauthor\ \textbullet\ \insertshorttitle}%
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.25\paperwidth,ht=2.3ex,dp=1.0ex,right,rightskip=2.5ex]{normal text}%
+      {\scriptsize\color{ufscSlate}\insertframenumber\,/\,\inserttotalframenumber}%
+    \end{beamercolorbox}%
+  }%
+  \vskip0.4ex%
+}
+
+% --- Metadados extras para a capa UFSC/EMC ----------------------------------
+\newcommand{\@tccorientador}{}
+\newcommand{\orientador}[1]{\renewcommand{\@tccorientador}{#1}}
+\newcommand{\@tcctipo}{Trabalho de Conclusão de Curso}
+\newcommand{\tipotrabalho}[1]{\renewcommand{\@tcctipo}{#1}}
+
+% --- Capa institucional UFSC/EMC (alinhamento superior seguro abaixo da barra)
+\setbeamertemplate{title page}{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \fill[ufscDark] (current page.north west) rectangle ([yshift=-0.22cm]current page.north east);
+    \fill[ufscAccent] ([yshift=-0.22cm]current page.north west) rectangle ([yshift=-0.28cm]current page.north east);
+    \fill[ufscLight] (current page.south west) rectangle ([yshift=0.82cm]current page.south east);
+    \node[anchor=east, font=\footnotesize\bfseries\color{ufscDark}] at ([xshift=-0.8cm, yshift=0.41cm]current page.south east) {\insertdate};
+  \end{tikzpicture}%
+  \vspace*{0.55cm}
+  \noindent
+  \begin{minipage}[c]{0.12\linewidth}
+    \includegraphics[width=1.35cm,keepaspectratio]{ufsc-logo-4.png}
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[c]{0.86\linewidth}
+    {\small\bfseries\color{ufscDark} UNIVERSIDADE FEDERAL DE SANTA CATARINA}\\[1pt]
+    {\footnotesize\color{ufscSlate} Centro Tecnológico (CTC) \textbullet\ Departamento de Engenharia Mecânica (EMC)}\\
+    {\footnotesize\color{ufscBlue}\bfseries Curso de Graduação em Engenharia Mecânica}
+  \end{minipage}
+
+  \vspace{0.25cm}
+  {\color{ufscBorder}\hrule height 0.6pt}
+  \vspace{0.48cm}
+
+  {\Large\bfseries\color{ufscDark}\raggedright\inserttitle\par}
+  \vspace{0.22cm}
+  {\small\color{ufscBlue}\@tcctipo\par}
+
+  \vspace{0.55cm}
+  {\normalsize\bfseries\color{ufscText}\insertauthor\par}
+  \vspace{0.10cm}
+  {\small\color{ufscSlate}\textbf{Orientador:} \@tccorientador\par}
+}
+
+% --- Bibliografia ABNT compacta (Biber + biblatex-abnt) ---------------------
+\RequirePackage[backend=biber,style=abnt,extradate]{biblatex}
+% Suprime note/annote (regra do TCC) e campos de URL/DOI nos slides para manter
+% as referências NBR 6023 compactas e legíveis em ~2-3 slides.
+\DeclareSourcemap{
+  \maps[datatype=bibtex]{
+    \map{
+      \step[fieldset=note, null]
+      \step[fieldset=annote, null]
+      \step[fieldset=url, null]
+      \step[fieldset=urldate, null]
+      \step[fieldset=doi, null]
+      \step[fieldset=isbn, null]
+      \step[fieldset=issn, null]
+    }
+  }
+}
+% Imprime instituição emissora em @report/@techreport (ABNT NBR 6023).
+\renewbibmacro*{location+date}{%
+  \usebibmacro{location}%
+  \ifentrytype{report}{%
+    \iflistundef{institution}{}{%
+      \setunit*{\addcolon\addspace}%
+      \printlist{institution}%
+    }%
+  }{}%
+  \setunit*{\addcomma\addspace}%
+  \usebibmacro{date}%
+  \newunit%
+}
+% ABNT NBR 10520:2023 (BU-UFSC): sobrenome em maiúsculas/minúsculas nas citações.
+\renewcommand*{\UpperOrSCCite}[1]{#1}
+\addbibresource{../refs.bib}
+\setbeamertemplate{bibliography item}{}
+\renewcommand*{\bibfont}{\tiny}
+\setlength{\bibitemsep}{1.5pt}
+\setlength{\bibhang}{1.2em}

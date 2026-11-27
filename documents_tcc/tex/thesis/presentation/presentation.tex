@@ -1,0 +1,85 @@
+% !TeX program = lualatex
+% ============================================================================
+% presentation.tex — Apresentação de Defesa de TCC (EMC/CTC/UFSC)
+% Compilação: cd documents_tcc/tex/thesis/presentation && latexmk presentation.tex
+% ============================================================================
+\documentclass[aspectratio=169,10pt]{beamer}
+
+% Guarda de compilador: utiliza LuaLaTeX (mesma stack de second_draft.tex).
+\usepackage{iftex}
+\ifLuaTeX\else
+  \PackageError{presentation}{Esta apresentacao deve ser compilada com LuaLaTeX}{Use: latexmk presentation.tex}
+\fi
+
+\usepackage{ufsc-metropolis}
+\usepackage{ufsc-components}
+
+% Metadados institucionais (sincronizados com second_draft.tex)
+\title[Paralelização em GPU de AG+2-opt para o TSP]{%
+  Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante%
+}
+\tipotrabalho{Defesa de Trabalho de Conclusão de Curso — Engenharia Mecânica (EMC/UFSC)}
+\author[Lucas E. G. Silva]{Lucas Eduardo Galdino Silva}
+\orientador{Prof.~Dr.~Sérgio Fernando Mayerle}
+\institute[UFSC / EMC]{Universidade Federal de Santa Catarina — Centro Tecnológico — EMC}
+% Substitua pela data exata da defesa quando agendada (ex.: Florianópolis, 10 de dezembro de 2026)
+\date{Florianópolis, 2026}
+
+\hypersetup{
+  pdftitle={Avaliação de Estratégias de Paralelização em GPU para um Algoritmo Memético Aplicado ao Problema do Caixeiro Viajante},
+  pdfauthor={Lucas Eduardo Galdino Silva},
+  pdflang={pt-BR}
+}
+
+\begin{document}
+
+% --- Capa institucional UFSC/EMC (alinhamento superior seguro) ---------------
+\begin{frame}[plain,noframenumbering,t]
+  \titlepage
+\end{frame}
+
+% --- Roteiro / Sumário (recomendado pelo regulamento EMC-UFSC) --------------
+\begin{frame}{Roteiro da Apresentação}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.60\textwidth}
+      \tableofcontents[hideallsubsections]
+    \end{column}
+    \begin{column}{0.37\textwidth}
+      \begin{block}{Estrutura da Defesa}
+        \begin{itemize}
+          \item \textbf{Exposição:} 20--25 min\\{\scriptsize(limite EMC-UFSC: 30 min)}
+          \item \textbf{Escopo:} \totalvariantes\ variantes, \totalinstancias\ instâncias TSPLIB, \totalexecucoes\ execuções
+          \item \textbf{Arguição:} slides de apoio técnico após as Referências
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Capítulos da apresentação (1 arquivo por capítulo da monografia) -------
+\input{slides/01-introducao.tex}
+\input{slides/02-fundamentacao.tex}
+\input{slides/03-metodologia.tex}
+\input{slides/04-resultados.tex}
+\input{slides/05-discussao-conclusoes.tex}
+
+% --- Referências (ABNT NBR 6023 compactas a partir de ../refs.bib) ----------
+\begin{frame}[allowframebreaks]{Referências}
+  \printbibliography[heading=none]
+\end{frame}
+
+% --- Encerramento / Perguntas da Banca --------------------------------------
+\begin{frame}[standout]
+  Obrigado pela atenção!\\[0.5cm]
+  {\normalsize\normalfont Perguntas e considerações da Banca Examinadora}\\[0.7cm]
+  {\footnotesize\normalfont
+    Lucas Eduardo Galdino Silva \textbullet\ Orientador: Prof.~Dr.~Sérgio Fernando Mayerle\\
+    Curso de Graduação em Engenharia Mecânica — CTC / UFSC
+  }
+\end{frame}
+
+% --- Slides de apoio / Backup para arguição (fora da contagem principal) ----
+\appendix
+\input{slides/06-apendice-backup.tex}
+
+\end{document}

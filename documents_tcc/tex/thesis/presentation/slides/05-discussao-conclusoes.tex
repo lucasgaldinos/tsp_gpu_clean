@@ -1,0 +1,85 @@
+% ============================================================================
+% slides/05-discussao-conclusoes.tex — Capítulos 5 e 6: Discussão e Conclusões
+% ============================================================================
+
+\section{Discussão, Conclusões e Trabalhos Futuros}
+
+% --- Discussão: Estado da Arte e Limitações ---------------------------------
+\begin{frame}{Discussão: Estado da Arte e Limitações}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Frente ao Estado da Arte}
+        \begin{itemize}
+          \item Resolvedores especializados como \textbf{LKH} \autocite{helsgaun2000effective} e \textbf{AG+EAX} \autocite{nagata2013powerful} atingem frequentemente $0\%$ de \emph{gap}.
+          \item Aqui, o AG+$2$-opt foi mantido controlado para \textbf{isolar o efeito da paralelização} ($\text{gap} \approx 0{,}90\%$).
+          \item Para $n \gg 10^3$, o termo quadrático $4n^2$ de $D$ passa a pressionar a VRAM \autocite{schulz2013gpu,oneil2015rethinking}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{alertblock}{Ameaças à Validade}
+        \begin{itemize}
+          \item \textbf{Parada oracular:} $\text{gap} \le 1\%$ usa $B^*$ (\emph{time-to-target}); uso industrial depende de estagnação/tempo.
+          \item \textbf{Desempate no $2$-opt:} reduções paralelas em GPU podem desempatar movimentos de igual $\Delta C$ distinto da CPU.
+          \item \textbf{Telemetria e hardware único:} \texttt{Sinc.} agrega execução assíncrona; razões numéricas dependem do par i7-7700HQ + GTX 1050.
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Implicações Práticas na Engenharia Mecânica ----------------------------
+\begin{frame}{Implicações Práticas na Engenharia Mecânica e Pesquisa Operacional}
+  \begin{block}{Aplicabilidade Direta}
+    Estruturas de sequenciamento em \textbf{furação/corte CNC}, \textbf{robôs de solda} e \textbf{logística fabril} beneficiam-se de buscas aceleradas para avaliar mais cenários ou replanejar em tempo próximo do real.
+  \end{block}
+
+  \vspace{0.1cm}
+  {\small\textbf{Cinco diretrizes práticas sintetizadas \autocite{kirk2010programming,schulz2013gpu,oneil2015rethinking,nvidia2024cuda}:}}
+  \begin{enumerate}
+    \small
+    \item \textbf{Manter o estado na VRAM:} evitar envios individuais; usar acesso coalescido, memória compartilhada e mapas de bits.
+    \item \textbf{Equilibrar o ciclo (Lei de Amdahl):} etapas leves em CPU (como OX) viram gargalo após acelerar o $2$-opt.
+    \item \textbf{Reformular desvios para SIMT:} trocar ramificações irregulares por operações matriciais e reduções paralelas.
+    \item \textbf{Explorar geometria:} listas de vizinhos ($k_{\text{viz}}=\kviz$) ampliam o alcance do hardware sem perda de qualidade.
+    \item \textbf{Protocolo controlado:} aquecimento (\emph{warmup}) fora da medição, sementes fixas e testes não paramétricos.
+  \end{enumerate}
+\end{frame}
+
+% --- Conclusões e Contribuições ---------------------------------------------
+\begin{frame}{Conclusões e Contribuições}
+  \begin{exampleblock}{Resposta à Questão de Pesquisa}
+    Sob a mesma especificação algorítmica, a \textbf{estratégia de paralelização determina decisivamente o desempenho sem comprometer a qualidade}: a variante residente em VRAM atingiu \textbf{$71{,}03\times$} de ganho geométrico ($0{,}34\,\text{s}$ mediano) vs.\ $23{,}86\times$ e $4{,}57\times$ nas híbridas, com \emph{gaps} equivalentes ($0{,}90\%\text{--}0{,}91\%$; Friedman $p = 0{,}4543$).
+  \end{exampleblock}
+
+  \vspace{0.12cm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Contribuições Empírica e Metodológica}
+        \begin{itemize}
+          \item Comparação controlada de \totalvariantes\ variantes sob o mesmo algoritmo memético.
+          \item Protocolo reproduzível (\totalrepeticoes\ repetições pareadas e testes de Demšar).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Contribuições Prática e Analítica}
+        \begin{itemize}
+          \item \emph{Framework} modular em três camadas com telemetria por etapa e PCIe.
+          \item Caracterização do deslocamento de gargalos à luz da Lei de Amdahl.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Trabalhos Futuros ------------------------------------------------------
+\begin{frame}{Trabalhos Futuros}
+  \begin{enumerate}
+    \item \textbf{Operadores avançados em GPU:} adaptar busca local $3$-opt, movimentos tipo Lin--Kernighan e cruzamento EAX \autocite{nagata2013powerful} ao modelo SIMT para aproximar o \emph{gap} de $0\%$.
+    \item \textbf{Instâncias de grande porte:} investigar dezenas de milhares de cidades com armazenamento triangular, recálculo sob demanda e particionamento de vizinhança \autocite{schulz2013gpu,oneil2015rethinking}.
+    \item \textbf{Variantes industriais:} estender o \emph{framework} para TSP assimétrico (ATSP), roteamento capacitado (CVRP) e janelas de tempo.
+    \item \textbf{Novas arquiteturas e energia:} avaliar CPUs \emph{multi-thread}, GPUs recentes e consumo energético.
+    \item \textbf{Inferência bayesiana:} complementar testes frequentistas com testes bayesianos pareados \autocite{benavoli2017time}.
+  \end{enumerate}
+\end{frame}

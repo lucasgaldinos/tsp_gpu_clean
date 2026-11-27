@@ -1,0 +1,142 @@
+% ============================================================================
+% slides/06-apendice-backup.tex — Slides de Apoio / Backup para Arguição
+% (Excluídos da contagem principal via \appendix + appendixnumberbeamer)
+% ============================================================================
+
+\begin{frame}[standout]
+  Apêndice — Slides de Apoio Técnico\\
+  {\normalsize\normalfont Material suplementar para arguição da Banca Examinadora}
+\end{frame}
+
+% --- Backup 1: Especificações Completas de Software -------------------------
+\begin{frame}{Backup 1: Especificações Completas do Ambiente de Software}
+  \begin{slidetabela}
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      \textbf{Componente} & \textbf{Versão / Requisito} & \textbf{Papel no ambiente} \\
+      \midrule
+      Sistema operacional            & Debian GNU/Linux 13, kernel 6.12.43 (\texttt{x86\_64}) & Plataforma do \emph{benchmark} \\
+      \emph{Driver} NVIDIA           & 580.196.07                                             & Suporte ao CUDA Runtime 12.9 \\
+      CUDA Toolkit / \texttt{nvcc}   & CUDA 12.9 (\texttt{nvcc} V12.9.86)                     & Compilação de \texttt{RawKernel} \\
+      Compute Capability             & $\ge 5{,}0$ (testado: $6{,}1$, Pascal GP107)           & Requisito CUDA 12.9 / CuPy \\
+      Compilador C/C++ (\emph{host}) & GCC 12.4.0                                             & Compilador auxiliar do \texttt{nvcc} \\
+      Python                         & Python 3.12.13 ($\ge 3{,}12$)                          & Orquestração e interface \\
+      Computação numérica            & NumPy 2.5.4; CuPy 14.2.0                               & \emph{Backends} CPU e GPU \\
+      Estatística e dados            & SciPy 1.18.1; scikit-posthocs 0.17.1; DuckDB 2.0.0     & Protocolo Demšar e banco \\
+      \bottomrule
+    \end{tabular}
+  \end{slidetabela}
+  \notatabelaSlide{Elaborado pelo autor (reproduzível via \texttt{uv}, Seção~3.1.2 da monografia).}
+\end{frame}
+
+% --- Backup 2: Microbenchmark Lista de Candidatos (k_viz = 20) --------------
+\begin{frame}{Backup 2: Microbenchmark da Lista de Candidatos ($k_{\text{viz}} = \kviz$)}
+  \begin{slidetabela}[0.54\textheight]
+    \begin{tabular}{@{}lrrrrrr@{}}
+      \toprule
+      \textbf{Instância} & \multicolumn{3}{c}{\textbf{CPU (s)}} & \multicolumn{3}{c}{\textbf{GPU — matriz de rotas (s)}} \\
+      \cmidrule(lr){2-4} \cmidrule(lr){5-7}
+       & $k_{\text{viz}} = \kviz$ & Exaustiva & Ganho & $k_{\text{viz}} = \kviz$ & Exaustiva & Ganho \\
+      \midrule
+      \texttt{berlin52} ($n=52$) & $0{,}935$ & $0{,}924$  & $0{,}99\times$         & $0{,}001$ & $0{,}001$ & $0{,}79\times$ \\
+      \texttt{kroA100} ($n=100$) & $1{,}590$ & $4{,}250$  & $2{,}67\times$         & $0{,}002$ & $0{,}003$ & $1{,}51\times$ \\
+      \texttt{ch150} ($n=150$)   & $3{,}122$ & $8{,}066$  & $2{,}58\times$         & $0{,}003$ & $0{,}005$ & $2{,}03\times$ \\
+      \texttt{pr264} ($n=264$)   & $4{,}808$ & $39{,}513$ & \textbf{$8{,}22\times$} & $0{,}004$ & $0{,}016$ & $3{,}72\times$ \\
+      \texttt{lin318} ($n=318$)  & $5{,}811$ & $45{,}798$ & $7{,}88\times$         & $0{,}006$ & $0{,}023$ & \textbf{$4{,}05\times$} \\
+      \bottomrule
+    \end{tabular}
+  \end{slidetabela}
+  \notatabelaSlide{Elaborado pelo autor (64 rotas, $\kappa = \maxpassadas$ varreduras; reduz complexidade de $\Theta(n^2)$ para $\Theta(n\,k_{\text{viz}})$).}
+
+  \vspace{0.08cm}
+  \begin{itemize}
+    \footnotesize
+    \item Ganho de até \textbf{$8{,}22\times$ na CPU} viabilizou executar integralmente a \emph{baseline} até $n = \maiorinstancia$ com \totalrepeticoes\ repetições.
+  \end{itemize}
+\end{frame}
+
+% --- Backup 3: Resultados Detalhados nas 7 Instâncias Selecionadas ----------
+\begin{frame}{Backup 3: Resultados Detalhados (7 Instâncias Selecionadas)}
+  \begin{slidetabeladensa}[0.56\textheight]
+    \begin{tabular}{@{}lcrrrrrr@{}}
+      \toprule
+      \textbf{Instância} & $n$ & \textbf{CPU (s)} & \textbf{Híb.\ Ing.\ (s)} & \textbf{Híb.\ Otim.\ (s)} & \textbf{Full GPU (s)} & \textbf{Ganho Full} & \textbf{\emph{Gap} Full (\%)} \\
+      \midrule
+      \texttt{berlin52} & 52   & $1{,}59$   & $0{,}51$   & $0{,}08$  & $\mathbf{0{,}02}$  & $75{,}03\times$ & $0{,}12$ \\
+      \texttt{kroA100}  & 100  & $4{,}81$   & $1{,}18$   & $0{,}19$  & $\mathbf{0{,}05}$  & $94{,}86\times$ & $0{,}43$ \\
+      \texttt{d198}     & 198  & $14{,}66$  & $3{,}08$   & $0{,}55$  & $\mathbf{0{,}17}$  & $88{,}62\times$ & $0{,}84$ \\
+      \texttt{pr264}    & 264  & $23{,}62$  & $4{,}81$   & $1{,}02$  & $\mathbf{0{,}34}$  & $69{,}92\times$ & $0{,}80$ \\
+      \texttt{att532}   & 532  & $158{,}24$ & $29{,}33$  & $6{,}67$  & $\mathbf{3{,}39}$  & $46{,}63\times$ & $1{,}13$ \\
+      \texttt{si535}    & 535  & $84{,}19$  & $10{,}97$  & $2{,}48$  & $\mathbf{1{,}23}$  & $68{,}23\times$ & $0{,}95$ \\
+      \texttt{pr1002}   & 1002 & $682{,}58$ & $115{,}35$ & $25{,}55$ & $\mathbf{14{,}03}$ & $48{,}66\times$ & $1{,}68$ \\
+      \bottomrule
+    \end{tabular}
+  \end{slidetabeladensa}
+  \notatabelaSlide{Elaborado pelo autor (médias de \totalrepeticoes\ repetições; ganhos calculados antes do arredondamento).}
+
+  \vspace{0.08cm}
+  \begin{itemize}
+    \footnotesize
+    \item Em \texttt{pr1002}: \emph{gaps} de $1{,}74\%$ (CPU), $1{,}64\%$ (híbridas, idênticas bit a bit) e $1{,}68\%$ (Totalmente em GPU); pico global em \texttt{gr96} ($112{,}48\times$).
+  \end{itemize}
+\end{frame}
+
+% --- Backup 4: Eixo de Memória VRAM e Técnicas de Contorno ------------------
+\begin{frame}{Backup 4: Consumo de VRAM e Contorno em Grande Porte}
+  \begin{block}{Modelo de Consumo na Variante Totalmente em GPU}
+    \[
+      Mem_{\text{total}}(n) \approx \underbrace{4\,n^2}_{\text{matriz } D\;(\texttt{int32})} + \underbrace{2048\,n}_{2 \times 256 \times n \times 4\text{ B}} + \underbrace{2048}_{\text{custos }\texttt{int64}} \text{ bytes}
+    \]
+    \centering
+    {\footnotesize Em \texttt{pr1002} ($n = \maiorinstancia$): $Mem_{\text{total}} \approx \mathbf{6{,}07\text{ MB}}$ ($\approx 0{,}15\%$ dos $4\text{ GB}$ de VRAM).}
+  \end{block}
+
+  \vspace{0.12cm}
+  {\footnotesize \textbf{Estratégias quando $n \gg 10^3$ pressiona VRAM / memória compartilhada \autocite{schulz2013gpu,oneil2015rethinking}:}}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{itemize}
+        \item \textbf{Armazenamento triangular:} explora simetria ($n(n-1)/2$, reduz memória pela metade).
+        \item \textbf{Recálculo sob demanda:} troca VRAM por aritmética (penalidade temporal).
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{itemize}
+        \item \textbf{Particionamento da vizinhança:} fatiamento de movimentos $k$-opt.
+        \item \textbf{Transferência em blocos / \emph{streams}:} sobrepõe cópias PCIe e computação.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Backup 5: Formulação Matemática do Protocolo de Demšar -----------------
+\begin{frame}{Backup 5: Equações do Protocolo Estatístico \autocite{demsar2006statistical}}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Eixo 1: Wilcoxon + Holm--Bonferroni}
+        Teste pareado de postos sinalizados \autocite{wilcoxon1945individual}:
+        \[
+          W = \min(R^+,\, R^-)
+        \]
+        Ajuste sequencial nos $m = 6$ pares ordenados $p_{(1)} \le \dots \le p_{(m)}$ \autocite{holm1979simple}:
+        \[
+          p_{(i)} < \frac{\alpha}{m - i + 1}, \quad \alpha = 0{,}05
+        \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Eixo 2: Friedman, Iman--Davenport e Nemenyi}
+        Postos médios $R_j = \frac{1}{N}\sum_{i=1}^{N} r_i^j$ ($N = 15, k = 4$) \autocite{friedman1937use}:
+        \[
+          \chi_F^2 = \frac{12N}{k(k+1)}\!\left[\sum_{j=1}^k R_j^2 - \frac{k(k+1)^2}{4}\right], \quad
+          F_F = \frac{(N-1)\chi_F^2}{N(k-1)-\chi_F^2}
+        \]
+        Diferença crítica de Nemenyi ($q_{0{,}05}=2{,}569$) \autocite{nemenyi1963distribution}:
+        \[
+          CD = q_{\alpha}\sqrt{\frac{k(k+1)}{6N}} = 1{,}211
+        \]
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+

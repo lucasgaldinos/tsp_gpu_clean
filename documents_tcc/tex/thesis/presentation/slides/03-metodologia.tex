@@ -1,0 +1,156 @@
+% ============================================================================
+% slides/03-metodologia.tex — Capítulo 3: Materiais e Métodos
+% ============================================================================
+
+\section{Materiais e Métodos}
+
+% --- Ambiente Computacional (Hardware e Software) ---------------------------
+\begin{frame}{Ambiente Computacional}
+  \begin{slidetabela}
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      \textbf{Recurso} & \textbf{CPU (Host)} & \textbf{GPU (Device)} \\
+      \midrule
+      Processador / Placa & Intel Core i7-7700HQ        & NVIDIA GeForce GTX 1050 Mobile \\
+      Arquitetura         & Kaby Lake (2017)            & Pascal GP107 (Compute Capability 6.1) \\
+      Unidades            & 4 núcleos / 8 \emph{threads} & 640 núcleos CUDA em 5 SMs \\
+      Frequência          & 2,80--3,80 GHz              & 1354--1493 MHz \\
+      Memória             & 16 GB RAM DDR4              & 4 GB VRAM GDDR5 ($\approx 112$ GB/s) \\
+      Barramento CPU--GPU & \multicolumn{2}{c}{PCIe 3.0 ($\approx 16$ GB/s)} \\
+      \bottomrule
+    \end{tabular}
+  \end{slidetabela}
+  \notatabelaSlide{Elaborado pelo autor (Seção~3.1.1 da monografia).}
+
+  \vspace{0.18cm}
+  \begin{block}{\emph{Stack} de Software e \emph{Kernels} Customizados}
+    \begin{itemize}
+      \item \textbf{Plataforma:} Debian GNU/Linux 13, Python 3.12.13, NumPy 2.5.4 (CPU) e CuPy 14.2.0 / CUDA 12.9 (GPU).
+      \item \textbf{Totalmente em GPU:} usa \textbf{\emph{kernels} CUDA C++ customizados} (\texttt{RawKernel}) pré-compilados para fundir etapas, usar memória compartilhada e cooperar entre \emph{threads}.
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% --- Restrições Físicas e Aritmética Inteira --------------------------------
+\begin{frame}{Fronteiras Físicas e Aritmética Inteira Exata}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Gargalo do Barramento PCIe ($\sim 7\times$)}
+        \begin{itemize}
+          \item Largura de banda interna da VRAM ($\approx 112$ GB/s) é cerca de \textbf{7 vezes maior} que a do PCIe ($\approx 16$ GB/s):
+                \[
+                  T_{\text{total}} = T_{\text{cpu}} + T_{\text{gpu}} + T_{\text{transf}}
+                \]
+          \item Transferências frequentes penalizam diretamente o tempo total.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Memória VRAM e Precisão Exata}
+        \begin{itemize}
+          \item Em \texttt{pr1002} ($n=\maiorinstancia$), todo o estado residente ocupa apenas \textbf{$6{,}07$ MB} dos 4 GB de VRAM.
+          \item Rotas até $n=2048$ cabem inteiras na memória compartilhada dos SMs.
+          \item \textbf{Aritmética inteira:} $D$ em \texttt{int32} ($\text{nint}$) e custos em \texttt{int64} eliminam desvios de ponto flutuante \autocite{reinelt1991tsplib}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Arquitetura Modular e Hiperparâmetros Fixos ----------------------------
+\begin{frame}{Arquitetura Modular e Hiperparâmetros Fixos}
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.45\textwidth}
+      \slideTikz[\slideTallFigH]{%
+        \begin{tikzpicture}[node distance=4mm]
+          \node[sl_gpu, text width=5.2cm] (c1) {\textbf{Camada 1 — Algoritmos}\\\texttt{GeneticAlgorithm} + 6 estratégias intercambiáveis (CPU/GPU) $\to$ \totalvariantes\ variantes};
+          \node[sl_cpu, below=5mm of c1, text width=5.2cm] (c2) {\textbf{Camada 2 — Orquestração}\\\texttt{TSPLIB}, pré-cálculo ($D$, $N_k$), \totalrepeticoes\ sementes, \emph{checkpoints} JSON $\to$ DuckDB};
+          \node[sl_good, below=5mm of c2, text width=5.2cm] (c3) {\textbf{Camada 3 — Análise Estatística}\\Protocolo Demšar, tabelas \LaTeX, diagramas $CD$ e gráficos PDF};
+          \draw[sl_arr] (c1) -- node[sl_lbl, right=2pt] {Execução controlada} (c2);
+          \draw[sl_arr] (c2) -- node[sl_lbl, right=2pt] {Telemetria por fase} (c3);
+        \end{tikzpicture}%
+      }{Elaborado pelo autor.}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \begin{slidetabeladensa}[\slideTallFigH]
+        \begin{tabular}{@{}ll@{}}
+          \toprule
+          \textbf{Parâmetro} & \textbf{Valor fixo (4 variantes)} \\
+          \midrule
+          População ($n_{\text{pop}}$)       & $256$ rotas ($< 1{,}03$ MB até $n=\maiorinstancia$) \\
+          Seleção ($\tau_{\text{trnmt}}$)    & Torneio de tamanho $5$ \\
+          Cruzamento / Mutação               & OX ($p_c = 1{,}0$) / \emph{Swap} ($p_{\text{mut}} = 0{,}02$) \\
+          Busca local $2$-opt                & \emph{Best-improvement}, $\kappa \le \maxpassadas$ varreduras \\
+          Lista de candidatos                & $k_{\text{viz}} = \kviz$ vizinhos mais próximos \\
+          Sobrevivência                      & Elitismo $(\mu + \lambda)$, melhores $256$ de $512$ \\
+          Parada (i) alvo                    & $\text{gap} \le \varepsilon_{\text{alvo}} = 1\%$ frente a $B^*$ \\
+          Parada (ii) estagnação             & $G_{\text{estag}} = \lceil 2\sqrt{n} \rceil$ gerações sem melhora \\
+          Parada (iii) teto                  & $G_{\max} = \lceil 2\,n\sqrt{n} \rceil$ gerações \\
+          \bottomrule
+        \end{tabular}
+      \end{slidetabeladensa}
+      \notatabelaSlide{$k_{\text{viz}}=\kviz$ acelera a busca em até $8{,}22\times$ (CPU) e $4{,}05\times$ (GPU) (ver Backup~2).}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- As Quatro Variantes de Paralelização -----------------------------------
+\begin{frame}{As Quatro Variantes de Paralelização (Tipo 1)}
+  \slideTikz[\slideTikzMaxH]{%
+    \begin{tikzpicture}
+      \node[font=\footnotesize\bfseries\color{ufscDark}] at (0, 0) {Variante};
+      \node[font=\footnotesize\bfseries\color{ufscSlate}] at (3.6, 0) {CPU (Host)};
+      \node[font=\footnotesize\bfseries\color{ufscAccent}] at (6.7, 0) {Barramento PCIe};
+      \node[font=\footnotesize\bfseries\color{ufscBlue}] at (10.3, 0) {GPU (VRAM / CUDA)};
+
+      \node[sl_term, text width=2.2cm] (v1) at (0, -0.95) {\textbf{1. CPU}\\(\emph{baseline})};
+      \node[sl_cpu, text width=3.5cm] (c1) at (3.6, -0.95) {Todo o ciclo AG + $2$-opt\\(NumPy vetorizado / SIMD)};
+      \node[font=\scriptsize\color{ufscSlate}] at (6.7, -0.95) {---};
+      \node[sl_cpu, dashed, text width=3.9cm, text=ufscSlate] (g1) at (10.3, -0.95) {Não utilizada};
+
+      \node[sl_term, text width=2.2cm] (v2) at (0, -2.15) {\textbf{2. Híbrida}\\\textbf{Ingênua}};
+      \node[sl_cpu, text width=3.5cm] (c2) at (3.6, -2.15) {Sel., OX, \emph{Swap}, Aval.,\\Elitismo $(\mu+\lambda)$};
+      \node[sl_mem, text width=3.9cm] (g2) at (10.3, -2.15) {$2$-opt (\textbf{1 rota / \emph{kernel}})};
+      \draw[sl_arr_pcie] (c2.east) -- node[above=1pt, font=\tiny\bfseries\color{ufscAccent}] {256$\times$ rota + $D$ / ger.} node[below=1pt, font=\tiny\color{ufscSlate}] {H2D + D2H repetitivo} (g2.west);
+
+      \node[sl_term, text width=2.2cm] (v3) at (0, -3.35) {\textbf{3. Híbrida}\\\textbf{Otimizada}};
+      \node[sl_cpu, text width=3.5cm] (c3) at (3.6, -3.35) {Sel., OX, \emph{Swap},\\Elitismo $(\mu+\lambda)$};
+      \node[sl_gpu, text width=3.9cm] (g3) at (10.3, -3.35) {$2$-opt + Avaliação em \textbf{lote}\\($D$ e $N_k$ fixas em VRAM)};
+      \draw[sl_arr_pcie] (c3.east) -- node[above=1pt, font=\tiny\bfseries\color{ufscBlue}] {1 matriz $P(t)$ / ger.} node[below=1pt, font=\tiny\color{ufscSlate}] {2$\times$ H2D, 1$\times$ D2H} (g3.west);
+
+      \node[sl_good, text width=2.2cm] (v4) at (0, -4.55) {\textbf{4. Totalmente}\\\textbf{em GPU}};
+      \node[sl_cpu, text width=3.5cm] (c4) at (3.6, -4.55) {Orquestração + sorteios\\($\approx 11{,}26$ KB/ger.)};
+      \node[sl_good, text width=3.9cm] (g4) at (10.3, -4.55) {\textbf{Todo o ciclo residente}\\($D, N_k, P(t)$ + \texttt{RawKernel})};
+      \draw[->, >=Stealth, line width=0.9pt, draw=ufscGreen] (c4.east) -- node[above=1pt, font=\tiny\bfseries\color{ufscGreen}] {Carga única + sementes} node[below=1pt, font=\tiny\color{ufscGreen}] {$0{,}00$ MB D2H (rotas)} (g4.west);
+    \end{tikzpicture}%
+  }{Elaborado pelo autor (taxonomia de \textcite{crainic2003parallel,crainic2010parallel}; híbridas idênticas bit a bit).}
+\end{frame}
+
+% --- Conjunto Experimental e Protocolo Estatístico --------------------------
+\begin{frame}{Conjunto Experimental e Protocolo Estatístico}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.46\textwidth}
+      \begin{block}{\totalinstancias\ Instâncias da TSPLIB \autocite{reinelt1991tsplib}}
+        \begin{itemize}
+          \item \textbf{Dimensão:} \menorinstancia\ (\texttt{att48}) a \maiorinstancia\ (\texttt{pr1002}) cidades.
+          \item \textbf{Distâncias:} \texttt{EUC\_2D} (10), \texttt{ATT} (2), \texttt{GEO} (2) e \texttt{EXPLICIT} (1).
+          \item \textbf{Amostragem:} $\totalinstancias \times \totalvariantes \times \totalrepeticoes = \mathbf{\totalexecucoes}$ execuções (sementes pareadas \sementeinicial--\sementefinal).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.51\textwidth}
+      \begin{block}{Protocolo de \textcite{demsar2006statistical} ($\alpha = 0{,}05$)}
+        \textbf{Eixo 1 — Pareado por instância (\totalrepeticoes\ reps):}
+        \begin{itemize}
+          \item \textbf{Wilcoxon} nos 6 pares 2 a 2 \autocite{wilcoxon1945individual} + ajuste de \textbf{Holm--Bonferroni} ($90$ testes/métrica) \autocite{holm1979simple}.
+        \end{itemize}
+        \vspace{0.1cm}
+        \textbf{Eixo 2 — Global multi-instância ($N=15, k=4$):}
+        \begin{itemize}
+          \item \textbf{Friedman} com correção $F_F$ \autocite{friedman1937use}; se $p_F < 0{,}05$, pós-teste de \textbf{Nemenyi} ($CD = 1{,}211$) \autocite{nemenyi1963distribution}.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
