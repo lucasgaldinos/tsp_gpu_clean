@@ -363,7 +363,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.3.2" },
     { name = "pandas-stubs", marker = "extra == 'dev'", specifier = ">=3.0.5.260914" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
-    { name = "routing-data", git = "https://github.com/lucasgaldinos/Routing_data.git?rev=v0.2.0" },
+    { name = "routing-data", git = "https://github.com/lucasgaldinos/Routing_data.git?rev=v0.3.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.17.3" },
     { name = "scikit-posthocs", specifier = ">=0.11.4" },
     { name = "scipy", specifier = ">=1.15.3" },
@@ -1200,8 +1200,8 @@ wheels = [
 
 [[package]]
 name = "routing-data"
-version = "0.2.0"
-source = { git = "https://github.com/lucasgaldinos/Routing_data.git?rev=v0.2.0#7a46960963f7e38278fc42bdd984587d90000271" }
+version = "0.3.0"
+source = { git = "https://github.com/lucasgaldinos/Routing_data.git?rev=v0.3.0#abdb290544e17541732aa6bdb1d4390cf23d3fa4" }
 dependencies = [
     { name = "click" },
     { name = "duckdb" },

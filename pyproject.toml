@@ -128,7 +128,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.uv.sources]
-routing-data = { path = "../../routing_data", editable = true }
+routing-data = { git = "https://github.com/lucasgaldinos/Routing_data.git", rev = "v0.3.0" }
 
 [dependency-groups]
 dev = [
