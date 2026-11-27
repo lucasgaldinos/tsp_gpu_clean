@@ -1,0 +1,156 @@
+% ============================================================================
+% ufsc-components.sty — Padrões e pré-cálculo geométrico dos slides
+%
+% Espelha o papel das macros centralizadas de second_draft.tex (\tabelapadrao,
+% \tabeladensa, \notatabela, fc_*): padroniza tabelas, figuras, diagramas TikZ,
+% notas de fonte ABNT, cartões KPI e limites de altura para eliminar estouros
+% de caixa (\vbox / \hbox) sem ajuste manual por slide.
+% ============================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ufsc-components}[2026/11/25 Componentes padronizados UFSC]
+
+\RequirePackage{booktabs}
+\RequirePackage{array}
+\RequirePackage{multirow}
+\RequirePackage{colortbl}
+\RequirePackage{graphicx}
+\RequirePackage{adjustbox}
+\RequirePackage{etoolbox}
+
+% --- Caminhos relativos aos ativos da monografia ----------------------------
+\graphicspath{
+  {../assets/}
+  {../../../../benchmark_scripts/experiments-and-examples/chapter4/results/figures/}
+}
+\newcommand{\chfourdir}{../../../../benchmark_scripts/experiments-and-examples/chapter4/results}
+
+% --- Orçamento geométrico pré-calculado a partir de \textheight -------------
+\newlength{\slideBodyH}
+\newlength{\slideTallFigH}
+\newlength{\slideDualFigH}
+\newlength{\slideTableMaxH}
+\newlength{\slideTikzMaxH}
+
+\AtBeginDocument{%
+  \setlength{\slideBodyH}{0.88\textheight}%
+  \setlength{\slideTallFigH}{0.74\textheight}%
+  \setlength{\slideDualFigH}{0.41\textheight}%
+  \setlength{\slideTableMaxH}{0.66\textheight}%
+  \setlength{\slideTikzMaxH}{0.72\textheight}%
+}
+
+% --- Espaçamento uniforme de listas (evita enumitem no Beamer) --------------
+\AtBeginEnvironment{itemize}{\setlength{\itemsep}{2.5pt}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}}
+\AtBeginEnvironment{enumerate}{\setlength{\itemsep}{2.5pt}\setlength{\parskip}{0pt}\setlength{\parsep}{0pt}}
+
+% --- Atribuição de fonte ABNT padronizada -----------------------------------
+\newcommand{\fonteSlide}[1]{%
+  \par\vspace{2pt}%
+  {\scriptsize\color{ufscSlate}\textit{Fonte:} #1\par}%
+}
+
+% --- Ambientes padronizados de tabela (espelham second_draft.tex) -----------
+% Todo conteúdo tabular é automaticamente limitado à largura da caixa e à
+% altura máxima segura (\slideTableMaxH) via adjustbox, evitando Overfull.
+\newenvironment{slidetabela}[1][\slideTableMaxH]{%
+  \begin{center}%
+  \footnotesize%
+  \setlength{\tabcolsep}{4.5pt}%
+  \renewcommand{\arraystretch}{1.12}%
+  \begin{adjustbox}{max width=\linewidth, max totalheight=#1, keepaspectratio}%
+}{%
+  \end{adjustbox}%
+  \end{center}%
+}
+
+\newenvironment{slidetabeladensa}[1][\slideTableMaxH]{%
+  \begin{center}%
+  \scriptsize%
+  \setlength{\tabcolsep}{3.5pt}%
+  \renewcommand{\arraystretch}{1.10}%
+  \begin{adjustbox}{max width=\linewidth, max totalheight=#1, keepaspectratio}%
+}{%
+  \end{adjustbox}%
+  \end{center}%
+}
+
+\newcommand{\notatabelaSlide}[1]{%
+  \par\vspace{-2pt}%
+  {\scriptsize\color{ufscSlate}\textit{Fonte / Nota:} #1\par}%
+}
+
+% --- Macros padronizadas para figuras e diagramas TikZ ----------------------
+% Uso: \slideFigure[altura_max]{largura}{arquivo}{fonte}
+\newcommand{\slideFigure}[4][\slideTallFigH]{%
+  \begin{center}%
+    \includegraphics[width=#2,height=#1,keepaspectratio]{#3}%
+  \end{center}%
+  \ifstrempty{#4}{}{\vspace{-4pt}\fonteSlide{#4}}%
+}
+
+% Uso: \slideTikz[altura_max]{código tikz / \input{...}}{fonte}
+\newcommand{\slideTikz}[3][\slideTikzMaxH]{%
+  \begin{center}%
+    \begin{adjustbox}{max width=\linewidth, max totalheight=#1, keepaspectratio}%
+      #2%
+    \end{adjustbox}%
+  \end{center}%
+  \ifstrempty{#3}{}{\vspace{-4pt}\fonteSlide{#3}}%
+}
+
+% --- Cartão KPI padronizado (largura automática pela coluna) ----------------
+\newcommand{\kpicard}[3]{%
+  \begin{tikzpicture}
+    \node[
+      draw=ufscBorder,
+      fill=ufscLight,
+      rounded corners=3pt,
+      line width=0.6pt,
+      text width=\linewidth-11.5pt,
+      inner sep=5pt,
+      align=center
+    ] {%
+      {\large\bfseries\color{ufscBlue}#1}\\[1pt]
+      {\scriptsize\bfseries\color{ufscDark}#2}\\[1pt]
+      {\tiny\color{ufscSlate}#3}%
+    };
+  \end{tikzpicture}%
+}
+
+% --- Estilos TikZ compartilhados para diagramas em slides -------------------
+\tikzset{
+  sl_base/.style={
+    font=\scriptsize\sffamily,
+    text=ufscText,
+    draw=ufscDark,
+    line width=0.7pt,
+    align=center,
+    inner sep=4pt,
+    rounded corners=2.5pt
+  },
+  sl_term/.style={sl_base, rounded corners=7pt, fill=ufscLight},
+  sl_cpu/.style={sl_base, fill=white, draw=ufscSlate},
+  sl_gpu/.style={sl_base, fill=ufscBlue!14, draw=ufscBlue, line width=0.85pt},
+  sl_mem/.style={sl_base, dashed, fill=ufscAccent!12, draw=ufscAccent, line width=0.9pt},
+  sl_good/.style={sl_base, fill=ufscGreenLight, draw=ufscGreen, line width=0.85pt},
+  sl_dec/.style={sl_base, diamond, aspect=2.3, fill=white, inner sep=2pt},
+  sl_group/.style={draw=ufscBorder, rounded corners=3pt, fill=ufscLight!45, line width=0.6pt, inner sep=6pt},
+  sl_gtitle/.style={font=\scriptsize\bfseries\sffamily, text=ufscDark, fill=ufscCanvas, inner xsep=3pt, inner ysep=1pt},
+  sl_arr/.style={->, >=Stealth, line width=0.75pt, draw=ufscDark},
+  sl_arr_pcie/.style={<->, >=Stealth, line width=0.9pt, draw=ufscAccent},
+  sl_lbl/.style={font=\tiny\sffamily, text=ufscSlate, fill=ufscCanvas, inner sep=1.2pt}
+}
+
+% --- Parâmetros canônicos do protocolo (sincronizados com second_draft.tex) -
+\newcommand{\totalinstancias}{15}
+\newcommand{\totalrepeticoes}{30}
+\newcommand{\totalvariantes}{4}
+\newcommand{\totalcombinacoes}{60}
+\newcommand{\totalexecucoes}{1800}
+\newcommand{\totalexecinstancia}{120}
+\newcommand{\menorinstancia}{48}
+\newcommand{\maiorinstancia}{1002}
+\newcommand{\sementeinicial}{42}
+\newcommand{\sementefinal}{71}
+\newcommand{\maxpassadas}{10}
+\newcommand{\kviz}{20}

@@ -1,0 +1,81 @@
+% ============================================================================
+% slides/01-introducao.tex — Capítulo 1: Introdução e Objetivos
+% ============================================================================
+
+\section{Introdução e Objetivos}
+
+% --- Contexto e Motivação ---------------------------------------------------
+\begin{frame}{Contexto e Motivação}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Problema do Caixeiro Viajante (TSP)}
+        \begin{itemize}
+          \item Encontrar o ciclo hamiltoniano de menor custo total.
+          \item Problema \textbf{NP-difícil} central em otimização combinatória \autocite{cook2012pursuit}.
+          \item Base controlada (toda permutação é viável; ótimos conhecidos na TSPLIB).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{Aplicações na Engenharia Mecânica}
+        \begin{itemize}
+          \item Sequenciamento de furação em chapas e placas (PCBs).
+          \item Trajetórias de usinagem CNC e corte a laser \autocite{cook2012pursuit}.
+          \item Programação de robôs de solda, inspeção e logística fabril.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+
+  \vspace{0.18cm}
+  \begin{exampleblock}{Oportunidade com GPUs (CUDA) e Desafio de Desempenho}
+    \begin{itemize}
+      \item Algoritmos meméticos (\textbf{AG + $2$-opt}) combinam busca global e refinamento local, mas têm alto custo para $n$ crescente \autocite{larranaga1999genetic,croes1958method}.
+      \item GPUs reúnem centenas/milhares de ALUs e alta largura de banda para paralelismo em dados \autocite{nvidia2024cuda}, porém lançamentos de \emph{kernel} e tráfego PCIe podem anular o ganho \autocite{schulz2013gpu,van2013gpu}.
+    \end{itemize}
+  \end{exampleblock}
+\end{frame}
+
+% --- Problema de Pesquisa e Justificativa -----------------------------------
+\begin{frame}{Problema de Pesquisa e Justificativa}
+  \begin{itemize}
+    \item Estudos comparativos de CPU vs.\ GPU costumam alterar \textbf{operadores, vizinhanças ou critérios de parada} entre plataformas \autocite{schulz2013gpu,van2013gpu,benaini2018genetic}, impedindo isolar o efeito da arquitetura.
+  \end{itemize}
+
+  \vspace{0.12cm}
+  \begin{alertblock}{Questão Central de Pesquisa}
+    \emph{Como avaliar, sob a mesma especificação algorítmica e boas práticas de implementação em cada plataforma, o impacto de diferentes estratégias de paralelização em GPU sobre o desempenho de um algoritmo memético (AG+$2$-opt) para o TSP?}
+  \end{alertblock}
+
+  \vspace{0.12cm}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Paridade de Especificação}
+        Mesmos operadores, hiperparâmetros, lista $k_{\text{viz}} = \kviz$, teto $\kappa = \maxpassadas$ e parada — variantes \textbf{análogas}, respeitando boas práticas de CPU (NumPy) e GPU (memória compartilhada).
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{Rigor Estatístico}
+        Instâncias padronizadas da \textbf{TSPLIB} \autocite{reinelt1991tsplib}, \totalrepeticoes\ repetições pareadas por semente e protocolo não paramétrico de \textcite{demsar2006statistical}.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Objetivos --------------------------------------------------------------
+\begin{frame}{Objetivos}
+  \begin{block}{Objetivo Geral}
+    Quantificar o impacto de diferentes estratégias de paralelização em GPU sobre o \textbf{tempo}, o \textbf{\emph{speedup}} e a \textbf{qualidade (\emph{gap})} de um algoritmo memético (AG+$2$-opt) para o TSP, situando-as na taxonomia de \textcite{crainic2003parallel,crainic2010parallel}.
+  \end{block}
+
+  \vspace{0.12cm}
+  {\small\textbf{Objetivos Específicos:}}
+  \begin{enumerate}
+    \small
+    \item Implementar \textbf{\totalvariantes\ variantes análogas} (\emph{CPU}, \emph{Híbrida Ingênua}, \emph{Híbrida Otimizada}, \emph{Totalmente em GPU}) sob o mesmo algoritmo e critérios de parada.
+    \item Avaliar \textbf{\totalinstancias\ instâncias da TSPLIB} (\menorinstancia\ a \maiorinstancia\ cidades; formatos \texttt{EUC\_2D}, \texttt{ATT}, \texttt{GEO} e \texttt{EXPLICIT}).
+    \item Aplicar protocolo experimental reprodutível (\totalrepeticoes\ repetições, sementes \sementeinicial--\sementefinal) e testes não paramétricos \autocite{demsar2006statistical}.
+    \item Analisar compromissos práticos entre \textbf{tempo, qualidade, tráfego PCIe e VRAM} em uma GPU de entrada.
+  \end{enumerate}
+\end{frame}
+

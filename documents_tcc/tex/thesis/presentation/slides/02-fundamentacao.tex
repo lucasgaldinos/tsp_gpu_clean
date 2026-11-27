@@ -1,0 +1,89 @@
+% ============================================================================
+% slides/02-fundamentacao.tex — Capítulo 2: Fundamentação Teórica
+% ============================================================================
+
+\section{Fundamentação Teórica}
+
+% --- Algoritmo Memético (AG + 2-opt) ----------------------------------------
+\begin{frame}{Algoritmo Memético (AG + $2$-opt)}
+  \begin{columns}[c,onlytextwidth]
+    \begin{column}{0.53\textwidth}
+      \begin{itemize}
+        \small
+        \item \textbf{Exploração global (AG):} $n_{\text{pop}} = 256$ rotas; seleção por torneio ($\tau = 5$), cruzamento OX, mutação \emph{swap} e elitismo $(\mu + \lambda)$ \autocite{goldberg1989genetic,larranaga1999genetic}.
+        \item \textbf{Busca local $2$-opt (\emph{best-improvement}):} remove $(v_i,v_{i+1})$ e $(v_j,v_{j+1})$, reconecta e reverte o segmento intermediário \autocite{croes1958method}:
+              \[
+                \Delta C = (c_{i,j} + c_{i+1,j+1}) - (c_{i,i+1} + c_{j,j+1}) < 0
+              \]
+        \item \textbf{Lista estática de candidatos ($k_{\text{viz}} = \kviz$):} reduz a varredura de $\Theta(n^2)$ para $\Theta(n\,k_{\text{viz}})$ sem alterar a função objetivo \autocite{lin1973efficient}, limitada a $\kappa = \maxpassadas$ varreduras.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \slideTikz[\slideTallFigH]{%
+        \begin{tikzpicture}[node distance=3.4mm]
+          \node[sl_term, text width=4.6cm] (init) {Inicialização: $P(0)$ ($n_{\text{pop}}=256$)};
+          \node[sl_cpu, below=of init, text width=4.6cm] (gen) {Seleção $\to$ Cruzamento OX $\to$ Mutação \emph{Swap}};
+          \node[sl_mem, below=of gen, text width=4.6cm] (ls) {\textbf{Busca Local $2$-opt}\\($k_{\text{viz}}=\kviz$, até $\kappa=\maxpassadas$ varreduras)};
+          \node[sl_cpu, below=of ls, text width=4.6cm] (eval) {Avaliação + Elitismo $(\mu+\lambda)$};
+          \node[sl_dec, below=4mm of eval, text width=2.3cm] (stop) {Parada atingida?};
+          \node[sl_good, below=4mm of stop, text width=3.6cm] (end) {Retorna melhor circuito};
+
+          \draw[sl_arr] (init) -- (gen);
+          \draw[sl_arr] (gen) -- (ls);
+          \draw[sl_arr] (ls) -- (eval);
+          \draw[sl_arr] (eval) -- (stop);
+          \draw[sl_arr] (stop) -- node[sl_lbl, right=2pt] {Sim} (end);
+          \draw[sl_arr] (stop.east) -- ++(5.5mm,0) |- node[sl_lbl, pos=0.25, right=1pt] {Não ($t{+}1$)} (gen.east);
+        \end{tikzpicture}%
+      }{Elaborado pelo autor.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Contraste Arquitetural CPU vs. GPU -------------------------------------
+\begin{frame}{Contraste Arquitetural: CPU vs.\ GPU \autocite{flynn1972taxonomy}}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \slideFigure[\slideDualFigH]{\linewidth}{cpu-gpu-silicon-allocation.png}{Adaptado de \textcite{paz2011gpucpuimage}.}
+      \vspace{0.1cm}
+      \begin{block}{CPU (MIMD / SIMD)}
+        Poucos núcleos complexos, amplo controle e \emph{caches} grandes — otimizada para \textbf{baixa latência} em fluxos sequenciais.
+      \end{block}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \slideFigure[\slideDualFigH]{\linewidth}{gpu-internal-architecture.png}{Adaptado de \textcite{shah2023gpuarchitectureimage}.}
+      \vspace{0.1cm}
+      \begin{block}{GPU (SIMT / CUDA)}
+        Centenas de ALUs compactas e memória global de alta vazão — otimizada para \textbf{\emph{throughput}} paralelo em dados.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% --- Modelo SIMT e Lei de Amdahl --------------------------------------------
+\begin{frame}{Modelo SIMT e Gargalo Sequencial (Lei de Amdahl)}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Execução em GPU (Modelo SIMT) \autocite{nvidia2024cuda}}
+        \begin{itemize}
+          \item \emph{Threads} escalonadas em \textbf{\emph{warps} de $32$ unidades} executando a mesma instrução.
+          \item \textbf{Divergência de fluxo:} desvios condicionais (\texttt{if/else}) irregulares serializam o \emph{warp}.
+          \item \textbf{Coalescimento:} leituras contíguas em memória global evitam múltiplas transações.
+          \item \textbf{Memória compartilhada:} reduz latência dentro de cada SM (\emph{Streaming Multiprocessor}).
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{alertblock}{Lei de Amdahl \autocite{amdahl1967validity}}
+        \[
+          S = \frac{1}{(1 - f) + \dfrac{f}{p}} < \frac{1}{1 - f}
+        \]
+        \begin{itemize}
+          \item $f$: fração paralelizável; $p$: aceleração obtida.
+          \item Ao acelerar intensamente apenas a busca local ($p \gg 1$), a fração restante $(1 - f)$ em CPU passa a dominar o tempo total.
+        \end{itemize}
+      \end{alertblock}
+    \end{column}
+  \end{columns}
+\end{frame}
+
