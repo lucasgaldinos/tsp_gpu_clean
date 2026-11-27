@@ -11,6 +11,9 @@ if TYPE_CHECKING:
   import cupy as cp
 
 
+#: Directory holding generic CUDA reduction headers (`block_reductions.cuh`).
+UTILS_KERNELS_DIR: Path = Path(__file__).resolve().parent / "kernels"
+
 #: Directory holding device-side distance headers (`pairwise_device.cuh`).
 DISTANCE_KERNELS_DIR: Path = Path(__file__).resolve().parents[1] / "distances" / "kernels"
 
@@ -20,21 +23,30 @@ DISTANCE_KERNELS_DIR: Path = Path(__file__).resolve().parents[1] / "distances" /
 _KERNEL_SOURCE_DIGESTS: dict[str, str] = {}
 
 
-def _kernel_compile_options() -> tuple[str, ...]:
+def _kernel_compile_options(kernel_dir: Path | None = None) -> tuple[str, ...]:
   """Return the nvcc options every JIT-compiled kernel is built with.
 
-  `-I<src/distances/kernels>` lets any kernel `#include "pairwise_device.cuh"`
-  (`DP10-19`) without copying the header next to the `.cu` file.
+  Includes `-I<src/utils/kernels>` (`block_reductions.cuh`) and
+  `-I<src/distances/kernels>` (`pairwise_device.cuh`, `DP10-19`) plus
+  `-I<kernel_dir>` when distinct so co-located `.cuh` headers resolve cleanly.
   """
-  return (f"-I{DISTANCE_KERNELS_DIR}",)
+  options: list[str] = [f"-I{UTILS_KERNELS_DIR}", f"-I{DISTANCE_KERNELS_DIR}"]
+  if kernel_dir is not None and kernel_dir not in (UTILS_KERNELS_DIR, DISTANCE_KERNELS_DIR):
+    options.append(f"-I{kernel_dir}")
+  return tuple(options)
 
 
 @functools.lru_cache(maxsize=32)
 def _compile_kernel_cached(kernel_path_str: str, kernel_function_name: str) -> cp.RawKernel:
   """Compile and cache a CUDA kernel from an absolute file path."""
   cp = require_gpu()
-  kernel_source = Path(kernel_path_str).read_text(encoding="utf-8")
-  return cp.RawKernel(kernel_source, kernel_function_name, options=_kernel_compile_options())
+  kernel_path = Path(kernel_path_str)
+  kernel_source = kernel_path.read_text(encoding="utf-8")
+  return cp.RawKernel(
+    kernel_source,
+    kernel_function_name,
+    options=_kernel_compile_options(kernel_path.parent),
+  )
 
 
 def load_kernel(kernel_filename: str, kernel_function_name: str, caller_file_path: str) -> cp.RawKernel:

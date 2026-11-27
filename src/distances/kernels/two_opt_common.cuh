@@ -56,22 +56,54 @@
 
 // Exact 2-opt delta for breaking edges (a, b) and (c, d), where `a`/`b` are
 // `tour[i]`/`tour[i + 1]` and `c`/`d` are `tour[j]`/`tour[j + 1]`.
-// `row_a`/`row_b` alias `dist` rows in dense-matrix mode; the coordinate mode evaluates
-// `gpu_pairwise_distance` on the fly (`DP10-19`).
+// `row_a`/`row_b` alias `dist` rows in dense-matrix mode (`dist_stride` is the
+// problem dimension, which can differ from sub-route width `n`); coordinate mode
+// evaluates `gpu_pairwise_distance` on the fly (`DP10-19`, `BUG-107`).
 static __device__ __forceinline__ int two_opt_delta(
     int a, int b, int d_ab, int c, int d,
     const int *row_a, const int *row_b,
-    const int *dist, const double *coords, int n, int edge_type_code, bool use_matrix)
+    const int *dist, const double *coords, int dist_stride, int edge_type_code, bool use_matrix)
 {
   if (use_matrix)
   {
-    int old_dist = d_ab + dist[(size_t)c * (size_t)n + (size_t)d];
+    int old_dist = d_ab + dist[(size_t)c * (size_t)dist_stride + (size_t)d];
     int new_dist = row_a[c] + row_b[d];
     return new_dist - old_dist;
   }
-  int old_dist = d_ab + gpu_pairwise_distance(c, d, nullptr, coords, n, edge_type_code);
-  int new_dist = gpu_pairwise_distance(a, c, nullptr, coords, n, edge_type_code) + gpu_pairwise_distance(b, d, nullptr, coords, n, edge_type_code);
+  int old_dist = d_ab + gpu_pairwise_distance(c, d, nullptr, coords, dist_stride, edge_type_code);
+  int new_dist = gpu_pairwise_distance(a, c, nullptr, coords, dist_stride, edge_type_code) + gpu_pairwise_distance(b, d, nullptr, coords, dist_stride, edge_type_code);
   return new_dist - old_dist;
+}
+
+// Topology-aware 2-opt delta supporting cyclic tours, closed depot-bounded
+// routes (`is_closed`), and open paths (`!is_closed && !is_cyclic`), including
+// open prefix reversals (`i == -1`: `tour[0..j]`) and suffix reversals (`j == n - 1`:
+// `tour[i+1..n-1]`, `BUG-107`).
+static __device__ __forceinline__ int two_opt_delta_topology(
+    int i, int j, int n,
+    bool is_closed, bool is_cyclic,
+    int a, int b, int d_ab, int c, int d,
+    const int *row_a, const int *row_b,
+    const int *dist, const double *coords, int dist_stride, int edge_type_code, bool use_matrix)
+{
+  if (i < 0)
+  {
+    int d_bd = use_matrix
+                   ? row_b[d]
+                   : gpu_pairwise_distance(b, d, nullptr, coords, dist_stride, edge_type_code);
+    int d_cd = use_matrix
+                   ? dist[(size_t)c * (size_t)dist_stride + (size_t)d]
+                   : gpu_pairwise_distance(c, d, nullptr, coords, dist_stride, edge_type_code);
+    return d_bd - d_cd;
+  }
+  if (!is_closed && !is_cyclic && j == n - 1)
+  {
+    int d_ac = use_matrix
+                   ? row_a[c]
+                   : gpu_pairwise_distance(a, c, nullptr, coords, dist_stride, edge_type_code);
+    return d_ac - d_ab;
+  }
+  return two_opt_delta(a, b, d_ab, c, d, row_a, row_b, dist, coords, dist_stride, edge_type_code, use_matrix);
 }
 
 // Keep the steepest (most negative) delta of this thread.
