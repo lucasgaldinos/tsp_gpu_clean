@@ -85,6 +85,28 @@ class InstanceNotFoundError(ProblemLoaderError):
     )
 
 
+class AmbiguousProblemError(ProblemLoaderError):
+  """Raised when an instance name matches multiple problem types without disambiguation.
+
+  This occurs when the database or source directory contains multiple problem variants
+  under the same name (for example, `att48`, `eil51`, or `gil262` as both `TSP` and `CVRP`)
+  and the caller omitted `problem_type`.
+
+  Attributes:
+      instance_name: The ambiguous instance name.
+      available_types: Sorted problem types found for `instance_name`.
+  """
+
+  def __init__(self, instance_name: str, available_types: list[str] | tuple[str, ...]) -> None:
+    self.instance_name = instance_name
+    self.available_types = tuple(sorted(set(available_types)))
+    joined = ", ".join(self.available_types)
+    super().__init__(
+      f"Instance '{instance_name}' exists with multiple problem types ({joined}). "
+      "Specify `problem_type` explicitly to disambiguate."
+    )
+
+
 class InvalidEdgeTypeError(ProblemLoaderError):
   """
   Raised when edge_weight_type is not supported.

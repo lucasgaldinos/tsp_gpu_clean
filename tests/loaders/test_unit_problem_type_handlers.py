@@ -77,6 +77,10 @@ def multi_problem_db(tmp_path: Path) -> Path:
       edge_weight_format VARCHAR,
       tsplib_name VARCHAR,
       coords DOUBLE[][],
+      display_coords DOUBLE[][],
+      max_distance DOUBLE,
+      vehicles INTEGER,
+      service_time DOUBLE,
       demands INTEGER[],
       depots INTEGER[]
     );

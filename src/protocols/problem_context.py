@@ -56,7 +56,8 @@ from typing import TYPE_CHECKING, Any, Final
 import numpy as np
 
 from data_models.exceptions import GPUUnavailableError, VRAMInsufficientError
-from data_models.problem import Problem
+from data_models.problem import VRP_PROBLEM_TYPES, Problem
+from data_models.vrp_constraints import VRPConstraints
 from distances.matrix import compute_candidate_list, compute_distance_matrix
 from distances.pairwise import get_edge_type_code
 from protocols.backend import BackendModule, CupyArray, require_gpu
@@ -211,22 +212,33 @@ class ProblemContext:
       raise ValueError(f"Problem '{problem.name}' has no distances or coordinates to compute distance matrix from.")
 
   @property
-  def is_closed(self) -> bool:
-    """Whether routes are depot-bounded (`CVRP`) instead of open permutations.
+  def constraints(self) -> VRPConstraints:
+    """Global VRP Tier 1 / VRP Tier 2 constraints attached to the wrapped ``Problem``."""
+    return self.problem.constraints
 
-    Crossover and mutation read this property to decide whether positions `0` and
-    `n - 1` may move (`DP11-19`). Declaring the topology on the problem avoids both
-    a device-to-host sync on every generation and the per-instance `(n, is_closed)`
-    cache that a zero-filled warm-up batch can poison (`BUG-24`).
+  @property
+  def return_to_depot(self) -> bool:
+    """Whether vehicles return to the depot at route end (``False`` for OVRP / Open TSP)."""
+    return self.problem.constraints.return_to_depot
+
+  @property
+  def is_closed(self) -> bool:
+    """Whether routes are depot-bounded (closed VRP) instead of open permutations.
+
+    Crossover and mutation read this property to decide whether positions ``0`` and
+    ``n - 1`` may move (``DP11-19``). Declaring the topology on the problem avoids both
+    a device-to-host sync on every generation and the per-instance ``(n, is_closed)``
+    cache that a zero-filled warm-up batch can poison (``BUG-24``).
 
     Returns:
-        `True` for `CVRP` (routes close on the depot), `False` for `TSP`/`ATSP`.
+        ``True`` for closed VRP variants (``CVRP``, ``DCVRP`` with ``return_to_depot=True``),
+        ``False`` for ``TSP``, ``ATSP``, and open variants (``OVRP``).
     """
-    return self.problem.problem_type == "CVRP"
+    return self.problem.problem_type in VRP_PROBLEM_TYPES and self.return_to_depot
 
   def get_cpu_demands(self) -> np.ndarray | None:
     """
-    Get demands as NumPy array on CPU (lazy computation with caching).
+    Get demands as C-contiguous ``int32`` NumPy array on CPU (lazy computation with caching).
 
     This method implements lazy computation: demands are only moved/
     computed on first access and then cached for subsequent calls.
@@ -236,7 +248,7 @@ class ProblemContext:
     xp=cupy but algorithm needs CPU data.
 
     Returns:
-        Demands array as NumPy array on CPU, or None if no demands
+        Demands array as C-contiguous ``int32`` NumPy array on CPU, or None if no demands
 
     Example:
         >>> # GPU context (xp=cp) but Class S bin packing needs CPU
@@ -247,8 +259,8 @@ class ProblemContext:
         >>> same_demands = context.get_cpu_demands()
     """
     if self._cpu_demands is None and self.problem.demands is not None:
-      # Lazy computation: extract demands on CPU
-      self._cpu_demands = self.problem.demands  # Already NumPy array
+      # Ensure C-contiguous int32 host array (DP17-3)
+      self._cpu_demands = np.ascontiguousarray(self.problem.demands, dtype=np.int32)
     return self._cpu_demands
 
   def get_cpu_distances(self) -> np.ndarray:
@@ -318,7 +330,8 @@ class ProblemContext:
 
     if self._gpu_demands is None and self.problem.demands is not None:
       source = self._cpu_demands if self._cpu_demands is not None else self.problem.demands
-      self._gpu_demands = cp.asarray(source)
+      self._gpu_demands = cp.ascontiguousarray(cp.asarray(source, dtype=cp.int32))
+      self.h2d_bytes += int(self._gpu_demands.nbytes)
     return self._gpu_demands
 
   def get_gpu_distances(self) -> CupyArray | None:

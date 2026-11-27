@@ -139,13 +139,13 @@ def test_tsplib_loader_accepts_euc3d_and_rejects_mismatched_coordinate_dimension
   WHY: `DP14-6` enables `EUC_3D` end-to-end while preserving `BUG-53`'s guarantee against
   silently truncating `z` on 2D edge types or accepting 2D coords for 3D edge types.
   """
+  from loaders.tsplib_ingestor import _problem_payload
   from loaders.tsplib_loader import (
     MatrixRowRecord,
     NodeRowRecord,
     ProblemRowRecord,
     TsplibIngestionBundle,
-    _bundle_from_normalized,
-    _problem_payload,
+    bundle_from_normalized,
     bundle_to_problem,
     ingest_tsplib_directory_to_duckdb,
     parse_tsplib_file,
@@ -211,7 +211,7 @@ def test_tsplib_loader_accepts_euc3d_and_rejects_mismatched_coordinate_dimension
   with pytest.raises(InvalidProblemDataError, match=r"requires 3-D coordinates|requires 3D coordinates"):
     parse_tsplib_file(p_euc3d_2d_coords)
 
-  # 4. Direct _bundle_from_normalized and _problem_payload validation for mismatches
+  # 4. Direct bundle_from_normalized and _problem_payload validation for mismatches
   normalized_2d_type_3d_coords = {
     "problem_data": {
       "name": "synth_2d_with_3d",
@@ -227,7 +227,7 @@ def test_tsplib_loader_accepts_euc3d_and_rejects_mismatched_coordinate_dimension
     "fixed_edges": [],
   }
   with pytest.raises(InvalidProblemDataError, match="requires 2D coordinates"):
-    _bundle_from_normalized(p_3d_coords, cast("NormalizedProblemData", normalized_2d_type_3d_coords), problem_id=1)
+    bundle_from_normalized(p_3d_coords, cast("NormalizedProblemData", normalized_2d_type_3d_coords), problem_id=1)
   with pytest.raises(InvalidProblemDataError, match="requires 2D coordinates"):
     _problem_payload(p_3d_coords, cast("NormalizedProblemData", normalized_2d_type_3d_coords))
 
@@ -246,7 +246,7 @@ def test_tsplib_loader_accepts_euc3d_and_rejects_mismatched_coordinate_dimension
     "fixed_edges": [],
   }
   with pytest.raises(InvalidProblemDataError, match="requires 3D coordinates"):
-    _bundle_from_normalized(
+    bundle_from_normalized(
       p_euc3d_2d_coords, cast("NormalizedProblemData", normalized_3d_type_2d_coords), problem_id=1
     )
   with pytest.raises(InvalidProblemDataError, match="requires 3D coordinates"):
@@ -346,6 +346,10 @@ def test_database_loader_euc3d_and_coordinate_shape_validation(tmp_path: Path) -
       edge_weight_format VARCHAR,
       tsplib_name VARCHAR,
       coords DOUBLE[][],
+      display_coords DOUBLE[][],
+      max_distance DOUBLE,
+      vehicles INTEGER,
+      service_time DOUBLE,
       demands INTEGER[],
       depots INTEGER[]
     );
@@ -381,7 +385,7 @@ def test_database_loader_euc3d_and_coordinate_shape_validation(tmp_path: Path) -
        [[0.0, 0.0, 0.0], [1.0, 2.0]], NULL);
     INSERT INTO cvrp_problems VALUES
       (2, 3, 25, 'valid 3d cvrp', 'EUC_3D', NULL, 'cvrp_euc3d_ok',
-       [[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [4.0, 6.0, 8.0]], [0, 10, 15], [0]);
+       [[0.0, 0.0, 0.0], [1.0, 2.0, 3.0], [4.0, 6.0, 8.0]], NULL, NULL, NULL, NULL, [0, 10, 15], [0]);
     """
   )
   conn.close()
@@ -422,12 +426,12 @@ def test_tsplib_loader_cvrp_euc3d_threed_coords_display_and_edge_guards(tmp_path
   WHY: Real TSPLIB95 files combine `EUC_3D` with `NODE_COORD_TYPE: THREED_COORDS`, `DISPLAY_DATA_TYPE: TWOD_DISPLAY`,
   or `TYPE: CVRP`, while malformed normalized payloads or invalid bundle `edge_weight_type` must fail cleanly.
   """
+  from loaders.tsplib_ingestor import _problem_payload
   from loaders.tsplib_loader import (
     NodeRowRecord,
     ProblemRowRecord,
     TsplibIngestionBundle,
-    _bundle_from_normalized,
-    _problem_payload,
+    bundle_from_normalized,
     bundle_to_problem,
     ingest_tsplib_directory_to_duckdb,
     parse_tsplib_file,
@@ -537,7 +541,7 @@ def test_tsplib_loader_cvrp_euc3d_threed_coords_display_and_edge_guards(tmp_path
     "fixed_edges": [],
   }
   with pytest.raises(InvalidProblemDataError, match="Expected 2 coordinates"):
-    _bundle_from_normalized(disp_file, cast("NormalizedProblemData", extra_rows), problem_id=1)
+    bundle_from_normalized(disp_file, cast("NormalizedProblemData", extra_rows), problem_id=1)
   with pytest.raises(InvalidProblemDataError, match="Expected 2 coordinates"):
     _problem_payload(disp_file, cast("NormalizedProblemData", extra_rows))
 
@@ -551,7 +555,7 @@ def test_tsplib_loader_cvrp_euc3d_threed_coords_display_and_edge_guards(tmp_path
     "fixed_edges": [],
   }
   with pytest.raises(InvalidProblemDataError, match="Non-finite coordinate"):
-    _bundle_from_normalized(disp_file, cast("NormalizedProblemData", inf_rows), problem_id=1)
+    bundle_from_normalized(disp_file, cast("NormalizedProblemData", inf_rows), problem_id=1)
   with pytest.raises(InvalidProblemDataError, match="Non-finite coordinate"):
     _problem_payload(disp_file, cast("NormalizedProblemData", inf_rows))
 

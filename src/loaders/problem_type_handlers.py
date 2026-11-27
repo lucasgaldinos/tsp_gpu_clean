@@ -9,9 +9,13 @@ without conditional branching in DatabaseLoader.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, Protocol, TypedDict
+
+import numpy as np
 
 from data_models.exceptions import InvalidProblemDataError
+from data_models.problem import VRP_PROBLEM_TYPES
+from data_models.vrp_constraints import VRPConstraints
 
 if TYPE_CHECKING:
   import duckdb
@@ -40,6 +44,9 @@ class ProblemMetadataRow(TypedDict):
   raw_display_coords: list[list[float]] | None
   raw_demands: list[int] | None
   raw_depots: list[int] | None
+  max_distance: NotRequired[float | None]
+  vehicles: NotRequired[int | None]
+  service_time: NotRequired[float | None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +134,9 @@ class TspHandler:
       "raw_display_coords": display_coords,
       "raw_demands": None,
       "raw_depots": None,
+      "max_distance": None,
+      "vehicles": None,
+      "service_time": None,
     }
 
 
@@ -188,13 +198,17 @@ class AtspHandler:
       "raw_display_coords": None,
       "raw_demands": None,
       "raw_depots": None,
+      "max_distance": None,
+      "vehicles": None,
+      "service_time": None,
     }
 
 
 class CvrpHandler:
-  """Handler for Capacitated Vehicle Routing Problem (CVRP) instances."""
+  """Handler for Capacitated Vehicle Routing Problem variants (`CVRP`, `OVRP`, `DCVRP`)."""
 
-  problem_type: str = "CVRP"
+  def __init__(self, problem_type: str = "CVRP") -> None:
+    self.problem_type: str = problem_type
 
   def list_problems(self, conn: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     rows = conn.execute(
@@ -223,7 +237,9 @@ class CvrpHandler:
   def load_metadata(self, conn: duckdb.DuckDBPyConnection, base: BaseProblemRow) -> ProblemMetadataRow:
     cvrp_row = conn.execute(
       """
-      SELECT dimension, capacity, comment, edge_weight_type, edge_weight_format, tsplib_name, coords, demands, depots
+      SELECT dimension, capacity, comment, edge_weight_type, edge_weight_format,
+             tsplib_name, coords, demands, depots,
+             display_coords, max_distance, vehicles, service_time
       FROM cvrp_problems
       WHERE problem_id = ?
       """,
@@ -231,12 +247,26 @@ class CvrpHandler:
     ).fetchone()
     if cvrp_row is None:
       raise InvalidProblemDataError(base.name, f"Missing record in cvrp_problems for problem_id={base.problem_id}")
-    dim, capacity, comment, edge_type, edge_format, tsplib_name, coords, demands, depots = cvrp_row
+    (
+      dim,
+      capacity,
+      comment,
+      edge_type,
+      edge_format,
+      tsplib_name,
+      coords,
+      demands,
+      depots,
+      display_coords,
+      max_distance,
+      vehicles,
+      service_time,
+    ) = cvrp_row
     normalized_edge_type: str = edge_type.upper().strip() if isinstance(edge_type, str) else edge_type
     return {
       "problem_id": base.problem_id,
       "name": base.name,
-      "type": "CVRP",
+      "type": base.problem_type,
       "dimension": dim,
       "edge_type": normalized_edge_type,
       "edge_weight_format": edge_format,
@@ -247,16 +277,63 @@ class CvrpHandler:
       "source_file": base.source_file,
       "file_checksum": base.file_checksum,
       "raw_coords": coords,
-      "raw_display_coords": None,
+      "raw_display_coords": display_coords,
       "raw_demands": demands,
       "raw_depots": depots,
+      "max_distance": float(max_distance) if max_distance is not None else None,
+      "vehicles": int(vehicles) if vehicles is not None else None,
+      "service_time": float(service_time) if service_time is not None else None,
     }
+
+
+def validate_single_depot(name: str, problem_type: str, depots: np.ndarray | None) -> None:
+  """Reject multi-depot (`MDVRP`) or non-zero-depot payloads outside single-depot VRP scope."""
+  if problem_type not in VRP_PROBLEM_TYPES or depots is None or depots.size == 0:
+    return
+  if depots.size > 1 or int(depots[0]) != 0:
+    raise InvalidProblemDataError(
+      name,
+      f"Multi-depot or non-zero depot VRP (MDVRP, depots={depots.tolist()}) "
+      f"is outside single-depot {problem_type} scope.",
+    )
+
+
+def build_vrp_constraints(
+  *,
+  name: str,
+  problem_type: str,
+  dimension: int,
+  capacity: int | None,
+  max_distance: float | None = None,
+  vehicles: int | None = None,
+  service_time: float | None = None,
+  return_to_depot: bool | None = None,
+) -> VRPConstraints:
+  """Construct validated `VRPConstraints` from flat VRP Tier 1 TSPLIB/DuckDB fields."""
+  service_times: np.ndarray | None = None
+  if service_time is not None:
+    st_val = float(service_time)
+    if st_val < 0.0:
+      raise InvalidProblemDataError(name, f"service_time must be >= 0, got {st_val}")
+    if st_val > 0.0:
+      service_times = np.full(dimension, st_val, dtype=np.float64)
+      service_times[0] = 0.0
+  effective_return = return_to_depot if return_to_depot is not None else (problem_type != "OVRP")
+  return VRPConstraints(
+    capacity=capacity,
+    max_vehicles=vehicles,
+    max_route_distance=max_distance,
+    return_to_depot=effective_return,
+    service_times=service_times,
+  )
 
 
 PROBLEM_TYPE_HANDLERS: dict[str, ProblemTypeHandler] = {
   "TSP": TspHandler(),
   "ATSP": AtspHandler(),
-  "CVRP": CvrpHandler(),
+  "CVRP": CvrpHandler("CVRP"),
+  "OVRP": CvrpHandler("OVRP"),
+  "DCVRP": CvrpHandler("DCVRP"),
 }
 
 
@@ -273,5 +350,7 @@ __all__: list[str] = [
   "ProblemMetadataRow",
   "ProblemTypeHandler",
   "TspHandler",
+  "build_vrp_constraints",
   "register_problem_type_handler",
+  "validate_single_depot",
 ]

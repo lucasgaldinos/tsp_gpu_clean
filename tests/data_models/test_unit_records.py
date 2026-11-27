@@ -17,7 +17,7 @@ from numpy.typing import NDArray
 
 from data_models.records import BenchmarkRunInput, JsonPayload, NemenyiResult
 
-#: The 22 columns `NOT NULL` without a default in `schema.sql`.
+#: The 18 columns `NOT NULL` without a default in `schema.sql`.
 REQUIRED_FIELDS: frozenset[str] = frozenset(
   {
     "problem_name",
@@ -32,10 +32,6 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(
     "std_time",
     "min_time",
     "max_time",
-    "mean_cost",
-    "std_cost",
-    "best_cost",
-    "worst_cost",
     "mean_generations",
     "std_generations",
     "raw_times",
@@ -45,14 +41,27 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(
   }
 )
 
-#: The 21 nullable columns (including optimal/gap columns for unknown-optimum instances).
+#: The 34 nullable or default-backed columns (including cost, optimal/gap, and VRP columns).
 OPTIONAL_FIELDS: frozenset[str] = frozenset(
   {
+    "problem_type",
+    "mean_cost",
+    "std_cost",
+    "best_cost",
+    "worst_cost",
     "optimal_cost",
     "mean_gap",
     "std_gap",
     "best_gap",
     "raw_gaps",
+    "feasible_runs",
+    "feasibility_rate",
+    "mean_vehicles",
+    "best_vehicles",
+    "raw_is_feasible",
+    "raw_unpenalized_costs",
+    "raw_violations",
+    "raw_num_vehicles",
     "mean_initial_cost",
     "std_initial_cost",
     "mean_improvement",
@@ -85,10 +94,6 @@ MINIMAL_PAYLOAD: dict[str, object] = {
   "std_time": 0.2,
   "min_time": 1.2,
   "max_time": 1.9,
-  "mean_cost": 3400.0,
-  "std_cost": 12.5,
-  "best_cost": 3350.0,
-  "worst_cost": 3450.0,
   "mean_generations": 80.0,
   "std_generations": 5.0,
   "raw_times": [1.2, 1.5, 1.9],
@@ -99,11 +104,24 @@ MINIMAL_PAYLOAD: dict[str, object] = {
 
 FULL_PAYLOAD: dict[str, object] = {
   **MINIMAL_PAYLOAD,
+  "problem_type": "CVRP",
+  "mean_cost": 3400.0,
+  "std_cost": 12.5,
+  "best_cost": 3350.0,
+  "worst_cost": 3450.0,
   "optimal_cost": 3323.0,
   "mean_gap": 0.023,
   "std_gap": 0.004,
   "best_gap": 0.008,
   "raw_gaps": [0.008, 0.023, 0.038],
+  "feasible_runs": 3,
+  "feasibility_rate": 100.0,
+  "mean_vehicles": 4.0,
+  "best_vehicles": 4,
+  "raw_is_feasible": [True, True, True],
+  "raw_unpenalized_costs": [3350.0, 3400.0, 3450.0],
+  "raw_violations": [0.0, 0.0, 0.0],
+  "raw_num_vehicles": [4, 4, 4],
   "mean_initial_cost": 4000.0,
   "std_initial_cost": 20.0,
   "mean_improvement": 600.0,
@@ -131,20 +149,21 @@ def test_benchmark_run_input_required_keys_match_the_not_null_columns() -> None:
   """
   WHAT: `BenchmarkRunInput.__required_keys__`.
   WHY: the runtime validator derives its required-field list from this set, so an edit here changes validation.
-  EXPECTED: exactly the 22 documented required columns.
+  EXPECTED: exactly the 18 documented required columns.
   """
   assert set(BenchmarkRunInput.__required_keys__) == REQUIRED_FIELDS
-  assert len(BenchmarkRunInput.__required_keys__) == 22
+  assert len(BenchmarkRunInput.__required_keys__) == 18
 
 
 def test_benchmark_run_input_optional_keys_match_the_nullable_columns() -> None:
   """
   WHAT: `BenchmarkRunInput.__optional_keys__`.
-  WHY: these are the keys the writer reads with `dict.get`; a missing one stays legal for old or unknown-optimum runs.
-  EXPECTED: exactly the 21 documented `NotRequired` columns (16 prior + 5 optimal/gap nullable columns).
+  WHY: these are the keys the writer reads with `dict.get`; a missing one stays legal for old,
+  unknown-optimum, or VRP runs.
+  EXPECTED: exactly the 34 documented `NotRequired` columns.
   """
   assert set(BenchmarkRunInput.__optional_keys__) == OPTIONAL_FIELDS
-  assert len(BenchmarkRunInput.__optional_keys__) == 21
+  assert len(BenchmarkRunInput.__optional_keys__) == 34
 
 
 def test_benchmark_run_input_key_sets_partition_the_annotations() -> None:
@@ -192,7 +211,7 @@ def test_full_payload_covers_every_declared_field() -> None:
 
   assert set(FULL_PAYLOAD) == declared
   assert set(FULL_PAYLOAD) <= set(BenchmarkRunInput.__annotations__)
-  assert len(FULL_PAYLOAD) == 43
+  assert len(FULL_PAYLOAD) == 52
 
 
 def test_benchmark_run_input_uses_both_json_payload_shapes() -> None:

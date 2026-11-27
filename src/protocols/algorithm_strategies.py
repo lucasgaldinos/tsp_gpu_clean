@@ -30,6 +30,7 @@ from .types import (
   RouteOrRoutes,
   Routes,
 )
+from .vrp_strategies import RouteAssessment
 
 if TYPE_CHECKING:
   from collections.abc import Sequence
@@ -46,6 +47,7 @@ __all__: list[str] = [
   "LocalSearchStrategy",
   "MutationStrategy",
   "Route",
+  "RouteAssessment",
   "RouteOrRoutes",
   "Routes",
   "SelectionStrategy",
@@ -188,4 +190,21 @@ class EvaluationStrategy(Protocol):
     context: ProblemContext,
   ) -> Fitness:
     """Compute 1D cost array `(N,)` for a 1D route or 2D batch of routes `(N, n_cities)`."""
+    ...
+
+  def canonicalize_route(
+    self,
+    route: Route,
+    context: ProblemContext,
+  ) -> Route:
+    """Normalize a single 1D winning route into canonical host representation."""
+    ...
+
+  def assess_batch(
+    self,
+    routes: RouteOrRoutes,
+    context: ProblemContext,
+    return_gpu: bool = False,
+  ) -> RouteAssessment:
+    """Evaluate route objectives, travel costs, feasibility, and normalized violations."""
     ...

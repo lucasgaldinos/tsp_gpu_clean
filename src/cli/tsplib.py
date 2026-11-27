@@ -23,19 +23,25 @@ def build_parser() -> argparse.ArgumentParser:
   """Build the argument parser for TSPLIB operations."""
   parser = argparse.ArgumentParser(
     prog="tsp-ingest",
-    description="Parse TSPLIB .tsp problems with routing_data into DuckDB ingestion format.",
+    description="Parse TSPLIB .tsp and .vrp problems with routing_data into DuckDB ingestion format.",
   )
   parser.add_argument(
     "--tsp-dir",
     type=Path,
     required=True,
-    help="Directory containing .tsp files",
+    help="Directory containing .tsp and/or .vrp files",
   )
   parser.add_argument(
     "--instance",
     type=str,
     default=None,
-    help="Parse and validate a single instance name (e.g., berlin52)",
+    help="Parse and validate a single instance name (e.g., berlin52, Li_21)",
+  )
+  parser.add_argument(
+    "--problem-type",
+    type=str,
+    default=None,
+    help="Optional problem type (TSP, ATSP, CVRP, OVRP, DCVRP) to disambiguate twin stems",
   )
   parser.add_argument(
     "--to-duckdb",
@@ -68,7 +74,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
   if args.instance is not None:
     with TsplibLoader(args.tsp_dir) as loader:
-      problem: Problem = loader.load(args.instance)
+      problem: Problem = loader.load(args.instance, problem_type=args.problem_type)
       print(
         f"Loaded {problem.name}: type={problem.problem_type}, "
         f"dimension={problem.dimension}, edge_type={problem.edge_type}, "
@@ -86,16 +92,24 @@ def main(argv: Sequence[str] | None = None) -> int:
       return 1
 
   with TsplibLoader(args.tsp_dir) as loader:
-    names: list[str] = loader.list_instances()
+    instance_files: list[Path] = loader.list_instance_files()
     valid_count = 0
-    for idx, name in enumerate(names, start=1):
+    for idx, instance_file in enumerate(instance_files, start=1):
       try:
-        bundle: TsplibIngestionBundle = parse_tsplib_file(loader.tsp_dir / f"{name}.tsp", problem_id=idx)
+        bundle: TsplibIngestionBundle = parse_tsplib_file(instance_file, problem_id=idx)
         bundle_to_problem(bundle, max_eager_matrix_dimension=args.max_eager_matrix_dimension)
         valid_count += 1
       except InvalidEdgeTypeError:
         continue
-    print(f"Verified {valid_count}/{len(names)} .tsp files in {args.tsp_dir} via routing_data.")
+    has_tsp = any(path.suffix.lower() == ".tsp" for path in instance_files)
+    has_vrp = any(path.suffix.lower() == ".vrp" for path in instance_files)
+    if has_tsp and has_vrp:
+      suffix_label = ".tsp/.vrp"
+    elif has_vrp:
+      suffix_label = ".vrp"
+    else:
+      suffix_label = ".tsp"
+    print(f"Verified {valid_count}/{len(instance_files)} {suffix_label} files in {args.tsp_dir} via routing_data.")
 
   return 0
 
