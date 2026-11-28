@@ -54,7 +54,7 @@ Single-move `batch` local search spends an entire $\Theta(n^2)$ or $\Theta(n k^2
 
 ## 1. Per-Thread Candidate Compression: $\mathcal{O}(\text{block\_size})$ vs. $\mathcal{O}(n^2)$
 
-Exhaustive CPU multi-move ([two_opt.py::LocalSearchCPUTwoOpt._step_multi_move](../../src/algorithms/strategies/local_search/two_opt.py)) materializes every improving pair $(\Delta < 0)$, sorts all $\mathcal{O}(n^2)$ (or $\mathcal{O}(nk)$) candidates by gain, and greedily marks an `occupied[n]` bitmask. On GPU, allocating $\mathcal{O}(n^2)$ shared-memory buffers and running a block-wide sort per tour would exceed the 48 KB per-SM SRAM ceiling and destroy occupancy.
+Exhaustive CPU multi-move ([two_opt.py::LocalSearchCPUTourTwoOpt._step_multi_move](../../src/algorithms/strategies/local_search/two_opt.py)) materializes every improving pair $(\Delta < 0)$, sorts all $\mathcal{O}(n^2)$ (or $\mathcal{O}(nk)$) candidates by gain, and greedily marks an `occupied[n]` bitmask. On GPU, allocating $\mathcal{O}(n^2)$ shared-memory buffers and running a block-wide sort per tour would exceed the 48 KB per-SM SRAM ceiling and destroy occupancy.
 
 Instead, both [two_opt_multi_move.cu::two_opt_multi_move_batch_kernel](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu) and [three_opt_multi_move.cu::three_opt_multi_move_batch_kernel](../../benchmark_scripts/experiments-and-examples/experiment-comparing-3opt-and-2opt/kernels/three_opt_multi_move.cu) bound per-pass candidate storage to **one slot per thread**:
 

@@ -1,17 +1,17 @@
 """Explicit CPU and GPU initialization strategy exports (`Task 17.31`)."""
 
-from .clarke_wright import InitializationCPUClarkeWright, InitializationGPUClarkeWright
-from .nearest_neighbor_init import InitializationCPUNearestNeighbor, InitializationGPUNearestNeighbor
-from .random_init import InitializationCPURandom, InitializationGPURandom
-from .sweep import InitializationCPUSweep, InitializationGPUSweep
+from .clarke_wright import InitializationCPURouteClarkeWright, InitializationGPURouteClarkeWright
+from .nearest_neighbor_init import InitializationCPUTourNearestNeighbor, InitializationGPUTourNearestNeighbor
+from .random_init import InitializationCPUPermRandom, InitializationGPUPermRandom
+from .sweep import InitializationCPURouteSweep, InitializationGPURouteSweep
 
 __all__: list[str] = [
-  "InitializationCPUClarkeWright",
-  "InitializationCPUNearestNeighbor",
-  "InitializationCPURandom",
-  "InitializationCPUSweep",
-  "InitializationGPUClarkeWright",
-  "InitializationGPUNearestNeighbor",
-  "InitializationGPURandom",
-  "InitializationGPUSweep",
+  "InitializationCPUPermRandom",
+  "InitializationCPURouteClarkeWright",
+  "InitializationCPURouteSweep",
+  "InitializationCPUTourNearestNeighbor",
+  "InitializationGPUPermRandom",
+  "InitializationGPURouteClarkeWright",
+  "InitializationGPURouteSweep",
+  "InitializationGPUTourNearestNeighbor",
 ]

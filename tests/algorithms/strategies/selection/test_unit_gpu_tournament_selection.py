@@ -1,6 +1,6 @@
 """Unit tests for `SelectionGPUTournament` (`DP11-16`, `SEL-A`).
 
-Verifies 100% bit-identity between `SelectionGPUTournament` and `SelectionTournament`
+Verifies 100% bit-identity between `SelectionGPUTournament` and `SelectionCPUTournament`
 when using the same seed, confirming memory coalescing via 1D winner index emission
 and CuPy 2D gather without unconditional stream synchronization.
 """
@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.selection.tournament_selection import SelectionGPUTournament, SelectionTournament
+from algorithms.strategies.selection.tournament_selection import SelectionCPUTournament, SelectionGPUTournament
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -52,7 +52,7 @@ def test_gpu_tournament_selection_matches_cpu_bit_identical(
   """WHAT: Selection from a population with distinct fitnesses.
 
   WHY: SEL-A requires that SelectionGPUTournament outputs bit-identical routes
-  to SelectionTournament for identical RNG streams on host.
+  to SelectionCPUTournament for identical RNG streams on host.
 
   EXPECTED: Exactly identical 2D parent routes.
   """
@@ -68,7 +68,7 @@ def test_gpu_tournament_selection_matches_cpu_bit_identical(
 
   # Run CPU selection
   cpu_ctx = ProblemContext(problem, xp=np, seed=42)
-  cpu_strategy = SelectionTournament(k=k)
+  cpu_strategy = SelectionCPUTournament(k=k)
   cpu_parents = cpu_strategy.select_batch(population_np, fitness_np, num_parents=pop_size, context=cpu_ctx)
 
   # Run GPU selection with identical seed in context
@@ -114,7 +114,7 @@ def test_gpu_tournament_selection_odd_num_parents(num_parents: int) -> None:
   cpu_ctx = ProblemContext(problem, xp=np, seed=77)
   gpu_ctx = ProblemContext(problem, xp=cp, seed=77)
 
-  cpu_sel = SelectionTournament(k=3).select_batch(pop, fit, num_parents=num_parents, context=cpu_ctx)
+  cpu_sel = SelectionCPUTournament(k=3).select_batch(pop, fit, num_parents=num_parents, context=cpu_ctx)
   gpu_sel = SelectionGPUTournament(k=3).select_batch(pop, fit, num_parents=num_parents, context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(gpu_sel), np.asarray(cpu_sel))

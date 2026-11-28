@@ -43,7 +43,7 @@ def _resolve_swap_indices(
   return None, None, u1, u2
 
 
-class MutationRouteSwap(StrategyBase, MutationStrategy):
+class MutationCPURouteSwap(StrategyBase, MutationStrategy):
   """CPU intra/inter-route customer Swap mutation for `0`-delimited VRP batches."""
 
   def __init__(self, seed: SeedLike = None) -> None:
@@ -202,4 +202,4 @@ class MutationGPURouteSwap(StrategyBase, MutationStrategy):
     return restore_routes_shape(host_out, was_1d)
 
 
-__all__: list[str] = ["MutationGPURouteSwap", "MutationRouteSwap"]
+__all__: list[str] = ["MutationCPURouteSwap", "MutationGPURouteSwap"]

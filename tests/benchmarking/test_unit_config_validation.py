@@ -791,7 +791,7 @@ def test_report_style_schema_matches_generator_and_rejects_invalid_payloads() ->
 def test_validate_configs_and_instantiate_catch_bad_slots_protocols_and_algo_params() -> None:
   """WHAT: `validate_configs` and `instantiate` reject unknown slots, mismatched protocols, and bad params.
 
-  WHY: BUG-101 — Typoed slot keys (`cross_over`), wrong-slot strategies (`MutationSwap` in
+  WHY: BUG-101 — Typoed slot keys (`cross_over`), wrong-slot strategies (`MutationCPUPermSwap` in
   `crossover`), and out-of-range per-algorithm params previously slipped through with zero warnings.
   """
   from benchmarking.runner.config_loader import BenchmarkConfig, GAParams
@@ -802,8 +802,8 @@ def test_validate_configs_and_instantiate_catch_bad_slots_protocols_and_algo_par
     description="Broken",
     params={"population_size": -5, "mutation_rate": 9.9, "local_search_stage": "not_a_stage"},
     strategies={
-      "cross_over": {"class": "CrossoverOrder"},
-      "crossover": {"class": "MutationSwap"},
+      "cross_over": {"class": "CrossoverCPUPermOrder"},
+      "crossover": {"class": "MutationCPUPermSwap"},
     },
   )
   warnings = validate_configs(
@@ -828,7 +828,7 @@ def test_validate_configs_checks_pipeline_steps_nested_slots_and_modular_params(
   """WHAT: Preflight checks external pipeline `GenerationStep` contracts, nested slot protocols, and modular params.
 
   WHY: BUG-104 & BUG-105 — External pipeline steps lacking `run`/valid `stage_anchor`, wrong-slot
-  nested strategies (`re_evaluate: MutationSwap`), and monolithic-only params on modular `GeneticAlgorithm`
+  nested strategies (`re_evaluate: MutationCPUPermSwap`), and monolithic-only params on modular `GeneticAlgorithm`
   must be caught at preflight instead of silently ignored or failing mid-run.
   """
   from benchmarking.runner.config_loader import BenchmarkConfig, GAParams
@@ -861,7 +861,7 @@ def test_validate_configs_checks_pipeline_steps_nested_slots_and_modular_params(
           "params": {
             "interval": 5,
             "target": "population",
-            "re_evaluate": {"class": "MutationSwap"},
+            "re_evaluate": {"class": "MutationCPUPermSwap"},
           },
         },
         {

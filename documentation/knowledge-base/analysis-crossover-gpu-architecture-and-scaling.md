@@ -85,7 +85,7 @@ tags:
     - [2.1 Permutation Algebra and Cycle Preservation](#21-permutation-algebra-and-cycle-preservation)
     - [2.2 Step-by-Step Operator Specification](#22-step-by-step-operator-specification)
   + [3. Algorithmic Dissection: Why the CPU Implementation Scales as $\\mathcal{O}(n)$](#3-algorithmic-dissection-why-the-cpu-implementation-scales-as-mathcalon)
-    - [3.1 Source Inspection of `CrossoverOrder._ox_core` and the Cyclic Clock Fill](#31-source-inspection-of-crossoverorder_ox_core-and-the-cyclic-clock-fill)
+    - [3.1 Source Inspection of `CrossoverCPUPermOrder._ox_core` and the Cyclic Clock Fill](#31-source-inspection-of-crossovercpupermorder_ox_core-and-the-cyclic-clock-fill)
       + [Why Modulo `(c2 + 1 + i) % n` Wraps Like a Clock](#why-modulo-c2--1--i--n-wraps-like-a-clock)
     - [3.2 CPython `set` Internals: Open Addressing, `perturb >>= 5`, and Modulo vs. Bitmasking](#32-cpython-set-internals-open-addressing-perturb--5-and-modulo-vs-bitmasking)
       + [1. The Probing Sequence and `perturb >>= 5`](#1-the-probing-sequence-and-perturb--5)
@@ -142,7 +142,7 @@ tags:
 
 ## 1. Executive Summary and the Empirical Scaling Discrepancy
 
-During the systematic validation of the modular Genetic Algorithm (GA) architecture (`Design B`, Phase 11), a critical performance divergence was uncovered between the CPU implementation (`CrossoverOrder`) and the GPU CUDA implementation (`CrossoverGPUOrder`). While the GPU kernel was intended to massively accelerate crossover across population batches, microbenchmarks revealed that its speedup collapsed as the problem dimension $n$ grew, eventually causing the GPU to become significantly slower than a single CPU core.
+During the systematic validation of the modular Genetic Algorithm (GA) architecture (`Design B`, Phase 11), a critical performance divergence was uncovered between the CPU implementation (`CrossoverCPUPermOrder`) and the GPU CUDA implementation (`CrossoverGPUPermOrder`). While the GPU kernel was intended to massively accelerate crossover across population batches, microbenchmarks revealed that its speedup collapsed as the problem dimension $n$ grew, eventually causing the GPU to become significantly slower than a single CPU core.
 
 ### 1.1 Measured Microbenchmark Data ($N = 256$)
 
@@ -208,7 +208,7 @@ Given two parent permutations $P_1$ and $P_2$:
 
 ## 3. Algorithmic Dissection: Why the CPU Implementation Scales as $\mathcal{O}(n)$
 
-### 3.1 Source Inspection of `CrossoverOrder._ox_core` and the Cyclic Clock Fill
+### 3.1 Source Inspection of `CrossoverCPUPermOrder._ox_core` and the Cyclic Clock Fill
 
 The CPU reference implementation resides in [`src/algorithms/strategies/crossover/order_crossover.py`](../../src/algorithms/strategies/crossover/order_crossover.py#L40-L85):
 
@@ -833,7 +833,7 @@ The final child route is:
 
 $$\text{child} = [E, F, H, B, G, A, C, D]$$
 
-All 4 missing cities are placed into their correct slots in **1 single clock cycle**, with zero nested loops and 100% bit-identity to CPU `CrossoverOrder._ox_core`!
+All 4 missing cities are placed into their correct slots in **1 single clock cycle**, with zero nested loops and 100% bit-identity to CPU `CrossoverCPUPermOrder._ox_core`!
 
 ---
 
@@ -842,7 +842,7 @@ All 4 missing cities are placed into their correct slots in **1 single clock cyc
 ### 8.1 The Bit-Identity Invariant
 
 Under `DP11-11` and `Task 11.10`:
-> For identical parent routes $P_1, P_2$ and identical cut points $(c_1, c_2)$, `CrossoverGPUOrder` must produce an offspring route array that is **bit-for-bit identical** to the output of `CrossoverOrder._ox_core`:
+> For identical parent routes $P_1, P_2$ and identical cut points $(c_1, c_2)$, `CrossoverGPUPermOrder` must produce an offspring route array that is **bit-for-bit identical** to the output of `CrossoverCPUPermOrder._ox_core`:
 >
 > $$\text{child}_{\text{GPU}}[k] \equiv \text{child}_{\text{CPU}}[k] \quad \forall k \in \{0, 1, \dots, n-1\}$$
 
@@ -990,7 +990,7 @@ Vectorized integer sampling reduces host cut generation overhead from $\approx 1
 
 ### 8.5 GPU Warm-Up Nuances: AOT Precompilation, Execution Priming, and Cache-Poisoning Traps
 
-Microbenchmarking GPU algorithms requires rigorous separation between compilation, initialization, and steady-state execution. During the empirical validation of `CrossoverGPUOrder`, two critical benchmarking traps were identified: the distinction between AOT precompilation versus execution warm-up, and topology cache poisoning caused by unrepresentative dummy inputs.
+Microbenchmarking GPU algorithms requires rigorous separation between compilation, initialization, and steady-state execution. During the empirical validation of `CrossoverGPUPermOrder`, two critical benchmarking traps were identified: the distinction between AOT precompilation versus execution warm-up, and topology cache poisoning caused by unrepresentative dummy inputs.
 
 #### 1. AOT Precompilation vs. Execution Warm-Up
 
@@ -1052,7 +1052,7 @@ To prevent cache poisoning and eliminate hidden host synchronizations:
 
 ## 9. Comparison Summary and Scaling Projection
 
-| Architectural Dimension | CPU Reference (`CrossoverOrder`) | Current GPU Kernel (`BUG-22`) | Proposed Redesign (`Task 11.10` / `DP11-11`) | Empirically Measured (`DP11-11`, GTX 1050) |
+| Architectural Dimension | CPU Reference (`CrossoverCPUPermOrder`) | Current GPU Kernel (`BUG-22`) | Proposed Redesign (`Task 11.10` / `DP11-11`) | Empirically Measured (`DP11-11`, GTX 1050) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Membership Structure** | python `set` (Hash table) | None (Brute-force linear scan) | Direct-address array in `__shared__` memory | Direct-address array in `__shared__` memory (Format A) |
 | **Membership Complexity** | $\mathcal{O}(1)$ average | $\mathcal{O}(n)$ per gene ($n/3$ comparisons) | $\mathcal{O}(1)$ deterministic (1 SRAM cycle) | $\mathcal{O}(1)$ deterministic (1 SRAM cycle) |

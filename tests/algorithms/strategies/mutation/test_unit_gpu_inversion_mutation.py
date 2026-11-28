@@ -1,6 +1,6 @@
-"""Unit tests for `MutationGPUInversion` (`DP11-17`, `INV-A`).
+"""Unit tests for `MutationGPUPermInversion` (`DP11-17`, `INV-A`).
 
-Verifies 100% bit-identity between `MutationGPUInversion` and `MutationInversion`
+Verifies 100% bit-identity between `MutationGPUPermInversion` and `MutationCPUPermInversion`
 when using the same seed and problem context, confirming removal of
 unconditional stream synchronization and cooperative 1-warp-per-route segment reversal.
 """
@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.mutation.inversion_mutation import MutationGPUInversion, MutationInversion
+from algorithms.strategies.mutation.inversion_mutation import MutationCPUPermInversion, MutationGPUPermInversion
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -51,8 +51,8 @@ def test_gpu_inversion_mutation_matches_cpu_bit_identical(
 ) -> None:
   """WHAT: Compare GPU and CPU inversion mutation on a batch of routes.
 
-  WHY: INV-A mandates iso-algorithmic bit-identity between MutationGPUInversion
-  and MutationInversion for identical seeds.
+  WHY: INV-A mandates iso-algorithmic bit-identity between MutationGPUPermInversion
+  and MutationCPUPermInversion for identical seeds.
 
   EXPECTED: Exactly identical 2D mutated route arrays.
   """
@@ -67,11 +67,11 @@ def test_gpu_inversion_mutation_matches_cpu_bit_identical(
     population = np.stack([rng_data.permutation(base_tour) for _ in range(pop_size)]).astype(np.int32)
 
   cpu_ctx = ProblemContext(problem, xp=np, seed=42)
-  cpu_strategy = MutationInversion()
+  cpu_strategy = MutationCPUPermInversion()
   cpu_mutated = cpu_strategy.mutate_batch(population.copy(), mutation_rate=mutation_rate, context=cpu_ctx)
 
   gpu_ctx = ProblemContext(problem, xp=cp, seed=42)
-  gpu_strategy = MutationGPUInversion()
+  gpu_strategy = MutationGPUPermInversion()
   gpu_mutated = gpu_strategy.mutate_batch(population.copy(), mutation_rate=mutation_rate, context=gpu_ctx)
 
   np.testing.assert_array_equal(
@@ -89,7 +89,7 @@ def test_gpu_inversion_mutation_preserves_gpu_input_residence() -> None:
   routes_gpu = cp.arange(4 * 20, dtype=cp.int32).reshape(4, 20)
 
   ctx = ProblemContext(problem, xp=cp, seed=123)
-  strategy = MutationGPUInversion()
+  strategy = MutationGPUPermInversion()
   result = strategy.mutate_batch(routes_gpu, mutation_rate=0.5, context=ctx)
 
   assert isinstance(result, cp.ndarray)
@@ -107,8 +107,8 @@ def test_gpu_inversion_mutation_single_1d_route() -> None:
   cpu_ctx = ProblemContext(problem, xp=np, seed=42)
   gpu_ctx = ProblemContext(problem, xp=cp, seed=42)
 
-  cpu_res = MutationInversion().mutate(tour.copy(), 1.0, context=cpu_ctx)
-  gpu_res = MutationGPUInversion().mutate(tour.copy(), 1.0, context=gpu_ctx)
+  cpu_res = MutationCPUPermInversion().mutate(tour.copy(), 1.0, context=cpu_ctx)
+  gpu_res = MutationGPUPermInversion().mutate(tour.copy(), 1.0, context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(gpu_res), np.asarray(cpu_res))
   assert gpu_res.ndim == 1
@@ -131,10 +131,10 @@ def test_gpu_inversion_mutation_closed_depot_routes_match_cpu() -> None:
     [np.concatenate(([0], np.random.default_rng(810 + row).permutation(inner), [0])) for row in range(8)]
   ).astype(np.int32)
 
-  cpu_mutated = MutationInversion(seed=3).mutate_batch(
+  cpu_mutated = MutationCPUPermInversion(seed=3).mutate_batch(
     population.copy(), mutation_rate=1.0, context=ProblemContext(problem, xp=np, seed=42)
   )
-  gpu_mutated = MutationGPUInversion(seed=3).mutate_batch(
+  gpu_mutated = MutationGPUPermInversion(seed=3).mutate_batch(
     population.copy(), mutation_rate=1.0, context=ProblemContext(problem, xp=cp, seed=42)
   )
 

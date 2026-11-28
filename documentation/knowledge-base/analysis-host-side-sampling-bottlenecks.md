@@ -94,10 +94,10 @@ Finally, route *topology* (open tour vs. closed depot route) is currently inferr
 
 | Site | Loop | Draw |
 | :--- | :--- | :--- |
-| [`CrossoverOrder.crossover_batch`](../../src/algorithms/strategies/crossover/order_crossover.py) | `for i in range(0, num_routes - 1, 2)` | `rng.choice(np.arange(1, n - 1), size=2, replace=False)` when closed, else `rng.choice(n, size=2, replace=False)` |
-| [`CrossoverGPUOrder.crossover_batch`](../../src/algorithms/strategies/crossover/order_crossover.py) | `for i in range(0, num_routes - 1, 2)` | identical draw, then scatter into `cut1_np` / `cut2_np` |
-| [`MutationSwap.mutate_batch`](../../src/algorithms/strategies/mutation/swap_mutation.py) / [`MutationGPUSwap.mutate_batch`](../../src/algorithms/strategies/mutation/swap_mutation.py) | `for i in range(num_routes)` | `p = rng.random()`, then **if** `p < mutation_rate`: `rng.choice(np.arange(low, high), size=2, replace=False)` |
-| [`MutationInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) / [`MutationGPUInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) | `for i in range(num_routes)` | `rng.integers(low, high)` plus the same `rng.choice(..., size=2, replace=False)` pair |
+| [`CrossoverCPUPermOrder.crossover_batch`](../../src/algorithms/strategies/crossover/order_crossover.py) | `for i in range(0, num_routes - 1, 2)` | `rng.choice(np.arange(1, n - 1), size=2, replace=False)` when closed, else `rng.choice(n, size=2, replace=False)` |
+| [`CrossoverGPUPermOrder.crossover_batch`](../../src/algorithms/strategies/crossover/order_crossover.py) | `for i in range(0, num_routes - 1, 2)` | identical draw, then scatter into `cut1_np` / `cut2_np` |
+| [`MutationCPUPermSwap.mutate_batch`](../../src/algorithms/strategies/mutation/swap_mutation.py) / [`MutationGPUPermSwap.mutate_batch`](../../src/algorithms/strategies/mutation/swap_mutation.py) | `for i in range(num_routes)` | `p = rng.random()`, then **if** `p < mutation_rate`: `rng.choice(np.arange(low, high), size=2, replace=False)` |
+| [`MutationCPUPermInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) / [`MutationGPUPermInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) | `for i in range(num_routes)` | `rng.integers(low, high)` plus the same `rng.choice(..., size=2, replace=False)` pair |
 
 The crossover loop iterates $N/2$ times; the mutation loop iterates $N$ times and conditionally draws. All of them live on the host, and all of them run identically for the CPU and the GPU variant — which is *why* the two variants are bit-identical in the first place.
 
@@ -198,11 +198,11 @@ def sample_distinct_pairs(rng: Generator, num_pairs: int, low: int, high: int) -
 
 | Identifier | Contract |
 | :--- | :--- |
-| `OX-A` | For the same parents and the same cut points, the offspring of `CrossoverGPUOrder` is **bit-identical** to `CrossoverOrder` |
-| `SWAP-A` | For the same seed, the routes mutated by `MutationGPUSwap` are **bit-identical** to `MutationSwap` |
-| `INV-A` | For the same seed, the routes mutated by `MutationGPUInversion` are **bit-identical** to `MutationInversion` |
+| `OX-A` | For the same parents and the same cut points, the offspring of `CrossoverGPUPermOrder` is **bit-identical** to `CrossoverCPUPermOrder` |
+| `SWAP-A` | For the same seed, the routes mutated by `MutationGPUPermSwap` are **bit-identical** to `MutationCPUPermSwap` |
+| `INV-A` | For the same seed, the routes mutated by `MutationGPUPermInversion` are **bit-identical** to `MutationCPUPermInversion` |
 
-`DP11-20` states the resolution precisely: a **shared** sampler (`sample_distinct_pairs`) must be consumed by both the CPU and the GPU class of each pair. If only `CrossoverGPUOrder` is vectorized, its `cut1_np`/`cut2_np` tensors are drawn from a different sequence than `CrossoverOrder`'s, so
+`DP11-20` states the resolution precisely: a **shared** sampler (`sample_distinct_pairs`) must be consumed by both the CPU and the GPU class of each pair. If only `CrossoverGPUPermOrder` is vectorized, its `cut1_np`/`cut2_np` tensors are drawn from a different sequence than `CrossoverCPUPermOrder`'s, so
 
 $$
 \{c_1^{(g)}, c_2^{(g)}\}_{\text{GPU}} \neq \{c_1^{(g)}, c_2^{(g)}\}_{\text{CPU}}
@@ -244,7 +244,7 @@ This still changes the stream relative to the loop version, which is why step (3
 ### 5.3 The Shared-Sampler Resolution
 
 1. Put `sample_distinct_pairs(rng, num_pairs, low, high)` in a single module (`utils/route_helpers.py` or `utils/rng.py`).
-2. Call it from `CrossoverOrder`, `CrossoverGPUOrder`, `MutationSwap`, `MutationGPUSwap`, `MutationInversion` and `MutationGPUInversion` — six call sites, one implementation.
+2. Call it from `CrossoverCPUPermOrder`, `CrossoverGPUPermOrder`, `MutationCPUPermSwap`, `MutationGPUPermSwap`, `MutationCPUPermInversion` and `MutationGPUPermInversion` — six call sites, one implementation.
 3. Re-run the parity tests that pin `OX-A`, `SWAP-A` and `INV-A`, and only then re-generate the result cohort.
 
 ---
@@ -285,12 +285,12 @@ The loss is small per generation but systematic: it is not noise, it does not av
 Two different inference mechanisms coexist:
 
 ```python
-# CrossoverOrder.crossover: closure requires BOTH parents to look closed
+# CrossoverCPUPermOrder.crossover: closure requires BOTH parents to look closed
 is_closed = _has_depot_endpoints(p1) and _has_depot_endpoints(p2)
 ```
 
 ```python
-# CrossoverGPUOrder.crossover_batch — src/algorithms/strategies/crossover/order_crossover.py:227-233
+# CrossoverGPUPermOrder.crossover_batch — src/algorithms/strategies/crossover/order_crossover.py:227-233
 if self._is_closed_cache is not None and self._is_closed_cache[0] == n_cities:
   is_closed = self._is_closed_cache[1]
 else:

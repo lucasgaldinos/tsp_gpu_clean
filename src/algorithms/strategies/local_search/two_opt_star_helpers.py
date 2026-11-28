@@ -11,10 +11,10 @@ from algorithms.strategies.penalties import InstanceScaledPenaltyPolicy
 from protocols.vrp_strategies import PenaltyPolicy, RouteDecoder
 
 type InterRouteCPUMode = Literal["best", "multi_move"]
-"""Acceptance rule for `LocalSearchCPUTwoOptStar`."""
+"""Acceptance rule for `LocalSearchCPURouteTwoOptStar`."""
 
 type InterRouteGPUMode = Literal["batch", "multi_move"]
-"""Kernel family for `LocalSearchGPUTwoOptStar`."""
+"""Kernel family for `LocalSearchGPURouteTwoOptStar`."""
 
 type VRPSplitMode = Literal["prins", "greedy"]
 """Split decoder used when refining `(N, dimension - 1)` Giant-Tours."""

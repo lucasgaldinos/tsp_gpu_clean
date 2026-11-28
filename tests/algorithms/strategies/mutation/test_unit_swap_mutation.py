@@ -1,4 +1,4 @@
-"""Unit tests for `MutationSwap`.
+"""Unit tests for `MutationCPUPermSwap`.
 
 Swap mutation exchanges two positions of a route. The tests pin the invariants the GA
 depends on: the permutation and its dtype survive, the parent array is never mutated
@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.mutation.swap_mutation import MutationSwap
+from algorithms.strategies.mutation.swap_mutation import MutationCPUPermSwap
 from protocols.problem_context import ProblemContext
 from utils.route_helpers import select_proximity_index
 
@@ -39,7 +39,7 @@ def test_mutation_preserves_permutation(mutation_rate: float, n_genes: int) -> N
   original = route.copy()
 
   # Act
-  mutated = MutationSwap(seed=3).mutate(route, mutation_rate=mutation_rate)
+  mutated = MutationCPUPermSwap(seed=3).mutate(route, mutation_rate=mutation_rate)
 
   # Assert
   assert mutated.shape == route.shape
@@ -67,7 +67,7 @@ def test_mutation_batch_preserves_shape_and_permutations(
   input_routes = routes if as_batch else routes[0]
 
   # Act
-  mutated = MutationSwap(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
+  mutated = MutationCPUPermSwap(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
 
   # Assert
   assert mutated.ndim == input_routes.ndim
@@ -89,7 +89,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
   route = np.array([0, 1, 0], dtype=np.int32)
 
   # Act
-  mutated = MutationSwap(seed=0).mutate(route, mutation_rate=1.0)
+  mutated = MutationCPUPermSwap(seed=0).mutate(route, mutation_rate=1.0)
 
   # Assert
   assert mutated[0] == 0
@@ -98,7 +98,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
 
 
 def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem) -> None:
-  """WHAT: `MutationSwap(candidate_k=10)` on a full 52-city tour.
+  """WHAT: `MutationCPUPermSwap(candidate_k=10)` on a full 52-city tour.
 
   WHY: proximity-guided mutation changes how `idx2` is drawn; it must still exchange two
   interior positions and leave every gene exactly once (`DP10-20`).
@@ -112,7 +112,7 @@ def test_candidate_k_swap_keeps_permutation_and_depot(berlin52_problem: Problem)
   original = route.copy()
 
   # Act
-  mutated = MutationSwap(seed=4, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
+  mutated = MutationCPUPermSwap(seed=4, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
   assert sorted(mutated.tolist()) == sorted(route.tolist())
@@ -148,7 +148,7 @@ def test_proximity_index_selects_a_candidate_neighbour(berlin52_problem: Problem
 
 
 def test_candidate_k_swap_supports_sparse_cvrp_sub_route(berlin52_problem: Problem) -> None:
-  """WHAT: `MutationSwap(candidate_k=3)` on `[0, 5, 12, 19, 8, 0]` (max id 19, 6 stops).
+  """WHAT: `MutationCPUPermSwap(candidate_k=3)` on `[0, 5, 12, 19, 8, 0]` (max id 19, 6 stops).
 
   WHY: node ids above `len(route) - 1` used to disable candidate mode or raise
   `IndexError`; the shared inverse map sizes itself by the largest id (`BUG-19`).
@@ -161,7 +161,7 @@ def test_candidate_k_swap_supports_sparse_cvrp_sub_route(berlin52_problem: Probl
   original = route.copy()
 
   # Act
-  mutated = MutationSwap(seed=7, candidate_k=3).mutate(route, mutation_rate=1.0, context=context)
+  mutated = MutationCPUPermSwap(seed=7, candidate_k=3).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
   assert sorted(mutated.tolist()) == sorted(route.tolist())
@@ -171,7 +171,7 @@ def test_candidate_k_swap_supports_sparse_cvrp_sub_route(berlin52_problem: Probl
 
 
 def test_swap_mutation_does_not_mutate_caller_array_in_place() -> None:
-  """WHAT: MutationSwap.mutate_batch does not mutate the input array in place.
+  """WHAT: MutationCPUPermSwap.mutate_batch does not mutate the input array in place.
 
   WHY: Task 12.22 (DP12-15) — With copy=False in to_cpu_batch, out must be an independent copy.
   EXPECTED: The input array remains byte-identical before and after mutate_batch.
@@ -186,7 +186,7 @@ def test_swap_mutation_does_not_mutate_caller_array_in_place() -> None:
   )
   original = routes.copy()
 
-  mutated = MutationSwap(seed=42).mutate_batch(routes, mutation_rate=1.0)
+  mutated = MutationCPUPermSwap(seed=42).mutate_batch(routes, mutation_rate=1.0)
 
   # Check input was not modified
   np.testing.assert_array_equal(routes, original)

@@ -1,6 +1,6 @@
 """Synchronization contract for the batch GPU 2-opt strategies.
 
-`LocalSearchGPUTwoOpt.improve_batch` in both grid modes (`batch` and `multi_move`)
+`LocalSearchGPUTourTwoOpt.improve_batch` in both grid modes (`batch` and `multi_move`)
 must not issue
 an explicit ``cp.cuda.Stream.null.synchronize()`` (``BUG-15`` / ``DP10-18``): a GPU-resident
 result stays stream-ordered for the caller's next CuPy operation, and the host-returning
@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from algorithms.strategies import local_search
-from algorithms.strategies.local_search import LocalSearchGPUTwoOpt
+from algorithms.strategies.local_search import LocalSearchGPUTourTwoOpt
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
 from utils import phase_timer
@@ -154,7 +154,7 @@ def test_gpu_resident_batch_does_not_synchronize(
   # Arrange
   cupy: Any = _cupy()
   device_batch = cupy.asarray(route_batch, dtype=cupy.int32)
-  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode=mode)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=2, mode=mode)
 
   # Act
   improved = strategy.improve_batch(device_batch, context=device_context)
@@ -189,7 +189,7 @@ def test_time_strategy_enqueues_without_device_events(
   # Arrange
   cupy: Any = _cupy()
   device_batch = cupy.asarray(route_batch, dtype=cupy.int32)
-  strategy = LocalSearchGPUTwoOpt(max_iterations=1, mode=mode)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=1, mode=mode)
 
   # Act
   improved = strategy.improve_batch(device_batch, context=device_context)
@@ -219,7 +219,7 @@ def test_host_batch_returns_improved_routes_without_explicit_sync(
   permutations, and a closed-tour cost no worse than the input population.
   """
   # Arrange
-  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode=mode)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=2, mode=mode)
   distances = device_context.get_cpu_distances()
 
   def closed_cost(tour: np.ndarray) -> int:

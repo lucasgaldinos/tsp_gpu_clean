@@ -575,7 +575,7 @@ effort* rather than *what the hardware does*.
 
 | Heuristic | Source of parallelism | Strategy | State in this repository |
 | --- | --- | --- | --- |
-| 2-opt hill climb | S-Task loop around a P-Data evaluation | Type 1 | `LocalSearchCPUTwoOpt`, `LocalSearchGPUTwoOpt` |
+| 2-opt hill climb | S-Task loop around a P-Data evaluation | Type 1 | `LocalSearchCPUTourTwoOpt`, `LocalSearchGPUTourTwoOpt` |
 | Genetic algorithm | S-Task generation loop around P-Data evaluation | Type 1 | `FullGPUModular` keeps the population in VRAM and runs the operators as kernels |
 | Multi-start SA or GA | P-Data, independent instances | Type 3 independent | supported by the batched kernel API, not used by the benchmark |
 | Island-model GA | P-Task, cooperating populations | Type 3 cooperative | not implemented |

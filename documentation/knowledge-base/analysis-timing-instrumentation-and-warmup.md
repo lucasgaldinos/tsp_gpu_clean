@@ -157,10 +157,10 @@ device-resident batch contributes exactly one `end_evt.synchronize()`:
 | # | Strategy call | Decorated | Barrier |
 | -: | :--- | :---: | :---: |
 | 1 | `SelectionGPUTournament.select_batch` | ✅ | 1 |
-| 2 | `CrossoverGPUOrder.crossover_batch` | ✅ | 1 |
-| 3 | `MutationGPUSwap.mutate_batch` | ✅ | 1 |
+| 2 | `CrossoverGPUPermOrder.crossover_batch` | ✅ | 1 |
+| 3 | `MutationGPUPermSwap.mutate_batch` | ✅ | 1 |
 | 4 | `EvaluationGPUCost.evaluate_batch` | ✅ | 1 |
-| 5 | `LocalSearchGPUTwoOpt.improve_batch` | ✅ | 1 |
+| 5 | `LocalSearchGPUTourTwoOpt.improve_batch` | ✅ | 1 |
 | 6 | `GeneticAlgorithm._extract_best` (`argmin().get()`, `float(...get())`, `asnumpy`) | ❌ | 1–3 D2H |
 
 So a single generation with local search carries **5 device-wide event barriers plus 1–3 implicit D2H drains = 6–8 host-device round trips**, every generation, before any kernel-level sync is considered. The host cannot run ahead by even one generation; the CUDA pipeline is completely serialised by the instrumentation.
@@ -175,7 +175,7 @@ The decoupling requirement is therefore structural, not cosmetic:
 
 ## 3. Reconstructing the 2026-11-06 `DP11-7` Measurement
 
-The refutation experiment compared two timings of the same operation, `LocalSearchGPUTwoOpt.improve_batch`, on $n = 500$ cities with $N = 256$ routes:
+The refutation experiment compared two timings of the same operation, `LocalSearchGPUTourTwoOpt.improve_batch`, on $n = 500$ cities with $N = 256$ routes:
 
 ```text
 wrapped=260.840ms | unwrapped_enqueue=0.363ms | unwrapped_after_sync=258.725ms
@@ -204,7 +204,7 @@ The earlier three-clock experiment (which reported `perf_counter`, `cp.cuda.Even
 
 ### 3.1 Impact on the `DP10-18` / `DP11-14`–`DP11-18` Synchronization Removals
 
-Those tasks removed redundant `cp.cuda.Stream.null.synchronize()` calls from `MutationGPUSwap`, `MutationGPUInversion`, `EvaluationGPUCost`, `SelectionGPUTournament`, and the two batched 2-opt kernels. `grep` confirms the removals landed:
+Those tasks removed redundant `cp.cuda.Stream.null.synchronize()` calls from `MutationGPUPermSwap`, `MutationGPUPermInversion`, `EvaluationGPUCost`, `SelectionGPUTournament`, and the two batched 2-opt kernels. `grep` confirms the removals landed:
 
 ```bash
 grep -rn "Stream.null.synchronize()" src/algorithms/strategies/ --exclude-dir=__pycache__
@@ -399,9 +399,9 @@ warmup_algo.evolve(warmup_context, ..., max_generations=1)
 
 Every stochastic strategy mutates its own state during those generations:
 
-- `ProblemContext.rng` is a stateful `np.random.Generator` shared by `SelectionGPUTournament`, `CrossoverGPUOrder`, `MutationGPUSwap` and `MutationGPUInversion`. Consuming $k$ draws in the warm-up shifts the stream by $k$ for every subsequent draw.
+- `ProblemContext.rng` is a stateful `np.random.Generator` shared by `SelectionGPUTournament`, `CrossoverGPUPermOrder`, `MutationGPUPermSwap` and `MutationGPUPermInversion`. Consuming $k$ draws in the warm-up shifts the stream by $k$ for every subsequent draw.
 - `StrategyBase.h2d_bytes` / `d2h_bytes` / `kernel_launches` accumulate during the warm-up and are only zeroed by `reset_metrics()`, which nothing calls on the boundary.
-- `CrossoverGPUOrder._is_closed_cache` may be committed from the warm-up payload (see [§6.2 of the sampling analysis](./analysis-host-side-sampling-bottlenecks.md#62-crossover-infers-closure-from-values-bug-24)).
+- `CrossoverGPUPermOrder._is_closed_cache` may be committed from the warm-up payload (see [§6.2 of the sampling analysis](./analysis-host-side-sampling-bottlenecks.md#62-crossover-infers-closure-from-values-bug-24)).
 
 The consequence is precise and easy to miss: **Repetition 1 is not a draw from the same distribution as Repetitions 2..R.** It is offset by the warm-up's consumption, and the reported `mean_time` / `wall_cv_pct` are computed over a mixture of two populations. The warm-up is supposed to remove a *fixed hardware cost*; by mutating the instance it also perturbs the *stochastic trajectory*, which is the one thing a seeded benchmark must hold constant.
 

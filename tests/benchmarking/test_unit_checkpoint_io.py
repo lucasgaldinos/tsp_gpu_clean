@@ -695,7 +695,7 @@ def _modular_checkpoint_payload(
   population_size: int = 32,
   mutation_rate: float = 0.05,
   seed: int = 42,
-  local_search_class: str = "LocalSearchCPUTwoOpt",
+  local_search_class: str = "LocalSearchCPUTourTwoOpt",
 ) -> dict[str, Any]:
   return {
     "problem_name": problem_name,
@@ -704,10 +704,10 @@ def _modular_checkpoint_payload(
     "raw_costs": [2085.0, 2090.0],
     "raw_times": [0.1, 0.12],
     "strategies": {
-      "initialization": "InitializationCPURandom",
-      "selection": "SelectionTournament",
-      "crossover": "CrossoverOrder",
-      "mutation": "MutationSwap",
+      "initialization": "InitializationCPUPermRandom",
+      "selection": "SelectionCPUTournament",
+      "crossover": "CrossoverCPUPermOrder",
+      "mutation": "MutationCPUPermSwap",
       "local_search": local_search_class,
       "evaluation": "EvaluationCPUCost",
     },
@@ -726,11 +726,11 @@ def _sample_algo_configs() -> dict[str, AlgorithmConfig]:
       use_gpu=False,
       description="CPU",
       strategies={
-        "initialization": {"class": "InitializationCPURandom"},
-        "selection": {"class": "SelectionTournament"},
-        "crossover": {"class": "CrossoverOrder"},
-        "mutation": {"class": "MutationSwap"},
-        "local_search": {"class": "LocalSearchCPUTwoOpt"},
+        "initialization": {"class": "InitializationCPUPermRandom"},
+        "selection": {"class": "SelectionCPUTournament"},
+        "crossover": {"class": "CrossoverCPUPermOrder"},
+        "mutation": {"class": "MutationCPUPermSwap"},
+        "local_search": {"class": "LocalSearchCPUTourTwoOpt"},
         "evaluation": {"class": "EvaluationCPUCost"},
       },
     ),
@@ -739,11 +739,11 @@ def _sample_algo_configs() -> dict[str, AlgorithmConfig]:
       use_gpu=True,
       description="GPU",
       strategies={
-        "initialization": {"class": "InitializationCPURandom"},
-        "selection": {"class": "SelectionTournament"},
-        "crossover": {"class": "CrossoverOrder"},
-        "mutation": {"class": "MutationSwap"},
-        "local_search": {"class": "LocalSearchGPUTwoOpt"},
+        "initialization": {"class": "InitializationCPUPermRandom"},
+        "selection": {"class": "SelectionCPUTournament"},
+        "crossover": {"class": "CrossoverCPUPermOrder"},
+        "mutation": {"class": "MutationCPUPermSwap"},
+        "local_search": {"class": "LocalSearchGPUTourTwoOpt"},
         "evaluation": {"class": "EvaluationCPUCost"},
       },
     ),
@@ -790,7 +790,7 @@ def test_validate_existing_checkpoints_rejects_old_schema_strategy_and_param_dri
   # 2. Mismatched strategy class
   _write_json(
     ckpt_dir / "gr17_CPU.json",
-    _modular_checkpoint_payload(local_search_class="LocalSearchGPUTwoOpt"),
+    _modular_checkpoint_payload(local_search_class="LocalSearchGPUTourTwoOpt"),
   )
   strat_errors = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], algo_configs, ga_params)
   assert any("strategies.local_search" in e for e in strat_errors)
@@ -927,14 +927,14 @@ def test_validate_existing_checkpoints_detects_stage_strategy_params_pipeline_an
     "successful_runs": 2,
     "raw_costs": [100.0, 102.0],
     "raw_times": [1.0, 1.1],
-    "strategies": {"local_search": "LocalSearchCPUTwoOpt"},
+    "strategies": {"local_search": "LocalSearchCPUTourTwoOpt"},
     "algorithm_config": {
       "population_size": 256,
       "mutation_rate": 0.02,
       "seed": 42,
       "local_search_stage": "post_mutation",
       "strategy_params": {
-        "local_search": {"class": "LocalSearchCPUTwoOpt", "max_iterations": 10, "mode": "first"},
+        "local_search": {"class": "LocalSearchCPUTourTwoOpt", "max_iterations": 10, "mode": "first"},
       },
     },
   }
@@ -949,7 +949,9 @@ def test_validate_existing_checkpoints_detects_stage_strategy_params_pipeline_an
         "local_search_stage": "post_evolution",
         "pipeline": [{"class": "ElitistLocalSearchStep", "params": {"elite_count": 4}}],
       },
-      strategies={"local_search": {"class": "LocalSearchCPUTwoOpt", "params": {"max_iterations": 999, "mode": "best"}}},
+      strategies={
+        "local_search": {"class": "LocalSearchCPUTourTwoOpt", "params": {"max_iterations": 999, "mode": "best"}}
+      },
     )
   }
   errors = validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], drifted_cfg, ga_params)
@@ -965,7 +967,9 @@ def test_validate_existing_checkpoints_detects_stage_strategy_params_pipeline_an
       use_gpu=False,
       description="CPU",
       params={"local_search_stage": "post_mutation"},
-      strategies={"local_search": {"class": "LocalSearchCPUTwoOpt", "params": {"max_iterations": 10, "mode": "first"}}},
+      strategies={
+        "local_search": {"class": "LocalSearchCPUTourTwoOpt", "params": {"max_iterations": 10, "mode": "first"}}
+      },
     )
   }
   assert validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], matching_cfg, ga_params) == []
@@ -994,7 +998,9 @@ def test_validate_existing_checkpoints_detects_stage_strategy_params_pipeline_an
         "local_search_stage": "post_mutation",
         "pipeline": [{"class": "ElitistLocalSearchStep", "params": {"elite_count": 4}}],
       },
-      strategies={"local_search": {"class": "LocalSearchCPUTwoOpt", "params": {"max_iterations": 10, "mode": "first"}}},
+      strategies={
+        "local_search": {"class": "LocalSearchCPUTourTwoOpt", "params": {"max_iterations": 10, "mode": "first"}}
+      },
     )
   }
   assert validate_existing_checkpoints(ckpt_dir, problems, ["CPU"], pipe_cfg, ga_params) == []
@@ -1021,10 +1027,10 @@ def test_run_comprehensive_benchmark_quarantines_corrupt_checkpoint_and_runs_cle
   from pathlib import Path as _Path
 
   from algorithms import register_strategy
-  from algorithms.strategies import STRATEGY_REGISTRY, LocalSearchCPUTwoOpt
+  from algorithms.strategies import STRATEGY_REGISTRY, LocalSearchCPUTourTwoOpt
   from benchmarking.runner.orchestration import run_comprehensive_benchmark
 
-  class _CustomTwoOpt(LocalSearchCPUTwoOpt):
+  class _CustomTwoOpt(LocalSearchCPUTourTwoOpt):
     def __init__(self, max_iterations: int = 10, custom_span: int = 2) -> None:
       super().__init__(max_iterations=max_iterations)
       self.custom_span = custom_span
@@ -1059,10 +1065,10 @@ def test_run_comprehensive_benchmark_quarantines_corrupt_checkpoint_and_runs_cle
         use_gpu=False,
         description="Custom CPU",
         strategies={
-          "initialization": {"class": "InitializationCPURandom"},
-          "selection": {"class": "SelectionTournament", "params": {"k": 3}},
-          "crossover": {"class": "CrossoverOrder"},
-          "mutation": {"class": "MutationSwap"},
+          "initialization": {"class": "InitializationCPUPermRandom"},
+          "selection": {"class": "SelectionCPUTournament", "params": {"k": 3}},
+          "crossover": {"class": "CrossoverCPUPermOrder"},
+          "mutation": {"class": "MutationCPUPermSwap"},
           "local_search": {"class": "_CustomTwoOptTest", "params": {"max_iterations": 2, "custom_span": 2}},
           "evaluation": {"class": "EvaluationCPUCost"},
         },

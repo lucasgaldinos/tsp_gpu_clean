@@ -77,7 +77,7 @@ def _pack_greedy_sweep_cpu(
   return [np.asarray(r, dtype=np.int32) for r in routes]
 
 
-class InitializationCPUSweep(StrategyBase, InitializationStrategy):
+class InitializationCPURouteSweep(StrategyBase, InitializationStrategy):
   """CPU Polar Sweep initialization with deterministic ``SplitMix64`` cyclic offsets."""
 
   def __init__(
@@ -97,7 +97,7 @@ class InitializationCPUSweep(StrategyBase, InitializationStrategy):
   ) -> Routes:
     """Generate ``population_size`` polar-sweep VRP routes on CPU."""
     if context is None:
-      raise ValueError("InitializationCPUSweep requires a ProblemContext")
+      raise ValueError("InitializationCPURouteSweep requires a ProblemContext")
     if population_size < 0:
       raise ValueError(f"population_size must be >= 0, got {population_size}")
 
@@ -142,8 +142,8 @@ class InitializationCPUSweep(StrategyBase, InitializationStrategy):
     return pop
 
 
-class InitializationGPUSweep(StrategyBase, InitializationStrategy):
-  """VRAM-native CUDA Polar Sweep initialization bit-identical to ``InitializationCPUSweep``."""
+class InitializationGPURouteSweep(StrategyBase, InitializationStrategy):
+  """VRAM-native CUDA Polar Sweep initialization bit-identical to ``InitializationCPURouteSweep``."""
 
   def __init__(
     self,
@@ -192,7 +192,7 @@ class InitializationGPUSweep(StrategyBase, InitializationStrategy):
   ) -> Routes:
     """Generate ``population_size`` polar-sweep VRP routes directly in VRAM."""
     if context is None:
-      raise ValueError("InitializationGPUSweep requires a ProblemContext")
+      raise ValueError("InitializationGPURouteSweep requires a ProblemContext")
     if population_size < 0:
       raise ValueError(f"population_size must be >= 0, got {population_size}")
 
@@ -264,4 +264,4 @@ class InitializationGPUSweep(StrategyBase, InitializationStrategy):
     return host_pop
 
 
-__all__: list[str] = ["InitializationCPUSweep", "InitializationGPUSweep"]
+__all__: list[str] = ["InitializationCPURouteSweep", "InitializationGPURouteSweep"]

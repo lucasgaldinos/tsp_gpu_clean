@@ -1,17 +1,17 @@
 """Mutation strategies for routing algorithms."""
 
-from .inversion_mutation import MutationGPUInversion, MutationInversion
-from .route_relocate_mutation import MutationGPURouteRelocate, MutationRouteRelocate
-from .route_swap_mutation import MutationGPURouteSwap, MutationRouteSwap
-from .swap_mutation import MutationGPUSwap, MutationSwap
+from .inversion_mutation import MutationCPUPermInversion, MutationGPUPermInversion
+from .route_relocate_mutation import MutationCPURouteRelocate, MutationGPURouteRelocate
+from .route_swap_mutation import MutationCPURouteSwap, MutationGPURouteSwap
+from .swap_mutation import MutationCPUPermSwap, MutationGPUPermSwap
 
 __all__: list[str] = [
-  "MutationGPUInversion",
+  "MutationCPUPermInversion",
+  "MutationCPUPermSwap",
+  "MutationCPURouteRelocate",
+  "MutationCPURouteSwap",
+  "MutationGPUPermInversion",
+  "MutationGPUPermSwap",
   "MutationGPURouteRelocate",
   "MutationGPURouteSwap",
-  "MutationGPUSwap",
-  "MutationInversion",
-  "MutationRouteRelocate",
-  "MutationRouteSwap",
-  "MutationSwap",
 ]

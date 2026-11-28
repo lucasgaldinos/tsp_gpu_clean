@@ -494,7 +494,7 @@ The user asked:
    In Parent 2, City $C$ precedes City $F$ ($C \to \dots \to F$).
    If the GPU randomly swaps them ($F \to C$), you have broken the crossover heuristic and introduced random permutation noise.
 2. **Violation of the Strict Iso-Algorithmic Bit-Identity Contract (`DP11-11`)**:
-   Our CPU reference implementation `CrossoverOrder._ox_core` strictly preserves Parent 2's ordering.
+   Our CPU reference implementation `CrossoverCPUPermOrder._ox_core` strictly preserves Parent 2's ordering.
    If the GPU kernel produces $[F, C]$ on one run and $[C, F]$ on another:
    - The GPU kernel is **non-deterministic**.
    - Every unit test comparing CPU and GPU output will fail.

@@ -15,7 +15,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationGPURandom"
+          "class": "InitializationGPUPermRandom"
         },
         "selection": {
           "class": "SelectionGPUTournament",
@@ -24,10 +24,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
           "class": "LocalSearchNoOp"
@@ -67,7 +67,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationGPURandom"
+          "class": "InitializationGPUPermRandom"
         },
         "selection": {
           "class": "SelectionGPUTournament",
@@ -76,13 +76,13 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOptStar",
+          "class": "LocalSearchGPURouteTwoOptStar",
           "params": {
             "mode": "multi_move",
             "max_iterations": 10
@@ -125,7 +125,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationGPUClarkeWright"
+          "class": "InitializationGPURouteClarkeWright"
         },
         "selection": {
           "class": "SelectionGPUTournament",
@@ -134,13 +134,13 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPURBX"
+          "class": "CrossoverGPURouteRBX"
         },
         "mutation": {
           "class": "MutationGPURouteRelocate"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOptStar",
+          "class": "LocalSearchGPURouteTwoOptStar",
           "params": {
             "mode": "multi_move",
             "max_iterations": 10

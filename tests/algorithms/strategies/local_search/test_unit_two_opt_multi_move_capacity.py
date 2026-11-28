@@ -27,7 +27,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.local_search import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt
+from algorithms.strategies.local_search import LocalSearchCPUTourTwoOpt, LocalSearchGPUTourTwoOpt
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -118,11 +118,11 @@ def test_planted_tour_has_twenty_independent_crossings() -> None:
 
 @pytest.mark.gpu
 def test_multi_move_applies_more_than_sixteen_disjoint_moves_in_one_pass() -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(max_iterations=1, mode="multi_move")` on 20 crossings.
+  """WHAT: `LocalSearchGPUTourTwoOpt(max_iterations=1, mode="multi_move")` on 20 crossings.
 
   WHY: the fixed `int applied_start[16]` / `pass < 16` cap (`BUG-20`) left the remaining
   crossings for a later pass, so a single-pass comparison against
-  `LocalSearchCPUTwoOpt(mode="multi_move")` disagreed beyond 16 moves.
+  `LocalSearchCPUTourTwoOpt(mode="multi_move")` disagreed beyond 16 moves.
 
   EXPECTED: every planted window is restored in one pass -- 20 > 16 -- the tour becomes
   the sorted optimum, and the CPU multi-move reference agrees exactly.
@@ -135,8 +135,8 @@ def test_multi_move_applies_more_than_sixteen_disjoint_moves_in_one_pass() -> No
   expected = np.arange(_TOUR_LENGTH, dtype=np.int32)
 
   # Act
-  improved = LocalSearchGPUTwoOpt(max_iterations=1, mode="multi_move").improve_batch(batch, context)
-  cpu_improved = LocalSearchCPUTwoOpt(max_iterations=1, mode="multi_move").improve_batch(batch, context)
+  improved = LocalSearchGPUTourTwoOpt(max_iterations=1, mode="multi_move").improve_batch(batch, context)
+  cpu_improved = LocalSearchCPUTourTwoOpt(max_iterations=1, mode="multi_move").improve_batch(batch, context)
 
   # Assert
   gpu_tour = np.asarray(improved)[0]

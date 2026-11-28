@@ -15,7 +15,7 @@ Variants compared under identical GA parameters (`population_size=256`,
 
     slot          config variant      execution strategy
     ------------  ------------------  -------------------------------------------------
-    cpu           CPU                 NumPy everywhere; `LocalSearchCPUTwoOpt`
+    cpu           CPU                 NumPy everywhere; `LocalSearchCPUTourTwoOpt`
     hybridnaive   HybridNaive         per-route GPU 2-opt; CPU evaluation
     hybrid        HybridOptimized     batched GPU 2-opt; GPU evaluation
     fullgpu       FullGPUModular      every operator on GPU (per-phase kernels)
@@ -137,35 +137,35 @@ EXPECTED_GA_PARAMS: dict[str, float] = {"population_size": 256.0, "mutation_rate
 #: Operator composition that defines each variant's execution backend (`DP11-1` naming).
 EXPECTED_STRATEGIES: dict[str, dict[str, str]] = {
   "CPU": {
-    "initialization": "InitializationCPURandom",
-    "selection": "SelectionTournament",
-    "crossover": "CrossoverOrder",
-    "mutation": "MutationSwap",
-    "local_search": "LocalSearchCPUTwoOpt",
+    "initialization": "InitializationCPUPermRandom",
+    "selection": "SelectionCPUTournament",
+    "crossover": "CrossoverCPUPermOrder",
+    "mutation": "MutationCPUPermSwap",
+    "local_search": "LocalSearchCPUTourTwoOpt",
     "evaluation": "EvaluationCPUCost",
   },
   "HybridNaive": {
-    "initialization": "InitializationCPURandom",
-    "selection": "SelectionTournament",
-    "crossover": "CrossoverOrder",
-    "mutation": "MutationSwap",
-    "local_search": "LocalSearchGPUTwoOpt",
+    "initialization": "InitializationCPUPermRandom",
+    "selection": "SelectionCPUTournament",
+    "crossover": "CrossoverCPUPermOrder",
+    "mutation": "MutationCPUPermSwap",
+    "local_search": "LocalSearchGPUTourTwoOpt",
     "evaluation": "EvaluationCPUCost",
   },
   "HybridOptimized": {
-    "initialization": "InitializationCPURandom",
-    "selection": "SelectionTournament",
-    "crossover": "CrossoverOrder",
-    "mutation": "MutationSwap",
-    "local_search": "LocalSearchGPUTwoOpt",
+    "initialization": "InitializationCPUPermRandom",
+    "selection": "SelectionCPUTournament",
+    "crossover": "CrossoverCPUPermOrder",
+    "mutation": "MutationCPUPermSwap",
+    "local_search": "LocalSearchGPUTourTwoOpt",
     "evaluation": "EvaluationGPUCost",
   },
   "FullGPUModular": {
-    "initialization": "InitializationGPURandom",
+    "initialization": "InitializationGPUPermRandom",
     "selection": "SelectionGPUTournament",
-    "crossover": "CrossoverGPUOrder",
-    "mutation": "MutationGPUSwap",
-    "local_search": "LocalSearchGPUTwoOpt",
+    "crossover": "CrossoverGPUPermOrder",
+    "mutation": "MutationGPUPermSwap",
+    "local_search": "LocalSearchGPUTourTwoOpt",
     "evaluation": "EvaluationGPUCost",
   },
 }
@@ -177,7 +177,7 @@ EXPECTED_STRATEGY_PARAMS: tuple[tuple[str, str, float], ...] = (
   ("local_search", "candidate_k", 20.0),
 )
 
-#: `LocalSearchGPUTwoOpt.mode` selects the transfer strategy; `CPU` runs the vectorised best-improvement loop.
+#: `LocalSearchGPUTourTwoOpt.mode` selects the transfer strategy; `CPU` runs the vectorised best-improvement loop.
 EXPECTED_LOCAL_SEARCH_MODE: dict[str, str] = {
   "CPU": "best",
   "HybridNaive": "naive",

@@ -1,7 +1,7 @@
 ---
 title: "GPU 2-Opt Dispatch Defects: Candidate-List Bypass, `.max()` D2H Stalls, and Multi-Move Compression"
 description: >
-  Audit of `LocalSearchGPUTwoOpt._improve_grid` and the three batched 2-opt CUDA
+  Audit of `LocalSearchGPUTourTwoOpt._improve_grid` and the three batched 2-opt CUDA
   kernels: the candidate-list path that bypasses `ProblemContext.get_gpu_candidate_list`
   and re-uploads `candidate_table` on every call, the `int(tour.max())` reduction that
   forces a synchronous D2H stall at the start of each generation, the `s_tour` shared
@@ -78,7 +78,7 @@ tags:
 
 ## 1. Executive Summary
 
-`LocalSearchGPUTwoOpt` is the hottest GPU strategy in `FullGPUModular`, and its host
+`LocalSearchGPUTourTwoOpt` is the hottest GPU strategy in `FullGPUModular`, and its host
 wrapper accumulated five independent defects that all present as "the GPU is slow",
 none of which is a hardware limit:
 
@@ -98,8 +98,8 @@ Verified source anchors (line numbers current as of the Phase 11 audit):
 
 | Symbol | Anchor |
 | :--- | :--- |
-| `LocalSearchGPUTwoOpt._resolve_candidates` | [`two_opt.py:145`](../../src/algorithms/strategies/local_search/two_opt.py#L145) |
-| `LocalSearchGPUTwoOpt._improve_grid` | [`two_opt.py:482`](../../src/algorithms/strategies/local_search/two_opt.py#L482) |
+| `LocalSearchGPUTourTwoOpt._resolve_candidates` | [`two_opt.py:145`](../../src/algorithms/strategies/local_search/two_opt.py#L145) |
+| `LocalSearchGPUTourTwoOpt._improve_grid` | [`two_opt.py:482`](../../src/algorithms/strategies/local_search/two_opt.py#L482) |
 | `ProblemContext.get_gpu_candidate_list` | [`problem_context.py:415`](../../src/protocols/problem_context.py#L415) |
 | Tree reduction with `s > 32` | [`two_opt_batch.cu:225`](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu#L225), [`two_opt_single.cu:100`](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu#L100) |
 | Serial reversals surviving `2OPT-A` | [`two_opt_multi_move.cu:260`](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L260), [`...:271`](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu#L271) |
@@ -109,7 +109,7 @@ Verified source anchors (line numbers current as of the Phase 11 audit):
 ## 2. Anatomy of `_improve_grid`
 
 ```python
-# src/algorithms/strategies/local_search/two_opt.py — LocalSearchGPUTwoOpt._improve_grid (abridged)
+# src/algorithms/strategies/local_search/two_opt.py — LocalSearchGPUTourTwoOpt._improve_grid (abridged)
 cp = require_gpu()
 batch, was_1d = ensure_routes_batch(routes)
 batch_size, n = batch.shape
@@ -173,7 +173,7 @@ The table itself is $n \cdot k \cdot 4 = 100 \cdot 20 \cdot 4 = 8{,}000\ \text{B
 > [!IMPORTANT]
 > The fix is not "cache the table in the strategy". The context already owns a device
 > cache (`get_gpu_candidate_list`) precisely so that `EvaluationGPUCost` and
-> `LocalSearchGPUTwoOpt` share **one** VRAM copy. Caching a second copy inside the
+> `LocalSearchGPUTourTwoOpt` share **one** VRAM copy. Caching a second copy inside the
 > strategy reintroduces the duplication `DP10-17` removed for distance matrices.
 
 ---
@@ -307,7 +307,7 @@ silently discarded two of them. The CPU reference does not do this:
 Consequence: the GPU and CPU implementations of `mode="multi_move"` converge along
 **different trajectories**, and the divergence is not a rounding artifact — it was
 measured on $15$ of $16$ routes. This breaks the iso-algorithmic contract that
-`LocalSearchGPUTwoOpt(mode=...)` inherits from `Design B` (`DP11-1`), where the mode
+`LocalSearchGPUTourTwoOpt(mode=...)` inherits from `Design B` (`DP11-1`), where the mode
 parameter is supposed to select an acceptance *rule*, not a different search.
 
 Two honest options, and only two:

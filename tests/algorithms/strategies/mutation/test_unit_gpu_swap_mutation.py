@@ -1,6 +1,6 @@
-"""Unit tests for `MutationGPUSwap` (`DP11-14`, `SWAP-A`).
+"""Unit tests for `MutationGPUPermSwap` (`DP11-14`, `SWAP-A`).
 
-Verifies 100% bit-identity between `MutationGPUSwap` and `MutationSwap`
+Verifies 100% bit-identity between `MutationGPUPermSwap` and `MutationCPUPermSwap`
 when using the same seed and problem context, confirming removal of
 unconditional stream synchronization and unified host RNG index sampling.
 """
@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.mutation.swap_mutation import MutationGPUSwap, MutationSwap
+from algorithms.strategies.mutation.swap_mutation import MutationCPUPermSwap, MutationGPUPermSwap
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -51,8 +51,8 @@ def test_gpu_swap_mutation_matches_cpu_bit_identical(
 ) -> None:
   """WHAT: Compare GPU and CPU swap mutation on a batch of routes.
 
-  WHY: SWAP-A mandates iso-algorithmic bit-identity between MutationGPUSwap
-  and MutationSwap for identical seeds.
+  WHY: SWAP-A mandates iso-algorithmic bit-identity between MutationGPUPermSwap
+  and MutationCPUPermSwap for identical seeds.
 
   EXPECTED: Exactly identical 2D mutated route arrays.
   """
@@ -67,11 +67,11 @@ def test_gpu_swap_mutation_matches_cpu_bit_identical(
     population = np.stack([rng_data.permutation(base_tour) for _ in range(pop_size)]).astype(np.int32)
 
   cpu_ctx = ProblemContext(problem, xp=np, seed=42)
-  cpu_strategy = MutationSwap()
+  cpu_strategy = MutationCPUPermSwap()
   cpu_mutated = cpu_strategy.mutate_batch(population.copy(), mutation_rate=mutation_rate, context=cpu_ctx)
 
   gpu_ctx = ProblemContext(problem, xp=cp, seed=42)
-  gpu_strategy = MutationGPUSwap()
+  gpu_strategy = MutationGPUPermSwap()
   gpu_mutated = gpu_strategy.mutate_batch(population.copy(), mutation_rate=mutation_rate, context=gpu_ctx)
 
   np.testing.assert_array_equal(
@@ -89,7 +89,7 @@ def test_gpu_swap_mutation_preserves_gpu_input_residence() -> None:
   routes_gpu = cp.arange(4 * 20, dtype=cp.int32).reshape(4, 20)
 
   ctx = ProblemContext(problem, xp=cp, seed=123)
-  strategy = MutationGPUSwap()
+  strategy = MutationGPUPermSwap()
   result = strategy.mutate_batch(routes_gpu, mutation_rate=0.5, context=ctx)
 
   assert isinstance(result, cp.ndarray)
@@ -107,8 +107,8 @@ def test_gpu_swap_mutation_single_1d_route() -> None:
   cpu_ctx = ProblemContext(problem, xp=np, seed=42)
   gpu_ctx = ProblemContext(problem, xp=cp, seed=42)
 
-  cpu_res = MutationSwap().mutate(tour.copy(), 1.0, context=cpu_ctx)
-  gpu_res = MutationGPUSwap().mutate(tour.copy(), 1.0, context=gpu_ctx)
+  cpu_res = MutationCPUPermSwap().mutate(tour.copy(), 1.0, context=cpu_ctx)
+  gpu_res = MutationGPUPermSwap().mutate(tour.copy(), 1.0, context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(gpu_res), np.asarray(cpu_res))
   assert gpu_res.ndim == 1
@@ -131,10 +131,10 @@ def test_gpu_swap_mutation_closed_depot_routes_match_cpu() -> None:
     [np.concatenate(([0], np.random.default_rng(800 + row).permutation(inner), [0])) for row in range(8)]
   ).astype(np.int32)
 
-  cpu_mutated = MutationSwap(seed=3).mutate_batch(
+  cpu_mutated = MutationCPUPermSwap(seed=3).mutate_batch(
     population.copy(), mutation_rate=1.0, context=ProblemContext(problem, xp=np, seed=42)
   )
-  gpu_mutated = MutationGPUSwap(seed=3).mutate_batch(
+  gpu_mutated = MutationGPUPermSwap(seed=3).mutate_batch(
     population.copy(), mutation_rate=1.0, context=ProblemContext(problem, xp=cp, seed=42)
   )
 
@@ -147,7 +147,7 @@ def test_gpu_swap_mutation_closed_depot_routes_match_cpu() -> None:
 def test_gpu_swap_mutation_candidate_k_matches_cpu(berlin52_problem: Problem) -> None:
   """WHAT: `candidate_k` on both swap strategies over the same seed.
 
-  WHY: `MutationGPUSwap` lacked the parameter, so a GPU run could not honour the
+  WHY: `MutationGPUPermSwap` lacked the parameter, so a GPU run could not honour the
   configured neighbourhood and violated LSP (`BUG-28`).
 
   EXPECTED: identical offspring and a valid permutation per row.
@@ -158,10 +158,10 @@ def test_gpu_swap_mutation_candidate_k_matches_cpu(berlin52_problem: Problem) ->
     [np.random.default_rng(900 + row).permutation(base) for row in range(8)]
   ).astype(np.int32)
 
-  cpu_mutated = MutationSwap(seed=6, candidate_k=10).mutate_batch(
+  cpu_mutated = MutationCPUPermSwap(seed=6, candidate_k=10).mutate_batch(
     population.copy(), mutation_rate=1.0, context=ProblemContext(berlin52_problem, xp=np, seed=13)
   )
-  gpu_mutated = MutationGPUSwap(seed=6, candidate_k=10).mutate_batch(
+  gpu_mutated = MutationGPUPermSwap(seed=6, candidate_k=10).mutate_batch(
     population.copy(), mutation_rate=1.0, context=ProblemContext(berlin52_problem, xp=cp, seed=13)
   )
 

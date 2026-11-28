@@ -19,7 +19,7 @@ modifications:
       - description: >
           Created architectural knowledge-base document synthesizing the
           post-Phase 10 review findings: unifying the 6 TwoOpt classes into
-          LocalSearchCPUTwoOpt and LocalSearchGPUTwoOpt, comparing Design A
+          LocalSearchCPUTourTwoOpt and LocalSearchGPUTourTwoOpt, comparing Design A
           (umbrella classes) vs Design B (slot-prefixed operator-family classes
           inheriting from StrategyBase), fixing ProblemContext GPU cache
           ownership (BUG-14), aligning matrix materialization thresholds
@@ -95,28 +95,28 @@ We evaluated two ways to eliminate this duplication while making every strategy'
 
 | Criterion | Design A: One Umbrella Class per Slot & Backend (`MutationCPU(method="swap"\|"inversion")`) | Design B (`DP11-1` — Selected): Slot-Prefixed Operator-Family Classes + `StrategyBase` |
 | :--- | :--- | :--- |
-| **Naming clarity** | Slot + Backend (`InitializationCPU`, `MutationCPU`, `LocalSearchCPU`). Algorithm family is hidden inside `params["method"]`. | **Slot + Algorithm Family** (`InitializationRandom`, `InitializationNearestNeighbor`, `MutationSwap`, `MutationInversion`, `LocalSearchCPUTwoOpt`, `LocalSearchGPUTwoOpt`). Both the slot and the mathematical operator are visible in the class name. |
+| **Naming clarity** | Slot + Backend (`InitializationCPU`, `MutationCPU`, `LocalSearchCPU`). Algorithm family is hidden inside `params["method"]`. | **Slot + Algorithm Family** (`InitializationRandom`, `InitializationNearestNeighbor`, `MutationCPUPermSwap`, `MutationCPUPermInversion`, `LocalSearchCPUTourTwoOpt`, `LocalSearchGPUTourTwoOpt`). Both the slot and the mathematical operator are visible in the class name. |
 | **Constructor type safety** | Umbrella `__init__` must accept the union of all parameters for every algorithm in that slot (even parameters irrelevant to a specific method). | Each operator-family class accepts **only** the parameters meaningful to that mathematical operator family. |
 | **Boilerplate elimination** | Shared inside the umbrella class. | Shared via inheritance from **`StrategyBase`** (`h2d_bytes`, `d2h_bytes`, `kernel_launches`, `reset_metrics()`, `seed`, `rng`). |
 | **Where `mode` / `candidate_k` live** | Combined with `method`. | Variations of the **same** operator family (`mode: Literal["best", "first", "multi_move"] = "best"` and `candidate_k: int \| None = None`) are parameters of that family's class! |
 
-#### Why Initialization Is Split into `InitializationRandom` and `InitializationNearestNeighbor`, While Mutation Keeps `candidate_k` Inside `MutationSwap` / `MutationInversion`
+#### Why Initialization Is Split into `InitializationRandom` and `InitializationNearestNeighbor`, While Mutation Keeps `candidate_k` Inside `MutationCPUPermSwap` / `MutationCPUPermInversion`
 
 - **Initialization (`InitializationRandom` vs `InitializationNearestNeighbor`):**
   + `InitializationRandom` is a zero-distance-knowledge uniform Fisher–Yates permutation generator ($O(n)$ time, maximum initial entropy).
   + `InitializationNearestNeighbor` (GRASP Restricted Candidate List, Feo & Resende, 1995) is a **constructive heuristic** ($O(n \cdot k)$ time) that greedily builds low-cost tours from $\mathcal{N}_k(u)$. In the benchmark database (`benchmark_runs.construction_heuristic`), random vs greedy initialization defines two distinct experimental cohorts.
-- **Mutation (`MutationSwap(candidate_k=...)` and `MutationInversion(candidate_k=...)`):**
-  + Whether `candidate_k` is `None` (uniform random second index $j$) or an integer $k$ (second index $j = \text{pos}[\mathcal{N}_k[\pi_i, r]]$ chosen from the $k$ nearest neighbors of $\pi_i$), the topological perturbation applied to the tour is still a **2-gene swap** (`MutationSwap`) or a **contiguous segment inversion** (`MutationInversion`). Keeping `candidate_k: int | None = None` as an optional parameter on `MutationSwap` and `MutationInversion` (and sharing `select_proximity_index` in `route_helpers.py`) avoids multiplying the mutation classes while recording `"candidate_k": 20` in `algorithm_config.strategy_params`.
+- **Mutation (`MutationCPUPermSwap(candidate_k=...)` and `MutationCPUPermInversion(candidate_k=...)`):**
+  + Whether `candidate_k` is `None` (uniform random second index $j$) or an integer $k$ (second index $j = \text{pos}[\mathcal{N}_k[\pi_i, r]]$ chosen from the $k$ nearest neighbors of $\pi_i$), the topological perturbation applied to the tour is still a **2-gene swap** (`MutationCPUPermSwap`) or a **contiguous segment inversion** (`MutationCPUPermInversion`). Keeping `candidate_k: int | None = None` as an optional parameter on `MutationCPUPermSwap` and `MutationCPUPermInversion` (and sharing `select_proximity_index` in `route_helpers.py`) avoids multiplying the mutation classes while recording `"candidate_k": 20` in `algorithm_config.strategy_params`.
 
 #### Complete `Design B` Class Map (`DP11-1`)
 
 | Slot Prefix | CPU Classes | GPU Classes |
 | :--- | :--- | :--- |
 | `Initialization*` | `InitializationRandom`, `InitializationNearestNeighbor` | *(both support `return_gpu: bool = False`)* |
-| `Selection*` | `SelectionTournament`, `SelectionRouletteWheel` | `SelectionGPUTournament` |
-| `Crossover*` | `CrossoverOrder`, `CrossoverPartiallyMapped` | `CrossoverGPUOrder` |
-| `Mutation*` | `MutationSwap`, `MutationInversion` | `MutationGPUSwap`, `MutationGPUInversion` |
-| `LocalSearch*` | `LocalSearchCPUTwoOpt(mode="best"\|"first"\|"multi_move")`, `LocalSearchNoOp` | `LocalSearchGPUTwoOpt(mode="batch"\|"multi_move"\|"naive")` |
+| `Selection*` | `SelectionCPUTournament`, `SelectionCPURouletteWheel` | `SelectionGPUTournament` |
+| `Crossover*` | `CrossoverCPUPermOrder`, `CrossoverCPUPermPartiallyMapped` | `CrossoverGPUPermOrder` |
+| `Mutation*` | `MutationCPUPermSwap`, `MutationCPUPermInversion` | `MutationGPUPermSwap`, `MutationGPUPermInversion` |
+| `LocalSearch*` | `LocalSearchCPUTourTwoOpt(mode="best"\|"first"\|"multi_move")`, `LocalSearchNoOp` | `LocalSearchGPUTourTwoOpt(mode="batch"\|"multi_move"\|"naive")` |
 | `Evaluation*` | `EvaluationCPUCost` | `EvaluationGPUCost` |
 
 ---
@@ -137,7 +137,7 @@ In [src/protocols/problem_context.py](../../src/protocols/problem_context.py#L25
 
 **Why this caused a hidden bug in Hybrid algorithms and `two_opt.py`:**
 
-1. The method name `get_gpu_distances()` is **already explicitly GPU-specific**. Calling `get_gpu_distances()` means the caller is a GPU strategy (`EvaluationGPUCost`, `LocalSearchGPUTwoOpt`) that needs a `cp.ndarray` in VRAM.
+1. The method name `get_gpu_distances()` is **already explicitly GPU-specific**. Calling `get_gpu_distances()` means the caller is a GPU strategy (`EvaluationGPUCost`, `LocalSearchGPUTourTwoOpt`) that needs a `cp.ndarray` in VRAM.
 2. When a `ProblemContext(problem)` is instantiated with default `xp=np` (for instance, in a hybrid CPU+GPU pipeline or a unit test) and passed to `BatchGPUTwoOpt`, `context.get_gpu_distances()` raised `ValueError`!
 3. To work around that `ValueError`, `BatchGPUTwoOpt._get_distances_int32_gpu` ([two_opt.py:432](../../src/algorithms/strategies/local_search/two_opt.py#L432)) bypassed `context.get_gpu_distances()` and allocated its **own** private GPU matrix `cp.asarray(context.get_cpu_distances(), dtype=cp.int32)` keyed only by `problem.name`!
    + **Consequence 1 (Double VRAM allocation):** In `FullGPUModular` and `HybridOptimized`, the $n \times n$ distance matrix was allocated **twice** in VRAM — once inside `context._gpu_distances` (for `GPUCostEvaluation`) and a second time inside `BatchGPUTwoOpt._cached_distances_gpu`!

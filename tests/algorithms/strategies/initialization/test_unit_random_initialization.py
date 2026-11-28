@@ -10,10 +10,10 @@ import numpy as np
 import pytest
 
 from algorithms.strategies.initialization import (
-  InitializationCPUNearestNeighbor,
-  InitializationCPURandom,
-  InitializationGPUNearestNeighbor,
-  InitializationGPURandom,
+  InitializationCPUPermRandom,
+  InitializationCPUTourNearestNeighbor,
+  InitializationGPUPermRandom,
+  InitializationGPUTourNearestNeighbor,
 )
 from protocols.backend import gpu_available, require_gpu
 from protocols.problem_context import ProblemContext
@@ -39,11 +39,11 @@ def test_random_permutation_initialization_returns_valid_population(
   customers: list[int],
   population_size: int,
 ) -> None:
-  """WHAT: `InitializationCPURandom.initialize` output and signature contract."""
-  assert "return_gpu" not in inspect.signature(InitializationCPURandom.__init__).parameters
-  assert inspect.signature(InitializationGPURandom.__init__).parameters["return_gpu"].default is True
+  """WHAT: `InitializationCPUPermRandom.initialize` output and signature contract."""
+  assert "return_gpu" not in inspect.signature(InitializationCPUPermRandom.__init__).parameters
+  assert inspect.signature(InitializationGPUPermRandom.__init__).parameters["return_gpu"].default is True
 
-  strategy = InitializationCPURandom(seed=17)
+  strategy = InitializationCPUPermRandom(seed=17)
   population = strategy.initialize(customers, population_size)
   assert isinstance(population, np.ndarray)
   assert population.shape == (population_size, len(customers))
@@ -55,30 +55,30 @@ def test_random_permutation_initialization_returns_valid_population(
 
 
 def test_random_permutation_initialization_respects_seed() -> None:
-  """WHAT: Reproducibility of `InitializationCPURandom` under an explicit seed."""
+  """WHAT: Reproducibility of `InitializationCPUPermRandom` under an explicit seed."""
   customers: list[int] = list(range(6))
-  first = InitializationCPURandom(seed=123).initialize(customers, population_size=4)
-  second = InitializationCPURandom(seed=123).initialize(customers, population_size=4)
+  first = InitializationCPUPermRandom(seed=123).initialize(customers, population_size=4)
+  second = InitializationCPUPermRandom(seed=123).initialize(customers, population_size=4)
   np.testing.assert_array_equal(first, second)
 
 
 def test_candidate_k_builds_greedy_nearest_neighbour_tours(berlin52_problem: Problem) -> None:
-  """WHAT: `InitializationCPUNearestNeighbor(k=10)` beats uniform random and removes `candidate_k` alias."""
-  assert "return_gpu" not in inspect.signature(InitializationCPUNearestNeighbor.__init__).parameters
-  assert "candidate_k" not in inspect.signature(InitializationCPUNearestNeighbor.__init__).parameters
-  assert inspect.signature(InitializationGPUNearestNeighbor.__init__).parameters["return_gpu"].default is True
+  """WHAT: `InitializationCPUTourNearestNeighbor(k=10)` beats uniform random and removes `candidate_k` alias."""
+  assert "return_gpu" not in inspect.signature(InitializationCPUTourNearestNeighbor.__init__).parameters
+  assert "candidate_k" not in inspect.signature(InitializationCPUTourNearestNeighbor.__init__).parameters
+  assert inspect.signature(InitializationGPUTourNearestNeighbor.__init__).parameters["return_gpu"].default is True
 
   with pytest.raises(TypeError):
-    InitializationCPUNearestNeighbor(k=3, candidate_k=10)  # type: ignore[call-arg]
+    InitializationCPUTourNearestNeighbor(k=3, candidate_k=10)  # type: ignore[call-arg]
   with pytest.raises(ValueError, match="Candidate-list width"):
-    InitializationCPUNearestNeighbor(k=0)
+    InitializationCPUTourNearestNeighbor(k=0)
 
   context = ProblemContext(berlin52_problem, xp=np, seed=3)
   distances = context.get_cpu_distances()
   customers = list(range(berlin52_problem.dimension))
 
-  guided = InitializationCPUNearestNeighbor(k=10, seed=7).initialize(customers, 4, context)
-  uniform = InitializationCPURandom(seed=7).initialize(customers, 4, context)
+  guided = InitializationCPUTourNearestNeighbor(k=10, seed=7).initialize(customers, 4, context)
+  uniform = InitializationCPUPermRandom(seed=7).initialize(customers, 4, context)
 
   expected_genes = sorted(customers)
   for route in guided:
@@ -100,8 +100,8 @@ def test_random_and_nn_cpu_gpu_bit_identity_and_warmup_purity(
   cp = require_gpu()
 
   customers = list(range(berlin52_problem.dimension))
-  cpu_cls: Any = InitializationCPURandom if kind == "random" else InitializationCPUNearestNeighbor
-  gpu_cls: Any = InitializationGPURandom if kind == "random" else InitializationGPUNearestNeighbor
+  cpu_cls: Any = InitializationCPUPermRandom if kind == "random" else InitializationCPUTourNearestNeighbor
+  gpu_cls: Any = InitializationGPUPermRandom if kind == "random" else InitializationGPUTourNearestNeighbor
   kwargs: dict[str, Any] = {"seed": 77} if kind == "random" else {"k": 15, "seed": 77}
 
   ctx_cpu = ProblemContext(berlin52_problem, xp=np, seed=314)

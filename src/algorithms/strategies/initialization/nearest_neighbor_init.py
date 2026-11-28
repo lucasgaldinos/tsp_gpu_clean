@@ -99,7 +99,7 @@ def _nearest_neighbor_row_cpu(
   return out_row
 
 
-class InitializationCPUNearestNeighbor(StrategyBase, InitializationStrategy):
+class InitializationCPUTourNearestNeighbor(StrategyBase, InitializationStrategy):
   """CPU candidate-guided nearest-neighbour (GRASP RCL) initialization over ``N_k``."""
 
   def __init__(self, k: int = 20, seed: SeedLike = None) -> None:
@@ -115,7 +115,7 @@ class InitializationCPUNearestNeighbor(StrategyBase, InitializationStrategy):
   ) -> Routes:
     """Generate ``population_size`` nearest-neighbour tours on CPU."""
     if context is None:
-      raise ValueError("InitializationCPUNearestNeighbor requires a ProblemContext to read the k-NN candidate list")
+      raise ValueError("InitializationCPUTourNearestNeighbor requires a ProblemContext to read the k-NN candidate list")
     if population_size < 0:
       raise ValueError(f"population_size must be >= 0, got {population_size}")
 
@@ -132,8 +132,8 @@ class InitializationCPUNearestNeighbor(StrategyBase, InitializationStrategy):
     return pop
 
 
-class InitializationGPUNearestNeighbor(StrategyBase, InitializationStrategy):
-  """VRAM-native CUDA nearest-neighbour initialization bit-identical to ``InitializationCPUNearestNeighbor``."""
+class InitializationGPUTourNearestNeighbor(StrategyBase, InitializationStrategy):
+  """VRAM-native CUDA nearest-neighbour initialization bit-identical to ``InitializationCPUTourNearestNeighbor``."""
 
   def __init__(self, k: int = 20, seed: SeedLike = None, return_gpu: bool = True) -> None:
     super().__init__(seed)
@@ -175,7 +175,7 @@ class InitializationGPUNearestNeighbor(StrategyBase, InitializationStrategy):
   ) -> Routes:
     """Generate ``population_size`` nearest-neighbour tours directly in VRAM."""
     if context is None:
-      raise ValueError("InitializationGPUNearestNeighbor requires a ProblemContext to read the k-NN candidate list")
+      raise ValueError("InitializationGPUTourNearestNeighbor requires a ProblemContext to read the k-NN candidate list")
     if population_size < 0:
       raise ValueError(f"population_size must be >= 0, got {population_size}")
 
@@ -238,4 +238,4 @@ class InitializationGPUNearestNeighbor(StrategyBase, InitializationStrategy):
     return host_pop
 
 
-__all__: list[str] = ["InitializationCPUNearestNeighbor", "InitializationGPUNearestNeighbor"]
+__all__: list[str] = ["InitializationCPUTourNearestNeighbor", "InitializationGPUTourNearestNeighbor"]

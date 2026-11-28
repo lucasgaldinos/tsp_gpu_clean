@@ -58,7 +58,7 @@ def test_checkpoints_validate_cli_without_db2(tmp_path: pytest.TempPathFactory |
     "raw_costs": [3480.0, 3520.0],
     "raw_gaps": None,
     "algorithm_config": {"population_size": 32},
-    "strategies": {"local_search": "LocalSearchCPUTwoOpt"},
+    "strategies": {"local_search": "LocalSearchCPUTourTwoOpt"},
   }
   (ckpt_dir / "custom14_CPU.json").write_text(json.dumps(payload), encoding="utf-8")
 

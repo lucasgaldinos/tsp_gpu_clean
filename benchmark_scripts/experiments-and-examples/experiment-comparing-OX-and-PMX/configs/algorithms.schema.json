@@ -88,6 +88,15 @@
                     "$ref": "#/$defs/pipeline_step"
                   }
                 },
+                "penalty_policy": {
+                  "$ref": "#/$defs/sub_strategy_penalty_policy"
+                },
+                "decoder": {
+                  "$ref": "#/$defs/sub_strategy_route_decoder"
+                },
+                "bin_packing": {
+                  "$ref": "#/$defs/sub_strategy_bin_packing"
+                },
                 "local_search_stage": {
                   "$ref": "#/$defs/local_search_stage"
                 },
@@ -230,7 +239,7 @@
       "type": "object",
       "oneOf": [
         {
-          "title": "InitializationNearestNeighbor",
+          "title": "InitializationCPUPermRandom",
           "type": "object",
           "required": [
             "class"
@@ -238,17 +247,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "InitializationNearestNeighbor",
+              "const": "InitializationCPUPermRandom",
               "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_initialization_nearest_neighbor",
+              "$ref": "#/$defs/params_initialization_cpu_perm_random",
               "description": "Constructor keyword arguments for this `initialization` strategy class."
             }
           }
         },
         {
-          "title": "InitializationRandom",
+          "title": "InitializationCPURouteClarkeWright",
           "type": "object",
           "required": [
             "class"
@@ -256,11 +265,119 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "InitializationRandom",
+              "const": "InitializationCPURouteClarkeWright",
               "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_initialization_random",
+              "$ref": "#/$defs/params_initialization_cpu_route_clarke_wright",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationCPURouteSweep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationCPURouteSweep",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_cpu_route_sweep",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationCPUTourNearestNeighbor",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationCPUTourNearestNeighbor",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_cpu_tour_nearest_neighbor",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationGPUPermRandom",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationGPUPermRandom",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_gpu_perm_random",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationGPURouteClarkeWright",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationGPURouteClarkeWright",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_gpu_route_clarke_wright",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationGPURouteSweep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationGPURouteSweep",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_gpu_route_sweep",
+              "description": "Constructor keyword arguments for this `initialization` strategy class."
+            }
+          }
+        },
+        {
+          "title": "InitializationGPUTourNearestNeighbor",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InitializationGPUTourNearestNeighbor",
+              "description": "Built-in `InitializationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_initialization_gpu_tour_nearest_neighbor",
               "description": "Constructor keyword arguments for this `initialization` strategy class."
             }
           }
@@ -296,6 +413,42 @@
       "type": "object",
       "oneOf": [
         {
+          "title": "SelectionCPURouletteWheel",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "SelectionCPURouletteWheel",
+              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_selection_cpu_roulette_wheel",
+              "description": "Constructor keyword arguments for this `selection` strategy class."
+            }
+          }
+        },
+        {
+          "title": "SelectionCPUTournament",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "SelectionCPUTournament",
+              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_selection_cpu_tournament",
+              "description": "Constructor keyword arguments for this `selection` strategy class."
+            }
+          }
+        },
+        {
           "title": "SelectionGPUTournament",
           "type": "object",
           "required": [
@@ -309,42 +462,6 @@
             },
             "params": {
               "$ref": "#/$defs/params_selection_gpu_tournament",
-              "description": "Constructor keyword arguments for this `selection` strategy class."
-            }
-          }
-        },
-        {
-          "title": "SelectionRouletteWheel",
-          "type": "object",
-          "required": [
-            "class"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "class": {
-              "const": "SelectionRouletteWheel",
-              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
-            },
-            "params": {
-              "$ref": "#/$defs/params_selection_roulette_wheel",
-              "description": "Constructor keyword arguments for this `selection` strategy class."
-            }
-          }
-        },
-        {
-          "title": "SelectionTournament",
-          "type": "object",
-          "required": [
-            "class"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "class": {
-              "const": "SelectionTournament",
-              "description": "Built-in `SelectionStrategy` implementation registered in `STRATEGY_REGISTRY`."
-            },
-            "params": {
-              "$ref": "#/$defs/params_selection_tournament",
               "description": "Constructor keyword arguments for this `selection` strategy class."
             }
           }
@@ -380,7 +497,7 @@
       "type": "object",
       "oneOf": [
         {
-          "title": "CrossoverGPUOrder",
+          "title": "CrossoverCPUPermOrder",
           "type": "object",
           "required": [
             "class"
@@ -388,17 +505,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "CrossoverGPUOrder",
+              "const": "CrossoverCPUPermOrder",
               "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_crossover_gpu_order",
+              "$ref": "#/$defs/params_crossover_cpu_perm_order",
               "description": "Constructor keyword arguments for this `crossover` strategy class."
             }
           }
         },
         {
-          "title": "CrossoverOrder",
+          "title": "CrossoverCPUPermPartiallyMapped",
           "type": "object",
           "required": [
             "class"
@@ -406,17 +523,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "CrossoverOrder",
+              "const": "CrossoverCPUPermPartiallyMapped",
               "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_crossover_order",
+              "$ref": "#/$defs/params_crossover_cpu_perm_partially_mapped",
               "description": "Constructor keyword arguments for this `crossover` strategy class."
             }
           }
         },
         {
-          "title": "CrossoverPartiallyMapped",
+          "title": "CrossoverCPURouteRBX",
           "type": "object",
           "required": [
             "class"
@@ -424,17 +541,71 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "CrossoverPartiallyMapped",
+              "const": "CrossoverCPURouteRBX",
               "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_crossover_partially_mapped",
+              "$ref": "#/$defs/params_crossover_cpu_route_rbx",
               "description": "Constructor keyword arguments for this `crossover` strategy class."
             }
           }
         },
         {
-          "title": "CrossoverGPUPartiallyMapped (external: ../gpu_pmx_crossover.py)",
+          "title": "CrossoverGPUPermOrder",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "CrossoverGPUPermOrder",
+              "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_crossover_gpu_perm_order",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "CrossoverGPUPermPartiallyMapped",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "CrossoverGPUPermPartiallyMapped",
+              "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_crossover_gpu_perm_partially_mapped",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "CrossoverGPURouteRBX",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "CrossoverGPURouteRBX",
+              "description": "Built-in `CrossoverStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_crossover_gpu_route_rbx",
+              "description": "Constructor keyword arguments for this `crossover` strategy class."
+            }
+          }
+        },
+        {
+          "title": "CrossoverGPUPermPartiallyMapped (external: ../gpu_pmx_crossover.py)",
           "type": "object",
           "required": [
             "module",
@@ -447,11 +618,11 @@
               "description": "External Python module path or config-relative .py file path."
             },
             "class": {
-              "const": "CrossoverGPUPartiallyMapped",
+              "const": "CrossoverGPUPermPartiallyMapped",
               "description": "External custom crossover strategy class exported by `../gpu_pmx_crossover.py`."
             },
             "params": {
-              "$ref": "#/$defs/params_ext_gpu_pmx_crossover_py_crossover_gpu_partially_mapped",
+              "$ref": "#/$defs/params_ext_gpu_pmx_crossover_py_crossover_gpu_perm_partially_mapped",
               "description": "Constructor keyword arguments for this `crossover` strategy class."
             }
           }
@@ -492,7 +663,7 @@
                     "const": "../gpu_pmx_crossover.py"
                   },
                   "class": {
-                    "const": "CrossoverGPUPartiallyMapped"
+                    "const": "CrossoverGPUPermPartiallyMapped"
                   }
                 }
               }
@@ -505,7 +676,7 @@
       "type": "object",
       "oneOf": [
         {
-          "title": "MutationGPUInversion",
+          "title": "MutationCPUPermInversion",
           "type": "object",
           "required": [
             "class"
@@ -513,17 +684,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "MutationGPUInversion",
+              "const": "MutationCPUPermInversion",
               "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_mutation_gpu_inversion",
+              "$ref": "#/$defs/params_mutation_cpu_perm_inversion",
               "description": "Constructor keyword arguments for this `mutation` strategy class."
             }
           }
         },
         {
-          "title": "MutationGPUSwap",
+          "title": "MutationCPUPermSwap",
           "type": "object",
           "required": [
             "class"
@@ -531,17 +702,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "MutationGPUSwap",
+              "const": "MutationCPUPermSwap",
               "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_mutation_gpu_swap",
+              "$ref": "#/$defs/params_mutation_cpu_perm_swap",
               "description": "Constructor keyword arguments for this `mutation` strategy class."
             }
           }
         },
         {
-          "title": "MutationInversion",
+          "title": "MutationCPURouteRelocate",
           "type": "object",
           "required": [
             "class"
@@ -549,17 +720,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "MutationInversion",
+              "const": "MutationCPURouteRelocate",
               "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_mutation_inversion",
+              "$ref": "#/$defs/params_mutation_cpu_route_relocate",
               "description": "Constructor keyword arguments for this `mutation` strategy class."
             }
           }
         },
         {
-          "title": "MutationSwap",
+          "title": "MutationCPURouteSwap",
           "type": "object",
           "required": [
             "class"
@@ -567,11 +738,83 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "MutationSwap",
+              "const": "MutationCPURouteSwap",
               "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_mutation_swap",
+              "$ref": "#/$defs/params_mutation_cpu_route_swap",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationGPUPermInversion",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationGPUPermInversion",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_gpu_perm_inversion",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationGPUPermSwap",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationGPUPermSwap",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_gpu_perm_swap",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationGPURouteRelocate",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationGPURouteRelocate",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_gpu_route_relocate",
+              "description": "Constructor keyword arguments for this `mutation` strategy class."
+            }
+          }
+        },
+        {
+          "title": "MutationGPURouteSwap",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "MutationGPURouteSwap",
+              "description": "Built-in `MutationStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_mutation_gpu_route_swap",
               "description": "Constructor keyword arguments for this `mutation` strategy class."
             }
           }
@@ -607,7 +850,7 @@
       "type": "object",
       "oneOf": [
         {
-          "title": "LocalSearchCPUTwoOpt",
+          "title": "LocalSearchCPURouteTwoOptStar",
           "type": "object",
           "required": [
             "class"
@@ -615,17 +858,17 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "LocalSearchCPUTwoOpt",
+              "const": "LocalSearchCPURouteTwoOptStar",
               "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_local_search_cpu_two_opt",
+              "$ref": "#/$defs/params_local_search_cpu_route_two_opt_star",
               "description": "Constructor keyword arguments for this `local_search` strategy class."
             }
           }
         },
         {
-          "title": "LocalSearchGPUTwoOpt",
+          "title": "LocalSearchCPUTourTwoOpt",
           "type": "object",
           "required": [
             "class"
@@ -633,11 +876,47 @@
           "additionalProperties": false,
           "properties": {
             "class": {
-              "const": "LocalSearchGPUTwoOpt",
+              "const": "LocalSearchCPUTourTwoOpt",
               "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
             },
             "params": {
-              "$ref": "#/$defs/params_local_search_gpu_two_opt",
+              "$ref": "#/$defs/params_local_search_cpu_tour_two_opt",
+              "description": "Constructor keyword arguments for this `local_search` strategy class."
+            }
+          }
+        },
+        {
+          "title": "LocalSearchGPURouteTwoOptStar",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "LocalSearchGPURouteTwoOptStar",
+              "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_local_search_gpu_route_two_opt_star",
+              "description": "Constructor keyword arguments for this `local_search` strategy class."
+            }
+          }
+        },
+        {
+          "title": "LocalSearchGPUTourTwoOpt",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "LocalSearchGPUTourTwoOpt",
+              "description": "Built-in `LocalSearchStrategy` implementation registered in `STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_local_search_gpu_tour_two_opt",
               "description": "Constructor keyword arguments for this `local_search` strategy class."
             }
           }
@@ -753,6 +1032,276 @@
         }
       ]
     },
+    "sub_strategy_penalty_policy": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "AdaptivePenaltyPolicy",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "AdaptivePenaltyPolicy",
+              "description": "Built-in `PenaltyPolicy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_adaptive_penalty_policy",
+              "description": "Constructor keyword arguments for this `penalty_policy` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "FixedPenaltyPolicy",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "FixedPenaltyPolicy",
+              "description": "Built-in `PenaltyPolicy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_fixed_penalty_policy",
+              "description": "Constructor keyword arguments for this `penalty_policy` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "InstanceScaledPenaltyPolicy",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "InstanceScaledPenaltyPolicy",
+              "description": "Built-in `PenaltyPolicy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_instance_scaled_penalty_policy",
+              "description": "Constructor keyword arguments for this `penalty_policy` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "StrictFeasibilityPolicy",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "StrictFeasibilityPolicy",
+              "description": "Built-in `PenaltyPolicy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_strict_feasibility_policy",
+              "description": "Constructor keyword arguments for this `penalty_policy` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom penalty_policy sub-strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom penalty_policy sub-strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "sub_strategy_route_decoder": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "GreedySplitDecoder",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "GreedySplitDecoder",
+              "description": "Built-in `RouteDecoder` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_greedy_split_decoder",
+              "description": "Constructor keyword arguments for this `decoder` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "PrinsSplitDecoder",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "PrinsSplitDecoder",
+              "description": "Built-in `RouteDecoder` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_prins_split_decoder",
+              "description": "Constructor keyword arguments for this `decoder` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom decoder sub-strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom decoder sub-strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
+    "sub_strategy_bin_packing": {
+      "type": "object",
+      "oneOf": [
+        {
+          "title": "BinPackingCPUBFD",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "BinPackingCPUBFD",
+              "description": "Built-in `BinPackingStrategy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_bin_packing_cpubfd",
+              "description": "Constructor keyword arguments for this `bin_packing` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "BinPackingCPUFFD",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "BinPackingCPUFFD",
+              "description": "Built-in `BinPackingStrategy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_bin_packing_cpuffd",
+              "description": "Constructor keyword arguments for this `bin_packing` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "BinPackingGPUBFD",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "BinPackingGPUBFD",
+              "description": "Built-in `BinPackingStrategy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_bin_packing_gpubfd",
+              "description": "Constructor keyword arguments for this `bin_packing` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "BinPackingGPUFFD",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "BinPackingGPUFFD",
+              "description": "Built-in `BinPackingStrategy` implementation registered in `SUB_STRATEGY_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_bin_packing_gpuffd",
+              "description": "Constructor keyword arguments for this `bin_packing` sub-strategy class."
+            }
+          }
+        },
+        {
+          "title": "External custom bin_packing sub-strategy (module + class)",
+          "type": "object",
+          "required": [
+            "module",
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "module": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dotted Python module path or config-relative .py file path for loading an external custom class outside the built-in registry without modifying src/."
+            },
+            "class": {
+              "type": "string",
+              "minLength": 1,
+              "description": "External custom bin_packing sub-strategy class name exported by `module`."
+            },
+            "params": {
+              "type": "object",
+              "description": "Constructor keyword arguments passed to the external custom class."
+            }
+          }
+        }
+      ]
+    },
     "pipeline_step": {
       "type": "object",
       "oneOf": [
@@ -770,6 +1319,60 @@
             },
             "params": {
               "$ref": "#/$defs/params_elite_only_local_search_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
+          "title": "FleetBinPackStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "FleetBinPackStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_fleet_bin_pack_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
+          "title": "GiantTourEncodeStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "GiantTourEncodeStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_giant_tour_encode_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
+          "title": "PenaltyAdaptationStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "PenaltyAdaptationStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_penalty_adaptation_step",
               "description": "Constructor keyword arguments for this pipeline step class."
             }
           }
@@ -811,6 +1414,24 @@
           }
         },
         {
+          "title": "SplitDecodeStep",
+          "type": "object",
+          "required": [
+            "class"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "class": {
+              "const": "SplitDecodeStep",
+              "description": "Built-in `GenerationStep` implementation registered in `PIPELINE_STEP_REGISTRY`."
+            },
+            "params": {
+              "$ref": "#/$defs/params_split_decode_step",
+              "description": "Constructor keyword arguments for this pipeline step class."
+            }
+          }
+        },
+        {
           "title": "External custom pipeline step (module + class)",
           "type": "object",
           "required": [
@@ -837,7 +1458,199 @@
         }
       ]
     },
-    "params_initialization_nearest_neighbor": {
+    "params_initialization_cpu_perm_random": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_initialization_cpu_route_clarke_wright": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape_param": {
+          "type": "number"
+        },
+        "noise": {
+          "type": "number"
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "giant_tour",
+            "delimited"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_initialization_cpu_route_sweep": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "giant_tour",
+            "delimited"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_initialization_cpu_tour_nearest_neighbor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_initialization_gpu_perm_random": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        }
+      }
+    },
+    "params_initialization_gpu_route_clarke_wright": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape_param": {
+          "type": "number"
+        },
+        "noise": {
+          "type": "number"
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "giant_tour",
+            "delimited"
+          ]
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_initialization_gpu_route_sweep": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "giant_tour",
+            "delimited"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        }
+      }
+    },
+    "params_initialization_gpu_tour_nearest_neighbor": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -858,19 +1671,10 @@
         "return_gpu": {
           "type": "boolean",
           "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
-        },
-        "candidate_k": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 0,
-          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
-          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
         }
       }
     },
-    "params_initialization_random": {
+    "params_selection_cpu_roulette_wheel": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -881,10 +1685,26 @@
             "null"
           ],
           "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_selection_cpu_tournament": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
+          "description": "Tournament size (selection) or candidate-list width (initialization)."
         },
-        "return_gpu": {
-          "type": "boolean",
-          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
         }
       }
     },
@@ -908,7 +1728,7 @@
         }
       }
     },
-    "params_selection_roulette_wheel": {
+    "params_crossover_cpu_perm_order": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -922,93 +1742,276 @@
         }
       }
     },
-    "params_selection_tournament": {
+    "params_crossover_cpu_perm_partially_mapped": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "k": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_cpu_route_rbx": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_gpu_perm_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_gpu_perm_partially_mapped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_crossover_gpu_route_rbx": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_ext_gpu_pmx_crossover_py_crossover_gpu_perm_partially_mapped": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_mutation_cpu_perm_inversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_cpu_perm_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_cpu_route_relocate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_mutation_cpu_route_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_mutation_gpu_perm_inversion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_gpu_perm_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        }
+      }
+    },
+    "params_mutation_gpu_route_relocate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        }
+      }
+    },
+    "params_mutation_gpu_route_swap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        },
+        "return_gpu": {
+          "type": "boolean",
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        }
+      }
+    },
+    "params_local_search_cpu_route_two_opt_star": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "best",
+            "multi_move"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "max_iterations": {
           "type": "integer",
-          "minimum": 1,
-          "$comment": "Advisory bound: tournament size or candidate-list width >= 1.",
-          "description": "Tournament size (selection) or candidate-list width (initialization)."
-        },
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
-        }
-      }
-    },
-    "params_crossover_gpu_order": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
-        }
-      }
-    },
-    "params_crossover_order": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
-        }
-      }
-    },
-    "params_crossover_partially_mapped": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
-        }
-      }
-    },
-    "params_ext_gpu_pmx_crossover_py_crossover_gpu_partially_mapped": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
-        }
-      }
-    },
-    "params_mutation_gpu_inversion": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
         },
         "candidate_k": {
           "type": [
@@ -1018,79 +2021,35 @@
           "minimum": 0,
           "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
           "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
-        }
-      }
-    },
-    "params_mutation_gpu_swap": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
         },
-        "candidate_k": {
+        "split_mode": {
+          "type": "string",
+          "enum": [
+            "prins",
+            "greedy"
+          ]
+        },
+        "intra_two_opt": {
+          "type": "boolean"
+        },
+        "max_matrix_dimension": {
           "type": [
             "integer",
             "null"
           ],
           "minimum": 0,
-          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
-          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
-        }
-      }
-    },
-    "params_mutation_inversion": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
         },
-        "candidate_k": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 0,
-          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
-          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
-        }
-      }
-    },
-    "params_mutation_swap": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "seed": {
-          "type": [
-            "integer",
-            "array",
-            "null"
-          ],
-          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
         },
-        "candidate_k": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 0,
-          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
-          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        "decoder": {
+          "$ref": "#/$defs/sub_strategy_route_decoder"
         }
       }
     },
-    "params_local_search_cpu_two_opt": {
+    "params_local_search_cpu_tour_two_opt": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1120,7 +2079,70 @@
         }
       }
     },
-    "params_local_search_gpu_two_opt": {
+    "params_local_search_gpu_route_two_opt_star": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "batch",
+            "multi_move"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "max_iterations": {
+          "type": "integer",
+          "minimum": 0,
+          "$comment": "Advisory bound: 0 disables 2-opt refinement passes.",
+          "description": "2-opt pass cap for the local-search strategies."
+        },
+        "candidate_k": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: <= 0 or null disables candidate-list pruning.",
+          "description": "Nearest-neighbour list width; null or <= 0 keeps the exhaustive scan (DP10-20)."
+        },
+        "split_mode": {
+          "type": "string",
+          "enum": [
+            "prins",
+            "greedy"
+          ]
+        },
+        "intra_two_opt": {
+          "type": "boolean"
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "threads_per_block": {
+          "type": "integer",
+          "minimum": 32,
+          "$comment": "Advisory bound: GPU strategies clamp or derive block dimensions at runtime.",
+          "description": "CUDA threads per block for the GPU strategies (advisory lower bound)."
+        },
+        "max_shared_dimension": {
+          "type": "integer"
+        },
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        },
+        "decoder": {
+          "$ref": "#/$defs/sub_strategy_route_decoder"
+        }
+      }
+    },
+    "params_local_search_gpu_tour_two_opt": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -1186,7 +2208,30 @@
     "params_evaluation_cpu_cost": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {}
+      "properties": {
+        "decoder": {
+          "$ref": "#/$defs/sub_strategy_route_decoder"
+        },
+        "split_mode": {
+          "type": "string",
+          "enum": [
+            "prins",
+            "greedy"
+          ]
+        },
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        }
+      }
     },
     "params_evaluation_gpu_cost": {
       "type": "object",
@@ -1210,6 +2255,294 @@
           "minimum": 0,
           "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
           "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "decoder": {
+          "$ref": "#/$defs/sub_strategy_route_decoder"
+        },
+        "split_mode": {
+          "type": "string",
+          "enum": [
+            "prins",
+            "greedy"
+          ]
+        },
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        }
+      }
+    },
+    "params_adaptive_penalty_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "epsilon_tol": {
+          "type": "number"
+        },
+        "up_factor": {
+          "type": "number"
+        },
+        "down_factor": {
+          "type": "number"
+        },
+        "target_feasible_low": {
+          "type": "number"
+        },
+        "target_feasible_high": {
+          "type": "number"
+        },
+        "min_scale": {
+          "type": "number"
+        },
+        "max_scale": {
+          "type": "number"
+        },
+        "safety_factor": {
+          "type": "number"
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_fixed_penalty_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "penalty_capacity": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "penalty_distance": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "penalty_vehicles": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_instance_scaled_penalty_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "safety_factor": {
+          "type": "number"
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_strict_feasibility_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_greedy_split_decoder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "use_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "return_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "max_vehicles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_shared_customers": {
+          "type": "integer"
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        }
+      }
+    },
+    "params_prins_split_decoder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "use_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "return_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "max_vehicles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_shared_customers": {
+          "type": "integer"
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        }
+      }
+    },
+    "params_bin_packing_cpubfd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_bin_packing_cpuffd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_bin_packing_gpubfd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "max_shared_dimension": {
+          "type": "integer"
+        },
+        "return_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
+        }
+      }
+    },
+    "params_bin_packing_gpuffd": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "max_shared_dimension": {
+          "type": "integer"
+        },
+        "return_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Keep produced routes/costs in VRAM instead of returning host arrays."
+        },
+        "seed": {
+          "type": [
+            "integer",
+            "array",
+            "null"
+          ],
+          "description": "Explicit seed override; the loader injects the run seed when omitted."
         }
       }
     },
@@ -1230,6 +2563,60 @@
           "minimum": 1,
           "$comment": "Advisory bound: constructor enforces elite_count > 0.",
           "description": "Number of top-fitness routes to refine (EliteOnlyLocalSearchStep)."
+        }
+      }
+    },
+    "params_fleet_bin_pack_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bin_packing": {
+          "$ref": "#/$defs/sub_strategy_bin_packing"
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "offspring",
+            "population"
+          ],
+          "description": "Target array to refine ('offspring' or 'population')."
+        }
+      }
+    },
+    "params_giant_tour_encode_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": [
+            "offspring",
+            "population"
+          ],
+          "description": "Target array to refine ('offspring' or 'population')."
+        },
+        "stage_anchor": {
+          "type": "string",
+          "enum": [
+            "pre_selection",
+            "pre_evaluation",
+            "post_survival"
+          ]
+        }
+      }
+    },
+    "params_penalty_adaptation_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        },
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "$comment": "Advisory bound: constructor enforces interval > 0.",
+          "description": "Generation interval between local search passes (PeriodicLocalSearchStep)."
         }
       }
     },
@@ -1272,6 +2659,66 @@
         "evaluation": {
           "$ref": "#/$defs/strategy_slot_evaluation",
           "description": "Evaluation strategy slot override; omitted inherits the variant's evaluation strategy."
+        }
+      }
+    },
+    "params_split_decode_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "prins",
+            "greedy"
+          ],
+          "description": "Acceptance rule supported by this strategy's backend."
+        },
+        "target": {
+          "type": "string",
+          "enum": [
+            "offspring",
+            "population"
+          ],
+          "description": "Target array to refine ('offspring' or 'population')."
+        },
+        "stage_anchor": {
+          "type": "string",
+          "enum": [
+            "pre_selection",
+            "pre_evaluation",
+            "post_survival"
+          ]
+        },
+        "use_gpu": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "max_vehicles": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_shared_customers": {
+          "type": "integer"
+        },
+        "max_matrix_dimension": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "$comment": "Advisory bound: n threshold for on-the-fly distances; null defers to DEFAULT_MAX_MATRIX_DIMENSION.",
+          "description": "`n` above which coordinate-based problems use on-the-fly distances; `null` defers to `DEFAULT_MAX_MATRIX_DIMENSION` (10 000)."
+        },
+        "penalty_policy": {
+          "$ref": "#/$defs/sub_strategy_penalty_policy"
+        },
+        "decoder": {
+          "$ref": "#/$defs/sub_strategy_route_decoder"
         }
       }
     }

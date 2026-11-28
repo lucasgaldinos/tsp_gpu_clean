@@ -39,7 +39,7 @@ tags:
 
 ## 1. Observed Baseline Results (30 Repetitions, No 2-Opt, Memetic Defaults)
 
-Running [`configs/algorithms.json`](../configs/algorithms.json) (`population_size=128`, `mutation_rate=0.03`, `InitializationRandom`, `SelectionGPUTournament(k=5)`, `MutationGPUSwap`, `LocalSearchNoOp`, `local_search_stage="none"`) across the 9 TSPLIB instances with $n > 150$ produced the results in [`results/tables/ox_vs_pmx.md`](../results/tables/ox_vs_pmx.md):
+Running [`configs/algorithms.json`](../configs/algorithms.json) (`population_size=128`, `mutation_rate=0.03`, `InitializationRandom`, `SelectionGPUTournament(k=5)`, `MutationGPUPermSwap`, `LocalSearchNoOp`, `local_search_stage="none"`) across the 9 TSPLIB instances with $n > 150$ produced the results in [`results/tables/ox_vs_pmx.md`](../results/tables/ox_vs_pmx.md):
 
 | Metric (9 instances, $n \in [198, 1002]$) | `OX_GPU` | `PMX_GPU` |
 | :--- | ---: | ---: |
@@ -50,7 +50,7 @@ Running [`configs/algorithms.json`](../configs/algorithms.json) (`population_siz
 | `d198` Mean Generations / Time per Gen | 421.9 gens / **1.172 ms/gen** | 930.9 gens / **1.098 ms/gen** |
 | `pr1002` Mean Generations / Time per Gen | 2,624.9 gens / **1.278 ms/gen** | 8,904.6 gens / **1.200 ms/gen** |
 
-For comparison, the same pipeline **with** batched GPU 2-opt (`LocalSearchGPUTwoOpt(mode="batch")`, 5 reps) achieved **2.01% mean gap (`OX_GPU`)** and **6.28% mean gap (`PMX_GPU`)**.
+For comparison, the same pipeline **with** batched GPU 2-opt (`LocalSearchGPUTourTwoOpt(mode="batch")`, 5 reps) achieved **2.01% mean gap (`OX_GPU`)** and **6.28% mean gap (`PMX_GPU`)**.
 
 ---
 
@@ -58,7 +58,7 @@ For comparison, the same pipeline **with** batched GPU 2-opt (`LocalSearchGPUTwo
 
 Those hyperparameters were tuned for a **memetic GA** where 2-opt does the geometric edge refinement every generation. Removing 2-opt without retuning exposed five compounding weaknesses:
 
-1. **Swap mutation (`MutationGPUSwap`) cannot uncross TSP edges effectively.** Swapping two cities breaks 4 edges and inserts 4 random ones. By contrast, segment inversion (`MutationGPUInversion`) reverses a sub-tour $[i..j]$, which breaks only 2 edges — structurally equivalent to a random 2-opt move.
+1. **Swap mutation (`MutationGPUPermSwap`) cannot uncross TSP edges effectively.** Swapping two cities breaks 4 edges and inserts 4 random ones. By contrast, segment inversion (`MutationGPUPermInversion`) reverses a sub-tour $[i..j]$, which breaks only 2 edges — structurally equivalent to a random 2-opt move.
 2. **Starved mutation rate (`0.03`) on a tiny population (`128`).** On average, only $128 \times 0.03 \approx 3.8$ individuals mutate per generation. Without 2-opt introducing improving edges, diversity collapses quickly.
 3. **Excessive selection pressure (`k = 5`) combined with $(\mu + \lambda)$ elitist survival.** High tournament size lets the best initial random tours take over the 128-route population within a few generations, locking in long crossing edges.
 4. **Uniformly random initialization (`InitializationRandom`) on $n \le 1{,}002$.** Random permutations on `pr1002` start more than 15× above optimum; a pure GA with 128 routes and 3% swap mutation stalls long before untangling hundreds of crossings.
@@ -89,7 +89,7 @@ Because GPU kernels without 2-opt finish in microseconds on $N = 128$, the ~1.1 
 ### Mitigation Levers
 
 1. **Amortize dispatch via larger `population_size` (zero code changes):** Raising `population_size` from `128` to `512` (or `1024`) keeps host dispatch nearly constant at ~1.1 ms/gen while giving the GPU 4×–8× more routes per launch, improving both SM occupancy and solution quality.
-2. **Use stronger pure-GA operators (zero code changes):** `MutationGPUInversion`, `mutation_rate=0.20`, `k=3`, and optionally `InitializationNearestNeighbor(k=20, return_gpu=true)` cut wasted generations drastically.
+2. **Use stronger pure-GA operators (zero code changes):** `MutationGPUPermInversion`, `mutation_rate=0.20`, `k=3`, and optionally `InitializationNearestNeighbor(k=20, return_gpu=true)` cut wasted generations drastically.
 3. **Host/runtime batching (code-level in `src/`):** Pack per-generation RNG arrays into a single pinned H2D buffer, check early stopping every $K$ generations instead of every generation, or capture the generation sequence in a **CUDA Graph**.
 4. **Monolithic fused kernel (architectural):** Move the entire generational loop + `curand` inside a single `.cu` kernel (trading away modular strategy composition, as in [`full_gpu_monolithic.py`](../../../../src/algorithms/archive/full_gpu_monolithic.py)).
 
@@ -103,7 +103,7 @@ Because GPU kernels without 2-opt finish in microseconds on $N = 128$, the ~1.1 
 | :--- | :--- | :--- | :--- |
 | `population_size` | `128` | `512` | 4× diversity and 4× GPU work per fixed ~1.1 ms/gen dispatch |
 | `mutation_rate` | `0.03` | `0.20` | Restores edge exploration when 2-opt is disabled |
-| `mutation` | `MutationGPUSwap` | `MutationGPUInversion` | 2-edge segment reversal uncrosses Euclidean tours cleanly |
+| `mutation` | `MutationGPUPermSwap` | `MutationGPUPermInversion` | 2-edge segment reversal uncrosses Euclidean tours cleanly |
 | `selection.k` | `5` | `3` | Reduces premature diversity collapse under elitist survival |
 | `initialization` | Random only | Random + `InitializationNearestNeighbor(k=20)` | Compares both cold-start untangling and geometric recombination |
 

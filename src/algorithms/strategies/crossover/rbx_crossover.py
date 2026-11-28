@@ -1,6 +1,6 @@
 """Route-Based Crossover (RBX, Potvin & Bengio 1996) for `0`-delimited VRP batches (`DP17-2`, `DP17-7`, `BUG-114`).
 
-Separates CPU (`CrossoverRBX`) and GPU (`CrossoverGPURBX`) strategies, honoring capacity ($Q$),
+Separates CPU (`CrossoverCPURouteRBX`) and GPU (`CrossoverGPURouteRBX`) strategies, honoring capacity ($Q$),
 max route distance ($L_{\\max}$), and `return_to_depot` (OVRP vs. CVRP/DCVRP) when packing
 Parent-2 residual customers, using identical `int32` RNG draws across single/batch calls and
 reusing a monotonic `uint8` `d_visited` GPU workspace (`BUG-113`).
@@ -157,7 +157,7 @@ def _rbx_pair_cpu(
   return child
 
 
-class CrossoverRBX(StrategyBase, CrossoverStrategy):
+class CrossoverCPURouteRBX(StrategyBase, CrossoverStrategy):
   """CPU Route-Based Crossover (`RBX`) for `0`-delimited `(N, n + K_max)` VRP batches."""
 
   def __init__(self, seed: SeedLike = None) -> None:
@@ -235,7 +235,7 @@ class CrossoverRBX(StrategyBase, CrossoverStrategy):
     return restore_routes_shape(offspring, was_1d)
 
 
-class CrossoverGPURBX(StrategyBase, CrossoverStrategy):
+class CrossoverGPURouteRBX(StrategyBase, CrossoverStrategy):
   """GPU CUDA Route-Based Crossover (`RBX`) for `0`-delimited `(N, n + K_max)` VRP batches."""
 
   def __init__(
@@ -282,7 +282,7 @@ class CrossoverGPURBX(StrategyBase, CrossoverStrategy):
   ) -> Route:
     """Recombine two 1D `0`-delimited parent routes (requires GPU backend per `DP9-2`)."""
     require_gpu()
-    return CrossoverRBX(seed=self.seed).crossover(parent1, parent2, context=context)
+    return CrossoverCPURouteRBX(seed=self.seed).crossover(parent1, parent2, context=context)
 
   @time_strategy
   def crossover_batch(
@@ -307,7 +307,7 @@ class CrossoverGPURBX(StrategyBase, CrossoverStrategy):
       return restore_routes_shape(np.asarray(batch, dtype=np.int32).copy(), was_1d)
 
     if context is None:
-      raise ValueError("CrossoverGPURBX requires a ProblemContext for GPU batches")
+      raise ValueError("CrossoverGPURouteRBX requires a ProblemContext for GPU batches")
 
     if input_on_gpu:
       d_parents = cp.ascontiguousarray(batch, dtype=cp.int32)
@@ -372,4 +372,4 @@ class CrossoverGPURBX(StrategyBase, CrossoverStrategy):
     return restore_routes_shape(host_out, was_1d)
 
 
-__all__: list[str] = ["CrossoverGPURBX", "CrossoverRBX"]
+__all__: list[str] = ["CrossoverCPURouteRBX", "CrossoverGPURouteRBX"]

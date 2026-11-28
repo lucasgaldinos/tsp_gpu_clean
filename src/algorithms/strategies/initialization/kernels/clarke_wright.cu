@@ -3,7 +3,7 @@
  *
  * One thread per population row; row `0` executes deterministic greedy CW (`rcl_width = 1`),
  * while rows `1..N-1` use a register-resident 32-bit sliding-window RCL driven by `SplitMix64`.
- * Bit-identical to `InitializationCPUClarkeWright`.
+ * Bit-identical to `InitializationCPURouteClarkeWright`.
  */
 
 #include "pairwise_device.cuh"

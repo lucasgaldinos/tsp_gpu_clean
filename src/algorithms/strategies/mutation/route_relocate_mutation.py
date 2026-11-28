@@ -40,7 +40,7 @@ def _resolve_relocate_indices(
   return k1_arr, u1_arr, s2_arr
 
 
-class MutationRouteRelocate(StrategyBase, MutationStrategy):
+class MutationCPURouteRelocate(StrategyBase, MutationStrategy):
   """CPU intra/inter-route customer Relocate mutation for `0`-delimited VRP batches."""
 
   def __init__(self, seed: SeedLike = None) -> None:
@@ -202,4 +202,4 @@ class MutationGPURouteRelocate(StrategyBase, MutationStrategy):
     return restore_routes_shape(host_out, was_1d)
 
 
-__all__: list[str] = ["MutationGPURouteRelocate", "MutationRouteRelocate"]
+__all__: list[str] = ["MutationCPURouteRelocate", "MutationGPURouteRelocate"]

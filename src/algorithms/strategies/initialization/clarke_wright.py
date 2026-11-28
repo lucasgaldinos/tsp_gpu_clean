@@ -180,7 +180,7 @@ def _clarke_wright_row_cpu(
   return routes
 
 
-class InitializationCPUClarkeWright(StrategyBase, InitializationStrategy):
+class InitializationCPURouteClarkeWright(StrategyBase, InitializationStrategy):
   """CPU Parallel Clarke & Wright (1964) savings initializer with ``SplitMix64`` RCL."""
 
   def __init__(
@@ -205,7 +205,7 @@ class InitializationCPUClarkeWright(StrategyBase, InitializationStrategy):
   ) -> Routes:
     """Generate ``population_size`` Clarke & Wright VRP routes on CPU."""
     if context is None:
-      raise ValueError("InitializationCPUClarkeWright requires a ProblemContext")
+      raise ValueError("InitializationCPURouteClarkeWright requires a ProblemContext")
     if population_size < 0:
       raise ValueError(f"population_size must be >= 0, got {population_size}")
 
@@ -253,8 +253,8 @@ class InitializationCPUClarkeWright(StrategyBase, InitializationStrategy):
     return pop
 
 
-class InitializationGPUClarkeWright(StrategyBase, InitializationStrategy):
-  """VRAM-native CUDA Clarke & Wright savings initializer bit-identical to ``InitializationCPUClarkeWright``."""
+class InitializationGPURouteClarkeWright(StrategyBase, InitializationStrategy):
+  """VRAM-native CUDA Clarke & Wright savings initializer bit-identical to ``InitializationCPURouteClarkeWright``."""
 
   def __init__(
     self,
@@ -316,7 +316,7 @@ class InitializationGPUClarkeWright(StrategyBase, InitializationStrategy):
   ) -> Routes:
     """Generate ``population_size`` Clarke & Wright VRP routes directly in VRAM."""
     if context is None:
-      raise ValueError("InitializationGPUClarkeWright requires a ProblemContext")
+      raise ValueError("InitializationGPURouteClarkeWright requires a ProblemContext")
     if population_size < 0:
       raise ValueError(f"population_size must be >= 0, got {population_size}")
 
@@ -417,4 +417,4 @@ class InitializationGPUClarkeWright(StrategyBase, InitializationStrategy):
     return host_pop
 
 
-__all__: list[str] = ["InitializationCPUClarkeWright", "InitializationGPUClarkeWright"]
+__all__: list[str] = ["InitializationCPURouteClarkeWright", "InitializationGPURouteClarkeWright"]

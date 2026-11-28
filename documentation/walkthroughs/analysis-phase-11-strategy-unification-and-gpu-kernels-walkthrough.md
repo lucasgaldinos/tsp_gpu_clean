@@ -143,8 +143,8 @@ During the multi-axis review gate, several critical defects and code quality iss
 ### 4.1 Instance Cache for Route Topology (`order_crossover.py`) — superseded by `BUG-24`
 
 - **Defect**: Lines 224–225 queried `first_0 = int(d_parents[0, 0].get())` on every generation to detect closed depot endpoints, causing synchronous pipeline stalls.
-- **First fix**: `self._is_closed_cache` was added to `CrossoverGPUOrder`, inspecting route topology on generation 1 and caching the boolean, yielding **zero D2H transfers** on later generations.
-- **Reclassification (2026-11-10, `BUG-24`)**: the instance cache is keyed only by `(n_cities, is_closed)` and is **poisoned** by zero-filled warm-up arrays (`0 == 0` ⇒ `is_closed=True`), so later open permutations of the same dimension diverge from `CrossoverOrder` (`E1 cache after zeros warm-up: (52, True)`, `GPU==CPU offspring after poisoned warm-up: False`). `DP11-19` therefore mandates removing the cache and deriving bounds from `resolve_route_bounds(n, context, route_sample)` instead of instance state.
+- **First fix**: `self._is_closed_cache` was added to `CrossoverGPUPermOrder`, inspecting route topology on generation 1 and caching the boolean, yielding **zero D2H transfers** on later generations.
+- **Reclassification (2026-11-10, `BUG-24`)**: the instance cache is keyed only by `(n_cities, is_closed)` and is **poisoned** by zero-filled warm-up arrays (`0 == 0` ⇒ `is_closed=True`), so later open permutations of the same dimension diverge from `CrossoverCPUPermOrder` (`E1 cache after zeros warm-up: (52, True)`, `GPU==CPU offspring after poisoned warm-up: False`). `DP11-19` therefore mandates removing the cache and deriving bounds from `resolve_route_bounds(n, context, route_sample)` instead of instance state.
 - **Kept**: the hardware query replaced hardcoded `48 * 1024` with `cp.cuda.Device().attributes['MaxSharedMemoryPerBlock']`.
 
 ### 4.2 Centralization of `next_power_of_2` (`src/utils/gpu_helpers.py`)
@@ -207,7 +207,7 @@ The decorator used to inspect every positional argument with `isinstance(arg, cp
 The default path now only reads `time.perf_counter()`, so a GPU strategy returns to the host as soon as its kernels are *enqueued*. Device-accurate timing stays reachable but is opt-in: a strategy exposes `use_gpu_events = True`, and `PhaseTimer(use_cuda_events=True)` keeps the barrier-and-event path for callers that need a device clock. `StrategyBase` declares `last_elapsed_ms`, `total_elapsed_ms` and `call_count` as typed instance attributes, giving the decorator a static home instead of a dynamic attribute.
 
 ```shellsession
-$ enqueue probe — LocalSearchGPUTwoOpt(mode="batch"), N=256, n=500, resident population
+$ enqueue probe — LocalSearchGPUTourTwoOpt(mode="batch"), N=256, n=500, resident population
 enqueue=0.24ms wrapped_full=154.20ms last_elapsed=0.08ms
 ```
 
@@ -235,7 +235,7 @@ $ grep -rn "if (tour_idx >= num_tours) return;" src/algorithms/strategies/local_
 1
 ```
 
-The multi-move candidate bound is now an explicit contract rather than a silent divergence: each thread retains one steepest candidate, so a pass offers at most `min(block_size, n / 2)` moves to the greedy disjoint step (Rocki & Suda, 2013). The CPU reference scans every pair, so the two backends descend in the same direction but not through identical intermediate tours — documented in both `two_opt_multi_move.cu` and `LocalSearchGPUTwoOpt`.
+The multi-move candidate bound is now an explicit contract rather than a silent divergence: each thread retains one steepest candidate, so a pass offers at most `min(block_size, n / 2)` moves to the greedy disjoint step (Rocki & Suda, 2013). The CPU reference scans every pair, so the two backends descend in the same direction but not through identical intermediate tours — documented in both `two_opt_multi_move.cu` and `LocalSearchGPUTourTwoOpt`.
 
 ### 7.4 Verification record
 
@@ -254,7 +254,7 @@ The four reopened tasks shared one root cause with two faces: route topology was
 - `ProblemContext.is_closed` now declares the formulation (`CVRP` → `True`, `TSP`/`ATSP` → `False`), so crossover and mutation never read endpoints from the device.
 - `resolve_route_bounds(n, context, route_sample)` resolves the mutable slice in this order: a host sample with identical endpoints `(n > 2)` → `(1, n - 1)`; otherwise `context.is_closed` decides; only a device sample *without* context pays a two-scalar D2H probe; with no information at all the depot-preserving `(1, n - 1)` wins. An open TSP tour therefore reaches `(0, n)` — recovering the $n!$ search space that `BUG-28` had truncated to `(n - 2)!` — while `[0, 1, 0]` stays a no-op.
 - `sample_distinct_pairs(rng, num_pairs, low, high)` implements the rejection-free bijection $v = v' + \mathbb{1}\{v' \ge u\}$ with `u ~ U[low, high)` and $v' \sim \mathcal{U}[low, high-1)$, returning an `int32` `(N, 2)` array. Two flat integer draws replace `choice(..., replace=False)`, which is what the CPU and GPU siblings now share.
-- `sample_mutation_positions(rng, rows, low, high, candidate_k, context)` is the single host oracle for swap and inversion, so `MutationSwap`/`MutationGPUSwap` and `MutationInversion`/`MutationGPUInversion` cannot drift.
+- `sample_mutation_positions(rng, rows, low, high, candidate_k, context)` is the single host oracle for swap and inversion, so `MutationCPUPermSwap`/`MutationGPUPermSwap` and `MutationCPUPermInversion`/`MutationGPUPermInversion` cannot drift.
 
 ### 8.2 Defect closure
 
@@ -294,7 +294,7 @@ Each step now answers the question itself through `stage_anchor`:
 
 ### 9.2 Telemetry had a blind spot the size of the whole strategy
 
-`_all_strategies()` listed the six constructor slots only. With `local_search_stage="none"` and `local_search=None` — the documented way to run local search exclusively through a pipeline step — the only `LocalSearchCPUTwoOpt` in the process lived inside `PostInitLocalSearchStep`, so `_reset_run_metrics` reset nothing that ran and `_collect_strategy_metrics` summed zero for H2D, D2H and kernel launches. The benchmark reported a memetic run with no GPU traffic.
+`_all_strategies()` listed the six constructor slots only. With `local_search_stage="none"` and `local_search=None` — the documented way to run local search exclusively through a pipeline step — the only `LocalSearchCPUTourTwoOpt` in the process lived inside `PostInitLocalSearchStep`, so `_reset_run_metrics` reset nothing that ran and `_collect_strategy_metrics` summed zero for H2D, D2H and kernel launches. The benchmark reported a memetic run with no GPU traffic.
 
 The traversal now walks `self.pipeline` through `step.strategies()`, falling back to `_PIPELINE_STRATEGY_ATTRS = ("strategy", "local_search", "evaluation", "re_evaluate")` for third-party steps that expose attributes instead. De-duplication is by `id()` rather than `==`, so a shared evaluator is neither reset nor summed twice.
 

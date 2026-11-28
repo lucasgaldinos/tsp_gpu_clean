@@ -1,4 +1,4 @@
-"""Unit & parity tests for `LocalSearchCPUTwoOptStar` and `LocalSearchGPUTwoOptStar` (`Tasks 17.8`, `17.9`, `17.24`)."""
+"""Unit & parity tests for `LocalSearch{CPU,GPU}RouteTwoOptStar` (`Tasks 17.8`, `17.9`, `17.24`)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from algorithms.strategies.decoding import GreedySplitDecoder, PrinsSplitDecoder, strip_depot_delimiters
-from algorithms.strategies.local_search import LocalSearchCPUTwoOptStar, LocalSearchGPUTwoOptStar
+from algorithms.strategies.local_search import LocalSearchCPURouteTwoOptStar, LocalSearchGPURouteTwoOptStar
 from algorithms.strategies.local_search.two_opt_star_helpers import (
   RouteState,
   eval_relocate_delta,
@@ -208,7 +208,7 @@ def test_cpu_operators_exact_delta_matches_full_recomputation(
 
 
 def test_cpu_inter_route_improves_cross_route_suboptimal_and_policy_injection() -> None:
-  """WHAT: `LocalSearchCPUTwoOptStar` escapes intra-route 2-opt optima and honors `PenaltyPolicy`/`RouteDecoder`."""
+  """WHAT: `LocalSearchCPURouteTwoOptStar` escapes intra-route 2-opt optima, honoring `PenaltyPolicy`/`RouteDecoder`."""
   coords = np.array(
     [[0.0, 0.0], [10.0, 0.0], [11.0, 0.0], [-10.0, 0.0], [-11.0, 0.0]],
     dtype=np.float64,
@@ -223,7 +223,7 @@ def test_cpu_inter_route_improves_cross_route_suboptimal_and_policy_injection() 
   assert before_cost == 84.0
 
   for mode in ("best", "multi_move"):
-    ls = LocalSearchCPUTwoOptStar(mode=mode, max_iterations=10, candidate_k=None)
+    ls = LocalSearchCPURouteTwoOptStar(mode=mode, max_iterations=10, candidate_k=None)
     assert isinstance(ls, LocalSearchStrategy)
     assert isinstance(ls.penalty_policy, InstanceScaledPenaltyPolicy)
     out = ls.improve(delimited, ctx)
@@ -234,7 +234,7 @@ def test_cpu_inter_route_improves_cross_route_suboptimal_and_policy_injection() 
 
   # Custom PenaltyPolicy + RouteDecoder injection + StrictFeasibilityPolicy NaN safety
   dec = GreedySplitDecoder(use_gpu=False, penalty_policy=StrictFeasibilityPolicy())
-  ls_strict = LocalSearchCPUTwoOptStar(penalty_policy=StrictFeasibilityPolicy(), decoder=dec, candidate_k=None)
+  ls_strict = LocalSearchCPURouteTwoOptStar(penalty_policy=StrictFeasibilityPolicy(), decoder=dec, candidate_k=None)
   assert ls_strict._decoder is dec
   out_strict = ls_strict.improve(delimited, ctx)
   assert _full_penalized_cost(extract_routes_from_delimited(out_strict), dist, demands, problem.constraints) == 44.0
@@ -242,7 +242,7 @@ def test_cpu_inter_route_improves_cross_route_suboptimal_and_policy_injection() 
 
 @pytest.mark.parametrize("mode", ["best", "multi_move"])
 def test_cpu_inter_route_giant_tour_and_delimited_preserve_bijection_and_monotonicity(mode: str) -> None:
-  """WHAT: Run `LocalSearchCPUTwoOptStar` on both Giant-Tour `(N, n-1)` and `0`-delimited `(N, W)` batches."""
+  """WHAT: Run `LocalSearchCPURouteTwoOptStar` on both Giant-Tour `(N, n-1)` and `0`-delimited `(N, W)` batches."""
   rng = np.random.default_rng(123)
   n = 15
   coords = rng.uniform(0.0, 100.0, size=(n, 2))
@@ -260,7 +260,7 @@ def test_cpu_inter_route_giant_tour_and_delimited_preserve_bijection_and_monoton
   dist = ctx.get_cpu_distances()
 
   giant_batch = np.stack([rng.permutation(np.arange(1, n, dtype=np.int32)) for _ in range(4)])
-  ls = LocalSearchCPUTwoOptStar(mode=mode, max_iterations=15, candidate_k=6)  # type: ignore[arg-type]
+  ls = LocalSearchCPURouteTwoOptStar(mode=mode, max_iterations=15, candidate_k=6)  # type: ignore[arg-type]
   wq, wl, wk = ls.penalty_policy.weights(ctx)
 
   gt_out = ls.improve_batch(giant_batch, ctx)
@@ -299,7 +299,7 @@ def test_gpu_batch_matches_cpu_best_across_variants_coords_and_global_fallback(
   max_vehicles: int | None,
   max_shared_dimension: int,
 ) -> None:
-  """WHAT: Exact parity between `LocalSearchGPUTwoOptStar(mode="batch")` and `LocalSearchCPUTwoOptStar(mode="best")`."""
+  """WHAT: Exact parity of GPU `mode="batch"` vs CPU `mode="best"` `LocalSearch*RouteTwoOptStar`."""
   from typing import Any
 
   cp: Any = _cupy()
@@ -325,11 +325,11 @@ def test_gpu_batch_matches_cpu_best_across_variants_coords_and_global_fallback(
   delim_in = PrinsSplitDecoder(use_gpu=False).decode_batch(tours, cpu_ctx).routes
 
   for cand_k in (None, 5):
-    cpu_ls = LocalSearchCPUTwoOptStar(mode="best", max_iterations=10, candidate_k=cand_k, intra_two_opt=True)
+    cpu_ls = LocalSearchCPURouteTwoOptStar(mode="best", max_iterations=10, candidate_k=cand_k, intra_two_opt=True)
     cpu_out = cpu_ls.improve_batch(delim_in, cpu_ctx)
 
     for max_mat in (None, 3):
-      gpu_ls = LocalSearchGPUTwoOptStar(
+      gpu_ls = LocalSearchGPURouteTwoOptStar(
         mode="batch",
         max_iterations=10,
         candidate_k=cand_k,
@@ -343,7 +343,7 @@ def test_gpu_batch_matches_cpu_best_across_variants_coords_and_global_fallback(
 
 @pytest.mark.gpu
 def test_gpu_multi_move_over_32_routes_uses_multi_word_bitmask_and_preserves_constraints() -> None:
-  """WHAT: `LocalSearchGPUTwoOptStar(mode="multi_move")` on an instance with $m = 44 > 32$ active routes (`N2`)."""
+  """WHAT: `LocalSearchGPURouteTwoOptStar(mode="multi_move")` on an instance with $m = 44 > 32$ active routes (`N2`)."""
   from typing import Any
 
   cp: Any = _cupy()
@@ -364,7 +364,7 @@ def test_gpu_multi_move_over_32_routes_uses_multi_word_bitmask_and_preserves_con
   batch = np.tile(row, (2, 1))
 
   before_cost = _full_penalized_cost(extract_routes_from_delimited(row), dist, demands, problem.constraints)
-  gpu_ls = LocalSearchGPUTwoOptStar(mode="multi_move", max_iterations=15, candidate_k=10, intra_two_opt=True)
+  gpu_ls = LocalSearchGPURouteTwoOptStar(mode="multi_move", max_iterations=15, candidate_k=10, intra_two_opt=True)
   assert isinstance(gpu_ls, LocalSearchStrategy)
   out = np.asarray(gpu_ls.improve_batch(batch, gpu_ctx))
 
@@ -390,7 +390,7 @@ def test_gpu_inter_route_zero_d2h_on_cupy_inputs_and_warmup(gpu_mode: str) -> No
   gpu_ctx = ProblemContext(problem, xp=cp, seed=0)
   dist = gpu_ctx.get_cpu_distances()
 
-  ls = LocalSearchGPUTwoOptStar(
+  ls = LocalSearchGPURouteTwoOptStar(
     mode=gpu_mode,  # type: ignore[arg-type]
     max_iterations=10,
     candidate_k=None,

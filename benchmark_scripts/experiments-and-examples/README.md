@@ -47,7 +47,7 @@ library code or repository-wide schemas.
 | Folder | Purpose |
 | :--- | :--- |
 | `chapter4/` | Dissertation Chapter 4 four-variant iso-algorithmic validation suite (`CPU`, `HybridNaive`, `HybridOptimized`, `FullGPUModular`) and local-search stage sweeps. |
-| `experiment-comparing-OX-and-PMX/` | End-to-end example comparing built-in GPU Order Crossover (`CrossoverGPUOrder`) against an experiment-local CUDA Partially Mapped Crossover (`CrossoverGPUPartiallyMapped` + `kernels/pmx_crossover.cu`). |
+| `experiment-comparing-OX-and-PMX/` | End-to-end example comparing built-in GPU Order Crossover (`CrossoverGPUPermOrder`) against an experiment-local CUDA Partially Mapped Crossover (`CrossoverGPUPermPartiallyMapped` + `kernels/pmx_crossover.cu`). |
 
 ---
 
@@ -84,7 +84,7 @@ Configuration precedence in [`config_loader.py::resolve_benchmark_configs`](../.
 ```json
 "crossover": {
   "module": "../gpu_pmx_crossover.py",
-  "class": "CrossoverGPUPartiallyMapped"
+  "class": "CrossoverGPUPermPartiallyMapped"
 }
 ```
 

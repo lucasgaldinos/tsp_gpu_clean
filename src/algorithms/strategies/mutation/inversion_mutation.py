@@ -33,7 +33,7 @@ if TYPE_CHECKING:
   from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-class MutationInversion(StrategyBase, MutationStrategy):
+class MutationCPUPermInversion(StrategyBase, MutationStrategy):
   """
   Inversion Mutation strategy for single routes and 2D route batches.
 
@@ -42,7 +42,7 @@ class MutationInversion(StrategyBase, MutationStrategy):
   """
 
   def __init__(self, seed: SeedLike = None, candidate_k: int | None = None) -> None:
-    """Initialize MutationInversion with optional RNG seed.
+    """Initialize MutationCPUPermInversion with optional RNG seed.
 
     Args:
         seed: Optional random seed override.
@@ -72,7 +72,7 @@ class MutationInversion(StrategyBase, MutationStrategy):
     """Mutate a 1D route `(n_cities,)` or 2D batch `(N, n_cities)` via segment inversion.
 
     Positions come from the single shared host oracle, so this method and
-    `MutationGPUInversion.mutate_batch` issue identical draws and stay bit-identical
+    `MutationGPUPermInversion.mutate_batch` issue identical draws and stay bit-identical
     for the same seed (`INV-A`, `DP11-17`).
     """
     batch_np, was_1d, was_gpu = to_cpu_batch(routes, copy=False)
@@ -99,7 +99,7 @@ class MutationInversion(StrategyBase, MutationStrategy):
     return restore_routes_shape(out, was_1d, to_gpu=was_gpu)
 
 
-class MutationGPUInversion(StrategyBase, MutationStrategy):
+class MutationGPUPermInversion(StrategyBase, MutationStrategy):
   """
   Modular GPU CUDA kernel Inversion Mutation strategy (`inversion_mutation.cu`).
 
@@ -111,7 +111,7 @@ class MutationGPUInversion(StrategyBase, MutationStrategy):
 
     Args:
         seed: Optional random seed override.
-        candidate_k: Accepted for LSP parity with `MutationInversion` (`DP11-20`); when
+        candidate_k: Accepted for LSP parity with `MutationCPUPermInversion` (`DP11-20`); when
             set, the second cut comes from the candidate neighbourhood (`BUG-28`).
     """
     super().__init__(seed)
@@ -153,7 +153,7 @@ class MutationGPUInversion(StrategyBase, MutationStrategy):
 
     Raises:
         GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
-            strategy never delegates to `MutationInversion`, so a CPU batch is never
+            strategy never delegates to `MutationCPUPermInversion`, so a CPU batch is never
             reported as the GPU kernel's offspring (`DP9-2`).
     """
     cp = require_gpu()
@@ -214,4 +214,4 @@ class MutationGPUInversion(StrategyBase, MutationStrategy):
     return restore_routes_shape(cp.asnumpy(d_routes), was_1d)
 
 
-__all__: list[str] = ["MutationGPUInversion", "MutationInversion"]
+__all__: list[str] = ["MutationCPUPermInversion", "MutationGPUPermInversion"]

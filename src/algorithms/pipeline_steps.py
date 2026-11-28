@@ -289,7 +289,7 @@ class SplitDecodeStep:
   """Decode `(N, n_cust)` Giant-Tours into `(N, W)` `0`-delimited routes (`DP17-2`, `DP17-3`).
 
   Note:
-      `LocalSearchCPUTwoOptStar` and `LocalSearchGPUTwoOptStar` decode Giant-Tour `(N, n - 1)` inputs
+      `LocalSearchCPURouteTwoOptStar` and `LocalSearchGPURouteTwoOptStar` decode Giant-Tour `(N, n - 1)` inputs
       natively, so `PeriodicLocalSearchStep` alone suffices without inserting off-generation
       `SplitDecodeStep` passes. When present, `SplitDecodeStep` skips already `0`-delimited
       batches (`width >= context.dimension`) to prevent redundant double `Split` (`BUG-112`).

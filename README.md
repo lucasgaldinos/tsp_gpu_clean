@@ -72,12 +72,12 @@ import numpy as np
 from algorithms import GeneticAlgorithm
 from algorithms.pipeline_steps import EliteOnlyLocalSearchStep, PostInitLocalSearchStep
 from algorithms.strategies import (
-  CrossoverPartiallyMapped,
+  CrossoverCPUPermPartiallyMapped,
   EvaluationCPUCost,
   InitializationNearestNeighbor,
-  LocalSearchCPUTwoOpt,
-  MutationInversion,
-  SelectionTournament,
+  LocalSearchCPUTourTwoOpt,
+  MutationCPUPermInversion,
+  SelectionCPUTournament,
 )
 from loaders import load_tsplib_file
 from protocols.problem_context import ProblemContext
@@ -85,7 +85,7 @@ from protocols.problem_context import ProblemContext
 problem = load_tsplib_file("tests/fixtures/tsp/berlin52.tsp")
 context = ProblemContext(problem, xp=np, seed=42)
 
-local_search = LocalSearchCPUTwoOpt(mode="best", max_iterations=10, candidate_k=20)
+local_search = LocalSearchCPUTourTwoOpt(mode="best", max_iterations=10, candidate_k=20)
 evaluation = EvaluationCPUCost()
 
 ga = GeneticAlgorithm(
@@ -93,9 +93,9 @@ ga = GeneticAlgorithm(
   mutation_rate=0.05,
   seed=42,
   initialization=InitializationNearestNeighbor(k=5, seed=42),
-  selection=SelectionTournament(k=5, seed=42),
-  crossover=CrossoverPartiallyMapped(seed=42),
-  mutation=MutationInversion(seed=42),
+  selection=SelectionCPUTournament(k=5, seed=42),
+  crossover=CrossoverCPUPermPartiallyMapped(seed=42),
+  mutation=MutationCPUPermInversion(seed=42),
   local_search=local_search,
   evaluation=evaluation,
   local_search_stage="none",
@@ -120,10 +120,10 @@ Every strategy lives in [src/algorithms/strategies/](./src/algorithms/strategies
 | Slot / Component | CPU Implementations | GPU (CUDA / CuPy) Implementations |
 | --- | --- | --- |
 | **Initialization** | `InitializationRandom`, `InitializationNearestNeighbor` | `InitializationRandom(return_gpu=True)`, `InitializationNearestNeighbor(return_gpu=True)` |
-| **Selection** | `SelectionTournament`, `SelectionRouletteWheel` | `SelectionGPUTournament` |
-| **Crossover** | `CrossoverOrder`, `CrossoverPartiallyMapped` | `CrossoverGPUOrder` |
-| **Mutation** | `MutationSwap`, `MutationInversion` | `MutationGPUSwap`, `MutationGPUInversion` |
-| **Local Search** | `LocalSearchCPUTwoOpt` (`first`, `best`, `multi_move`), `LocalSearchNoOp` | `LocalSearchGPUTwoOpt` (`naive`, `batch`) |
+| **Selection** | `SelectionCPUTournament`, `SelectionCPURouletteWheel` | `SelectionGPUTournament` |
+| **Crossover** | `CrossoverCPUPermOrder`, `CrossoverCPUPermPartiallyMapped` | `CrossoverGPUPermOrder` |
+| **Mutation** | `MutationCPUPermSwap`, `MutationCPUPermInversion` | `MutationGPUPermSwap`, `MutationGPUPermInversion` |
+| **Local Search** | `LocalSearchCPUTourTwoOpt` (`first`, `best`, `multi_move`), `LocalSearchNoOp` | `LocalSearchGPUTourTwoOpt` (`naive`, `batch`) |
 | **Evaluation** | `EvaluationCPUCost` | `EvaluationGPUCost` |
 | **Pipeline Steps** | `PostInitLocalSearchStep`, `EliteOnlyLocalSearchStep`, `PeriodicLocalSearchStep` | Backend-agnostic (operates on CPU or GPU arrays via injected strategies) |
 

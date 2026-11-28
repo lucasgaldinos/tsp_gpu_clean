@@ -27,10 +27,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
           "class": "LocalSearchNoOp"
@@ -65,10 +65,10 @@
         },
         "crossover": {
           "module": "../gpu_pmx_crossover.py",
-          "class": "CrossoverGPUPartiallyMapped"
+          "class": "CrossoverGPUPermPartiallyMapped"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
           "class": "LocalSearchNoOp"
@@ -103,10 +103,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
           "class": "LocalSearchNoOp"
@@ -142,10 +142,10 @@
         },
         "crossover": {
           "module": "../gpu_pmx_crossover.py",
-          "class": "CrossoverGPUPartiallyMapped"
+          "class": "CrossoverGPUPermPartiallyMapped"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
           "class": "LocalSearchNoOp"

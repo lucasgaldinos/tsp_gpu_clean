@@ -19,11 +19,11 @@ from algorithms.metaheuristics.genetic_algorithm import (
   SelectionStep,
   SurvivalStep,
 )
-from algorithms.strategies.crossover.order_crossover import CrossoverOrder
+from algorithms.strategies.crossover.order_crossover import CrossoverCPUPermOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization.random_init import InitializationCPURandom
-from algorithms.strategies.mutation.swap_mutation import MutationSwap
-from algorithms.strategies.selection.tournament_selection import SelectionTournament
+from algorithms.strategies.initialization.random_init import InitializationCPUPermRandom
+from algorithms.strategies.mutation.swap_mutation import MutationCPUPermSwap
+from algorithms.strategies.selection.tournament_selection import SelectionCPUTournament
 from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
@@ -53,15 +53,15 @@ def test_best_tour_is_transferred_only_on_strict_improvement(
   monkeypatch.setattr(GeneticAlgorithm, "_extract_route_at", staticmethod(_spy))
 
   evaluator = EvaluationCPUCost()
-  selection = SelectionTournament(k=3, seed=42)
+  selection = SelectionCPUTournament(k=3, seed=42)
   ga = GeneticAlgorithm(
     population_size=8,
     mutation_rate=0.0,
     seed=42,
-    initialization=InitializationCPURandom(seed=42),
+    initialization=InitializationCPUPermRandom(seed=42),
     selection=selection,
-    crossover=CrossoverOrder(seed=42),
-    mutation=MutationSwap(seed=42),
+    crossover=CrossoverCPUPermOrder(seed=42),
+    mutation=MutationCPUPermSwap(seed=42),
     evaluation=evaluator,
     local_search=None,
     local_search_stage="none",

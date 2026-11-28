@@ -27,10 +27,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
           "class": "LocalSearchNoOp"
@@ -65,10 +65,10 @@
         },
         "crossover": {
           "module": "../gpu_pmx_crossover.py",
-          "class": "CrossoverGPUPartiallyMapped"
+          "class": "CrossoverGPUPermPartiallyMapped"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
           "class": "LocalSearchNoOp"

@@ -1,6 +1,6 @@
-"""Unit tests for `CrossoverGPUOrder` (`DP11-11`, `BUG-22`, `OX-A`).
+"""Unit tests for `CrossoverGPUPermOrder` (`DP11-11`, `BUG-22`, `OX-A`).
 
-Verifies 100% bit-identity between `CrossoverGPUOrder` and `CrossoverOrder`
+Verifies 100% bit-identity between `CrossoverGPUPermOrder` and `CrossoverCPUPermOrder`
 across problem dimensions n in {52, 100, 200, 500, 1000, 2000} and closed routes
 with fixed depot endpoints.
 """
@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from algorithms.strategies.crossover.order_crossover import CrossoverGPUOrder, CrossoverOrder
+from algorithms.strategies.crossover.order_crossover import CrossoverCPUPermOrder, CrossoverGPUPermOrder
 from data_models.problem import Problem
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -45,8 +45,8 @@ def _make_dummy_problem(n: int) -> Problem:
 def test_gpu_order_crossover_matches_cpu_bit_identical(n: int) -> None:
   """WHAT: Compare GPU and CPU order crossover across problem sizes.
 
-  WHY: DP11-11 and OX-A mandate 100% bit-identity between CrossoverGPUOrder
-  and CrossoverOrder on disjoint pairs with identical host-sampled cut points.
+  WHY: DP11-11 and OX-A mandate 100% bit-identity between CrossoverGPUPermOrder
+  and CrossoverCPUPermOrder on disjoint pairs with identical host-sampled cut points.
 
   EXPECTED: Exactly identical 2D offspring route arrays for all n.
   """
@@ -59,17 +59,17 @@ def test_gpu_order_crossover_matches_cpu_bit_identical(n: int) -> None:
   population = np.stack([rng.permutation(base_tour) for _ in range(pop_size)]).astype(np.int32)
 
   cpu_ctx = ProblemContext(problem, xp=np, seed=77)
-  cpu_strategy = CrossoverOrder()
+  cpu_strategy = CrossoverCPUPermOrder()
   cpu_offspring = cpu_strategy.crossover_batch(population.copy(), context=cpu_ctx)
 
   gpu_ctx = ProblemContext(problem, xp=cp, seed=77)
-  gpu_strategy = CrossoverGPUOrder()
+  gpu_strategy = CrossoverGPUPermOrder()
   gpu_offspring = gpu_strategy.crossover_batch(population.copy(), context=gpu_ctx)
 
   np.testing.assert_array_equal(
     np.asarray(gpu_offspring),
     np.asarray(cpu_offspring),
-    err_msg=f"Bit divergence in CrossoverGPUOrder at n={n}",
+    err_msg=f"Bit divergence in CrossoverGPUPermOrder at n={n}",
   )
 
 
@@ -96,11 +96,11 @@ def test_gpu_order_crossover_preserves_closed_route_depot_endpoints(n: int) -> N
   population = np.stack(routes).astype(np.int32)
 
   cpu_ctx = ProblemContext(problem, xp=np, seed=88)
-  cpu_strategy = CrossoverOrder()
+  cpu_strategy = CrossoverCPUPermOrder()
   cpu_offspring = cpu_strategy.crossover_batch(population.copy(), context=cpu_ctx)
 
   gpu_ctx = ProblemContext(problem, xp=cp, seed=88)
-  gpu_strategy = CrossoverGPUOrder()
+  gpu_strategy = CrossoverGPUPermOrder()
   gpu_offspring = gpu_strategy.crossover_batch(population.copy(), context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(gpu_offspring), np.asarray(cpu_offspring))
@@ -121,7 +121,7 @@ def test_gpu_order_crossover_preserves_gpu_input_residence() -> None:
   routes_gpu = cp.asarray(routes_np)
 
   ctx = ProblemContext(problem, xp=cp, seed=99)
-  strategy = CrossoverGPUOrder()
+  strategy = CrossoverGPUPermOrder()
   offspring = strategy.crossover_batch(routes_gpu, context=ctx)
 
   assert isinstance(offspring, cp.ndarray)
@@ -150,8 +150,8 @@ def test_gpu_order_crossover_small_n_open_routes(n: int, pop_size: int) -> None:
   cpu_ctx = ProblemContext(problem, xp=np, seed=123)
   gpu_ctx = ProblemContext(problem, xp=cp, seed=123)
 
-  cpu_off = CrossoverOrder().crossover_batch(population.copy(), context=cpu_ctx)
-  gpu_off = CrossoverGPUOrder().crossover_batch(population.copy(), context=gpu_ctx)
+  cpu_off = CrossoverCPUPermOrder().crossover_batch(population.copy(), context=cpu_ctx)
+  gpu_off = CrossoverGPUPermOrder().crossover_batch(population.copy(), context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(gpu_off), np.asarray(cpu_off))
 
@@ -183,8 +183,8 @@ def test_gpu_order_crossover_small_n_closed_routes(n: int, pop_size: int) -> Non
   cpu_ctx = ProblemContext(problem, xp=np, seed=124)
   gpu_ctx = ProblemContext(problem, xp=cp, seed=124)
 
-  cpu_off = CrossoverOrder().crossover_batch(population.copy(), context=cpu_ctx)
-  gpu_off = CrossoverGPUOrder().crossover_batch(population.copy(), context=gpu_ctx)
+  cpu_off = CrossoverCPUPermOrder().crossover_batch(population.copy(), context=cpu_ctx)
+  gpu_off = CrossoverGPUPermOrder().crossover_batch(population.copy(), context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(gpu_off), np.asarray(cpu_off))
 
@@ -197,14 +197,14 @@ def test_gpu_order_crossover_recovers_from_zero_filled_warmup() -> None:
   of zeros (`0 == 0`) marked the dimension closed and made every later open-tour
   offspring diverge from the CPU reference (`BUG-24`).
 
-  EXPECTED: the second call is bit-identical to `CrossoverOrder` under the same seed.
+  EXPECTED: the second call is bit-identical to `CrossoverCPUPermOrder` under the same seed.
   """
   cp = _cupy()
   n = 52
   pop_size = 32
   problem = _make_dummy_problem(n)
 
-  gpu_strategy = CrossoverGPUOrder(seed=5)
+  gpu_strategy = CrossoverGPUPermOrder(seed=5)
   poison_ctx = ProblemContext(problem, xp=cp, seed=1)
   gpu_strategy.crossover_batch(cp.zeros((pop_size, n), dtype=cp.int32), context=poison_ctx)
 
@@ -212,7 +212,7 @@ def test_gpu_order_crossover_recovers_from_zero_filled_warmup() -> None:
   population = np.stack(
     [np.random.default_rng(700 + row).permutation(base) for row in range(pop_size)]
   ).astype(np.int32)
-  cpu_offspring = CrossoverOrder(seed=5).crossover_batch(
+  cpu_offspring = CrossoverCPUPermOrder(seed=5).crossover_batch(
     population.copy(), context=ProblemContext(problem, xp=np, seed=77)
   )
   gpu_offspring = gpu_strategy.crossover_batch(
@@ -237,8 +237,8 @@ def test_gpu_order_crossover_1d_pair() -> None:
   cpu_ctx = ProblemContext(problem, xp=np, seed=42)
   gpu_ctx = ProblemContext(problem, xp=cp, seed=42)
 
-  c_cpu = CrossoverOrder().crossover(p1, p2, context=cpu_ctx)
-  c_gpu = CrossoverGPUOrder().crossover(p1, p2, context=gpu_ctx)
+  c_cpu = CrossoverCPUPermOrder().crossover(p1, p2, context=cpu_ctx)
+  c_gpu = CrossoverGPUPermOrder().crossover(p1, p2, context=gpu_ctx)
 
   np.testing.assert_array_equal(np.asarray(c_gpu), np.asarray(c_cpu))
   assert c_gpu.ndim == 1
