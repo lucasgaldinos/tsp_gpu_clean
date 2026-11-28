@@ -27,7 +27,7 @@ REPO_ROOT: Path = EXP_DIR.parents[2]
 CONFIG_DIR: Path = EXP_DIR / "configs"
 RESULTS_DIR: Path = EXP_DIR / "results"
 REPORT_STYLE_PATH: Path = CONFIG_DIR / "report_style.json"
-DEFAULT_DB_PATH: Path = REPO_ROOT / "datasets" / "tsp.duckdb"
+DEFAULT_DB_PATH: Path = REPO_ROOT / "datasets" / "db" / "routing.duckdb"
 BENCHMARK_NAME: str = "three_opt_vs_two_opt"
 BASELINE_ALGORITHM: str = "TwoOpt_Batch_GPU"
 

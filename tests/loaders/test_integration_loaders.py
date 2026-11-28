@@ -487,16 +487,16 @@ def test_vrp_and_sol_tier1_roundtrip_and_twin_disambiguation(tmp_path: Path) -> 
 
 
 def test_corpus_duckdb_disambiguation_li21_and_multidepot_guard() -> None:
-  """WHAT: Verify real corpus `datasets/tsp.duckdb` disambiguation, `Li_21` dual cost, and `gil262` MDVRP guard.
+  """WHAT: Verify real corpus `datasets/db/routing.duckdb` disambiguation, `Li_21` dual cost, and `gil262` MDVRP guard.
 
   WHY: Falsifies twin collisions (`eil51`), continuous-vs-nint cost drift (`Li_21`),
   and accidental single-depot loading of multi-depot `gil262` (`BUG-108`).
   """
   from pathlib import Path
 
-  db_path = Path("datasets/tsp.duckdb")
+  db_path = Path("datasets/db/routing.duckdb")
   if not db_path.exists():
-    pytest.skip("datasets/tsp.duckdb not present")
+    pytest.skip("datasets/db/routing.duckdb not present")
 
   with DatabaseLoader(db_path, fallback_tsp_dir=None) as loader:
     with pytest.raises(AmbiguousProblemError) as exc_info:

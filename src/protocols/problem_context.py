@@ -27,11 +27,11 @@ Design Philosophy:
 
 Example:
     >>> from code.src.data_models.problem import Problem
-    >>> from code.src.protocols.problem_context import ProblemContext
+    >>> from protocols.problem_context import ProblemContext
     >>> import numpy as np
     >>>
     >>> # Load problem
-    >>> with DatabaseLoader("path/to/tsp.duckdb") as loader:
+    >>> with DatabaseLoader("path/to/corpus.duckdb") as loader:
     ...   problem = loader.load("berlin52")
     >>>
     >>> # Create context (NO allocation yet - fully lazy)

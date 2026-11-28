@@ -2,10 +2,10 @@
 Database loader for routing problem instances.
 
 This module provides a context manager for loading problem instances from
-the DuckDB database (`datasets/tsp.duckdb`). It handles database connections, SQL queries,
+the DuckDB database (`datasets/db/routing.duckdb`). It handles database connections, SQL queries,
 data transformation, and error handling with domain-specific exceptions.
 
-Database Schema (datasets/tsp.duckdb):
+Database Schema (datasets/db/routing.duckdb):
     - problems: Metadata (id, name, type, has_solution, created_at, updated_at)
     - tsp_problems: TSP data (problem_id, dimension, comment, edge_weight_type,
       edge_weight_format, tsplib_name, coords, display_coords)
@@ -64,7 +64,7 @@ class DatabaseLoader:
   Context manager for loading routing problems from DuckDB database.
 
   This class provides a clean interface for loading TSP, ATSP, and CVRP
-  instances from `datasets/tsp.duckdb`. It handles connection lifecycle,
+  instances from `datasets/db/routing.duckdb`. It handles connection lifecycle,
   data parsing, and validation with comprehensive error handling.
   """
 

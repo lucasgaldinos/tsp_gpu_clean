@@ -23,7 +23,7 @@ Design Philosophy:
 Example Usage:
     >>> # Problem loading errors
     >>> try:
-    ...   with DatabaseLoader("path/to/tsp.duckdb") as loader:
+    ...   with DatabaseLoader("path/to/corpus.duckdb") as loader:
     ...     problem = loader.load("nonexistent")
     ... except InstanceNotFoundError as e:
     ...   print(f"Instance not found: {e.instance_name}")

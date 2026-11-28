@@ -12,7 +12,7 @@ Design Philosophy:
 - Backend agnostic (works with NumPy or CuPy arrays)
 
 Example:
-    >>> with DatabaseLoader("path/to/tsp.duckdb") as loader:
+    >>> with DatabaseLoader("path/to/corpus.duckdb") as loader:
     ...   problem = loader.load("berlin52")
     ...   print(f"{problem.name}: {problem.dimension} nodes, {problem.edge_type}")
     berlin52: 52 nodes, EUC_2D
