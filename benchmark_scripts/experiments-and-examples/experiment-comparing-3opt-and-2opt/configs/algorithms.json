@@ -15,7 +15,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
@@ -57,7 +57,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
@@ -99,7 +99,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
@@ -142,7 +142,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
@@ -185,7 +185,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
@@ -229,7 +229,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationRandom",
+          "class": "InitializationGPURandom",
           "params": {
             "return_gpu": true
           }
