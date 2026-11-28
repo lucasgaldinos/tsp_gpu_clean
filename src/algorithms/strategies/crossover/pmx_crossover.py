@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-class CrossoverPartiallyMapped(StrategyBase, CrossoverStrategy):
+class CrossoverCPUPermPartiallyMapped(StrategyBase, CrossoverStrategy):
     """
     Partially Mapped Crossover (PMX) strategy for TSP permutations and depot-bounded tours.
 
@@ -171,7 +171,7 @@ class CrossoverPartiallyMapped(StrategyBase, CrossoverStrategy):
         return restore_routes_shape(offspring, was_1d, to_gpu=was_gpu)
 
 
-class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
+class CrossoverGPUPermPartiallyMapped(StrategyBase, CrossoverStrategy):
     """
     Modular GPU CUDA kernel Partially Mapped Crossover (PMX) strategy (`pmx_crossover.cu`).
 
@@ -211,7 +211,7 @@ class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
         context: ProblemContext | None = None,
     ) -> Route:
         """Recombine two 1D parent routes."""
-        cpu_pmx = CrossoverPartiallyMapped(seed=self.seed)
+        cpu_pmx = CrossoverCPUPermPartiallyMapped(seed=self.seed)
         return cpu_pmx.crossover(parent1, parent2, context=context)
 
     @time_strategy
@@ -280,7 +280,7 @@ class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
         )  # 4 bytes/city for inv_p2 + 1 byte/city for in_seg
         if bytes_per_warp > dev_shared_mem:
             raise ValueError(
-                f"CrossoverGPUPartiallyMapped shared-memory requirement ({bytes_per_warp} B/warp for n={n_cities}) "
+                f"CrossoverGPUPermPartiallyMapped shared-memory requirement ({bytes_per_warp} B/warp for n={n_cities}) "
                 f"exceeds device MaxSharedMemoryPerBlock ({dev_shared_mem} B)."
             )
 
@@ -317,4 +317,4 @@ class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
         return restore_routes_shape(cp.asnumpy(d_offspring), was_1d)
 
 
-__all__: list[str] = ["CrossoverGPUPartiallyMapped", "CrossoverPartiallyMapped"]
+__all__: list[str] = ["CrossoverCPUPermPartiallyMapped", "CrossoverGPUPermPartiallyMapped"]

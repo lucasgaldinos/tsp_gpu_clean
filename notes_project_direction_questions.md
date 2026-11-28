@@ -164,7 +164,7 @@ This group covers institutional constraints and execution planning.
   from pathlib import Path
   from protocols.problem_context import ProblemContext
   from protocols.backend import cupy_backend
-  from algorithms.strategies import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt
+  from algorithms.strategies import LocalSearchCPUTourTwoOpt, LocalSearchGPUTourTwoOpt
   from loaders.tsplib_loader import TsplibLoader
 
   cp = cupy_backend()
@@ -178,7 +178,7 @@ This group covers institutional constraints and execution planning.
       pop = np.stack([np.random.default_rng(42+i).permutation(n) for i in range(64)]).astype(np.int32)
       row = {}
       for ck in (20, None):
-          ls = LocalSearchCPUTwoOpt(max_iterations=10, candidate_k=ck)
+          ls = LocalSearchCPUTourTwoOpt(max_iterations=10, candidate_k=ck)
           ls.improve_batch(pop.copy(), ctx)          # warm-up
           t = time.perf_counter(); ls.improve_batch(pop.copy(), ctx); row[ck] = time.perf_counter()-t
       print(f"{name:10s} {'cpu':8s} {row[20]:8.3f}s {row[None]:8.3f}s {row[None]/row[20]:7.2f}x")
@@ -187,7 +187,7 @@ This group covers institutional constraints and execution planning.
           gpop = cp.asarray(pop)
           row = {}
           for ck in (20, None):
-              ls = LocalSearchGPUTwoOpt(mode='batch', max_iterations=10, candidate_k=ck)
+              ls = LocalSearchGPUTourTwoOpt(mode='batch', max_iterations=10, candidate_k=ck)
               ls.improve_batch(gpop.copy(), gctx); cp.cuda.Stream.null.synchronize()
               t = time.perf_counter(); ls.improve_batch(gpop.copy(), gctx); cp.cuda.Stream.null.synchronize(); row[ck] = time.perf_counter()-t
           print(f"{name:10s} {'gpu':8s} {row[20]:8.3f}s {row[None]:8.3f}s {row[None]/row[20]:7.2f}x")
@@ -211,3 +211,23 @@ This group covers institutional constraints and execution planning.
 
 - Guided local search vs Busca local dirigida.
 - the 2048 size for tiles and this memory optimizations that allowed better times and results.
+
+## TODO
+
+- Pequena síntese dos algoritmos com um resumo sobre como cada um funciona.
+  + não precisa fazer referência "entre as quatro variantes escolhidas", apenas usar "as quatro variantes", para não ficar repetitivo.
+- Apresentar o resultado e os critérios de parada. Deixar acesso aos dados.
+  + Fazer um breve resumo embaixo dizendo para qual tamanho de instâncias e quais problemas atingiram a convergência e por qual motivo para as 30 rodadas.
+  + Relação à quantidade de gerações a mais feitas.
+  + Estou comparando tempos globais, talvez travar o número de gerações ao invés de estabelecer um critério de parada em si para número de geraçòes. O tempo por geração é quase sempre correlato ao método utilizado. Ver a validade e quão correlacionados tempo e geração estão e adicionar um "tempo médio" por geração.
+
+  + mostrar o resultado da inclinação da reta, comparando o tempo por geração
+
+- No resumo e abstract: há sim variações na qualidade, mas não estatisticamente significativa no gap de qualidade.
+- Tabela 10: está confusa, reanalisar os dados.
+- Esclarecer que o trabalho server como uma referência e depende do setup utilizado. Adicionar ao resumo, metodologia e no capítulo 5 nas discussões.
+- "Ganho de performance", "speedup", "ganho de velocidade": tudo a mesma coisa. Adotar um e usá-lo ao longo do trabalho.
+- Como faz para fazer na apresentação professor mecânica com professor eng produção.
+  + Como as bancas são formadas, quantas pessoas são? Na coordenação do TCC, quem indica a banca, se tem que ter professores da mecânica. Regras gerais para formação de banca e apresentação.
+  + Quem dentro do departamento pode participar.
+  + Tempo máximo disposto à apresentação.

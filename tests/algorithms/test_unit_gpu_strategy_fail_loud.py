@@ -22,12 +22,12 @@ import pytest
 
 import protocols.backend as backend
 from algorithms.strategies import (
-  CrossoverGPUOrder,
+  CrossoverGPUPermOrder,
   EvaluationGPUCost,
-  InitializationGPURandom,
-  LocalSearchGPUTwoOpt,
-  MutationGPUInversion,
-  MutationGPUSwap,
+  InitializationGPUPermRandom,
+  LocalSearchGPUTourTwoOpt,
+  MutationGPUPermInversion,
+  MutationGPUPermSwap,
   SelectionGPUTournament,
 )
 from data_models.exceptions import GPUUnavailableError
@@ -49,12 +49,12 @@ GPU_STRATEGY_MODULES: tuple[str, ...] = (
 
 #: One label per GPU entry point that used to fall back to CPU.
 GPU_ENTRY_POINTS: tuple[str, ...] = (
-  "InitializationGPURandom.return_gpu",
-  "LocalSearchGPUTwoOpt.improve_batch",
+  "InitializationGPUPermRandom.return_gpu",
+  "LocalSearchGPUTourTwoOpt.improve_batch",
   "SelectionGPUTournament.select_batch",
-  "CrossoverGPUOrder.crossover_batch",
-  "MutationGPUSwap.mutate_batch",
-  "MutationGPUInversion.mutate_batch",
+  "CrossoverGPUPermOrder.crossover_batch",
+  "MutationGPUPermSwap.mutate_batch",
+  "MutationGPUPermInversion.mutate_batch",
   "EvaluationGPUCost.evaluate_batch",
 )
 
@@ -76,23 +76,23 @@ def cpu_only_probe(monkeypatch: pytest.MonkeyPatch) -> None:
 def _call_entry_point(name: str, context: ProblemContext, routes: np.ndarray, fitness: np.ndarray) -> None:
   """Dispatch one GPU entry point by label, keeping the parametrization readable."""
   match name:
-    case "InitializationGPURandom.return_gpu":
+    case "InitializationGPUPermRandom.return_gpu":
       customers: list[int] = list(range(context.problem.dimension))
-      InitializationGPURandom(seed=42, return_gpu=True).initialize(
+      InitializationGPUPermRandom(seed=42, return_gpu=True).initialize(
         customers,
         population_size=2,
         context=context,
       )
-    case "LocalSearchGPUTwoOpt.improve_batch":
-      LocalSearchGPUTwoOpt(max_iterations=2, mode="batch").improve_batch(routes, context)
+    case "LocalSearchGPUTourTwoOpt.improve_batch":
+      LocalSearchGPUTourTwoOpt(max_iterations=2, mode="batch").improve_batch(routes, context)
     case "SelectionGPUTournament.select_batch":
       SelectionGPUTournament().select_batch(routes, fitness, num_parents=2, context=context)
-    case "CrossoverGPUOrder.crossover_batch":
-      CrossoverGPUOrder(seed=42).crossover_batch(routes, context=context)
-    case "MutationGPUSwap.mutate_batch":
-      MutationGPUSwap(seed=42).mutate_batch(routes, mutation_rate=0.5, context=context)
-    case "MutationGPUInversion.mutate_batch":
-      MutationGPUInversion(seed=42).mutate_batch(routes, mutation_rate=0.5, context=context)
+    case "CrossoverGPUPermOrder.crossover_batch":
+      CrossoverGPUPermOrder(seed=42).crossover_batch(routes, context=context)
+    case "MutationGPUPermSwap.mutate_batch":
+      MutationGPUPermSwap(seed=42).mutate_batch(routes, mutation_rate=0.5, context=context)
+    case "MutationGPUPermInversion.mutate_batch":
+      MutationGPUPermInversion(seed=42).mutate_batch(routes, mutation_rate=0.5, context=context)
     case "EvaluationGPUCost.evaluate_batch":
       EvaluationGPUCost().evaluate_batch(routes, context)
     case _:

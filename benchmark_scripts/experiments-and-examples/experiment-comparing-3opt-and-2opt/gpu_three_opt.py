@@ -1,7 +1,7 @@
 """Experiment-local GPU 3-opt local search strategy and CPU reference helper.
 
 Implements `LocalSearchGPUThreeOpt(StrategyBase, LocalSearchStrategy)` outside `src/`,
-mirroring `algorithms.strategies.local_search.LocalSearchGPUTwoOpt` with three kernel
+mirroring `algorithms.strategies.local_search.LocalSearchGPUTourTwoOpt` with three kernel
 families sharing one common device header (`kernels/three_opt_common.cuh`):
 
 - `"batch"`: `kernels/three_opt_batch.cu` (`three_opt_batch_kernel`), one CUDA block
@@ -9,7 +9,7 @@ families sharing one common device header (`kernels/three_opt_common.cuh`):
 - `"multi_move"`: `kernels/three_opt_multi_move.cu` (`three_opt_multi_move_batch_kernel`),
   one CUDA block per route, greedy disjoint multi-move 3-opt per pass (Rocki & Suda, 2013).
 - `"naive"`: `kernels/three_opt_single.cu` (`three_opt_kernel`), per-route `CPU -> GPU -> CPU`
-  transfers and single-block launches, mirroring `LocalSearchGPUTwoOpt(mode="naive")`.
+  transfers and single-block launches, mirroring `LocalSearchGPUTourTwoOpt(mode="naive")`.
 
 Also exposes deterministic CPU 3-opt reference helpers (`tour_cost_cpu`,
 `three_opt_delta_cpu`, `apply_three_opt_case_cpu`, `cpu_three_opt_best_move`,
@@ -280,7 +280,7 @@ def cpu_three_opt_refine(
 class LocalSearchGPUThreeOpt(StrategyBase, LocalSearchStrategy):
   """Modular GPU CUDA 3-opt local search with selectable kernel family (`batch | multi_move | naive`).
 
-  Mirrors `LocalSearchGPUTwoOpt`:
+  Mirrors `LocalSearchGPUTourTwoOpt`:
     - `"batch"`: `three_opt_batch.cu`, one CUDA block per route, single steepest 3-opt move per pass.
     - `"multi_move"`: `three_opt_multi_move.cu`, greedy disjoint improving 3-opt moves per pass.
     - `"naive"`: `three_opt_single.cu`, per-route `CPU -> GPU -> CPU` transfers and 1-block launches.

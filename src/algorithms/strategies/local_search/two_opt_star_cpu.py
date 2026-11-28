@@ -1,4 +1,4 @@
-"""CPU VRP inter-route and intra-route local search (`LocalSearchCPUTwoOptStar`, `DP17-7`, `DP17-9`).
+"""CPU VRP inter-route and intra-route local search (`LocalSearchCPURouteTwoOptStar`, `DP17-7`, `DP17-9`).
 
 Supports `Relocate(1, 0)`, `Swap(1, 1)`, `2-opt*` (Potvin & Rousseau, 1995), and intra-route
 `2-opt` across `(N, dimension - 1)` Giant-Tours and `(N, W)` `0`-delimited VRP routes while
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
   from protocols.vrp_strategies import PenaltyPolicy, RouteDecoder
 
 
-class LocalSearchCPUTwoOptStar(StrategyBase, LocalSearchStrategy):
+class LocalSearchCPURouteTwoOptStar(StrategyBase, LocalSearchStrategy):
   """CPU VRP local search oracle (`Relocate`, `Swap`, `2-opt*` + intra-route `2-opt`)."""
 
   def __init__(
@@ -363,4 +363,4 @@ class LocalSearchCPUTwoOptStar(StrategyBase, LocalSearchStrategy):
     return restore_routes_shape(out_np, was_1d, to_gpu=was_gpu)
 
 
-__all__: list[str] = ["LocalSearchCPUTwoOptStar"]
+__all__: list[str] = ["LocalSearchCPURouteTwoOptStar"]

@@ -12,20 +12,20 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies import MutationInversion, MutationSwap
+from algorithms.strategies import MutationCPUPermInversion, MutationCPUPermSwap
 
 if TYPE_CHECKING:
   from collections.abc import Callable
 
 MUTATION_FACTORIES = [
-  pytest.param(MutationSwap, id="swap"),
-  pytest.param(MutationInversion, id="inversion"),
+  pytest.param(MutationCPUPermSwap, id="swap"),
+  pytest.param(MutationCPUPermInversion, id="inversion"),
 ]
 
 
 @pytest.mark.parametrize("factory", MUTATION_FACTORIES)
 def test_zero_rate_leaves_every_route_bit_identical(
-  factory: Callable[[int], MutationSwap | MutationInversion],
+  factory: Callable[[int], MutationCPUPermSwap | MutationCPUPermInversion],
   make_population: Callable[..., np.ndarray],
 ) -> None:
   """WHAT: A fixed six-route population mutated at `mutation_rate=0.0`.
@@ -48,7 +48,7 @@ def test_zero_rate_leaves_every_route_bit_identical(
 
 @pytest.mark.parametrize("factory", MUTATION_FACTORIES)
 def test_full_rate_changes_every_route_of_length_at_least_four(
-  factory: Callable[[int], MutationSwap | MutationInversion],
+  factory: Callable[[int], MutationCPUPermSwap | MutationCPUPermInversion],
   make_population: Callable[..., np.ndarray],
 ) -> None:
   """WHAT: A fixed six-route population of eight-gene permutations at rate 1.0.

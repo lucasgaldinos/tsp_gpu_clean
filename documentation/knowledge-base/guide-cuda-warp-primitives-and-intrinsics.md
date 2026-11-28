@@ -656,4 +656,4 @@ $$r_\ell = \sum_{k=0}^{\ell-1} P(k)$$
 
 For any two active lanes $\ell_1 < \ell_2$, it is strictly guaranteed that $r_{\ell_1} < r_{\ell_2}$.
 Lane 4 is guaranteed to write before Lane 5, which writes before Lane 6, which writes before Lane 7.
-There is **zero non-determinism**. For the same parents and cut points, `CrossoverGPUOrder` produces output that is identical to `CrossoverOrder` to the exact bit!
+There is **zero non-determinism**. For the same parents and cut points, `CrossoverGPUPermOrder` produces output that is identical to `CrossoverCPUPermOrder` to the exact bit!

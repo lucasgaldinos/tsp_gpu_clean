@@ -4,9 +4,10 @@ Exercises full `GeneticAlgorithm.evolve()` cycles across:
 - Tier-1 variants: `CVRP`, `OVRP` (`return_to_depot=False`), `Bounded-Fleet` (`max_vehicles`),
   and `DCVRP` (`max_route_distance`).
 - Representation families:
-  1. Pure Giant-Tour (`InitializationCPUClarkeWright` + `CrossoverOrder` + `MutationSwap` + `Evaluation*VRPCost`),
-  2. Hybrid Prins-Split + Inter-Route Local Search (`LocalSearch{CPU,GPU}CVRP`),
-  3. Direct `0`-Delimited (`InitializationCPUClarkeWright(output_format="delimited")` +
+  1. Pure Giant-Tour (`InitializationCPURouteClarkeWright` + `CrossoverCPUPermOrder` +
+     `MutationCPUPermSwap` + `Evaluation[CPU|GPU]Cost`),
+  2. Hybrid Prins-Split + Inter-Route Local Search (`LocalSearch{CPU,GPU}RouteTwoOptStar`),
+  3. Direct `0`-Delimited (`InitializationCPURouteClarkeWright(output_format="delimited")` +
      `Crossover*RouteBased` + `Mutation*RouteRelocate` + `LocalSearch*InterRoute`).
 - Declarative JSON `AlgorithmConfig.instantiate(...)` validated against `configs/schemas/algorithms.schema.json`.
 """
@@ -23,17 +24,21 @@ import pytest
 
 from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
 from algorithms.strategies import STRATEGY_REGISTRY
-from algorithms.strategies.crossover import CrossoverGPURBX, CrossoverOrder, CrossoverRBX
+from algorithms.strategies.crossover import CrossoverCPUPermOrder, CrossoverCPURouteRBX, CrossoverGPURouteRBX
 from algorithms.strategies.evaluation import EvaluationCPUCost, EvaluationGPUCost
 from algorithms.strategies.initialization import (
-  InitializationCPUClarkeWright,
-  InitializationCPUSweep,
-  InitializationGPUClarkeWright,
-  InitializationGPUSweep,
+  InitializationCPURouteClarkeWright,
+  InitializationCPURouteSweep,
+  InitializationGPURouteClarkeWright,
+  InitializationGPURouteSweep,
 )
-from algorithms.strategies.local_search import LocalSearchCPUTwoOptStar, LocalSearchGPUTwoOptStar, LocalSearchNoOp
-from algorithms.strategies.mutation import MutationGPURouteRelocate, MutationRouteRelocate, MutationSwap
-from algorithms.strategies.selection import SelectionGPUTournament, SelectionTournament
+from algorithms.strategies.local_search import (
+  LocalSearchCPURouteTwoOptStar,
+  LocalSearchGPURouteTwoOptStar,
+  LocalSearchNoOp,
+)
+from algorithms.strategies.mutation import MutationCPUPermSwap, MutationCPURouteRelocate, MutationGPURouteRelocate
+from algorithms.strategies.selection import SelectionCPUTournament, SelectionGPUTournament
 from benchmarking.runner.config_loader import AlgorithmConfig, GAParams
 from data_models import Problem, VRPConstraints
 from protocols.backend import gpu_available, require_gpu
@@ -138,12 +143,12 @@ def _build_ga(
     return GeneticAlgorithm(
       population_size=12,
       mutation_rate=0.25,
-      initialization=InitializationGPUClarkeWright(output_format="giant_tour", return_gpu=True)
+      initialization=InitializationGPURouteClarkeWright(output_format="giant_tour", return_gpu=True)
       if use_gpu
-      else InitializationCPUClarkeWright(output_format="giant_tour"),
-      selection=SelectionGPUTournament(k=3) if use_gpu else SelectionTournament(k=3),
-      crossover=CrossoverOrder(),
-      mutation=MutationSwap(),
+      else InitializationCPURouteClarkeWright(output_format="giant_tour"),
+      selection=SelectionGPUTournament(k=3) if use_gpu else SelectionCPUTournament(k=3),
+      crossover=CrossoverCPUPermOrder(),
+      mutation=MutationCPUPermSwap(),
       local_search=LocalSearchNoOp(),
       evaluation=EvaluationGPUCost(split_mode="prins", return_gpu=use_gpu)
       if use_gpu
@@ -154,15 +159,15 @@ def _build_ga(
     return GeneticAlgorithm(
       population_size=10,
       mutation_rate=0.2,
-      initialization=InitializationGPUSweep(output_format="giant_tour", return_gpu=True)
+      initialization=InitializationGPURouteSweep(output_format="giant_tour", return_gpu=True)
       if use_gpu
-      else InitializationCPUSweep(output_format="giant_tour"),
-      selection=SelectionGPUTournament(k=3) if use_gpu else SelectionTournament(k=3),
-      crossover=CrossoverOrder(),
-      mutation=MutationSwap(),
-      local_search=LocalSearchGPUTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8)
+      else InitializationCPURouteSweep(output_format="giant_tour"),
+      selection=SelectionGPUTournament(k=3) if use_gpu else SelectionCPUTournament(k=3),
+      crossover=CrossoverCPUPermOrder(),
+      mutation=MutationCPUPermSwap(),
+      local_search=LocalSearchGPURouteTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8)
       if use_gpu
-      else LocalSearchCPUTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8),
+      else LocalSearchCPURouteTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8),
       evaluation=EvaluationGPUCost(split_mode="prins", return_gpu=use_gpu)
       if use_gpu
       else EvaluationCPUCost(split_mode="prins"),
@@ -173,15 +178,15 @@ def _build_ga(
   return GeneticAlgorithm(
     population_size=10,
     mutation_rate=0.3,
-    initialization=InitializationGPUClarkeWright(output_format="delimited", return_gpu=True)
+    initialization=InitializationGPURouteClarkeWright(output_format="delimited", return_gpu=True)
     if use_gpu
-    else InitializationCPUClarkeWright(output_format="delimited"),
-    selection=SelectionGPUTournament(k=3) if use_gpu else SelectionTournament(k=3),
-    crossover=CrossoverGPURBX(return_gpu=use_gpu) if use_gpu else CrossoverRBX(),
-    mutation=MutationGPURouteRelocate(return_gpu=use_gpu) if use_gpu else MutationRouteRelocate(),
-    local_search=LocalSearchGPUTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8)
+    else InitializationCPURouteClarkeWright(output_format="delimited"),
+    selection=SelectionGPUTournament(k=3) if use_gpu else SelectionCPUTournament(k=3),
+    crossover=CrossoverGPURouteRBX(return_gpu=use_gpu) if use_gpu else CrossoverCPURouteRBX(),
+    mutation=MutationGPURouteRelocate(return_gpu=use_gpu) if use_gpu else MutationCPURouteRelocate(),
+    local_search=LocalSearchGPURouteTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8)
     if use_gpu
-    else LocalSearchCPUTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8),
+    else LocalSearchCPURouteTwoOptStar(mode="multi_move", max_iterations=5, candidate_k=8),
     evaluation=EvaluationGPUCost(return_gpu=use_gpu) if use_gpu else EvaluationCPUCost(),
     local_search_stage="post_mutation",
   )
@@ -241,9 +246,9 @@ def test_gpu_tier1_variants_across_all_three_families_and_zero_d2h(
 
   assert isinstance(ga.evaluation, EvaluationGPUCost)
   assert ga.evaluation.d2h_bytes == 0
-  if isinstance(ga.local_search, LocalSearchGPUTwoOptStar):
+  if isinstance(ga.local_search, LocalSearchGPURouteTwoOptStar):
     assert ga.local_search.d2h_bytes == 0
-  if isinstance(ga.crossover, CrossoverGPURBX):
+  if isinstance(ga.crossover, CrossoverGPURouteRBX):
     assert ga.crossover.d2h_bytes == 0
   if isinstance(ga.mutation, MutationGPURouteRelocate):
     assert ga.mutation.d2h_bytes == 0
@@ -251,13 +256,13 @@ def test_gpu_tier1_variants_across_all_three_families_and_zero_d2h(
 
 def test_declarative_algorithm_config_instantiation_and_schema_local_search_slot() -> None:
   """WHAT: Declarative `AlgorithmConfig.instantiate()` with new VRP strategies & schema slot check.
-  WHY: Ensures `LocalSearchCPUTwoOptStar` and `LocalSearchGPUTwoOptStar` live strictly under
+  WHY: Ensures `LocalSearchCPURouteTwoOptStar` and `LocalSearchGPURouteTwoOptStar` live strictly under
   `#/$defs/strategy_slot_local_search` and instantiate cleanly from JSON config dicts.
   EXPECTED: both classes in `STRATEGY_REGISTRY` and `strategy_slot_local_search`, instantiated
   GA executes `evolve()` cleanly on a Tier-1 CVRP instance.
   """
-  assert STRATEGY_REGISTRY["LocalSearchCPUTwoOptStar"] is LocalSearchCPUTwoOptStar
-  assert STRATEGY_REGISTRY["LocalSearchGPUTwoOptStar"] is LocalSearchGPUTwoOptStar
+  assert STRATEGY_REGISTRY["LocalSearchCPURouteTwoOptStar"] is LocalSearchCPURouteTwoOptStar
+  assert STRATEGY_REGISTRY["LocalSearchGPURouteTwoOptStar"] is LocalSearchGPURouteTwoOptStar
 
   schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
   ls_slot = schema["$defs"]["strategy_slot_local_search"]
@@ -266,8 +271,8 @@ def test_declarative_algorithm_config_instantiation_and_schema_local_search_slot
     for branch in ls_slot["oneOf"]
     if "const" in branch.get("properties", {}).get("class", {})
   }
-  assert "LocalSearchCPUTwoOptStar" in ls_classes
-  assert "LocalSearchGPUTwoOptStar" in ls_classes
+  assert "LocalSearchCPURouteTwoOptStar" in ls_classes
+  assert "LocalSearchGPURouteTwoOptStar" in ls_classes
 
   use_gpu = gpu_available()
   cfg = AlgorithmConfig(
@@ -277,23 +282,23 @@ def test_declarative_algorithm_config_instantiation_and_schema_local_search_slot
     params={"population_size": 10, "mutation_rate": 0.25, "local_search_stage": "post_mutation"},
     strategies={
       "initialization": {
-        "class": "InitializationGPUClarkeWright" if use_gpu else "InitializationCPUClarkeWright",
+        "class": "InitializationGPURouteClarkeWright" if use_gpu else "InitializationCPURouteClarkeWright",
         "params": {"output_format": "delimited", "return_gpu": True} if use_gpu else {"output_format": "delimited"},
       },
       "selection": {
-        "class": "SelectionGPUTournament" if use_gpu else "SelectionTournament",
+        "class": "SelectionGPUTournament" if use_gpu else "SelectionCPUTournament",
         "params": {"k": 3},
       },
       "crossover": {
-        "class": "CrossoverGPURBX" if use_gpu else "CrossoverRBX",
+        "class": "CrossoverGPURouteRBX" if use_gpu else "CrossoverCPURouteRBX",
         "params": {"return_gpu": use_gpu} if use_gpu else {},
       },
       "mutation": {
-        "class": "MutationGPURouteRelocate" if use_gpu else "MutationRouteRelocate",
+        "class": "MutationGPURouteRelocate" if use_gpu else "MutationCPURouteRelocate",
         "params": {"return_gpu": use_gpu} if use_gpu else {},
       },
       "local_search": {
-        "class": "LocalSearchGPUTwoOptStar" if use_gpu else "LocalSearchCPUTwoOptStar",
+        "class": "LocalSearchGPURouteTwoOptStar" if use_gpu else "LocalSearchCPURouteTwoOptStar",
         "params": {"mode": "multi_move", "max_iterations": 5, "candidate_k": 8},
       },
       "evaluation": {

@@ -27,13 +27,13 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOpt",
+          "class": "LocalSearchGPUTourTwoOpt",
           "params": {
             "mode": "batch",
             "max_iterations": 10,
@@ -69,13 +69,13 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOpt",
+          "class": "LocalSearchGPUTourTwoOpt",
           "params": {
             "mode": "multi_move",
             "max_iterations": 10,
@@ -111,10 +111,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
           "module": "../gpu_three_opt.py",
@@ -154,10 +154,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
           "module": "../gpu_three_opt.py",
@@ -197,10 +197,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
           "module": "../gpu_three_opt.py",
@@ -241,10 +241,10 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
           "module": "../gpu_three_opt.py",

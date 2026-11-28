@@ -17,7 +17,7 @@
 #define CVRP_MOVE_TWO_OPT_STAR 3
 #define CVRP_DELTA_EPS (-1e-9)
 
-static __device__ __forceinline__ double cvrp_ls_route_penalty(
+static __device__ __forceinline__ double vrp_ls_route_penalty(
     long long load,
     long long dist,
     bool has_cap,
@@ -38,7 +38,7 @@ static __device__ __forceinline__ double cvrp_ls_route_penalty(
     return (double)dist + cap_pen + dist_pen;
 }
 
-static __device__ __forceinline__ void cvrp_ls_consider(
+static __device__ __forceinline__ void vrp_ls_consider(
     double delta,
     int move_type,
     int arg1,
@@ -63,7 +63,7 @@ static __device__ __forceinline__ void cvrp_ls_consider(
     }
 }
 
-static __device__ __forceinline__ void cvrp_ls_rebuild_state(
+static __device__ __forceinline__ void vrp_ls_rebuild_state(
     int m,
     int dim,
     const int *__restrict__ cust_seq,
@@ -131,7 +131,7 @@ static __device__ __forceinline__ void cvrp_ls_rebuild_state(
     __syncthreads();
 }
 
-static __device__ __forceinline__ int cvrp_ls_emitted_len(
+static __device__ __forceinline__ int vrp_ls_emitted_len(
     int r,
     int slot,
     const int *s_type,
@@ -166,7 +166,7 @@ static __device__ __forceinline__ int cvrp_ls_emitted_len(
     return r_len[r];
 }
 
-static __device__ __forceinline__ int cvrp_ls_emit_route(
+static __device__ __forceinline__ int vrp_ls_emit_route(
     int r,
     int slot,
     const int *s_type,
@@ -275,7 +275,7 @@ static __device__ __forceinline__ int cvrp_ls_emit_route(
     return count;
 }
 
-static __device__ __forceinline__ int cvrp_ls_parse_delimited(
+static __device__ __forceinline__ int vrp_ls_parse_delimited(
     const int *__restrict__ row_in,
     int width,
     int n_cust,
@@ -316,7 +316,7 @@ static __device__ __forceinline__ int cvrp_ls_parse_delimited(
     return m;
 }
 
-static __device__ __forceinline__ int cvrp_ls_write_delimited(
+static __device__ __forceinline__ int vrp_ls_write_delimited(
     int *__restrict__ row_out,
     int width,
     int m,

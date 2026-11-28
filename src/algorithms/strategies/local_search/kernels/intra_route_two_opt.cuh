@@ -9,7 +9,7 @@
 #include "two_opt_common.cuh"
 #include "vrp_route_prefix_buffers.cuh"
 
-static __device__ __forceinline__ void cvrp_ls_intra_two_opt_route(
+static __device__ __forceinline__ void vrp_ls_intra_two_opt_route(
     int *seq,
     int s,
     const int *__restrict__ distances,

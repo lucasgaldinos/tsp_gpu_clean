@@ -4,7 +4,7 @@
  * One thread per population row; reads pre-ordered `sorted_customers`, draws
  * a cyclic `SplitMix64` offset for rows `1..N-1` (`offset = 0` for row `0`),
  * and greedily packs routes honoring `capacity`, `max_route_distance`, and
- * `return_to_depot` via `gpu_edge_distance`. Bit-identical to `InitializationCPUSweep`.
+ * `return_to_depot` via `gpu_edge_distance`. Bit-identical to `InitializationCPURouteSweep`.
  */
 
 #include "pairwise_device.cuh"

@@ -344,10 +344,10 @@ def test_algorithms_schema_matches_generator_and_registries_drift_contract() -> 
         if getattr(ann, "__origin__", None) is Literal:
           assert param_def["properties"][param_name]["enum"] == list(get_args(ann))
 
-  assert defs["params_local_search_cpu_two_opt"]["properties"]["mode"]["enum"] == list(
+  assert defs["params_local_search_cpu_tour_two_opt"]["properties"]["mode"]["enum"] == list(
     get_args(unwrap_type_annotation(TwoOptCPUMode))
   )
-  assert defs["params_local_search_gpu_two_opt"]["properties"]["mode"]["enum"] == list(
+  assert defs["params_local_search_gpu_tour_two_opt"]["properties"]["mode"]["enum"] == list(
     get_args(unwrap_type_annotation(TwoOptGPUMode))
   )
   assert defs["local_search_stage"]["enum"] == list(get_args(unwrap_type_annotation(LocalSearchStage)))
@@ -459,7 +459,7 @@ def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_cand
 
   # Wrong-slot strategy in top-level slot AND inside nested pipeline step param (BUG-103).
   wrong_slot = json.loads(json.dumps(base))
-  wrong_slot["algorithm_configs"]["CPU"]["strategies"]["crossover"] = {"class": "MutationSwap"}
+  wrong_slot["algorithm_configs"]["CPU"]["strategies"]["crossover"] = {"class": "MutationCPUPermSwap"}
   with pytest.raises(jsonschema.ValidationError):
     jsonschema.validate(instance=wrong_slot, schema=schema)
 
@@ -467,7 +467,7 @@ def test_algorithms_schema_enforces_backend_specific_two_opt_modes_and_zero_cand
   wrong_nested_slot["algorithm_configs"]["CPU"]["params"]["pipeline"] = [
     {
       "class": "PeriodicLocalSearchStep",
-      "params": {"interval": 5, "target": "population", "re_evaluate": {"class": "MutationSwap"}},
+      "params": {"interval": 5, "target": "population", "re_evaluate": {"class": "MutationCPUPermSwap"}},
     }
   ]
   with pytest.raises(jsonschema.ValidationError):

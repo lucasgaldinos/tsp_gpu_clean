@@ -1,4 +1,4 @@
-"""Unit tests for `MutationInversion`.
+"""Unit tests for `MutationCPUPermInversion`.
 
 Inversion mutation reverses a contiguous segment of a route. The tests pin the
 invariants the GA depends on: the permutation and its dtype survive, the parent array
@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies.mutation.inversion_mutation import MutationInversion
+from algorithms.strategies.mutation.inversion_mutation import MutationCPUPermInversion
 from protocols.problem_context import ProblemContext
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ def test_mutation_preserves_permutation(mutation_rate: float, n_genes: int) -> N
   original = route.copy()
 
   # Act
-  mutated = MutationInversion(seed=3).mutate(route, mutation_rate=mutation_rate)
+  mutated = MutationCPUPermInversion(seed=3).mutate(route, mutation_rate=mutation_rate)
 
   # Assert
   assert mutated.shape == route.shape
@@ -67,7 +67,7 @@ def test_mutation_batch_preserves_shape_and_permutations(
   input_routes = routes if as_batch else routes[0]
 
   # Act
-  mutated = MutationInversion(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
+  mutated = MutationCPUPermInversion(seed=13).mutate_batch(input_routes, mutation_rate=1.0)
 
   # Assert
   assert mutated.ndim == input_routes.ndim
@@ -89,7 +89,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
   route = np.array([0, 1, 0], dtype=np.int32)
 
   # Act
-  mutated = MutationInversion(seed=0).mutate(route, mutation_rate=1.0)
+  mutated = MutationCPUPermInversion(seed=0).mutate(route, mutation_rate=1.0)
 
   # Assert
   assert mutated[0] == 0
@@ -98,7 +98,7 @@ def test_mutation_preserves_three_node_depot_endpoints() -> None:
 
 
 def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Problem) -> None:
-  """WHAT: `MutationInversion(candidate_k=10)` on a full 52-city tour.
+  """WHAT: `MutationCPUPermInversion(candidate_k=10)` on a full 52-city tour.
 
   WHY: proximity-guided cuts change how the segment is chosen; the reversal must still
   produce a permutation and leave the depot endpoints fixed (`DP10-20`).
@@ -112,7 +112,7 @@ def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Pro
   original = route.copy()
 
   # Act
-  mutated = MutationInversion(seed=6, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
+  mutated = MutationCPUPermInversion(seed=6, candidate_k=10).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
   assert sorted(mutated.tolist()) == sorted(route.tolist())
@@ -122,7 +122,7 @@ def test_candidate_k_inversion_keeps_permutation_and_depot(berlin52_problem: Pro
 
 
 def test_candidate_k_inversion_supports_sparse_cvrp_sub_route(berlin52_problem: Problem) -> None:
-  """WHAT: `MutationInversion(candidate_k=3)` on `[0, 5, 12, 19, 8, 0]` (max id 19, 6 stops).
+  """WHAT: `MutationCPUPermInversion(candidate_k=3)` on `[0, 5, 12, 19, 8, 0]` (max id 19, 6 stops).
 
   WHY: node ids above `len(route) - 1` used to disable candidate mode or raise
   `IndexError`; the shared inverse map sizes itself by the largest id (`BUG-19`).
@@ -135,7 +135,7 @@ def test_candidate_k_inversion_supports_sparse_cvrp_sub_route(berlin52_problem: 
   original = route.copy()
 
   # Act
-  mutated = MutationInversion(seed=8, candidate_k=3).mutate(route, mutation_rate=1.0, context=context)
+  mutated = MutationCPUPermInversion(seed=8, candidate_k=3).mutate(route, mutation_rate=1.0, context=context)
 
   # Assert
   assert sorted(mutated.tolist()) == sorted(route.tolist())

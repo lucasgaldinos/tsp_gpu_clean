@@ -1,7 +1,7 @@
 /**
  * Deterministic SplitMix64 Fisher-Yates permutation initialization kernel (`Task 17.31`).
  *
- * One thread per population row; bit-identical to `InitializationCPURandom`.
+ * One thread per population row; bit-identical to `InitializationCPUPermRandom`.
  */
 
 #include "splitmix64.cuh"

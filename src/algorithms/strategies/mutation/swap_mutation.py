@@ -33,7 +33,7 @@ if TYPE_CHECKING:
   from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-class MutationSwap(StrategyBase, MutationStrategy):
+class MutationCPUPermSwap(StrategyBase, MutationStrategy):
   """
   Swap Mutation strategy for single routes and 2D route batches.
 
@@ -41,7 +41,7 @@ class MutationSwap(StrategyBase, MutationStrategy):
   """
 
   def __init__(self, seed: SeedLike = None, candidate_k: int | None = None) -> None:
-    """Initialize MutationSwap with optional RNG seed.
+    """Initialize MutationCPUPermSwap with optional RNG seed.
 
     Args:
         seed: Optional random seed override.
@@ -71,7 +71,7 @@ class MutationSwap(StrategyBase, MutationStrategy):
     """Mutate a 1D route `(n_cities,)` or 2D batch `(N, n_cities)` of routes.
 
     Positions come from the single shared host oracle, so this method and
-    `MutationGPUSwap.mutate_batch` issue identical draws and stay bit-identical
+    `MutationGPUPermSwap.mutate_batch` issue identical draws and stay bit-identical
     for the same seed (`SWAP-A`, `DP11-14`).
     """
     batch_np, was_1d, was_gpu = to_cpu_batch(routes, copy=False)
@@ -99,7 +99,7 @@ class MutationSwap(StrategyBase, MutationStrategy):
     return restore_routes_shape(out, was_1d, to_gpu=was_gpu)
 
 
-class MutationGPUSwap(StrategyBase, MutationStrategy):
+class MutationGPUPermSwap(StrategyBase, MutationStrategy):
   """
   Modular GPU CUDA kernel Swap Mutation strategy (`swap_mutation.cu`).
 
@@ -111,7 +111,7 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
 
     Args:
         seed: Optional random seed override.
-        candidate_k: Accepted for LSP parity with `MutationSwap` (`DP11-20`); when set,
+        candidate_k: Accepted for LSP parity with `MutationCPUPermSwap` (`DP11-20`); when set,
             the second position comes from the candidate neighbourhood (`BUG-28`).
     """
     super().__init__(seed)
@@ -153,7 +153,7 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
 
     Raises:
         GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
-            strategy never delegates to `MutationSwap`, so a CPU batch is never
+            strategy never delegates to `MutationCPUPermSwap`, so a CPU batch is never
             reported as the GPU kernel's offspring (`DP9-2`).
     """
     cp = require_gpu()
@@ -212,4 +212,4 @@ class MutationGPUSwap(StrategyBase, MutationStrategy):
     return restore_routes_shape(cp.asnumpy(d_routes), was_1d)
 
 
-__all__: list[str] = ["MutationGPUSwap", "MutationSwap"]
+__all__: list[str] = ["MutationCPUPermSwap", "MutationGPUPermSwap"]

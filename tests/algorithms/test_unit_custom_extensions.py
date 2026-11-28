@@ -19,10 +19,10 @@ from algorithms import GeneticAlgorithm, register_pipeline_step, register_strate
 from algorithms.pipeline_steps import PIPELINE_STEP_REGISTRY
 from algorithms.strategies import (
   STRATEGY_REGISTRY,
-  CrossoverOrder,
+  CrossoverCPUPermOrder,
   EvaluationCPUCost,
-  InitializationCPURandom,
-  SelectionTournament,
+  InitializationCPUPermRandom,
+  SelectionCPUTournament,
   StrategyBase,
 )
 from benchmarking.runner.config_loader import AlgorithmConfig, GAParams
@@ -89,9 +89,9 @@ def test_direct_python_injection_runs_external_strategy_and_step(burma14_problem
     population_size=12,
     mutation_rate=0.25,
     seed=7,
-    initialization=InitializationCPURandom(seed=7),
-    selection=SelectionTournament(k=3, seed=7),
-    crossover=CrossoverOrder(seed=7),
+    initialization=InitializationCPUPermRandom(seed=7),
+    selection=SelectionCPUTournament(k=3, seed=7),
+    crossover=CrossoverCPUPermOrder(seed=7),
     mutation=mutation,
     evaluation=EvaluationCPUCost(),
     pipeline=[step],
@@ -148,9 +148,9 @@ def test_register_strategy_and_pipeline_step_helpers(
       description="Registered custom strategy and step",
       params={"pipeline": [{"class": "ExternalTraceStep", "params": {"tag": "reg"}}]},
       strategies={
-        "initialization": {"class": "InitializationCPURandom"},
-        "selection": {"class": "SelectionTournament", "params": {"k": 3}},
-        "crossover": {"class": "CrossoverOrder"},
+        "initialization": {"class": "InitializationCPUPermRandom"},
+        "selection": {"class": "SelectionCPUTournament", "params": {"k": 3}},
+        "crossover": {"class": "CrossoverCPUPermOrder"},
         "mutation": {"class": "ExternalShiftMutation", "params": {"shift_by": 3}},
         "evaluation": {"class": "EvaluationCPUCost"},
       },
@@ -248,10 +248,10 @@ def test_json_module_spec_loads_external_strategy_and_pipeline_step(
       ],
     },
     strategies={
-      "initialization": {"class": "InitializationCPURandom"},
-      "selection": {"class": "SelectionTournament", "params": {"k": 3}},
-      "crossover": {"class": "CrossoverOrder"},
-      "mutation": {"class": "MutationSwap"},
+      "initialization": {"class": "InitializationCPUPermRandom"},
+      "selection": {"class": "SelectionCPUTournament", "params": {"k": 3}},
+      "crossover": {"class": "CrossoverCPUPermOrder"},
+      "mutation": {"class": "MutationCPUPermSwap"},
       "local_search": {
         "module": "user_external_ops",
         "class": "UserReverseLocalSearch",
@@ -395,9 +395,9 @@ def test_config_relative_py_path_loads_from_hyphenated_experiment_dir(
               ],
             },
             "strategies": {
-              "initialization": {"class": "InitializationCPURandom"},
-              "selection": {"class": "SelectionTournament", "params": {"k": 3}},
-              "crossover": {"class": "CrossoverOrder"},
+              "initialization": {"class": "InitializationCPUPermRandom"},
+              "selection": {"class": "SelectionCPUTournament", "params": {"k": 3}},
+              "crossover": {"class": "CrossoverCPUPermOrder"},
               "mutation": {
                 "module": "../my-ops.py",
                 "class": "RelativeShiftMutation",

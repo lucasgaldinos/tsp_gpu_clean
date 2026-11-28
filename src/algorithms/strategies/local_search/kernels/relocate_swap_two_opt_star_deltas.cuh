@@ -7,7 +7,7 @@
 
 #include "vrp_route_prefix_buffers.cuh"
 
-static __device__ __forceinline__ double cvrp_ls_eval_relocate(
+static __device__ __forceinline__ double vrp_ls_eval_relocate(
     int r_a,
     int pos_v,
     int r_b,
@@ -96,9 +96,9 @@ static __device__ __forceinline__ double cvrp_ls_eval_relocate(
     }
 
     double old_pen =
-        cvrp_ls_route_penalty(old_load_a, old_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + cvrp_ls_route_penalty(old_load_b, old_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
+        vrp_ls_route_penalty(old_load_a, old_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + vrp_ls_route_penalty(old_load_b, old_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
     double new_pen =
-        cvrp_ls_route_penalty(new_load_a, new_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + cvrp_ls_route_penalty(new_load_b, new_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
+        vrp_ls_route_penalty(new_load_a, new_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + vrp_ls_route_penalty(new_load_b, new_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
     if (has_max_veh && delta_m != 0)
     {
         const int old_ex = (m > max_vehicles) ? (m - max_vehicles) : 0;
@@ -116,7 +116,7 @@ static __device__ __forceinline__ double cvrp_ls_eval_relocate(
     return new_pen - old_pen;
 }
 
-static __device__ __forceinline__ double cvrp_ls_eval_swap(
+static __device__ __forceinline__ double vrp_ls_eval_swap(
     int r_a,
     int pos_v,
     int r_b,
@@ -188,13 +188,13 @@ static __device__ __forceinline__ double cvrp_ls_eval_swap(
     const long long new_dist_b = old_dist_b - rem_b + add_b;
 
     const double old_pen =
-        cvrp_ls_route_penalty(old_load_a, old_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + cvrp_ls_route_penalty(old_load_b, old_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
+        vrp_ls_route_penalty(old_load_a, old_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + vrp_ls_route_penalty(old_load_b, old_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
     const double new_pen =
-        cvrp_ls_route_penalty(new_load_a, new_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + cvrp_ls_route_penalty(new_load_b, new_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
+        vrp_ls_route_penalty(new_load_a, new_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + vrp_ls_route_penalty(new_load_b, new_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
     return new_pen - old_pen;
 }
 
-static __device__ __forceinline__ double cvrp_ls_eval_two_opt_star(
+static __device__ __forceinline__ double vrp_ls_eval_two_opt_star(
     int r_a,
     int cut_a,
     int r_b,
@@ -297,9 +297,9 @@ static __device__ __forceinline__ double cvrp_ls_eval_two_opt_star(
     }
 
     double old_pen =
-        cvrp_ls_route_penalty(old_load_a, old_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + cvrp_ls_route_penalty(old_load_b, old_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
+        vrp_ls_route_penalty(old_load_a, old_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + vrp_ls_route_penalty(old_load_b, old_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
     double new_pen =
-        cvrp_ls_route_penalty(new_load_a, new_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + cvrp_ls_route_penalty(new_load_b, new_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
+        vrp_ls_route_penalty(new_load_a, new_dist_a, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l) + vrp_ls_route_penalty(new_load_b, new_dist_b, has_cap, capacity, has_dist, max_route_distance, omega_q, omega_l);
     if (has_max_veh && delta_m != 0)
     {
         const int old_ex = (m > max_vehicles) ? (m - max_vehicles) : 0;

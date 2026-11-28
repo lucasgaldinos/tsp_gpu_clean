@@ -116,13 +116,13 @@ must be read against the *pre-Phase-11* source; the present implementation is re
 
 ## 2. Strategy-Level Bottlenecks
 
-### 2.1 Crossover — `CrossoverGPUOrder`
+### 2.1 Crossover — `CrossoverGPUPermOrder`
 
 **Diagnosis (pre-Phase-11).** The `order_crossover_kernel` performed membership testing by
 linear scan: for each of the $n$ cities drawn from $P_2$ it ran `for (int j = c1; j <= c2; j++)`
 against global memory. With an average segment of $n/2$ positions and $n = 2103$, that is
 $\approx 1.47 \times 10^6$ uncoalesced global reads per route, i.e. $\mathcal{O}(n^2)$ per
-route against the $\mathcal{O}(n)$ `set` used by `CrossoverOrder._apply_ox`.
+route against the $\mathcal{O}(n)$ `set` used by `CrossoverCPUPermOrder._apply_ox`.
 
 Three further limitations compounded it:
 
@@ -146,16 +146,16 @@ Three further limitations compounded it:
 - **One warp per route** (`route_idx = global_tid >> 5`, `lane_id = threadIdx.x & 31`),
   which raises the launched parallelism from $N$ threads to $32N$.
 - Compaction of $P_2$ uses `__ballot_sync` plus `__popc` ([§5](#5-warp-compaction-via-a-lower-triangular-mask-and-__popc)).
-- The launcher (`CrossoverGPUOrder.crossover_batch`) halves `threads_per_block` while
+- The launcher (`CrossoverGPUPermOrder.crossover_batch`) halves `threads_per_block` while
   `warps_per_block * n_cities` exceeds `MaxSharedMemoryPerBlock`, so the Format A budget is
   respected automatically: 8 warps $\times$ 2103 B $= 16.8$ KB at $n = 2103$, and the limit
   is reached only at $n = 6144$.
 - Semantics aligned with the CPU: `rng.choice(..., replace=False)` (strict cuts inside
   $[1, n-2]$ for closed routes), disjoint pairing $(2k, 2k+1)$ sharing the same cuts, and
   `is_closed` preservation. **Constraint:** for identical parents and cuts, the GPU
-  offspring must stay bit-identical to `CrossoverOrder`.
+  offspring must stay bit-identical to `CrossoverCPUPermOrder`.
 
-**Measured outcome.** Before: `CrossoverGPUOrder` won by 11.2× at $n = 52$, tied near
+**Measured outcome.** Before: `CrossoverGPUPermOrder` won by 11.2× at $n = 52$, tied near
 $n \approx 800$, and lost by 3.6× at $n = 2000$; the power fit gave CPU $\propto n^{0.87}$
 and GPU $\propto n^{1.88}$, proving an asymptotic cause rather than a constant factor.
 After: 26 parity cases ($n \in \{52, 100, 200, 500, 1000, 2000\}$) are bit-identical, and
@@ -187,7 +187,7 @@ block, and `cp.cuda.Stream.null.synchronize()` blocked the host after every call
   2D route gather is delegated to CuPy (`d_parents = d_pop[d_winner_indices]`), which uses
   the CUB `DeviceGather` path with vectorized `int4` loads and full coalescing.
 - Candidate sampling stays on the host through `ProblemContext.rng` (`rng.integers(...)`,
-  shape `(n_select, k)`), which preserves bit-identity with `SelectionTournament`.
+  shape `(n_select, k)`), which preserves bit-identity with `SelectionCPUTournament`.
 - No explicit `Stream.null.synchronize()` survives anywhere in `src/`.
 
 > [!NOTE]
@@ -196,7 +196,7 @@ block, and `cp.cuda.Stream.null.synchronize()` blocked the host after every call
 > bandwidth-bound copy happens inside the gather kernel, which is grid-sized by CuPy. What
 > remains is the $\mathcal{O}(Nk)$ candidate transfer (~2.5 KB at $N = 100$, $k = 5$).
 
-### 2.3 Inversion Mutation — `MutationGPUInversion`
+### 2.3 Inversion Mutation — `MutationGPUPermInversion`
 
 **Diagnosis (pre-Phase-11).** Two defects:
 
@@ -213,7 +213,7 @@ block, and `cp.cuda.Stream.null.synchronize()` blocked the host after every call
   cooperative reversal `for (int k = lane_id; k < num_swaps; k += 32)`. All 32 lanes test the
   same scalar `probs[route_idx] < mutation_rate`, so intra-warp divergence drops to zero;
   non-mutated routes retire in one cycle, mutated routes split the swaps across lanes.
-- The endpoint probe is replaced by `MutationGPUInversion._is_closed_cache`, populated once
+- The endpoint probe is replaced by `MutationGPUPermInversion._is_closed_cache`, populated once
   per `n_cities`, eliminating both `.get()` calls.
 - Launch geometry: `num_routes * 32` threads in blocks of 256, i.e. 13 blocks for $N = 100$
   and full SM coverage.
@@ -225,7 +225,7 @@ block, and `cp.cuda.Stream.null.synchronize()` blocked the host after every call
 | Reversal throughput | up to $32\times$ vs. a single lane | $32\times$–$256\times$ |
 | Kernel launches | 1 | 2 (compaction + reversal) |
 
-### 2.4 Swap Mutation — `MutationGPUSwap`
+### 2.4 Swap Mutation — `MutationGPUPermSwap`
 
 **Diagnosis (pre-Phase-11).** `pos1`, `pos2` and `probs` were generated with NumPy on the
 host and uploaded, costing roughly $25\,\mu\text{s}$ of host time plus PCIe transfer to
@@ -237,7 +237,7 @@ perform a swap that executes in under $0.3\,\mu\text{s}$ on the device. A
 - The unconditional stream synchronization is removed; device arrays produced in
   `mutate_batch` can flow directly into the next stage.
 - The RNG **deliberately remains on the host** (`resolve_rng(context, self.rng)`), because
-  `MutationGPUSwap` must be bit-identical to `MutationSwap` for the iso-algorithmic
+  `MutationGPUPermSwap` must be bit-identical to `MutationCPUPermSwap` for the iso-algorithmic
   comparison of Chapter 4. The transfer of `probs` (float64), `pos1` and `pos2` (int32) —
   about $16N$ bytes per generation — is the accepted price of that equivalence.
 
@@ -277,7 +277,7 @@ strides at $n = 2103$), fragmenting the 128-byte DRAM transactions. The block re
 > array at 2 KB. The earlier framing of this limit as a bottleneck was incorrect and is
 > corrected here.
 
-### 2.6 2-Opt Local Search — `LocalSearchGPUTwoOpt`
+### 2.6 2-Opt Local Search — `LocalSearchGPUTourTwoOpt`
 
 **Diagnosis (pre-Phase-11).** After the block selected the best improving move
 (`s_deltas[0] < 0`), **Thread 0** reversed the winning segment alone
@@ -307,7 +307,7 @@ segment cost 500 sequential iterations with 0.4 % of the block doing useful work
 
 - Symmetric pairs $(left+k,\ right-k)$ are mutually disjoint, so the parallel form is
   race-free and leaves the sequence of accepted moves — hence the tour — bit-identical to
-  `LocalSearchCPUTwoOpt(mode="best")`.
+  `LocalSearchCPUTourTwoOpt(mode="best")`.
 - Tiling remains intact: above `max_shared_tour_cities` (11 520 by default) the kernel
   streams `s_tour_tile[TWO_OPT_TILE_SIZE + 1]` through `TOUR_AT`/`TOUR_SET`.
 

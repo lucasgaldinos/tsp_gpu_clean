@@ -7,7 +7,7 @@
  *   2. Shares the exact neighborhood scan, block reduction, and cooperative
  *      reconnection from `three_opt_common.cuh`.
  *   3. Kept as the per-route `CPU -> GPU -> CPU` baseline parallel to
- *      `LocalSearchGPUTwoOpt(mode="naive")`.
+ *      `LocalSearchGPUTourTwoOpt(mode="naive")`.
  */
 
 #include "three_opt_common.cuh"

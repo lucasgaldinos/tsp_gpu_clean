@@ -24,7 +24,7 @@ from typing import Any, Literal, cast
 import numpy as np
 import pytest
 
-from algorithms.strategies import LocalSearchGPUTwoOpt
+from algorithms.strategies import LocalSearchGPUTourTwoOpt
 from benchmarking.runner.config_loader import load_algorithms_config, load_all_configs, validate_configs
 from data_models.problem import Problem
 from protocols.algorithm_strategies import LocalSearchStrategy
@@ -229,7 +229,7 @@ def test_config_relative_loading_and_validation() -> None:
   ):
     two_ls = algorithms[two_name].instantiate(ga_params).local_search
     three_ls = algorithms[three_name].instantiate(ga_params).local_search
-    assert isinstance(two_ls, LocalSearchGPUTwoOpt)
+    assert isinstance(two_ls, LocalSearchGPUTourTwoOpt)
     assert two_ls.mode == expected_mode
     assert isinstance(three_ls, LocalSearchStrategy)
     three_any = cast("Any", three_ls)
@@ -257,7 +257,7 @@ def test_gpu_three_opt_improves_two_opt_optimal_trap(mode: GPUMode, candidate_k:
 
   ctx_2opt = ProblemContext(problem, xp=cp, seed=42)
   two_opt_mode: GPUMode = "batch" if mode == "naive" else mode
-  two_opt = LocalSearchGPUTwoOpt(mode=two_opt_mode, max_iterations=10, candidate_k=candidate_k)
+  two_opt = LocalSearchGPUTourTwoOpt(mode=two_opt_mode, max_iterations=10, candidate_k=candidate_k)
   after_2opt = np.asarray(two_opt.improve(tour, ctx_2opt), dtype=np.int32)
   assert tour_cost_cpu(after_2opt, distances) == 33, "2-opt must not improve a 2-opt-optimal trap"
 

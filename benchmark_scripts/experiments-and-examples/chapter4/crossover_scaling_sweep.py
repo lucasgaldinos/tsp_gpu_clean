@@ -1,6 +1,6 @@
 """Order Crossover (OX) GPU vs CPU Scaling Sweep Harness (`DP11-11`, `BUG-22`, `OX-A`).
 
-Evaluates runtime scaling of CrossoverGPUOrder vs CrossoverOrder for N=256 across
+Evaluates runtime scaling of CrossoverGPUPermOrder vs CrossoverCPUPermOrder for N=256 across
 n in {52, 100, 200, 500, 1000, 2000}, fitting power-law exponent beta.
 """
 
@@ -10,7 +10,7 @@ import time
 
 import numpy as np
 
-from algorithms.strategies.crossover.order_crossover import CrossoverGPUOrder, CrossoverOrder
+from algorithms.strategies.crossover.order_crossover import CrossoverCPUPermOrder, CrossoverGPUPermOrder
 from data_models.problem import Problem
 from protocols.backend import require_gpu
 from protocols.problem_context import ProblemContext
@@ -21,13 +21,13 @@ def run_crossover_scaling_sweep(
   sizes: list[int] | None = None,
   repetitions: int = 15,
 ) -> tuple[float, list[dict[str, float]]]:
-  """Run scaling sweep for CrossoverGPUOrder and CrossoverOrder."""
+  """Run scaling sweep for CrossoverGPUPermOrder and CrossoverCPUPermOrder."""
   if sizes is None:
     sizes = [52, 100, 200, 500, 1000, 2000]
 
   cp = require_gpu()
-  cpu_strategy = CrossoverOrder(seed=42)
-  gpu_strategy = CrossoverGPUOrder(seed=42)
+  cpu_strategy = CrossoverCPUPermOrder(seed=42)
+  gpu_strategy = CrossoverGPUPermOrder(seed=42)
 
   # Warm-up run on GPU
   warm_n = 52

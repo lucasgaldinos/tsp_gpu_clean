@@ -14,14 +14,14 @@ import pytest
 
 from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
-  CrossoverOrder,
+  CrossoverCPUPermOrder,
   EvaluationCPUCost,
   EvaluationGPUCost,
-  InitializationCPURandom,
-  LocalSearchCPUTwoOpt,
-  LocalSearchGPUTwoOpt,
-  MutationSwap,
-  SelectionTournament,
+  InitializationCPUPermRandom,
+  LocalSearchCPUTourTwoOpt,
+  LocalSearchGPUTourTwoOpt,
+  MutationCPUPermSwap,
+  SelectionCPUTournament,
 )
 from data_models.exceptions import AmbiguousProblemError, InvalidProblemDataError
 from data_models.problem import Problem
@@ -287,12 +287,12 @@ def test_euc3d_end_to_end_loaders_distances_and_cpu_ga(tmp_path: Path) -> None:
     population_size=8,
     mutation_rate=0.2,
     seed=42,
-    initialization=InitializationCPURandom(seed=42),
-    selection=SelectionTournament(k=2, seed=42),
-    crossover=CrossoverOrder(seed=42),
-    mutation=MutationSwap(seed=42),
+    initialization=InitializationCPUPermRandom(seed=42),
+    selection=SelectionCPUTournament(k=2, seed=42),
+    crossover=CrossoverCPUPermOrder(seed=42),
+    mutation=MutationCPUPermSwap(seed=42),
     evaluation=EvaluationCPUCost(),
-    local_search=LocalSearchCPUTwoOpt(max_iterations=5),
+    local_search=LocalSearchCPUTourTwoOpt(max_iterations=5),
     local_search_stage="post_mutation",
   )
   customers = list(range(5))
@@ -337,12 +337,12 @@ def test_euc3d_gpu_end_to_end_dense_and_on_the_fly(tmp_path: Path, max_matrix_di
     population_size=8,
     mutation_rate=0.2,
     seed=7,
-    initialization=InitializationCPURandom(seed=7),
-    selection=SelectionTournament(k=2, seed=7),
-    crossover=CrossoverOrder(seed=7),
-    mutation=MutationSwap(seed=7),
+    initialization=InitializationCPUPermRandom(seed=7),
+    selection=SelectionCPUTournament(k=2, seed=7),
+    crossover=CrossoverCPUPermOrder(seed=7),
+    mutation=MutationCPUPermSwap(seed=7),
     evaluation=EvaluationGPUCost(max_matrix_dimension=max_matrix_dimension),
-    local_search=LocalSearchGPUTwoOpt(mode="batch", max_iterations=5, max_matrix_dimension=max_matrix_dimension),
+    local_search=LocalSearchGPUTourTwoOpt(mode="batch", max_iterations=5, max_matrix_dimension=max_matrix_dimension),
     local_search_stage="post_mutation",
   )
   customers = list(range(5))
@@ -384,7 +384,7 @@ def test_euc3d_gpu_on_the_fly_all_modes_and_non_contiguous_float32_inputs(tmp_pa
 
   gpu_ctx = ProblemContext(canonical, xp=cp, seed=11, max_matrix_dimension=0)
   for mode in ("multi_move", "naive"):
-    ls = LocalSearchGPUTwoOpt(mode=mode, max_iterations=5, candidate_k=3, max_matrix_dimension=0)
+    ls = LocalSearchGPUTourTwoOpt(mode=mode, max_iterations=5, candidate_k=3, max_matrix_dimension=0)
     improved = cp.asnumpy(ls.improve_batch(probe_population, gpu_ctx))
     after_costs = EvaluationCPUCost().evaluate_batch(improved, cpu_ctx)
     assert (after_costs <= cpu_costs).all()

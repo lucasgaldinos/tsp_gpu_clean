@@ -22,7 +22,7 @@ if TYPE_CHECKING:
   from protocols.types import Fitness, Route, Routes, SeedLike
 
 
-class SelectionRouletteWheel(StrategyBase, SelectionStrategy):
+class SelectionCPURouletteWheel(StrategyBase, SelectionStrategy):
   """
   Fitness-proportionate (roulette wheel) selection for route minimization.
 
@@ -73,4 +73,4 @@ class SelectionRouletteWheel(StrategyBase, SelectionStrategy):
     return pop_batch[indices].copy()
 
 
-__all__: list[str] = ["SelectionRouletteWheel"]
+__all__: list[str] = ["SelectionCPURouletteWheel"]

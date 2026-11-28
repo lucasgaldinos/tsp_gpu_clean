@@ -76,7 +76,7 @@ def test_load_all_configs_returns_expected_structure(fixture_configs: dict[str, 
   ]
   assert configs["algorithms"]["CPU"].use_gpu is False
   assert configs["algorithms"]["CPU"].metaheuristic == "GeneticAlgorithm"
-  assert configs["algorithms"]["CPU"].strategies["selection"]["class"] == "SelectionTournament"
+  assert configs["algorithms"]["CPU"].strategies["selection"]["class"] == "SelectionCPUTournament"
 
 
 def test_load_all_configs_parses_benchmark_and_problem_values(fixture_configs: dict[str, Any]) -> None:

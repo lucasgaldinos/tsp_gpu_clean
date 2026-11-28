@@ -13,12 +13,12 @@ import pytest
 
 from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
-  CrossoverOrder,
+  CrossoverCPUPermOrder,
   EvaluationCPUCost,
-  InitializationCPURandom,
-  LocalSearchCPUTwoOpt,
-  MutationSwap,
-  SelectionTournament,
+  InitializationCPUPermRandom,
+  LocalSearchCPUTourTwoOpt,
+  MutationCPUPermSwap,
+  SelectionCPUTournament,
 )
 from benchmarking.runner.config_loader import load_algorithms_config
 from protocols import ProblemContext
@@ -71,12 +71,12 @@ def test_ga_composable_local_search_stages(burma14_problem: Problem, stage: str)
     population_size=16,
     mutation_rate=0.05,
     seed=42,
-    initialization=InitializationCPURandom(seed=42),
-    selection=SelectionTournament(k=3, seed=42),
-    crossover=CrossoverOrder(seed=42),
-    mutation=MutationSwap(seed=42),
+    initialization=InitializationCPUPermRandom(seed=42),
+    selection=SelectionCPUTournament(k=3, seed=42),
+    crossover=CrossoverCPUPermOrder(seed=42),
+    mutation=MutationCPUPermSwap(seed=42),
     evaluation=EvaluationCPUCost(),
-    local_search=LocalSearchCPUTwoOpt(max_iterations=4),
+    local_search=LocalSearchCPUTourTwoOpt(max_iterations=4),
     local_search_stage=stage,  # type: ignore[arg-type]
   )
   best_tour, stats = ga.evolve(context, customers, max_generations=6, patience=10)
@@ -93,10 +93,10 @@ def test_ga_rejects_unknown_local_search_stage() -> None:
       population_size=16,
       mutation_rate=0.05,
       local_search_stage="unknown_stage",  # type: ignore[arg-type]
-      initialization=InitializationCPURandom(),
-      selection=SelectionTournament(),
-      crossover=CrossoverOrder(),
-      mutation=MutationSwap(),
+      initialization=InitializationCPUPermRandom(),
+      selection=SelectionCPUTournament(),
+      crossover=CrossoverCPUPermOrder(),
+      mutation=MutationCPUPermSwap(),
       evaluation=EvaluationCPUCost(),
     )
 
@@ -109,10 +109,10 @@ def test_ga_init_does_not_mutate_global_numpy_rng_state() -> None:
     population_size=16,
     mutation_rate=0.05,
     seed=99999,
-    initialization=InitializationCPURandom(seed=99999),
-    selection=SelectionTournament(seed=99999),
-    crossover=CrossoverOrder(seed=99999),
-    mutation=MutationSwap(seed=99999),
+    initialization=InitializationCPUPermRandom(seed=99999),
+    selection=SelectionCPUTournament(seed=99999),
+    crossover=CrossoverCPUPermOrder(seed=99999),
+    mutation=MutationCPUPermSwap(seed=99999),
     evaluation=EvaluationCPUCost(),
   )
   state_after = np.random.get_state()

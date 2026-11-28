@@ -15,23 +15,23 @@ from algorithms.metaheuristics.genetic_algorithm import (
 )
 from algorithms.pipeline_steps import GiantTourEncodeStep, SplitDecodeStep
 from algorithms.strategies import STRATEGY_REGISTRY
-from algorithms.strategies.crossover import CrossoverGPURBX, CrossoverOrder, CrossoverRBX
+from algorithms.strategies.crossover import CrossoverCPUPermOrder, CrossoverCPURouteRBX, CrossoverGPURouteRBX
 from algorithms.strategies.evaluation import EvaluationCPUCost, EvaluationGPUCost
 from algorithms.strategies.initialization import (
-  InitializationCPUClarkeWright,
-  InitializationCPUSweep,
-  InitializationGPUClarkeWright,
+  InitializationCPURouteClarkeWright,
+  InitializationCPURouteSweep,
+  InitializationGPURouteClarkeWright,
 )
 from algorithms.strategies.local_search import LocalSearchNoOp
 from algorithms.strategies.mutation import (
+  MutationCPUPermInversion,
+  MutationCPUPermSwap,
+  MutationCPURouteRelocate,
+  MutationCPURouteSwap,
   MutationGPURouteRelocate,
   MutationGPURouteSwap,
-  MutationInversion,
-  MutationRouteRelocate,
-  MutationRouteSwap,
-  MutationSwap,
 )
-from algorithms.strategies.selection import SelectionTournament
+from algorithms.strategies.selection import SelectionCPUTournament
 from data_models import Problem, VRPConstraints
 from protocols.backend import gpu_available, require_gpu
 from protocols.problem_context import ProblemContext
@@ -93,13 +93,13 @@ def test_all_new_vrp_route_operators_are_registered() -> None:
   expected = {
     "EvaluationCPUCost": EvaluationCPUCost,
     "EvaluationGPUCost": EvaluationGPUCost,
-    "InitializationCPUClarkeWright": InitializationCPUClarkeWright,
-    "InitializationCPUSweep": InitializationCPUSweep,
-    "CrossoverRBX": CrossoverRBX,
-    "CrossoverGPURBX": CrossoverGPURBX,
-    "MutationRouteRelocate": MutationRouteRelocate,
+    "InitializationCPURouteClarkeWright": InitializationCPURouteClarkeWright,
+    "InitializationCPURouteSweep": InitializationCPURouteSweep,
+    "CrossoverCPURouteRBX": CrossoverCPURouteRBX,
+    "CrossoverGPURouteRBX": CrossoverGPURouteRBX,
+    "MutationCPURouteRelocate": MutationCPURouteRelocate,
     "MutationGPURouteRelocate": MutationGPURouteRelocate,
-    "MutationRouteSwap": MutationRouteSwap,
+    "MutationCPURouteSwap": MutationCPURouteSwap,
     "MutationGPURouteSwap": MutationGPURouteSwap,
   }
   for name, cls in expected.items():
@@ -108,19 +108,19 @@ def test_all_new_vrp_route_operators_are_registered() -> None:
 
 @pytest.mark.parametrize("max_vehicles", [None, 2, 3])
 def test_rbx_crossover_preserves_bijection_width_and_cpu_gpu_parity(max_vehicles: int | None) -> None:
-  """WHAT: `CrossoverRBX` & `CrossoverGPURBX` (`RBX`) on CPU and GPU.
+  """WHAT: `CrossoverCPURouteRBX` & `CrossoverGPURouteRBX` (`RBX`) on CPU and GPU.
   WHY: Must preserve exact `{1..n-1}` bijection, exact width `W`, single/batch `int32` RNG parity,
   reuse `d_visited` workspace, and incur zero D2H on GPU.
   """
   problem = _make_cvrp9(max_vehicles=max_vehicles)
   ctx_init = ProblemContext(problem, xp=np, seed=10)
-  parents = InitializationCPUClarkeWright(output_format="delimited").initialize(
+  parents = InitializationCPURouteClarkeWright(output_format="delimited").initialize(
     list(range(1, problem.dimension)), 10, ctx_init
   )
   width = int(parents.shape[1])
 
   ctx_cpu = ProblemContext(problem, xp=np, seed=77)
-  cx_cpu = CrossoverRBX()
+  cx_cpu = CrossoverCPURouteRBX()
   off_cpu = cx_cpu.crossover_batch(parents, context=ctx_cpu)
   _assert_valid_delimited_batch(off_cpu, problem.dimension, width)
 
@@ -136,7 +136,7 @@ def test_rbx_crossover_preserves_bijection_width_and_cpu_gpu_parity(max_vehicles
     return
   cp = require_gpu()
   ctx_gpu = ProblemContext(problem, xp=cp, seed=77)
-  cx_gpu = CrossoverGPURBX(return_gpu=True)
+  cx_gpu = CrossoverGPURouteRBX(return_gpu=True)
   cx_gpu.warmup(ctx_gpu)
   cx_gpu.reset_metrics()
   ctx_gpu_run = ProblemContext(problem, xp=cp, seed=77)
@@ -167,7 +167,7 @@ def test_rbx_respects_dcvrp_max_route_distance_and_ovrp_open_routes(return_to_de
     dtype=np.int32,
   )
   ctx_cpu = ProblemContext(problem, xp=np, seed=5)
-  off_cpu = CrossoverRBX().crossover_batch(parents, context=ctx_cpu)
+  off_cpu = CrossoverCPURouteRBX().crossover_batch(parents, context=ctx_cpu)
   _assert_valid_delimited_batch(off_cpu, problem.dimension, parents.shape[1])
   assess_off = EvaluationCPUCost().assess_batch(off_cpu, ctx_cpu)
   assert assess_off.num_vehicles is not None
@@ -177,7 +177,7 @@ def test_rbx_respects_dcvrp_max_route_distance_and_ovrp_open_routes(return_to_de
   if gpu_available():
     cp = require_gpu()
     ctx_gpu = ProblemContext(problem, xp=cp, seed=5)
-    cx_gpu = CrossoverGPURBX(return_gpu=True)
+    cx_gpu = CrossoverGPURouteRBX(return_gpu=True)
     off_gpu = cx_gpu.crossover_batch(cp.asarray(parents, dtype=cp.int32), context=ctx_gpu)
     assert cx_gpu.d2h_bytes == 0
     assert isinstance(off_gpu, cp.ndarray)
@@ -187,8 +187,8 @@ def test_rbx_respects_dcvrp_max_route_distance_and_ovrp_open_routes(return_to_de
 @pytest.mark.parametrize(
   ("cpu_cls", "gpu_cls"),
   [
-    (MutationRouteRelocate, MutationGPURouteRelocate),
-    (MutationRouteSwap, MutationGPURouteSwap),
+    (MutationCPURouteRelocate, MutationGPURouteRelocate),
+    (MutationCPURouteSwap, MutationGPURouteSwap),
   ],
 )
 def test_route_mutations_preserve_bijection_zeros_and_cpu_gpu_parity(cpu_cls: type, gpu_cls: type) -> None:
@@ -197,7 +197,7 @@ def test_route_mutations_preserve_bijection_zeros_and_cpu_gpu_parity(cpu_cls: ty
   """
   problem = _make_cvrp9(max_vehicles=4)
   ctx_init = ProblemContext(problem, xp=np, seed=11)
-  pop = InitializationCPUSweep(output_format="delimited").initialize(
+  pop = InitializationCPURouteSweep(output_format="delimited").initialize(
     list(range(1, problem.dimension)), 12, ctx_init
   )
   width = int(pop.shape[1])
@@ -224,7 +224,7 @@ def test_route_mutations_preserve_bijection_zeros_and_cpu_gpu_parity(cpu_cls: ty
 
 
 def test_relocate_reaches_index_zero_and_opens_empty_vehicle_slots() -> None:
-  """WHAT: `MutationRouteRelocate` can insert at index `0` and into empty `0` delimiter slots (`BUG-114`).
+  """WHAT: `MutationCPURouteRelocate` can insert at index `0` and into empty `0` delimiter slots (`BUG-114`).
   WHY: Old relocate could never move a customer into an empty `0` slot to open a new route or before index 0.
   EXPECTED: Over a batch of single-route `[0, 1, 2, 3, 4, 0, 0, 0]`, both index-0 placement and opening
   a second non-empty route (`num_vehicles == 2`) occur while preserving `{1..4}` bijection.
@@ -245,7 +245,7 @@ def test_relocate_reaches_index_zero_and_opens_empty_vehicle_slots() -> None:
   row = np.array([0, 1, 2, 3, 4, 0, 0, 0], dtype=np.int32)
   batch = np.tile(row, (128, 1))
   ctx = ProblemContext(prob_small, xp=np, seed=7)
-  out = MutationRouteRelocate().mutate_batch(batch, mutation_rate=1.0, context=ctx)
+  out = MutationCPURouteRelocate().mutate_batch(batch, mutation_rate=1.0, context=ctx)
   assert isinstance(out, np.ndarray)
   _assert_valid_delimited_batch(out, 5, 8)
   # Check that index 0 receives a customer in at least one row
@@ -272,10 +272,10 @@ def test_full_ga_evolve_cycle_for_all_three_vrp_representation_families() -> Non
   ga1 = GeneticAlgorithm(
     population_size=12,
     mutation_rate=0.2,
-    initialization=InitializationCPUClarkeWright(output_format="giant_tour"),
-    selection=SelectionTournament(k=3),
-    crossover=CrossoverOrder(),
-    mutation=MutationSwap(),
+    initialization=InitializationCPURouteClarkeWright(output_format="giant_tour"),
+    selection=SelectionCPUTournament(k=3),
+    crossover=CrossoverCPUPermOrder(),
+    mutation=MutationCPUPermSwap(),
     local_search=LocalSearchNoOp(),
     evaluation=EvaluationCPUCost(split_mode="prins"),
   )
@@ -284,13 +284,13 @@ def test_full_ga_evolve_cycle_for_all_three_vrp_representation_families() -> Non
 
   ctx2 = ProblemContext(problem, xp=np, seed=102)
   eval2 = EvaluationCPUCost(split_mode="prins")
-  sel2 = SelectionTournament(k=3)
-  cx2 = CrossoverOrder()
-  mut2 = MutationInversion()
+  sel2 = SelectionCPUTournament(k=3)
+  cx2 = CrossoverCPUPermOrder()
+  mut2 = MutationCPUPermInversion()
   ga2 = GeneticAlgorithm(
     population_size=12,
     mutation_rate=0.2,
-    initialization=InitializationCPUSweep(output_format="giant_tour"),
+    initialization=InitializationCPURouteSweep(output_format="giant_tour"),
     selection=sel2,
     crossover=cx2,
     mutation=mut2,
@@ -313,10 +313,10 @@ def test_full_ga_evolve_cycle_for_all_three_vrp_representation_families() -> Non
   ga3 = GeneticAlgorithm(
     population_size=12,
     mutation_rate=0.3,
-    initialization=InitializationCPUClarkeWright(output_format="delimited"),
-    selection=SelectionTournament(k=3),
-    crossover=CrossoverRBX(),
-    mutation=MutationRouteRelocate(),
+    initialization=InitializationCPURouteClarkeWright(output_format="delimited"),
+    selection=SelectionCPUTournament(k=3),
+    crossover=CrossoverCPURouteRBX(),
+    mutation=MutationCPURouteRelocate(),
     local_search=LocalSearchNoOp(),
     evaluation=EvaluationCPUCost(),
   )
@@ -329,9 +329,9 @@ def test_full_ga_evolve_cycle_for_all_three_vrp_representation_families() -> Non
     ga3_gpu = GeneticAlgorithm(
       population_size=12,
       mutation_rate=0.3,
-      initialization=InitializationGPUClarkeWright(output_format="delimited", return_gpu=True),
-      selection=SelectionTournament(k=3),
-      crossover=CrossoverGPURBX(return_gpu=True),
+      initialization=InitializationGPURouteClarkeWright(output_format="delimited", return_gpu=True),
+      selection=SelectionCPUTournament(k=3),
+      crossover=CrossoverGPURouteRBX(return_gpu=True),
       mutation=MutationGPURouteSwap(return_gpu=True),
       local_search=LocalSearchNoOp(),
       evaluation=EvaluationGPUCost(return_gpu=True),

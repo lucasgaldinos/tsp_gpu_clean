@@ -10,17 +10,17 @@ import numpy as np
 import pytest
 
 from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
-from algorithms.strategies.crossover.order_crossover import CrossoverOrder
+from algorithms.strategies.crossover.order_crossover import CrossoverCPUPermOrder
 from algorithms.strategies.evaluation import EvaluationCPUCost
 from algorithms.strategies.initialization import (
-  InitializationCPUClarkeWright,
-  InitializationCPUSweep,
-  InitializationGPUClarkeWright,
-  InitializationGPUSweep,
+  InitializationCPURouteClarkeWright,
+  InitializationCPURouteSweep,
+  InitializationGPURouteClarkeWright,
+  InitializationGPURouteSweep,
 )
 from algorithms.strategies.local_search.no_op import LocalSearchNoOp
-from algorithms.strategies.mutation.swap_mutation import MutationSwap
-from algorithms.strategies.selection.tournament_selection import SelectionTournament
+from algorithms.strategies.mutation.swap_mutation import MutationCPUPermSwap
+from algorithms.strategies.selection.tournament_selection import SelectionCPUTournament
 from benchmarking.runner.algorithm_runner import run_single_algorithm
 from data_models import Problem, VRPConstraints
 from protocols.backend import gpu_available, require_gpu
@@ -86,13 +86,13 @@ def _make_cvrp_problem(
   )
 
 
-@pytest.mark.parametrize("strategy_cls", [InitializationCPUClarkeWright, InitializationCPUSweep])
+@pytest.mark.parametrize("strategy_cls", [InitializationCPURouteClarkeWright, InitializationCPURouteSweep])
 @pytest.mark.parametrize("output_format", ["giant_tour", "delimited"])
 def test_vrp_initializers_produce_valid_reproducible_feasible_populations(
   strategy_cls: type[Any],
   output_format: str,
 ) -> None:
-  """WHAT: `InitializationCPUClarkeWright` and `InitializationCPUSweep` in both output formats."""
+  """WHAT: `InitializationCPURouteClarkeWright` and `InitializationCPURouteSweep` in both output formats."""
   assert "return_gpu" not in inspect.signature(strategy_cls.__init__).parameters
 
   problem = _make_cvrp_problem(capacity=12, max_route_distance=40.0, problem_type="DCVRP")
@@ -124,16 +124,16 @@ def test_vrp_initializers_produce_valid_reproducible_feasible_populations(
 
 
 def test_sweep_fallback_without_coordinates_and_ovrp_clarke_wright() -> None:
-  """WHAT: `InitializationCPUSweep` on `EXPLICIT` (no coords) and `InitializationCPUClarkeWright` on `OVRP`."""
+  """WHAT: `InitializationCPURouteSweep` on `EXPLICIT` (no coords), `InitializationCPURouteClarkeWright` on `OVRP`."""
   explicit_prob = _make_cvrp_problem(explicit_only=True)
   ctx_exp = ProblemContext(explicit_prob, xp=np, seed=9)
-  pop_sw = InitializationCPUSweep(output_format="delimited").initialize(list(range(1, 9)), 6, ctx_exp)
+  pop_sw = InitializationCPURouteSweep(output_format="delimited").initialize(list(range(1, 9)), 6, ctx_exp)
   det_sw = EvaluationCPUCost().evaluate_detailed_batch(pop_sw, ctx_exp)
   assert np.all(det_sw.violations == 0.0)
 
   ovrp_prob = _make_cvrp_problem(problem_type="OVRP", return_to_depot=False)
   ctx_ovrp = ProblemContext(ovrp_prob, xp=np, seed=9)
-  pop_cw = InitializationCPUClarkeWright(output_format="delimited").initialize(list(range(1, 9)), 6, ctx_ovrp)
+  pop_cw = InitializationCPURouteClarkeWright(output_format="delimited").initialize(list(range(1, 9)), 6, ctx_ovrp)
   det_cw = EvaluationCPUCost().evaluate_detailed_batch(pop_cw, ctx_ovrp)
   assert np.all(det_cw.violations == 0.0)
 
@@ -142,8 +142,8 @@ def test_sweep_fallback_without_coordinates_and_ovrp_clarke_wright() -> None:
 @pytest.mark.parametrize(
   ("cpu_cls", "gpu_cls"),
   [
-    (InitializationCPUSweep, InitializationGPUSweep),
-    (InitializationCPUClarkeWright, InitializationGPUClarkeWright),
+    (InitializationCPURouteSweep, InitializationGPURouteSweep),
+    (InitializationCPURouteClarkeWright, InitializationGPURouteClarkeWright),
   ],
 )
 @pytest.mark.parametrize("output_format", ["giant_tour", "delimited"])
@@ -174,7 +174,7 @@ def test_vrp_initializers_cpu_gpu_bit_identity_and_warmup_purity(
     max_mat = 10_000
 
   customers = list(range(1, problem.dimension))
-  extra: dict[str, Any] = {"candidate_k": 4} if cpu_cls is InitializationCPUClarkeWright else {}
+  extra: dict[str, Any] = {"candidate_k": 4} if cpu_cls is InitializationCPURouteClarkeWright else {}
 
   ctx_warm = ProblemContext(problem, xp=cp, seed=11)
   gpu_init = gpu_cls(output_format=output_format, max_matrix_dimension=max_mat, seed=55, **extra)
@@ -212,10 +212,10 @@ def test_ga_evolve_normalizes_vrp_best_tour_and_runner_strips_depot_customer() -
   ga = GeneticAlgorithm(
     population_size=12,
     mutation_rate=0.2,
-    initialization=InitializationCPUClarkeWright(output_format="giant_tour"),
-    selection=SelectionTournament(k=3),
-    crossover=CrossoverOrder(),
-    mutation=MutationSwap(),
+    initialization=InitializationCPURouteClarkeWright(output_format="giant_tour"),
+    selection=SelectionCPUTournament(k=3),
+    crossover=CrossoverCPUPermOrder(),
+    mutation=MutationCPUPermSwap(),
     local_search=LocalSearchNoOp(),
     evaluation=EvaluationCPUCost(split_mode="prins"),
   )

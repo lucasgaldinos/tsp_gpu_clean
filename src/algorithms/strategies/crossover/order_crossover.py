@@ -33,7 +33,7 @@ if TYPE_CHECKING:
   from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-class CrossoverOrder(StrategyBase, CrossoverStrategy):
+class CrossoverCPUPermOrder(StrategyBase, CrossoverStrategy):
   """
   Order Crossover (OX) strategy for TSP permutations and depot-bounded tours.
 
@@ -160,7 +160,7 @@ class CrossoverOrder(StrategyBase, CrossoverStrategy):
     return restore_routes_shape(offspring, was_1d, to_gpu=was_gpu)
 
 
-class CrossoverGPUOrder(StrategyBase, CrossoverStrategy):
+class CrossoverGPUPermOrder(StrategyBase, CrossoverStrategy):
   """
   Modular GPU CUDA kernel Order Crossover strategy (`order_crossover.cu`).
 
@@ -199,7 +199,7 @@ class CrossoverGPUOrder(StrategyBase, CrossoverStrategy):
     context: ProblemContext | None = None,
   ) -> Route:
     """Recombine two 1D parent routes."""
-    cpu_ox = CrossoverOrder(seed=self.seed)
+    cpu_ox = CrossoverCPUPermOrder(seed=self.seed)
     return cpu_ox.crossover(parent1, parent2, context=context)
 
   @time_strategy
@@ -282,4 +282,4 @@ class CrossoverGPUOrder(StrategyBase, CrossoverStrategy):
     return restore_routes_shape(cp.asnumpy(d_offspring), was_1d)
 
 
-__all__: list[str] = ["CrossoverGPUOrder", "CrossoverOrder"]
+__all__: list[str] = ["CrossoverCPUPermOrder", "CrossoverGPUPermOrder"]

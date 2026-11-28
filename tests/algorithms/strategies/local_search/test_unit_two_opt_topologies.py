@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from algorithms.strategies import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt
+from algorithms.strategies import LocalSearchCPUTourTwoOpt, LocalSearchGPUTourTwoOpt
 from data_models.problem import Problem
 from protocols import ProblemContext
 from protocols.backend import cupy_backend
@@ -166,7 +166,7 @@ def test_closed_cvrp_sub_route_preserves_depots_and_improves_cost_cpu(mode: TwoO
   route = np.array([0, 3, 1, 4, 2, 0], dtype=np.int32)
   before = _path_cost(route, distances)
 
-  improved = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode).improve(route, context)
+  improved = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode).improve(route, context)
 
   assert int(improved[0]) == 0 and int(improved[-1]) == 0
   assert sorted(improved.tolist()) == [0, 0, 1, 2, 3, 4]
@@ -192,9 +192,9 @@ def test_closed_cvrp_sub_route_gpu_parity_and_dist_stride() -> None:
   distances = cpu_ctx.get_cpu_distances()
   route = np.array([0, 3, 1, 4, 2, 0], dtype=np.int32)
 
-  cpu_best = LocalSearchCPUTwoOpt(max_iterations=10, mode="best").improve(route, cpu_ctx)
+  cpu_best = LocalSearchCPUTourTwoOpt(max_iterations=10, mode="best").improve(route, cpu_ctx)
   for gpu_mode in GPU_TWO_OPT_MODES:
-    gpu_out = np.asarray(LocalSearchGPUTwoOpt(max_iterations=10, mode=gpu_mode).improve_batch(route, gpu_ctx))
+    gpu_out = np.asarray(LocalSearchGPUTourTwoOpt(max_iterations=10, mode=gpu_mode).improve_batch(route, gpu_ctx))
     assert int(gpu_out[0]) == 0 and int(gpu_out[-1]) == 0
     assert sorted(gpu_out.tolist()) == [0, 0, 1, 2, 3, 4]
     assert _path_cost(gpu_out, distances) == 8
@@ -225,9 +225,9 @@ def test_closed_cvrp_sub_route_with_sparse_ids_coords_candidate_and_tiling(gpu_m
   sub_route = np.array([0, 17, 4, 19, 8, 12, 3, 15, 6, 0], dtype=np.int32)
   before = _path_cost(sub_route, distances)
 
-  cpu_best = LocalSearchCPUTwoOpt(max_iterations=5, mode="best", candidate_k=3).improve(sub_route, cpu_ctx)
+  cpu_best = LocalSearchCPUTourTwoOpt(max_iterations=5, mode="best", candidate_k=3).improve(sub_route, cpu_ctx)
   gpu_res = np.asarray(
-    LocalSearchGPUTwoOpt(
+    LocalSearchGPUTourTwoOpt(
       max_iterations=5,
       mode=gpu_mode,
       candidate_k=3,
@@ -248,7 +248,7 @@ def test_closed_cvrp_short_sub_route_n3_returns_unchanged() -> None:
   problem = _cvrp_line_problem(5)
   ctx = ProblemContext(problem, xp=np, seed=0)
   route = np.array([0, 1, 0], dtype=np.int32)
-  out = LocalSearchCPUTwoOpt(max_iterations=5, mode="best").improve(route, ctx)
+  out = LocalSearchCPUTourTwoOpt(max_iterations=5, mode="best").improve(route, ctx)
   assert out is not route
   np.testing.assert_array_equal(out, route)
 
@@ -295,8 +295,8 @@ def test_open_tsp_prefix_suffix_and_no_closing_edge(gpu_mode: TwoOptGPUMode) -> 
     ],
     dtype=np.int32,
   )
-  cpu_best = LocalSearchCPUTwoOpt(max_iterations=5, mode="best").improve_batch(cases, cpu_ctx)
-  gpu_res = np.asarray(LocalSearchGPUTwoOpt(max_iterations=5, mode=gpu_mode).improve_batch(cases, gpu_ctx))
+  cpu_best = LocalSearchCPUTourTwoOpt(max_iterations=5, mode="best").improve_batch(cases, cpu_ctx)
+  gpu_res = np.asarray(LocalSearchGPUTourTwoOpt(max_iterations=5, mode=gpu_mode).improve_batch(cases, gpu_ctx))
 
   for row in gpu_res:
     assert _path_cost(row, dist) == 4
@@ -309,11 +309,11 @@ def test_open_tsp_prefix_suffix_and_no_closing_edge(gpu_mode: TwoOptGPUMode) -> 
   trap_gpu_ctx = _TopologyContext(trap_prob, xp=cp, is_closed=False, return_to_depot=False)
   optimal_open = np.array([0, 1, 2, 3, 4], dtype=np.int32)
   np.testing.assert_array_equal(
-    LocalSearchCPUTwoOpt(max_iterations=3, mode="best").improve(optimal_open, trap_cpu_ctx),
+    LocalSearchCPUTourTwoOpt(max_iterations=3, mode="best").improve(optimal_open, trap_cpu_ctx),
     optimal_open,
   )
   np.testing.assert_array_equal(
-    np.asarray(LocalSearchGPUTwoOpt(max_iterations=3, mode=gpu_mode).improve_batch(optimal_open, trap_gpu_ctx)),
+    np.asarray(LocalSearchGPUTourTwoOpt(max_iterations=3, mode=gpu_mode).improve_batch(optimal_open, trap_gpu_ctx)),
     optimal_open,
   )
 
@@ -339,7 +339,7 @@ def test_open_tsp_step_by_step_exact_cost_and_cpu_gpu_parity() -> None:
   # Step-by-step exact monotonicity across all CPU and GPU modes (plus tiled & candidate fallback).
   for cpu_mode in CPU_TWO_OPT_MODES:
     cur = tours.copy()
-    strat = LocalSearchCPUTwoOpt(max_iterations=1, mode=cpu_mode, candidate_k=4)
+    strat = LocalSearchCPUTourTwoOpt(max_iterations=1, mode=cpu_mode, candidate_k=4)
     for _ in range(6):
       nxt = strat.improve_batch(cur, cpu_ctx)
       for b_row, a_row in zip(cur, nxt, strict=True):
@@ -347,10 +347,10 @@ def test_open_tsp_step_by_step_exact_cost_and_cpu_gpu_parity() -> None:
         assert _path_cost(a_row, dist) <= _path_cost(b_row, dist)
       cur = np.asarray(nxt, dtype=np.int32)
 
-  cpu_final = LocalSearchCPUTwoOpt(max_iterations=6, mode="best").improve_batch(tours, cpu_ctx)
+  cpu_final = LocalSearchCPUTourTwoOpt(max_iterations=6, mode="best").improve_batch(tours, cpu_ctx)
   for gpu_mode in GPU_TWO_OPT_MODES:
     gpu_final = np.asarray(
-      LocalSearchGPUTwoOpt(
+      LocalSearchGPUTourTwoOpt(
         max_iterations=6,
         mode=gpu_mode,
         candidate_k=4,
@@ -393,8 +393,8 @@ def test_ovrp_open_route_keeps_depot_fixed_and_tail_free(gpu_mode: TwoOptGPUMode
   gpu_ctx = _TopologyContext(base_prob, xp=cp, is_closed=False, return_to_depot=False, problem_type_override="OVRP")
 
   sub_route = np.array([0, 1, 2, 3], dtype=np.int32)  # n = 4 < dist_stride = 5
-  cpu_best = LocalSearchCPUTwoOpt(max_iterations=5, mode="best").improve(sub_route, cpu_ctx)
-  gpu_res = np.asarray(LocalSearchGPUTwoOpt(max_iterations=5, mode=gpu_mode).improve_batch(sub_route, gpu_ctx))
+  cpu_best = LocalSearchCPUTourTwoOpt(max_iterations=5, mode="best").improve(sub_route, cpu_ctx)
+  gpu_res = np.asarray(LocalSearchGPUTourTwoOpt(max_iterations=5, mode=gpu_mode).improve_batch(sub_route, gpu_ctx))
 
   assert int(cpu_best[0]) == 0 and int(gpu_res[0]) == 0
   # Iteration 1: suffix [2..3] -> [0, 1, 3, 2] (cost 61); iteration 2: (0, 3) -> [0, 2, 3, 1] (cost 52).
@@ -415,8 +415,8 @@ def test_ovrp_open_route_keeps_depot_fixed_and_tail_free(gpu_mode: TwoOptGPUMode
     line_prob, xp=cp, is_closed=False, return_to_depot=False, problem_type_override="OVRP"
   )
   rev_route = np.array([0, 3, 2, 1], dtype=np.int32)
-  out_gpu = np.asarray(LocalSearchGPUTwoOpt(max_iterations=3, mode=gpu_mode).improve_batch(rev_route, line_gpu_ctx))
-  out_cpu = LocalSearchCPUTwoOpt(max_iterations=3, mode="best").improve(rev_route, line_cpu_ctx)
+  out_gpu = np.asarray(LocalSearchGPUTourTwoOpt(max_iterations=3, mode=gpu_mode).improve_batch(rev_route, line_gpu_ctx))
+  out_cpu = LocalSearchCPUTourTwoOpt(max_iterations=3, mode="best").improve(rev_route, line_cpu_ctx)
   assert int(out_gpu[0]) == 0 and int(out_cpu[0]) == 0
   assert _path_cost(out_gpu, _line_distances(5)) == 3
   if gpu_mode in ("batch", "naive"):
@@ -439,7 +439,7 @@ def test_cupy_resident_closed_and_open_routes_have_zero_d2h_bytes(gpu_mode: TwoO
   cvrp_prob = _cvrp_line_problem(5)
   cvrp_ctx = ProblemContext(cvrp_prob, xp=cp, seed=0)
   cvrp_batch = cp.asarray(np.array([[0, 3, 1, 4, 2, 0]], dtype=np.int32))
-  cvrp_strat = LocalSearchGPUTwoOpt(max_iterations=3, mode=gpu_mode)
+  cvrp_strat = LocalSearchGPUTourTwoOpt(max_iterations=3, mode=gpu_mode)
   cvrp_out = cvrp_strat.improve_batch(cvrp_batch, cvrp_ctx)
   assert cvrp_strat.d2h_bytes == 0
   assert isinstance(cvrp_out, cp.ndarray)
@@ -450,7 +450,7 @@ def test_cupy_resident_closed_and_open_routes_have_zero_d2h_bytes(gpu_mode: TwoO
   open_prob = _explicit_problem("open_d2h", _line_distances(5), problem_type="TSP")
   open_ctx = _TopologyContext(open_prob, xp=cp, is_closed=False, return_to_depot=False)
   open_batch = cp.asarray(np.array([[1, 0, 2, 3, 4], [0, 1, 2, 4, 3]], dtype=np.int32))
-  open_strat = LocalSearchGPUTwoOpt(max_iterations=3, mode=gpu_mode)
+  open_strat = LocalSearchGPUTourTwoOpt(max_iterations=3, mode=gpu_mode)
   open_out = open_strat.improve_batch(open_batch, open_ctx)
   assert open_strat.d2h_bytes == 0
   assert isinstance(open_out, cp.ndarray)
@@ -461,7 +461,7 @@ def test_cupy_resident_closed_and_open_routes_have_zero_d2h_bytes(gpu_mode: TwoO
 @pytest.mark.gpu
 @pytest.mark.parametrize("gpu_mode", GPU_TWO_OPT_MODES)
 def test_warmup_succeeds_for_tsp_and_cvrp_with_updated_kernel_signatures(gpu_mode: TwoOptGPUMode) -> None:
-  """WHAT: `LocalSearchGPUTwoOpt.warmup(context)` across all three GPU modes on TSP and CVRP.
+  """WHAT: `LocalSearchGPUTourTwoOpt.warmup(context)` across all three GPU modes on TSP and CVRP.
 
   WHY: Kernel signatures gained `dist_stride`, `is_closed`, `is_cyclic`, and `fixed_start`;
   `warmup` must launch the compiled kernel cleanly with zero signature mismatch.
@@ -471,7 +471,7 @@ def test_warmup_succeeds_for_tsp_and_cvrp_with_updated_kernel_signatures(gpu_mod
   cvrp_ctx = ProblemContext(_cvrp_line_problem(6), xp=cp, seed=0)
 
   for ctx in (tsp_ctx, cvrp_ctx):
-    strat = LocalSearchGPUTwoOpt(max_iterations=1, mode=gpu_mode)
+    strat = LocalSearchGPUTourTwoOpt(max_iterations=1, mode=gpu_mode)
     strat.warmup(ctx)
     assert strat._kernel is not None
     assert (strat.kernel_launches, strat.h2d_bytes, strat.d2h_bytes) == (0, 0, 0)
@@ -492,8 +492,8 @@ def test_cyclic_tsp_candidate_and_exhaustive_remain_bit_identical(berlin52_probl
   gpu_ctx = ProblemContext(berlin52_problem, xp=cp, seed=1)
   dist = cpu_ctx.get_cpu_distances()
 
-  batch_strat = LocalSearchGPUTwoOpt(max_iterations=3, mode="batch", candidate_k=10)
-  naive_strat = LocalSearchGPUTwoOpt(max_iterations=3, mode="naive", candidate_k=10)
+  batch_strat = LocalSearchGPUTourTwoOpt(max_iterations=3, mode="batch", candidate_k=10)
+  naive_strat = LocalSearchGPUTourTwoOpt(max_iterations=3, mode="naive", candidate_k=10)
   assert batch_strat._uses_candidates(gpu_ctx, n) is True
 
   batch_out = np.asarray(batch_strat.improve_batch(tours, gpu_ctx))

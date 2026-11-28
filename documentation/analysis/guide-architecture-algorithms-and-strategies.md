@@ -208,21 +208,21 @@ Notice that [`GeneticAlgorithm._compose_pipeline`](../../src/algorithms/metaheur
 
 | Slot | Class Name | Backend / Kernel | Key Constructor Parameters & Contract |
 | :--- | :--- | :--- | :--- |
-| `Initialization*` | [`InitializationCPURandom`](../../src/algorithms/strategies/initialization/random_init.py) / [`InitializationGPURandom`](../../src/algorithms/strategies/initialization/random_init.py) | CPU NumPy / CUDA [`random_init.cu`](../../src/algorithms/strategies/initialization/kernels/random_init.cu) (`SplitMix64`) | `seed=None` (GPU adds `return_gpu=True`; $\Theta(n)$ per route) |
-| `Initialization*` | [`InitializationCPUNearestNeighbor`](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) / [`InitializationGPUNearestNeighbor`](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) | CPU GRASP RCL / CUDA [`nearest_neighbor_init.cu`](../../src/algorithms/strategies/initialization/kernels/nearest_neighbor_init.cu) | `k=20, seed=None` ($\Theta(n \cdot k)$) |
-| `Selection*` | [`SelectionTournament`](../../src/algorithms/strategies/selection/tournament_selection.py) | CPU NumPy or GPU CuPy array indexing | `k=3, seed=None`; unified host RNG (`BUG-28`) |
-| `Selection*` | [`SelectionRouletteWheel`](../../src/algorithms/strategies/selection/roulette_wheel_selection.py) | CPU inverse-cost weights | `seed=None`; $w_i = 1 / (\max(c_i, 0) + 10^{-6})$ |
+| `Initialization*` | [`InitializationCPUPermRandom`](../../src/algorithms/strategies/initialization/random_init.py) / [`InitializationGPUPermRandom`](../../src/algorithms/strategies/initialization/random_init.py) | CPU NumPy / CUDA [`random_init.cu`](../../src/algorithms/strategies/initialization/kernels/random_init.cu) (`SplitMix64`) | `seed=None` (GPU adds `return_gpu=True`; $\Theta(n)$ per route) |
+| `Initialization*` | [`InitializationCPUTourNearestNeighbor`](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) / [`InitializationGPUTourNearestNeighbor`](../../src/algorithms/strategies/initialization/nearest_neighbor_init.py) | CPU GRASP RCL / CUDA [`nearest_neighbor_init.cu`](../../src/algorithms/strategies/initialization/kernels/nearest_neighbor_init.cu) | `k=20, seed=None` ($\Theta(n \cdot k)$) |
+| `Selection*` | [`SelectionCPUTournament`](../../src/algorithms/strategies/selection/tournament_selection.py) | CPU NumPy or GPU CuPy array indexing | `k=3, seed=None`; unified host RNG (`BUG-28`) |
+| `Selection*` | [`SelectionCPURouletteWheel`](../../src/algorithms/strategies/selection/roulette_wheel_selection.py) | CPU inverse-cost weights | `seed=None`; $w_i = 1 / (\max(c_i, 0) + 10^{-6})$ |
 | `Selection*` | [`SelectionGPUTournament`](../../src/algorithms/strategies/selection/tournament_selection.py) | CUDA [`tournament_selection.cu::tournament_selection_kernel`](../../src/algorithms/strategies/selection/kernels/tournament_selection.cu) | `k=5, seed=None`; outputs `winner_indices`, coalesced CuPy gather (`DP11-16`) |
-| `Crossover*` | [`CrossoverOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) | CPU vectorized NumPy (`in_seg` + `np.roll`) | `seed=None`; disjoint pairs $(2k, 2k+1)$, `OX-A` (`DP12-14`) |
-| `Crossover*` | [`CrossoverPartiallyMapped`](../../src/algorithms/strategies/crossover/pmx_crossover.py) | CPU NumPy (`inv_p2` inverse index) | `seed=None`; preserves depot endpoints (`DP12-14`) |
-| `Crossover*` | [`CrossoverGPUOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) | CUDA [`order_crossover.cu::order_crossover_kernel`](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu) | `seed=None`; 1 warp/route, Format A shmem (`DP11-11`, bit-identical to CPU) |
-| `Mutation*` | [`MutationSwap`](../../src/algorithms/strategies/mutation/swap_mutation.py) | CPU NumPy in-place/copy slice | `seed=None, candidate_k=None`; shared host oracle (`SWAP-A`) |
-| `Mutation*` | [`MutationGPUSwap`](../../src/algorithms/strategies/mutation/swap_mutation.py) | CUDA [`swap_mutation.cu::swap_mutation_kernel`](../../src/algorithms/strategies/mutation/kernels/swap_mutation.cu) | `seed=None, candidate_k=None`; 1 thread/route (`DP11-14`, `BUG-28`) |
-| `Mutation*` | [`MutationInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) | CPU NumPy slice reversal | `seed=None, candidate_k=None`; shared host oracle (`INV-A`) |
-| `Mutation*` | [`MutationGPUInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) | CUDA [`inversion_mutation.cu::inversion_mutation_kernel`](../../src/algorithms/strategies/mutation/kernels/inversion_mutation.cu) | `seed=None, candidate_k=None`; 1 warp/route parallel reversal (`DP11-17`) |
+| `Crossover*` | [`CrossoverCPUPermOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) | CPU vectorized NumPy (`in_seg` + `np.roll`) | `seed=None`; disjoint pairs $(2k, 2k+1)$, `OX-A` (`DP12-14`) |
+| `Crossover*` | [`CrossoverCPUPermPartiallyMapped`](../../src/algorithms/strategies/crossover/pmx_crossover.py) | CPU NumPy (`inv_p2` inverse index) | `seed=None`; preserves depot endpoints (`DP12-14`) |
+| `Crossover*` | [`CrossoverGPUPermOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) | CUDA [`order_crossover.cu::order_crossover_kernel`](../../src/algorithms/strategies/crossover/kernels/order_crossover.cu) | `seed=None`; 1 warp/route, Format A shmem (`DP11-11`, bit-identical to CPU) |
+| `Mutation*` | [`MutationCPUPermSwap`](../../src/algorithms/strategies/mutation/swap_mutation.py) | CPU NumPy in-place/copy slice | `seed=None, candidate_k=None`; shared host oracle (`SWAP-A`) |
+| `Mutation*` | [`MutationGPUPermSwap`](../../src/algorithms/strategies/mutation/swap_mutation.py) | CUDA [`swap_mutation.cu::swap_mutation_kernel`](../../src/algorithms/strategies/mutation/kernels/swap_mutation.cu) | `seed=None, candidate_k=None`; 1 thread/route (`DP11-14`, `BUG-28`) |
+| `Mutation*` | [`MutationCPUPermInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) | CPU NumPy slice reversal | `seed=None, candidate_k=None`; shared host oracle (`INV-A`) |
+| `Mutation*` | [`MutationGPUPermInversion`](../../src/algorithms/strategies/mutation/inversion_mutation.py) | CUDA [`inversion_mutation.cu::inversion_mutation_kernel`](../../src/algorithms/strategies/mutation/kernels/inversion_mutation.cu) | `seed=None, candidate_k=None`; 1 warp/route parallel reversal (`DP11-17`) |
 | `LocalSearch*` | [`LocalSearchNoOp`](../../src/algorithms/strategies/local_search/no_op.py) | CPU/GPU pass-through copy | `max_iterations=0` |
-| `LocalSearch*` | [`LocalSearchCPUTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) | CPU vectorized NumPy (`_pair_deltas` in `int64`) | `max_iterations=10, mode="best" \| "first" \| "multi_move", candidate_k=None` (`DP13-5`) |
-| `LocalSearch*` | [`LocalSearchGPUTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) | CUDA [`two_opt_batch.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) / [`two_opt_multi_move.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu) / [`two_opt_single.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) | `max_iterations=10, mode="batch" \| "multi_move" \| "naive", threads_per_block=256, max_matrix_dimension=None, max_shared_tour_cities=11_520, candidate_k=None` |
+| `LocalSearch*` | [`LocalSearchCPUTourTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) | CPU vectorized NumPy (`_pair_deltas` in `int64`) | `max_iterations=10, mode="best" \| "first" \| "multi_move", candidate_k=None` (`DP13-5`) |
+| `LocalSearch*` | [`LocalSearchGPUTourTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) | CUDA [`two_opt_batch.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_batch.cu) / [`two_opt_multi_move.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_multi_move.cu) / [`two_opt_single.cu`](../../src/algorithms/strategies/local_search/kernels/two_opt_single.cu) | `max_iterations=10, mode="batch" \| "multi_move" \| "naive", threads_per_block=256, max_matrix_dimension=None, max_shared_tour_cities=11_520, candidate_k=None` |
 | `Evaluation*` | [`EvaluationCPUCost`](../../src/algorithms/strategies/evaluation/cost_evaluation.py) | CPU flat 1D gather (`float64` sum) | `()` — enforces `Fitness = NDArray[np.float64]` (`DP12-13`, `DP12-15`, `BUG-40`) |
 | `Evaluation*` | [`EvaluationGPUCost`](../../src/algorithms/strategies/evaluation/cost_evaluation.py) | CUDA [`tour_cost.cu::tour_cost_kernel`](../../src/algorithms/strategies/evaluation/kernels/tour_cost.cu) & [`vrp_delimited_cost.cu::vrp_delimited_cost_kernel`](../../src/algorithms/strategies/evaluation/kernels/vrp_delimited_cost.cu) | `return_gpu=False, threads_per_block=256, max_matrix_dimension=None, decoder=None, penalty_policy=None` (`EVAL-A`, `DP11-15`, `DP17-7`) |
 
@@ -332,7 +332,7 @@ sequenceDiagram
 
 *Runtime lifecycle showing AOT kernel compilation (`DP11-21`), raw Generation-0 evaluation (`DP11-8`, `BUG-21`), and lazy route D2H extraction only on strict cost improvement (`DP11-7`, `BUG-30`).*
 
-### 5.2 `LocalSearchGPUTwoOpt` Kernel & Memory-Mode Dispatch
+### 5.2 `LocalSearchGPUTourTwoOpt` Kernel & Memory-Mode Dispatch
 
 ```mermaid
 ---
@@ -370,7 +370,7 @@ flowchart TD
     classDef decision fill:#1E3A5F,stroke:#38BDF8,color:#F8FAFC,stroke-width:2px;
     classDef kernel fill:#4C0519,stroke:#FB7185,color:#F8FAFC,stroke-width:2px;
 
-    ENTRY["LocalSearchGPUTwoOpt.improve_batch(routes, context)"]:::entry --> MODE{"mode == 'naive'?"}:::decision
+    ENTRY["LocalSearchGPUTourTwoOpt.improve_batch(routes, context)"]:::entry --> MODE{"mode == 'naive'?"}:::decision
 
     MODE -- "Yes" --> NAIVE["Per-route loop: H2D tour -> launch two_opt_single.cu -> D2H tour<br/>(uses N_k if _uses_candidates; s_tour[n] in shmem)"]:::kernel
     MODE -- "No ('batch' / 'multi_move')" --> GRID["Batched Grid: N blocks, block_size = prev_power_of_2(min(tpb, n-2))"]:::decision
@@ -389,7 +389,7 @@ flowchart TD
     CAND -- "No" --> UNTILED["Untiled Full-Tour Shared Memory<br/>s_tour[n] in shmem = (3B + n)*4 <= 48 KiB"]:::kernel
 ```
 
-*Dispatch tree in [`LocalSearchGPUTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) coordinating kernel selection (`two_opt_single.cu`, `two_opt_batch.cu`, `two_opt_multi_move.cu`), shared-memory mode, candidate lists, and on-the-fly coordinate distances.*
+*Dispatch tree in [`LocalSearchGPUTourTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py) coordinating kernel selection (`two_opt_single.cu`, `two_opt_batch.cu`, `two_opt_multi_move.cu`), shared-memory mode, candidate lists, and on-the-fly coordinate distances.*
 
 ### 5.3 Mathematical & CUDA Kernel Architecture Models
 
@@ -401,7 +401,7 @@ $$
 \Delta_{i,j} = \bigl(d(\pi_i, \pi_j) + d(\pi_{i+1}, \pi_{j+1})\bigr) - \bigl(d(\pi_i, \pi_{i+1}) + d(\pi_j, \pi_{j+1})\bigr)
 $$
 
-In [`LocalSearchCPUTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py), [`_exhaustive_pairs`](../../src/algorithms/strategies/local_search/two_opt.py) (`np.triu_indices(n, k=2)` excluding `(0, n-1)`) feeds chunked slices of `_PAIR_BLOCK = 2**18` pairs into [`_pair_deltas`](../../src/algorithms/strategies/local_search/two_opt.py) in `int64` (preventing `int32` sum overflow near TSPLIB bounds, `DP13-5`/`BUG-63`).
+In [`LocalSearchCPUTourTwoOpt`](../../src/algorithms/strategies/local_search/two_opt.py), [`_exhaustive_pairs`](../../src/algorithms/strategies/local_search/two_opt.py) (`np.triu_indices(n, k=2)` excluding `(0, n-1)`) feeds chunked slices of `_PAIR_BLOCK = 2**18` pairs into [`_pair_deltas`](../../src/algorithms/strategies/local_search/two_opt.py) in `int64` (preventing `int32` sum overflow near TSPLIB bounds, `DP13-5`/`BUG-63`).
 
 On GPU, [`_shared_mem_bytes`](../../src/algorithms/strategies/local_search/two_opt.py) provisions per-block dynamic shared memory for block size $B \le 256$:
 
@@ -424,7 +424,7 @@ while reducing global tour DRAM traffic by $B:1 = 256:1$ ($99.61\%$ reuse ratio)
 
 #### 2. Format A 1-Warp/Route Order Crossover (`order_crossover.cu`, `DP11-11`)
 
-[`CrossoverOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) and [`CrossoverGPUOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) share the host rejection-free bijection `sample_distinct_pairs` (`DP11-20`):
+[`CrossoverCPUPermOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) and [`CrossoverGPUPermOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) share the host rejection-free bijection `sample_distinct_pairs` (`DP11-20`):
 
 $$
 u \sim \mathcal{U}\{a..b-1\}, \quad v' \sim \mathcal{U}\{a..b-2\}, \quad v = v' + \mathbb{I}[v' \ge u],
@@ -436,7 +436,7 @@ $$
 S_{\text{OX}}(W, n) = W \cdot n \le S_{\max}^{\text{block}} \quad (49{,}152\text{ B}), \quad W = \text{threads\_per\_block} / 32 \in \{8, 4, 2, 1\}.
 $$
 
-[`CrossoverGPUOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) dynamically halves `threads_per_block` from `256` down to `32` so Format A scales from $n \le 6{,}144$ at $8$ warps/block up to $n \le 49{,}152$ at $1$ warp/block (eliminating `BUG-22`'s $\mathcal{O}(n^2)$ linear scan while remaining bit-identical to CPU `CrossoverOrder`). Remaining genes from `parent2` are compacted deterministically across the 32 lanes via `__ballot_sync(0xFFFFFFFFu, retain)` and `__popc(mask & ((1u << lane_id) - 1u))` without atomics.
+[`CrossoverGPUPermOrder`](../../src/algorithms/strategies/crossover/order_crossover.py) dynamically halves `threads_per_block` from `256` down to `32` so Format A scales from $n \le 6{,}144$ at $8$ warps/block up to $n \le 49{,}152$ at $1$ warp/block (eliminating `BUG-22`'s $\mathcal{O}(n^2)$ linear scan while remaining bit-identical to CPU `CrossoverCPUPermOrder`). Remaining genes from `parent2` are compacted deterministically across the 32 lanes via `__ballot_sync(0xFFFFFFFFu, retain)` and `__popc(mask & ((1u << lane_id) - 1u))` without atomics.
 
 #### 3. Coalesced Evaluation, Selection Gather, and Cooperative Mutation (`DP11-14`–`DP11-17`)
 
@@ -486,5 +486,5 @@ $$
 | `DP11-14`–`DP11-18` | Delivered `SWAP-A`, `EVAL-A`, `SEL-A`, `INV-A`, and `2OPT-A` kernel coalescing, `__shfl_down_sync` reduction, and cooperative segment reversals. | Resolved | [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md#fase-11-dp11) |
 | `DP11-19` / `DP11-20` / `BUG-24` / `BUG-28` | Shared `resolve_route_bounds` and `sample_distinct_pairs` bijection across CPU/GPU operators (`72x` host sampling speedup, zero warm-up cache poisoning). | Resolved | [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md#fase-11-dp11) |
 | `DP11-21` / `DP11-22` / `BUG-25` / `BUG-26` | Pipeline-wide AOT `warmup(context)` and non-synchronizing default `@time_strategy` (`perf_counter`). | Resolved | [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md#fase-11-dp11) |
-| `DP12-12`–`DP12-15` / `DP13-5` / `BUG-40` / `BUG-63` | Vectorized CPU `EvaluationCPUCost` (`float64` output), `CrossoverOrder` / `CrossoverPartiallyMapped`, and NumPy `LocalSearchCPUTwoOpt` (`14.3x`–`28.2x` CPU speedup). | Resolved | [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md#fase-12-dp12) |
+| `DP12-12`–`DP12-15` / `DP13-5` / `BUG-40` / `BUG-63` | Vectorized CPU `EvaluationCPUCost` (`float64` output), `CrossoverCPUPermOrder` / `CrossoverCPUPermPartiallyMapped`, and NumPy `LocalSearchCPUTourTwoOpt` (`14.3x`–`28.2x` CPU speedup). | Resolved | [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md#fase-12-dp12) |
 | `BUG-27` / `BUG-52` / `BUG-54` / `BUG-57` / `BUG-58` | Fixed `StrategyBase` instance counter shadowing, `prev_power_of_2`, empty-pool fallback, `two_opt_single.cu` candidate-list binding, and SHA-256 `.cu` cache invalidation. | Resolved | [table-of-symbols.plan.md](../../documents_tcc/plan/table-of-symbols.plan.md#defeitos-bug) |

@@ -2,7 +2,7 @@
  * Candidate-guided nearest-neighbour (GRASP RCL) initialization kernel (`Task 17.31`).
  *
  * One thread per population row using deterministic `SplitMix64` and `O(1)` unvisited
- * swap-and-pop tracking; bit-identical to `InitializationCPUNearestNeighbor`.
+ * swap-and-pop tracking; bit-identical to `InitializationCPUTourNearestNeighbor`.
  */
 
 #include "splitmix64.cuh"

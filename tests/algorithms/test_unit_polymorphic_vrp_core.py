@@ -25,17 +25,17 @@ import pytest
 from algorithms.metaheuristics.genetic_algorithm import GenerationState, GeneticAlgorithm
 from algorithms.pipeline_steps import SplitDecodeStep
 from algorithms.strategies import (
-  CrossoverGPUOrder,
-  CrossoverGPURBX,
+  CrossoverGPUPermOrder,
+  CrossoverGPURouteRBX,
   EvaluationCPUCost,
   EvaluationGPUCost,
   FixedPenaltyPolicy,
-  LocalSearchGPUTwoOpt,
-  LocalSearchGPUTwoOptStar,
+  LocalSearchGPURouteTwoOptStar,
+  LocalSearchGPUTourTwoOpt,
   LocalSearchNoOp,
+  MutationGPUPermSwap,
   MutationGPURouteRelocate,
   MutationGPURouteSwap,
-  MutationGPUSwap,
   SelectionGPUTournament,
 )
 from algorithms.strategies.decoding import PrinsSplitDecoder
@@ -165,10 +165,10 @@ def test_warmup_purity_preserves_counters_timings_and_rng_state(burma14_problem:
   tsp_ctx = ProblemContext(burma14_problem, xp=cp, seed=77)
   tsp_strategies: list[Any] = [
     EvaluationGPUCost(return_gpu=True),
-    LocalSearchGPUTwoOpt(mode="batch", max_iterations=2),
+    LocalSearchGPUTourTwoOpt(mode="batch", max_iterations=2),
     SelectionGPUTournament(k=3),
-    CrossoverGPUOrder(),
-    MutationGPUSwap(),
+    CrossoverGPUPermOrder(),
+    MutationGPUPermSwap(),
   ]
   for strat in tsp_strategies:
     before_rng = copy.deepcopy(tsp_ctx.rng.bit_generator.state)
@@ -191,8 +191,8 @@ def test_warmup_purity_preserves_counters_timings_and_rng_state(burma14_problem:
   vrp_ctx = ProblemContext(vrp_prob, xp=cp, seed=88)
   vrp_strategies: list[Any] = [
     EvaluationGPUCost(return_gpu=True),
-    LocalSearchGPUTwoOptStar(mode="batch", max_iterations=2),
-    CrossoverGPURBX(return_gpu=True),
+    LocalSearchGPURouteTwoOptStar(mode="batch", max_iterations=2),
+    CrossoverGPURouteRBX(return_gpu=True),
     MutationGPURouteRelocate(return_gpu=True),
     MutationGPURouteSwap(return_gpu=True),
     PrinsSplitDecoder(use_gpu=True),

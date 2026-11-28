@@ -367,7 +367,7 @@ classDiagram
         +evolve(context, customers, max_gen, optimal, patience) tuple
     }
 
-    class LocalSearchGPUTwoOpt:::solver {
+    class LocalSearchGPUTourTwoOpt:::solver {
         +TwoOptGPUMode mode
         +int candidate_k
         +improve_batch(routes, context) RouteOrRoutes
@@ -377,8 +377,8 @@ classDiagram
     ProblemContext --> BackendModule : prefers xp
     GeneticAlgorithm *-- GenerationStep : executes
     GeneticAlgorithm --> LocalSearchStrategy : injects 6 slots
-    StrategyBase <|-- LocalSearchGPUTwoOpt : inherits
-    LocalSearchStrategy <|.. LocalSearchGPUTwoOpt : satisfies PEP 544
+    StrategyBase <|-- LocalSearchGPUTourTwoOpt : inherits
+    LocalSearchStrategy <|.. LocalSearchGPUTourTwoOpt : satisfies PEP 544
 
     classDef data fill:#064E3B,stroke:#34D399,color:#F8FAFC,stroke-width:2px;
     classDef proto fill:#164E63,stroke:#22D3EE,color:#F8FAFC,stroke-width:2px;
@@ -519,7 +519,7 @@ Chunked matrix/candidate construction in [`matrix.py`](../src/distances/matrix.p
 
 ## 8. Boundary & Host–Device Communication Patterns
 
-2. **Stream-Ordered GPU Pipelines (`DP10-18`, `BUG-15`):** In `FullGPUModular` (`InitializationGPURandom(return_gpu=True)` $\to$ `EvaluationGPUCost(return_gpu=True)`), population `(N, n)` `int32` and fitness `(N,)` `float64` arrays remain resident in VRAM across generations. Host–device synchronization occurs only on scalar fitness checks ([`GeneticAlgorithm._best_cost`](../src/algorithms/metaheuristics/genetic_algorithm.py)) or on strict improvement (`gen_best_cost < best_cost - 1e-6`) via [`GeneticAlgorithm._extract_best`](../src/algorithms/metaheuristics/genetic_algorithm.py) (`BUG-30`).
+2. **Stream-Ordered GPU Pipelines (`DP10-18`, `BUG-15`):** In `FullGPUModular` (`InitializationGPUPermRandom(return_gpu=True)` $\to$ `EvaluationGPUCost(return_gpu=True)`), population `(N, n)` `int32` and fitness `(N,)` `float64` arrays remain resident in VRAM across generations. Host–device synchronization occurs only on scalar fitness checks ([`GeneticAlgorithm._best_cost`](../src/algorithms/metaheuristics/genetic_algorithm.py)) or on strict improvement (`gen_best_cost < best_cost - 1e-6`) via [`GeneticAlgorithm._extract_best`](../src/algorithms/metaheuristics/genetic_algorithm.py) (`BUG-30`).
 3. **Host-Oracle Parity for Stochastic Operators (`DP11-19`, `DP11-20`):** Crossover and mutation generate cut points and mutation positions on the host (`sample_distinct_pairs`, `sample_mutation_positions`) and upload compact `int32`/`float64` vectors `(N,)` to GPU kernels, guaranteeing CPU/GPU bit-identity (`OX-A`, `SWAP-A`, `INV-A`) without device PRNG divergence.
 4. **NVRTC Header Injection & Intrinsics:** [`load_kernel`](../src/utils/gpu_helpers.py) supplies `-I<src/distances/kernels>` without `#include <math.h>`, enabling [`pairwise_device.cuh`](../src/distances/kernels/pairwise_device.cuh) and [`two_opt_common.cuh`](../src/distances/kernels/two_opt_common.cuh) to inline metric and delta arithmetic directly into strategy kernels.
 
@@ -650,7 +650,7 @@ All identifiers resolve to [table-of-symbols.plan.md](../documents_tcc/plan/tabl
 | `DP11-19` / `DP11-20` | Shared `resolve_route_bounds` topology resolver and rejection-free `sample_distinct_pairs` bijection (`72x` faster host sampling). | [`route_helpers.py::resolve_route_bounds, sample_distinct_pairs`](../src/utils/route_helpers.py) |
 | `DP11-21` / `DP11-22` | Isolated AOT `warmup(context)` with JIT `currsize` invariant and non-synchronizing default `@time_strategy`. | [`algorithm_runner.py::run_single_algorithm`](../src/benchmarking/runner/algorithm_runner.py) |
 | `DP12-7`–`DP12-9` / `DP12-24` / `DP12-27` | Atomic per-rep checkpoints, post-parse dual logging, baseline-agnostic reporting, Demšar $q_\alpha/\sqrt{2}$ scaling, single-shot timing. | [`checkpoint_io.py::save_checkpoint_atomic`](../src/benchmarking/runner/checkpoint_io.py), [`stats_utils.py::compute_nemenyi_critical_distance`](../src/benchmarking/analysis/stats_utils.py) |
-| `DP13-3` / `DP13-4` / `DP13-5` / `DP13-8` | Iman–Davenport $F_F$, unconditional Wilcoxon + Hodges–Lehmann + Kerby $r$, NumPy vectorized CPU 2-opt, external CLI-delegating scripts. | [`statistics.py::StatisticalAnalyzer`](../src/benchmarking/analysis/statistics.py), [`two_opt.py::LocalSearchCPUTwoOpt`](../src/algorithms/strategies/local_search/two_opt.py) |
+| `DP13-3` / `DP13-4` / `DP13-5` / `DP13-8` | Iman–Davenport $F_F$, unconditional Wilcoxon + Hodges–Lehmann + Kerby $r$, NumPy vectorized CPU 2-opt, external CLI-delegating scripts. | [`statistics.py::StatisticalAnalyzer`](../src/benchmarking/analysis/statistics.py), [`two_opt.py::LocalSearchCPUTourTwoOpt`](../src/algorithms/strategies/local_search/two_opt.py) |
 | `DP14-6` | Full `(n, 3)` `EUC_3D` coordinate support and C-contiguous finite `float64` validation across `Problem` and loaders. | [`problem.py::Problem`](../src/data_models/problem.py) |
 | `DP15-1`–`DP15-3` | 4 subsystem guides + Master Blueprint in English (`Implementation-Ready`), pt-BR plan, bidirectional catalog, and `check_docs` gate. | [plan-architecture-documentation.plan.md](../documents_tcc/plan/plan-architecture-documentation.plan.md) |
 | `DP16-1`–`DP16-2` | Phase 16 hardening (`BUG-96`–`BUG-102`): nullable `raw_gaps` + retroactive gaps, scale-invariant `wilcoxon_paired_summary`, preflight drift vs live corrupt-JSON quarantine, unified cohort/style reporting, strict `tsp-report`, PEP 544 slot validation, and full-table `compare_databases`. | [plan-benchmarking-hardening.plan.md](../documents_tcc/plan/plan-benchmarking-hardening.plan.md), [`checkpoint_io.py::validate_existing_checkpoints`](../src/benchmarking/runner/checkpoint_io.py), [`config_loader.py::validate_configs`](../src/benchmarking/runner/config_loader.py) |

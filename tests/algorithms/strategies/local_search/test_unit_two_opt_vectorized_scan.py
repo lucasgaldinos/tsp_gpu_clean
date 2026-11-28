@@ -1,4 +1,4 @@
-"""Vectorised neighbourhood scan for `LocalSearchCPUTwoOpt` (`TASK 13.14`, `BUG-63`).
+"""Vectorised neighbourhood scan for `LocalSearchCPUTourTwoOpt` (`TASK 13.14`, `BUG-63`).
 
 The CPU variant enumerates its 2-opt neighbourhood with NumPy and feeds the same flat
 pair list to the `best`, `first` and `multi_move` acceptance rules.
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from algorithms.strategies import LocalSearchCPUTwoOpt
+from algorithms.strategies import LocalSearchCPUTourTwoOpt
 from algorithms.strategies.local_search.two_opt import _exhaustive_pairs
 from data_models.problem import Problem
 from protocols import ProblemContext
@@ -269,7 +269,7 @@ def test_vectorised_refine_matches_scalar_reference(
     start = rng.permutation(n).astype(np.int32)
     for iterations in (1, 3, 10):
       expected = _scalar_refine(start, distances, candidates, mode, iterations)
-      actual = LocalSearchCPUTwoOpt(
+      actual = LocalSearchCPUTourTwoOpt(
         max_iterations=iterations, mode=mode, candidate_k=candidate_k
       )._refine(start.copy(), distances, candidates)
       assert np.array_equal(actual, expected), (
@@ -299,7 +299,7 @@ def test_vectorised_refine_breaks_gain_ties_like_the_scalar_scan(
   for trial in range(4):
     start = np.random.default_rng(n * 31 + trial).permutation(n).astype(np.int32)
     expected = _scalar_refine(start, distances, candidates, mode, 10)
-    actual = LocalSearchCPUTwoOpt(
+    actual = LocalSearchCPUTourTwoOpt(
       max_iterations=10, mode=mode, candidate_k=candidate_k
     )._refine(start.copy(), distances, candidates)
     assert np.array_equal(actual, expected), (
@@ -340,7 +340,7 @@ def test_candidate_pairs_keep_duplicates_from_repeated_neighbours() -> None:
   candidates = np.tile(np.array([3, 5], dtype=np.int32), (n, 1))
   candidates[0] = np.array([3, 3], dtype=np.int32)
 
-  solver = LocalSearchCPUTwoOpt(candidate_k=2)
+  solver = LocalSearchCPUTourTwoOpt(candidate_k=2)
   pairs = list(solver._pair_blocks(tour, positions, candidates))
   i_all = np.concatenate([block[0] for block in pairs])
   j_all = np.concatenate([block[1] for block in pairs])
@@ -375,7 +375,7 @@ def test_improve_matches_scalar_reference_through_the_public_api(mode: TwoOptCPU
   start = np.random.default_rng(3).permutation(n).astype(np.int32)
 
   expected = _scalar_refine(start, distances, None, mode, 10)
-  actual = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode).improve(start, context=context)
+  actual = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode).improve(start, context=context)
 
   assert np.array_equal(actual, expected)
   assert sorted(actual.tolist()) == list(range(n)), "improvement must preserve the permutation"
@@ -397,7 +397,7 @@ def test_sparse_route_ids_beyond_the_route_length_stay_in_bounds(mode: TwoOptCPU
   positions = inverse_positions(route)
   candidates = _nearest(distances, 3)
 
-  solver = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode, candidate_k=3)
+  solver = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode, candidate_k=3)
   improved = solver._refine(route.copy(), distances, candidates)
 
   assert sorted(improved.tolist()) == sorted(route.tolist())

@@ -304,12 +304,12 @@ A provenance caveat worth recording, because it weakens the assumption that `str
 
 ```text
 before Design B :  NaiveGPUTwoOpt          BatchGPUTwoOpt
-after  Design B :  LocalSearchGPUTwoOpt(mode="naive")   LocalSearchGPUTwoOpt(mode="batch")
+after  Design B :  LocalSearchGPUTourTwoOpt(mode="naive")   LocalSearchGPUTourTwoOpt(mode="batch")
 ```
 
-The class name `LocalSearchGPUTwoOpt` is identical for both, so a checkpoint whose `strategies.local_search` reads `LocalSearchGPUTwoOpt` does **not** say whether the run used per-route transfers or batched transfers. That information now lives only in `algorithm_config.strategy_params.local_search.mode` ([two_opt.py:371-397](../../src/algorithms/strategies/local_search/two_opt.py#L371)). The pre-Design-B checkpoint from the pilot cohort, by contrast, recorded `NaiveGPUTwoOpt` or `BatchGPUTwoOpt` directly.
+The class name `LocalSearchGPUTourTwoOpt` is identical for both, so a checkpoint whose `strategies.local_search` reads `LocalSearchGPUTourTwoOpt` does **not** say whether the run used per-route transfers or batched transfers. That information now lives only in `algorithm_config.strategy_params.local_search.mode` ([two_opt.py:371-397](../../src/algorithms/strategies/local_search/two_opt.py#L371)). The pre-Design-B checkpoint from the pilot cohort, by contrast, recorded `NaiveGPUTwoOpt` or `BatchGPUTwoOpt` directly.
 
-The same applies to `LocalSearchCPUTwoOpt`, whose `mode` selects `best`, `first` or `multi_move` acceptance. The general consequence: **`strategies.*` is a class inventory, not a description of the treatment.** Any claim about which 2-opt variant ran has to read `strategy_params` as well.
+The same applies to `LocalSearchCPUTourTwoOpt`, whose `mode` selects `best`, `first` or `multi_move` acceptance. The general consequence: **`strategies.*` is a class inventory, not a description of the treatment.** Any claim about which 2-opt variant ran has to read `strategy_params` as well.
 
 ### 5.3 Why "not much change" was the expected observation on `berlin52`
 

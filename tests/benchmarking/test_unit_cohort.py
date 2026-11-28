@@ -220,7 +220,7 @@ def test_validate_configs_catches_invalid_modular_strategies_and_external_module
         description="Invalid strategy and kwarg",
         strategies={
           "initialization": {"class": "NonExistentInit"},
-          "selection": {"class": "SelectionTournament", "params": {"bogus_kwarg": 5}},
+          "selection": {"class": "SelectionCPUTournament", "params": {"bogus_kwarg": 5}},
         },
         params={"pipeline": [{"module": "definitely_missing_mod_xyz", "class": "MissingStep"}]},
       )

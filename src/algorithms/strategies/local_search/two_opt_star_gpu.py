@@ -1,4 +1,4 @@
-"""GPU VRAM-resident VRP inter-route and intra-route local search (`LocalSearchGPUTwoOptStar`, `DP17-7`, `DP17-9`)."""
+"""GPU VRAM-resident VRP inter/intra-route local search (`LocalSearchGPURouteTwoOptStar`, `DP17-7`, `DP17-9`)."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ _GPU_KERNELS: dict[str, tuple[str, str]] = {
 
 
 def _vrp_ls_shared_mem_bytes(block_size: int, n_cust: int, dimension: int, *, use_shared: bool) -> int:
-  """Return dynamic shared-memory bytes for `cvrp_inter_route_*_kernel`."""
+  """Return dynamic shared-memory bytes for `two_opt_star_*_kernel`."""
   fixed_bytes = block_size * 8 + block_size * 6 * 4
   if not use_shared:
     return fixed_bytes
@@ -43,7 +43,7 @@ def _vrp_ls_shared_mem_bytes(block_size: int, n_cust: int, dimension: int, *, us
   return fixed_bytes + i64_bytes + int_bytes
 
 
-class LocalSearchGPUTwoOptStar(BaseLocalSearchGPU):
+class LocalSearchGPURouteTwoOptStar(BaseLocalSearchGPU):
   """VRAM-resident GPU VRP local search (`Relocate`, `Swap`, `2-opt*` + intra-route `2-opt`)."""
 
   def __init__(
@@ -259,4 +259,4 @@ class LocalSearchGPUTwoOptStar(BaseLocalSearchGPU):
     return restore_routes_shape(out_host, was_1d)
 
 
-__all__: list[str] = ["LocalSearchGPUTwoOptStar"]
+__all__: list[str] = ["LocalSearchGPURouteTwoOptStar"]

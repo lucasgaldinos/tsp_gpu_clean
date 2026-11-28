@@ -1,4 +1,4 @@
-"""Uniform random permutation initialization strategies (`InitializationCPURandom`, `InitializationGPURandom`)."""
+"""Uniform random permutation initializers (`InitializationCPUPermRandom`, `InitializationGPUPermRandom`)."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
   from protocols.types import Routes, SeedLike
 
 
-class InitializationCPURandom(StrategyBase, InitializationStrategy):
+class InitializationCPUPermRandom(StrategyBase, InitializationStrategy):
   """Vectorized CPU uniform permutation initialization via ``SplitMix64`` Fisher-Yates."""
 
   def __init__(self, seed: SeedLike = None) -> None:
@@ -55,8 +55,8 @@ class InitializationCPURandom(StrategyBase, InitializationStrategy):
     return pop
 
 
-class InitializationGPURandom(StrategyBase, InitializationStrategy):
-  """VRAM-native CUDA uniform permutation initialization bit-identical to ``InitializationCPURandom``."""
+class InitializationGPUPermRandom(StrategyBase, InitializationStrategy):
+  """VRAM-native CUDA uniform permutation initialization bit-identical to ``InitializationCPUPermRandom``."""
 
   def __init__(self, seed: SeedLike = None, return_gpu: bool = True) -> None:
     super().__init__(seed)
@@ -118,4 +118,4 @@ class InitializationGPURandom(StrategyBase, InitializationStrategy):
     return host_pop
 
 
-__all__: list[str] = ["InitializationCPURandom", "InitializationGPURandom"]
+__all__: list[str] = ["InitializationCPUPermRandom", "InitializationGPUPermRandom"]

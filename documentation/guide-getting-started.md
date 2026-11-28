@@ -138,11 +138,11 @@ Following the Unified Multi-Attribute VRP taxonomy of **Vidal, Crainic, Gendreau
 
 [`GeneticAlgorithm`](../src/algorithms/metaheuristics/genetic_algorithm.py) uses explicit dependency injection across six operator slots. Every slot has explicit CPU and/or CUDA implementations (`32` core strategies plus `10` composable sub-strategies in [`src/algorithms/strategies/`](../src/algorithms/strategies/__init__.py)):
 
-- **Initialization (CPU & GPU, `SplitMix64` parity):** `InitializationCPURandom`, `InitializationCPUNearestNeighbor`, `InitializationCPUClarkeWright`, `InitializationCPUSweep`, `InitializationGPURandom`, `InitializationGPUNearestNeighbor`, `InitializationGPUClarkeWright`, `InitializationGPUSweep`
-- **Selection:** `SelectionTournament`, `SelectionRouletteWheel`, `SelectionGPUTournament`
-- **Crossover:** `CrossoverOrder`, `CrossoverPartiallyMapped`, `CrossoverRBX`, `CrossoverGPUOrder`, `CrossoverGPUPartiallyMapped`, `CrossoverGPURBX`
-- **Mutation:** `MutationSwap`, `MutationInversion`, `MutationRouteRelocate`, `MutationRouteSwap`, `MutationGPUSwap`, `MutationGPUInversion`, `MutationGPURouteRelocate`, `MutationGPURouteSwap`
-- **Local Search:** `LocalSearchCPUTwoOpt` (`mode="first" | "best" | "multi_move"`), `LocalSearchGPUTwoOpt` (`mode="naive" | "batch" | "multi_move"`), `LocalSearchCPUTwoOptStar`, `LocalSearchGPUTwoOptStar`, `LocalSearchNoOp`
+- **Initialization (CPU & GPU, `SplitMix64` parity):** `InitializationCPUPermRandom`, `InitializationCPUTourNearestNeighbor`, `InitializationCPURouteClarkeWright`, `InitializationCPURouteSweep`, `InitializationGPUPermRandom`, `InitializationGPUTourNearestNeighbor`, `InitializationGPURouteClarkeWright`, `InitializationGPURouteSweep`
+- **Selection:** `SelectionCPUTournament`, `SelectionCPURouletteWheel`, `SelectionGPUTournament`
+- **Crossover:** `CrossoverCPUPermOrder`, `CrossoverCPUPermPartiallyMapped`, `CrossoverCPURouteRBX`, `CrossoverGPUPermOrder`, `CrossoverGPUPermPartiallyMapped`, `CrossoverGPURouteRBX`
+- **Mutation:** `MutationCPUPermSwap`, `MutationCPUPermInversion`, `MutationCPURouteRelocate`, `MutationCPURouteSwap`, `MutationGPUPermSwap`, `MutationGPUPermInversion`, `MutationGPURouteRelocate`, `MutationGPURouteSwap`
+- **Local Search:** `LocalSearchCPUTourTwoOpt` (`mode="first" | "best" | "multi_move"`), `LocalSearchGPUTourTwoOpt` (`mode="naive" | "batch" | "multi_move"`), `LocalSearchCPURouteTwoOptStar`, `LocalSearchGPURouteTwoOptStar`, `LocalSearchNoOp`
 - **Evaluation (unified TSP/ATSP & VRP Tier 1):** `EvaluationCPUCost`, `EvaluationGPUCost` — polymorphically evaluate flat TSP/ATSP tours (`tour_cost.py` / `tour_cost.cu`), giant tours via an injected `RouteDecoder`, and `0`-delimited VRP routes (`delimited_cost.py` / `vrp_delimited_cost.cu`) with pluggable `PenaltyPolicy` weights.
 - **Composable Sub-Strategies (`SUB_STRATEGY_REGISTRY`):** `PrinsSplitDecoder`, `GreedySplitDecoder` (`strategies/decoding/`), `InstanceScaledPenaltyPolicy`, `StrictFeasibilityPolicy`, `FixedPenaltyPolicy`, `AdaptivePenaltyPolicy` (`strategies/penalties/`), and `BinPackingCPUFFD`, `BinPackingGPUFFD`, `BinPackingCPUBFD`, `BinPackingGPUBFD` (`strategies/bin_packing/`, Coffman-Garey-Johnson First-Fit / Best-Fit Decreasing fleet repair).
 
@@ -158,11 +158,11 @@ Within each generation, you can either pick a built-in `local_search_stage` (`"p
       "use_gpu": true,
       "description": "Hybrid Split-Memetic GPU pipeline with periodic inter-route 2-opt* local search",
       "strategies": {
-        "initialization": { "class": "InitializationGPURandom" },
+        "initialization": { "class": "InitializationGPUPermRandom" },
         "selection": { "class": "SelectionGPUTournament", "params": { "k": 3 } },
-        "crossover": { "class": "CrossoverGPUOrder" },
-        "mutation": { "class": "MutationGPUInversion" },
-        "local_search": { "class": "LocalSearchGPUTwoOptStar", "params": { "mode": "multi_move", "max_iterations": 10 } },
+        "crossover": { "class": "CrossoverGPUPermOrder" },
+        "mutation": { "class": "MutationGPUPermInversion" },
+        "local_search": { "class": "LocalSearchGPURouteTwoOptStar", "params": { "mode": "multi_move", "max_iterations": 10 } },
         "evaluation": { "class": "EvaluationGPUCost" }
       },
       "params": {
@@ -184,12 +184,12 @@ import numpy as np
 from algorithms import GeneticAlgorithm
 from algorithms.pipeline_steps import PeriodicLocalSearchStep, PostInitLocalSearchStep
 from algorithms.strategies import (
-  CrossoverOrder,
+  CrossoverCPUPermOrder,
   EvaluationCPUCost,
-  InitializationCPURandom,
-  LocalSearchCPUTwoOpt,
-  MutationInversion,
-  SelectionRouletteWheel,
+  InitializationCPUPermRandom,
+  LocalSearchCPUTourTwoOpt,
+  MutationCPUPermInversion,
+  SelectionCPURouletteWheel,
 )
 from loaders import load_tsplib_file
 from protocols.problem_context import ProblemContext
@@ -197,17 +197,17 @@ from protocols.problem_context import ProblemContext
 problem = load_tsplib_file("tests/fixtures/tsp/berlin52.tsp")
 context = ProblemContext(problem, xp=np, seed=42)
 
-two_opt = LocalSearchCPUTwoOpt(mode="multi_move", max_iterations=10, candidate_k=20)
+two_opt = LocalSearchCPUTourTwoOpt(mode="multi_move", max_iterations=10, candidate_k=20)
 evaluator = EvaluationCPUCost()
 
 ga = GeneticAlgorithm(
   population_size=128,
   mutation_rate=0.05,
   seed=42,
-  initialization=InitializationCPURandom(seed=42),
-  selection=SelectionRouletteWheel(seed=42),
-  crossover=CrossoverOrder(seed=42),
-  mutation=MutationInversion(seed=42),
+  initialization=InitializationCPUPermRandom(seed=42),
+  selection=SelectionCPURouletteWheel(seed=42),
+  crossover=CrossoverCPUPermOrder(seed=42),
+  mutation=MutationCPUPermInversion(seed=42),
   local_search=two_opt,
   evaluation=evaluator,
   local_search_stage="none",
@@ -320,11 +320,11 @@ import numpy as np
 
 from algorithms import GeneticAlgorithm
 from algorithms.strategies import (
-  CrossoverOrder,
+  CrossoverCPUPermOrder,
   EvaluationCPUCost,
-  InitializationCPURandom,
-  LocalSearchCPUTwoOpt,
-  SelectionTournament,
+  InitializationCPUPermRandom,
+  LocalSearchCPUTourTwoOpt,
+  SelectionCPUTournament,
 )
 from loaders import load_tsplib_file
 from my_ops import BestOnlyLocalSearchStep, ScrambleMutation
@@ -332,16 +332,16 @@ from protocols.problem_context import ProblemContext
 
 problem = load_tsplib_file("tests/fixtures/tsp/berlin52.tsp")
 context = ProblemContext(problem, xp=np, seed=42)
-ls = LocalSearchCPUTwoOpt(mode="first", max_iterations=10, candidate_k=20)
+ls = LocalSearchCPUTourTwoOpt(mode="first", max_iterations=10, candidate_k=20)
 ev = EvaluationCPUCost()
 
 ga = GeneticAlgorithm(
   population_size=64,
   mutation_rate=0.1,
   seed=42,
-  initialization=InitializationCPURandom(seed=42),
-  selection=SelectionTournament(k=5, seed=42),
-  crossover=CrossoverOrder(seed=42),
+  initialization=InitializationCPUPermRandom(seed=42),
+  selection=SelectionCPUTournament(k=5, seed=42),
+  crossover=CrossoverCPUPermOrder(seed=42),
   mutation=ScrambleMutation(max_span=8, seed=42),
   local_search=ls,
   evaluation=ev,
@@ -396,16 +396,16 @@ To benchmark custom external classes directly from the CLI without writing any w
         ]
       },
       "strategies": {
-        "initialization": { "class": "InitializationCPURandom" },
-        "selection": { "class": "SelectionTournament", "params": { "k": 5 } },
-        "crossover": { "class": "CrossoverOrder" },
+        "initialization": { "class": "InitializationCPUPermRandom" },
+        "selection": { "class": "SelectionCPUTournament", "params": { "k": 5 } },
+        "crossover": { "class": "CrossoverCPUPermOrder" },
         "mutation": {
           "module": "../my_ops.py",
           "class": "ScrambleMutation",
           "params": { "max_span": 8 }
         },
         "local_search": {
-          "class": "LocalSearchCPUTwoOpt",
+          "class": "LocalSearchCPUTourTwoOpt",
           "params": { "mode": "first", "max_iterations": 10, "candidate_k": 20 }
         },
         "evaluation": { "class": "EvaluationCPUCost" }

@@ -15,22 +15,22 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPURandom"
+          "class": "InitializationCPUPermRandom"
         },
         "selection": {
-          "class": "SelectionRouletteWheel"
+          "class": "SelectionCPURouletteWheel"
         },
         "crossover": {
-          "class": "CrossoverPartiallyMapped"
+          "class": "CrossoverCPUPermPartiallyMapped"
         },
         "mutation": {
-          "class": "MutationInversion",
+          "class": "MutationCPUPermInversion",
           "params": {
             "candidate_k": 20
           }
         },
         "local_search": {
-          "class": "LocalSearchCPUTwoOpt",
+          "class": "LocalSearchCPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "best",
@@ -56,22 +56,22 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPURandom"
+          "class": "InitializationCPUPermRandom"
         },
         "selection": {
-          "class": "SelectionTournament",
+          "class": "SelectionCPUTournament",
           "params": {
             "k": 5
           }
         },
         "crossover": {
-          "class": "CrossoverOrder"
+          "class": "CrossoverCPUPermOrder"
         },
         "mutation": {
-          "class": "MutationSwap"
+          "class": "MutationCPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchCPUTwoOpt",
+          "class": "LocalSearchCPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "best"
@@ -109,22 +109,22 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPURandom"
+          "class": "InitializationCPUPermRandom"
         },
         "selection": {
-          "class": "SelectionTournament",
+          "class": "SelectionCPUTournament",
           "params": {
             "k": 5
           }
         },
         "crossover": {
-          "class": "CrossoverOrder"
+          "class": "CrossoverCPUPermOrder"
         },
         "mutation": {
-          "class": "MutationSwap"
+          "class": "MutationCPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchCPUTwoOpt",
+          "class": "LocalSearchCPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "best"
@@ -144,25 +144,25 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPURandom"
+          "class": "InitializationCPUPermRandom"
         },
         "selection": {
-          "class": "SelectionTournament",
+          "class": "SelectionCPUTournament",
           "params": {
             "k": 5
           }
         },
         "crossover": {
-          "class": "CrossoverOrder"
+          "class": "CrossoverCPUPermOrder"
         },
         "mutation": {
-          "class": "MutationSwap",
+          "class": "MutationCPUPermSwap",
           "params": {
             "candidate_k": 15
           }
         },
         "local_search": {
-          "class": "LocalSearchCPUTwoOpt",
+          "class": "LocalSearchCPUTourTwoOpt",
           "params": {
             "max_iterations": 5,
             "mode": "first"
@@ -182,22 +182,22 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPURandom"
+          "class": "InitializationCPUPermRandom"
         },
         "selection": {
-          "class": "SelectionTournament",
+          "class": "SelectionCPUTournament",
           "params": {
             "k": 3
           }
         },
         "crossover": {
-          "class": "CrossoverOrder"
+          "class": "CrossoverCPUPermOrder"
         },
         "mutation": {
-          "class": "MutationSwap"
+          "class": "MutationCPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchCPUTwoOpt",
+          "class": "LocalSearchCPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "multi_move"
@@ -217,7 +217,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationGPUNearestNeighbor",
+          "class": "InitializationGPUTourNearestNeighbor",
           "params": {
             "k": 20,
             "return_gpu": true
@@ -230,13 +230,13 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUSwap"
+          "class": "MutationGPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOpt",
+          "class": "LocalSearchGPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "batch",
@@ -265,7 +265,7 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationGPURandom",
+          "class": "InitializationGPUPermRandom",
           "params": {
             "return_gpu": true
           }
@@ -277,13 +277,13 @@
           }
         },
         "crossover": {
-          "class": "CrossoverGPUOrder"
+          "class": "CrossoverGPUPermOrder"
         },
         "mutation": {
-          "class": "MutationGPUInversion"
+          "class": "MutationGPUPermInversion"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOpt",
+          "class": "LocalSearchGPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "multi_move",
@@ -308,22 +308,22 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPURandom"
+          "class": "InitializationCPUPermRandom"
         },
         "selection": {
-          "class": "SelectionTournament",
+          "class": "SelectionCPUTournament",
           "params": {
             "k": 5
           }
         },
         "crossover": {
-          "class": "CrossoverOrder"
+          "class": "CrossoverCPUPermOrder"
         },
         "mutation": {
-          "class": "MutationSwap"
+          "class": "MutationCPUPermSwap"
         },
         "local_search": {
-          "class": "LocalSearchGPUTwoOpt",
+          "class": "LocalSearchGPUTourTwoOpt",
           "params": {
             "max_iterations": 10,
             "mode": "naive"
@@ -343,22 +343,22 @@
       },
       "strategies": {
         "initialization": {
-          "class": "InitializationCPUNearestNeighbor",
+          "class": "InitializationCPUTourNearestNeighbor",
           "params": {
             "k": 10
           }
         },
         "selection": {
-          "class": "SelectionTournament",
+          "class": "SelectionCPUTournament",
           "params": {
             "k": 5
           }
         },
         "crossover": {
-          "class": "CrossoverOrder"
+          "class": "CrossoverCPUPermOrder"
         },
         "mutation": {
-          "class": "MutationInversion"
+          "class": "MutationCPUPermInversion"
         },
         "local_search": {
           "class": "LocalSearchNoOp",

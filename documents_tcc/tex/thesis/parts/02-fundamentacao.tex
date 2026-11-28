@@ -321,25 +321,25 @@ A \tabref{tbl:crainic-taxonomy} resume e compara os três tipos dessa taxonomia.
                         >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.21}}
                         >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.23}}@{}}
                   \toprule
-                  Tipo & O que é paralelizado & Efeito na busca & CPU vs.\ GPU & Exemplo / uso neste trabalho \\
+                  Tipo                                                                        & O que é paralelizado & Efeito na busca & CPU vs.\ GPU & Exemplo / uso neste trabalho \\
                   \midrule
-                  \textbf{Tipo 1} (Baixo nível) &
-                  Cálculos pesados de cada iteração (vizinhança e custos) &
-                  Mantém o mesmo fluxo da busca sequencial &
-                  Ideal para \textbf{GPU} quando muitos dados sofrem a mesma operação &
-                  \textbf{Usado neste trabalho:} \(2\)-opt e avaliação da população na GPU \autocite{tsp_gpu} \\
+                  \textbf{Tipo 1} (Baixo nível)                                               &
+                  Cálculos pesados de cada iteração (vizinhança e custos)                     &
+                  Mantém o mesmo fluxo da busca sequencial                                    &
+                  Ideal para \textbf{GPU} quando muitos dados sofrem a mesma operação         &
+                  \textbf{Usado neste trabalho:} \(2\)-opt e avaliação da população na GPU \autocite{tsp_gpu}                                                                        \\
                   \addlinespace[4pt]
-                  \textbf{Tipo 2} (Domínio) &
-                  Subconjuntos separados de variáveis ou regiões do problema &
-                  Divide a busca em subproblemas acoplados &
-                  Melhor em \textbf{CPU/\emph{cluster}} por cargas desiguais entre partes &
-                  MDVRP com um núcleo por depósito e troca de fronteira \autocites{crainic2010parallel}{simchi2005logic} \\
+                  \textbf{Tipo 2} (Domínio)                                                   &
+                  Subconjuntos separados de variáveis ou regiões do problema                  &
+                  Divide a busca em subproblemas acoplados                                    &
+                  Melhor em \textbf{CPU/\emph{cluster}} por cargas desiguais entre partes     &
+                  MDVRP com um núcleo por depósito e troca de fronteira \autocites{crainic2010parallel}{simchi2005logic}                                                             \\
                   \addlinespace[4pt]
-                  \textbf{Tipo 3} (Múltiplas buscas) &
-                  Várias execuções completas, isoladas ou trocando soluções &
-                  Explora vários caminhos ao mesmo tempo &
+                  \textbf{Tipo 3} (Múltiplas buscas)                                          &
+                  Várias execuções completas, isoladas ou trocando soluções                   &
+                  Explora vários caminhos ao mesmo tempo                                      &
                   \textbf{CPU} para buscas diferentes; \textbf{GPU} para várias buscas iguais &
-                  Modelos de ilhas em blocos de \emph{threads} na GPU \autocites{luong2013gpu}{schulz2013gpu} \\
+                  Modelos de ilhas em blocos de \emph{threads} na GPU \autocites{luong2013gpu}{schulz2013gpu}                                                                        \\
                   \bottomrule
             \end{tabular}
       \end{tabeladensa}

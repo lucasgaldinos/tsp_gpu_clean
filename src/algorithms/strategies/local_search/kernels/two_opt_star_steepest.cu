@@ -100,7 +100,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
 
     if (tid == 0)
     {
-        s_m = cvrp_ls_parse_delimited(row_routes, width, n_cust, cust_seq, r_offset, r_len);
+        s_m = vrp_ls_parse_delimited(row_routes, width, n_cust, cust_seq, r_offset, r_len);
     }
     __syncthreads();
 
@@ -109,7 +109,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
         return;
     }
 
-    cvrp_ls_rebuild_state(
+    vrp_ls_rebuild_state(
         s_m, dist_stride, cust_seq, r_offset, r_len, cust_route, cust_pos, r_load, r_dist, prefix_load, prefix_dist,
         suffix_dist, demands, distances, coords, dist_stride, edge_type_code, use_matrix, closed, tid, block_size);
 
@@ -137,7 +137,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
             int g_arg2 = -1;
             int g_ra = -1;
             int g_rb = -1;
-            cvrp_ls_eval_customer(
+            vrp_ls_eval_customer(
                 v, s_m, dist_stride, cust_seq, r_offset, r_len, cust_route, cust_pos, r_load, r_dist, prefix_load,
                 prefix_dist, suffix_dist, demands, distances, coords, candidates, cand_k, dist_stride, edge_type_code,
                 use_matrix, closed, has_cap, capacity, has_dist, max_route_distance, has_max_veh, max_vehicles,
@@ -183,7 +183,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
                 {
                     const int slot = (r == win_ra || r == win_rb) ? win_tid : -1;
                     route_move_slot[r] = slot;
-                    const int emitted = cvrp_ls_emitted_len(r, slot, s_type, s_arg1, s_arg2, s_ra, s_rb, r_len);
+                    const int emitted = vrp_ls_emitted_len(r, slot, s_type, s_arg1, s_arg2, s_ra, s_rb, r_len);
                     r_offset_next[r] = write_pos;
                     r_len_next[r] = emitted;
                     write_pos += emitted;
@@ -210,7 +210,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
         {
             if (route_move_slot[r] >= 0)
             {
-                cvrp_ls_emit_route(
+                vrp_ls_emit_route(
                     r, route_move_slot[r], s_type, s_arg1, s_arg2, s_ra, s_rb, cust_seq, r_offset, r_len,
                     cust_seq_next, r_offset_next[r]);
             }
@@ -238,7 +238,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
         }
         __syncthreads();
 
-        cvrp_ls_rebuild_state(
+        vrp_ls_rebuild_state(
             s_m, dist_stride, cust_seq, r_offset, r_len, cust_route, cust_pos, r_load, r_dist, prefix_load,
             prefix_dist, suffix_dist, demands, distances, coords, dist_stride, edge_type_code, use_matrix, closed, tid,
             block_size);
@@ -248,7 +248,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
     {
         for (int r = tid; r < s_m; r += block_size)
         {
-            cvrp_ls_intra_two_opt_route(
+            vrp_ls_intra_two_opt_route(
                 cust_seq + r_offset[r], r_len[r], distances, coords, dist_stride, edge_type_code, use_matrix, closed,
                 has_dist, max_route_distance, omega_l, max_iterations);
         }
@@ -257,7 +257,7 @@ extern "C" __global__ void two_opt_star_steepest_kernel(
 
     if (tid == 0)
     {
-        s_used_len = cvrp_ls_write_delimited(row_routes, width, s_m, cust_seq, r_offset, r_len);
+        s_used_len = vrp_ls_write_delimited(row_routes, width, s_m, cust_seq, r_offset, r_len);
     }
     __syncthreads();
 

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
   from protocols.types import Fitness, Route, Routes, SeedLike
 
 
-class SelectionTournament(StrategyBase, SelectionStrategy):
+class SelectionCPUTournament(StrategyBase, SelectionStrategy):
   """
   Tournament selection strategy for single-route and batch parent selection.
 
@@ -194,7 +194,7 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
 
     Raises:
         GPUUnavailableError: When CuPy is missing or no CUDA device is reachable. The
-            strategy never delegates to `SelectionTournament`, because a CPU run must
+            strategy never delegates to `SelectionCPUTournament`, because a CPU run must
             not be reported as the GPU kernel's result (`DP9-2`).
     """
     cp = require_gpu()
@@ -248,4 +248,4 @@ class SelectionGPUTournament(StrategyBase, SelectionStrategy):
     return cast("Routes", cp.asnumpy(d_parents))
 
 
-__all__: list[str] = ["SelectionGPUTournament", "SelectionTournament"]
+__all__: list[str] = ["SelectionCPUTournament", "SelectionGPUTournament"]

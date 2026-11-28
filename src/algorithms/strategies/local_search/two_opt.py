@@ -3,9 +3,9 @@
 
 Two classes cover every 2-opt variant instead of six near-duplicates (`DP11-1`):
 
-- `LocalSearchCPUTwoOpt`: one NumPy neighbourhood scan shared by three acceptance
+- `LocalSearchCPUTourTwoOpt`: one NumPy neighbourhood scan shared by three acceptance
   rules, selected with `mode="best" | "first" | "multi_move"`.
-- `LocalSearchGPUTwoOpt`: one CUDA operand pipeline shared by three kernels, selected
+- `LocalSearchGPUTourTwoOpt`: one CUDA operand pipeline shared by three kernels, selected
   with `mode="batch" | "multi_move" | "naive"`.
 
 Sharing the scan means CPU and GPU expose the exact same constructor shape (Liskov
@@ -60,7 +60,7 @@ type TwoOptCPUMode = Literal["best", "first", "multi_move"]
 """Acceptance rule shared by the three CPU 2-opt variants."""
 
 type TwoOptGPUMode = Literal["batch", "multi_move", "naive"]
-"""Kernel family selected by `LocalSearchGPUTwoOpt`."""
+"""Kernel family selected by `LocalSearchGPUTourTwoOpt`."""
 
 _CPU_MODES: frozenset[str] = frozenset({"best", "first", "multi_move"})
 _GPU_MODES: frozenset[str] = frozenset({"batch", "multi_move", "naive"})
@@ -261,7 +261,7 @@ def _pair_deltas(
   return open_gain
 
 
-class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
+class LocalSearchCPUTourTwoOpt(StrategyBase, LocalSearchStrategy):
   """
   CPU 2-opt local search with a selectable acceptance rule.
 
@@ -628,7 +628,7 @@ class LocalSearchCPUTwoOpt(StrategyBase, LocalSearchStrategy):
     return restore_routes_shape(improved, was_1d, to_gpu=was_gpu)
 
 
-class LocalSearchGPUTwoOpt(BaseLocalSearchGPU):
+class LocalSearchGPUTourTwoOpt(BaseLocalSearchGPU):
   """
   GPU 2-opt local search with a selectable kernel family.
 
@@ -745,7 +745,7 @@ class LocalSearchGPUTwoOpt(BaseLocalSearchGPU):
 
     Raises:
         GPUUnavailableError: When CuPy is missing or no CUDA device is reachable.
-            The strategy never degrades into `LocalSearchCPUTwoOpt`: a silent CPU run
+            The strategy never degrades into `LocalSearchCPUTourTwoOpt`: a silent CPU run
             reported under the GPU variant's name corrupts the benchmark comparison
             the thesis depends on (`DP9-2`).
     """
@@ -900,8 +900,8 @@ class LocalSearchGPUTwoOpt(BaseLocalSearchGPU):
 
 
 __all__: list[str] = [
-  "LocalSearchCPUTwoOpt",
-  "LocalSearchGPUTwoOpt",
+  "LocalSearchCPUTourTwoOpt",
+  "LocalSearchGPUTourTwoOpt",
   "TwoOptCPUMode",
   "TwoOptGPUMode",
 ]

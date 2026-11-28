@@ -1,5 +1,5 @@
 /**
- * Inter-route candidate-list and full-matrix neighborhood scan (`cvrp_ls_eval_customer`)
+ * Inter-route candidate-list and full-matrix neighborhood scan (`vrp_ls_eval_customer`)
  * for VRP 2-opt* local search CUDA kernels (`Task 17.29`).
  */
 
@@ -8,7 +8,7 @@
 
 #include "relocate_swap_two_opt_star_deltas.cuh"
 
-static __device__ __forceinline__ void cvrp_ls_eval_customer(
+static __device__ __forceinline__ void vrp_ls_eval_customer(
     int v,
     int m,
     int dim,
@@ -68,15 +68,15 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
                     {
                         continue;
                     }
-                    cvrp_ls_consider(
-                        cvrp_ls_eval_relocate(
+                    vrp_ls_consider(
+                        vrp_ls_eval_relocate(
                             r_a, pos_v, r_b, 0, m, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances,
                             coords, dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist,
                             max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
                         CVRP_MOVE_RELOCATE, pos_v, 0, r_a, r_b, best_delta, best_type, best_arg1, best_arg2, best_ra,
                         best_rb);
-                    cvrp_ls_consider(
-                        cvrp_ls_eval_two_opt_star(
+                    vrp_ls_consider(
+                        vrp_ls_eval_two_opt_star(
                             r_a, pos_v, r_b, -1, m, cust_seq, r_offset, r_len, r_load, r_dist, prefix_load, prefix_dist,
                             suffix_dist, distances, coords, dist_stride, edge_type_code, use_matrix, closed, has_cap,
                             capacity, has_dist, max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l,
@@ -97,8 +97,8 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
             }
             const int pos_u = cust_pos[u];
 
-            cvrp_ls_consider(
-                cvrp_ls_eval_relocate(
+            vrp_ls_consider(
+                vrp_ls_eval_relocate(
                     r_a, pos_v, r_b, pos_u + 1, m, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances,
                     coords, dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist,
                     max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
@@ -107,15 +107,15 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
 
             if (pos_u == 0)
             {
-                cvrp_ls_consider(
-                    cvrp_ls_eval_relocate(
+                vrp_ls_consider(
+                    vrp_ls_eval_relocate(
                         r_a, pos_v, r_b, 0, m, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances, coords,
                         dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist,
                         max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
                     CVRP_MOVE_RELOCATE, pos_v, 0, r_a, r_b, best_delta, best_type, best_arg1, best_arg2, best_ra,
                     best_rb);
-                cvrp_ls_consider(
-                    cvrp_ls_eval_two_opt_star(
+                vrp_ls_consider(
+                    vrp_ls_eval_two_opt_star(
                         r_a, pos_v, r_b, -1, m, cust_seq, r_offset, r_len, r_load, r_dist, prefix_load, prefix_dist,
                         suffix_dist, distances, coords, dist_stride, edge_type_code, use_matrix, closed, has_cap,
                         capacity, has_dist, max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
@@ -123,15 +123,15 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
                     best_rb);
             }
 
-            cvrp_ls_consider(
-                cvrp_ls_eval_swap(
+            vrp_ls_consider(
+                vrp_ls_eval_swap(
                     r_a, pos_v, r_b, pos_u, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances, coords,
                     dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist, max_route_distance,
                     omega_q, omega_l),
                 CVRP_MOVE_SWAP, pos_v, pos_u, r_a, r_b, best_delta, best_type, best_arg1, best_arg2, best_ra, best_rb);
 
-            cvrp_ls_consider(
-                cvrp_ls_eval_two_opt_star(
+            vrp_ls_consider(
+                vrp_ls_eval_two_opt_star(
                     r_a, pos_v, r_b, pos_u, m, cust_seq, r_offset, r_len, r_load, r_dist, prefix_load, prefix_dist,
                     suffix_dist, distances, coords, dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity,
                     has_dist, max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
@@ -140,8 +140,8 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
 
             if (pos_v == 0)
             {
-                cvrp_ls_consider(
-                    cvrp_ls_eval_two_opt_star(
+                vrp_ls_consider(
+                    vrp_ls_eval_two_opt_star(
                         r_a, -1, r_b, pos_u, m, cust_seq, r_offset, r_len, r_load, r_dist, prefix_load, prefix_dist,
                         suffix_dist, distances, coords, dist_stride, edge_type_code, use_matrix, closed, has_cap,
                         capacity, has_dist, max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
@@ -159,14 +159,14 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
             continue;
         }
         const int s_b = r_len[r_b];
-        cvrp_ls_consider(
-            cvrp_ls_eval_relocate(
+        vrp_ls_consider(
+            vrp_ls_eval_relocate(
                 r_a, pos_v, r_b, 0, m, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances, coords,
                 dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist, max_route_distance,
                 has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
             CVRP_MOVE_RELOCATE, pos_v, 0, r_a, r_b, best_delta, best_type, best_arg1, best_arg2, best_ra, best_rb);
-        cvrp_ls_consider(
-            cvrp_ls_eval_two_opt_star(
+        vrp_ls_consider(
+            vrp_ls_eval_two_opt_star(
                 r_a, pos_v, r_b, -1, m, cust_seq, r_offset, r_len, r_load, r_dist, prefix_load, prefix_dist,
                 suffix_dist, distances, coords, dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity,
                 has_dist, max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
@@ -174,8 +174,8 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
 
         for (int pos_u = 0; pos_u < s_b; ++pos_u)
         {
-            cvrp_ls_consider(
-                cvrp_ls_eval_relocate(
+            vrp_ls_consider(
+                vrp_ls_eval_relocate(
                     r_a, pos_v, r_b, pos_u + 1, m, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances,
                     coords, dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist,
                     max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),
@@ -183,15 +183,15 @@ static __device__ __forceinline__ void cvrp_ls_eval_customer(
                 best_rb);
             if (r_a < r_b)
             {
-                cvrp_ls_consider(
-                    cvrp_ls_eval_swap(
+                vrp_ls_consider(
+                    vrp_ls_eval_swap(
                         r_a, pos_v, r_b, pos_u, cust_seq, r_offset, r_len, r_load, r_dist, demands, distances, coords,
                         dist_stride, edge_type_code, use_matrix, closed, has_cap, capacity, has_dist,
                         max_route_distance, omega_q, omega_l),
                     CVRP_MOVE_SWAP, pos_v, pos_u, r_a, r_b, best_delta, best_type, best_arg1, best_arg2, best_ra,
                     best_rb);
-                cvrp_ls_consider(
-                    cvrp_ls_eval_two_opt_star(
+                vrp_ls_consider(
+                    vrp_ls_eval_two_opt_star(
                         r_a, pos_v, r_b, pos_u, m, cust_seq, r_offset, r_len, r_load, r_dist, prefix_load, prefix_dist,
                         suffix_dist, distances, coords, dist_stride, edge_type_code, use_matrix, closed, has_cap,
                         capacity, has_dist, max_route_distance, has_max_veh, max_vehicles, omega_q, omega_l, omega_k),

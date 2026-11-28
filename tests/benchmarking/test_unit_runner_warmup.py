@@ -23,12 +23,12 @@ import pytest
 
 from algorithms.metaheuristics.genetic_algorithm import GeneticAlgorithm
 from algorithms.pipeline_steps import PeriodicLocalSearchStep
-from algorithms.strategies.crossover.order_crossover import CrossoverOrder
+from algorithms.strategies.crossover.order_crossover import CrossoverCPUPermOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization import InitializationCPURandom
-from algorithms.strategies.local_search.two_opt import LocalSearchCPUTwoOpt
-from algorithms.strategies.mutation.swap_mutation import MutationSwap
-from algorithms.strategies.selection.tournament_selection import SelectionTournament
+from algorithms.strategies.initialization import InitializationCPUPermRandom
+from algorithms.strategies.local_search.two_opt import LocalSearchCPUTourTwoOpt
+from algorithms.strategies.mutation.swap_mutation import MutationCPUPermSwap
+from algorithms.strategies.selection.tournament_selection import SelectionCPUTournament
 from benchmarking.runner.algorithm_runner import run_single_algorithm
 from protocols.backend import cupy_backend
 from protocols.problem_context import ProblemContext
@@ -282,7 +282,7 @@ def test_runner_gpu_rejects_jit_compiled_inside_the_measured_loop(
     )
 
 
-class _WarmupSpy(LocalSearchCPUTwoOpt):
+class _WarmupSpy(LocalSearchCPUTourTwoOpt):
   """CPU local search that records warm-up calls while keeping the real contract."""
 
   def __init__(self) -> None:
@@ -307,10 +307,10 @@ def test_ga_warmup_covers_periodic_local_search_step(burma14_problem: Problem) -
     population_size=8,
     mutation_rate=0.02,
     seed=42,
-    initialization=InitializationCPURandom(seed=42),
-    selection=SelectionTournament(k=3, seed=42),
-    crossover=CrossoverOrder(seed=42),
-    mutation=MutationSwap(seed=42),
+    initialization=InitializationCPUPermRandom(seed=42),
+    selection=SelectionCPUTournament(k=3, seed=42),
+    crossover=CrossoverCPUPermOrder(seed=42),
+    mutation=MutationCPUPermSwap(seed=42),
     evaluation=evaluator,
     local_search=None,
     local_search_stage="none",
@@ -338,7 +338,7 @@ def test_gpu_strategy_warmup_leaves_no_jit_for_measured_calls() -> None:
   Uses a valid permutation batch (`cp.arange`), never `cp.zeros` (`BUG-24`).
   """
   from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
-  from algorithms.strategies.local_search.two_opt import LocalSearchGPUTwoOpt
+  from algorithms.strategies.local_search.two_opt import LocalSearchGPUTourTwoOpt
   from data_models.problem import Problem
 
   cp = cupy_backend()
@@ -359,7 +359,7 @@ def test_gpu_strategy_warmup_leaves_no_jit_for_measured_calls() -> None:
   )
   context = ProblemContext(problem, xp=cp, seed=3)
   evaluator = EvaluationGPUCost()
-  local_search = LocalSearchGPUTwoOpt(mode="batch", max_iterations=1)
+  local_search = LocalSearchGPUTourTwoOpt(mode="batch", max_iterations=1)
 
   evaluator.warmup(context)
   local_search.warmup(context)

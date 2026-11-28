@@ -1,8 +1,8 @@
 """Experiment-local GPU Partially Mapped Crossover (PMX) strategy.
 
-Implements `CrossoverGPUPartiallyMapped` outside `src/` using the modular
+Implements `CrossoverGPUPermPartiallyMapped` outside `src/` using the modular
 `CrossoverStrategy` protocol and a 1-warp-per-route CUDA kernel stored in
-`kernels/pmx_crossover.cu`, mirroring `algorithms.strategies.crossover.CrossoverGPUOrder`.
+`kernels/pmx_crossover.cu`, mirroring `algorithms.strategies.crossover.CrossoverGPUPermOrder`.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from algorithms.strategies.base import StrategyBase
-from algorithms.strategies.crossover.pmx_crossover import CrossoverPartiallyMapped
+from algorithms.strategies.crossover.pmx_crossover import CrossoverCPUPermPartiallyMapped
 from protocols.algorithm_strategies import CrossoverStrategy
 from protocols.backend import require_gpu
 from utils.gpu_helpers import load_kernel
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
   from protocols.types import Route, RouteOrRoutes, SeedLike
 
 
-class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
+class CrossoverGPUPermPartiallyMapped(StrategyBase, CrossoverStrategy):
   """Modular GPU CUDA kernel Partially Mapped Crossover (PMX) strategy.
 
   Recombines a 2D batch of parent routes `(N, n_cities)` in parallel on GPU
@@ -68,7 +68,7 @@ class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
     context: ProblemContext | None = None,
   ) -> Route:
     """Recombine two 1D parent routes via CPU PMX."""
-    cpu_pmx = CrossoverPartiallyMapped(seed=self.seed)
+    cpu_pmx = CrossoverCPUPermPartiallyMapped(seed=self.seed)
     return cpu_pmx.crossover(parent1, parent2, context=context)
 
   @time_strategy
@@ -124,7 +124,7 @@ class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
     bytes_per_warp = 5 * n_cities  # 4 bytes/city for inv_p2 + 1 byte/city for in_seg
     if bytes_per_warp > dev_shared_mem:
       raise ValueError(
-        f"CrossoverGPUPartiallyMapped shared-memory requirement ({bytes_per_warp} B/warp for n={n_cities}) "
+        f"CrossoverGPUPermPartiallyMapped shared-memory requirement ({bytes_per_warp} B/warp for n={n_cities}) "
         f"exceeds device MaxSharedMemoryPerBlock ({dev_shared_mem} B)."
       )
 
@@ -158,4 +158,4 @@ class CrossoverGPUPartiallyMapped(StrategyBase, CrossoverStrategy):
     return restore_routes_shape(cp.asnumpy(d_offspring), was_1d)
 
 
-__all__: list[str] = ["CrossoverGPUPartiallyMapped"]
+__all__: list[str] = ["CrossoverGPUPermPartiallyMapped"]

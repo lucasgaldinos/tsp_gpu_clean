@@ -36,12 +36,12 @@ from algorithms.pipeline_steps import (
   SplitDecodeStep,
   StageAnchor,
 )
-from algorithms.strategies.crossover.order_crossover import CrossoverOrder
+from algorithms.strategies.crossover.order_crossover import CrossoverCPUPermOrder
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationCPUCost
-from algorithms.strategies.initialization.random_init import InitializationCPURandom
-from algorithms.strategies.local_search.two_opt import LocalSearchCPUTwoOpt
-from algorithms.strategies.mutation.swap_mutation import MutationSwap
-from algorithms.strategies.selection.tournament_selection import SelectionTournament
+from algorithms.strategies.initialization.random_init import InitializationCPUPermRandom
+from algorithms.strategies.local_search.two_opt import LocalSearchCPUTourTwoOpt
+from algorithms.strategies.mutation.swap_mutation import MutationCPUPermSwap
+from algorithms.strategies.selection.tournament_selection import SelectionCPUTournament
 from benchmarking.runner.config_loader import (
   AlgorithmConfig,
   GAParams,
@@ -88,12 +88,12 @@ def test_instantiate_unknown_step_class_raises_value_error() -> None:
       ],
     },
     strategies={
-      "initialization": {"class": "InitializationCPURandom"},
-      "selection": {"class": "SelectionTournament"},
-      "crossover": {"class": "CrossoverOrder"},
-      "mutation": {"class": "MutationSwap"},
+      "initialization": {"class": "InitializationCPUPermRandom"},
+      "selection": {"class": "SelectionCPUTournament"},
+      "crossover": {"class": "CrossoverCPUPermOrder"},
+      "mutation": {"class": "MutationCPUPermSwap"},
       "evaluation": {"class": "EvaluationCPUCost"},
-      "local_search": {"class": "LocalSearchCPUTwoOpt"},
+      "local_search": {"class": "LocalSearchCPUTourTwoOpt"},
     },
   )
   with pytest.raises(ValueError, match="Unknown pipeline step class 'NonExistentStepClass'"):
@@ -113,12 +113,12 @@ def test_instantiate_step_with_invalid_param_raises_value_error() -> None:
       ],
     },
     strategies={
-      "initialization": {"class": "InitializationCPURandom"},
-      "selection": {"class": "SelectionTournament"},
-      "crossover": {"class": "CrossoverOrder"},
-      "mutation": {"class": "MutationSwap"},
+      "initialization": {"class": "InitializationCPUPermRandom"},
+      "selection": {"class": "SelectionCPUTournament"},
+      "crossover": {"class": "CrossoverCPUPermOrder"},
+      "mutation": {"class": "MutationCPUPermSwap"},
       "evaluation": {"class": "EvaluationCPUCost"},
-      "local_search": {"class": "LocalSearchCPUTwoOpt"},
+      "local_search": {"class": "LocalSearchCPUTourTwoOpt"},
     },
   )
   with pytest.raises(ValueError, match="does not accept parameter 'bogus_parameter'"):
@@ -133,7 +133,7 @@ def test_instantiate_step_with_invalid_param_raises_value_error() -> None:
 def test_post_init_step_validation() -> None:
   """Verify PostInitLocalSearchStep rejects None for required strategies."""
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   with pytest.raises(ValueError, match="requires a local_search strategy"):
     PostInitLocalSearchStep(local_search=None, evaluation=eval_strat)  # type: ignore[arg-type]
@@ -189,30 +189,30 @@ def test_post_init_contract_identical_initial_fitness_different_best_fitness(bur
     population_size=16,
     mutation_rate=0.02,
     seed=seed,
-    initialization=InitializationCPURandom(seed=seed),
-    selection=SelectionTournament(k=3, seed=seed),
-    crossover=CrossoverOrder(seed=seed),
-    mutation=MutationSwap(seed=seed),
+    initialization=InitializationCPUPermRandom(seed=seed),
+    selection=SelectionCPUTournament(k=3, seed=seed),
+    crossover=CrossoverCPUPermOrder(seed=seed),
+    mutation=MutationCPUPermSwap(seed=seed),
     evaluation=EvaluationCPUCost(),
-    local_search=LocalSearchCPUTwoOpt(max_iterations=10),
+    local_search=LocalSearchCPUTourTwoOpt(max_iterations=10),
     local_search_stage="none",
   )
 
   # 2. Variant WITH pipeline [PostInitLocalSearchStep]
   post_init_step = PostInitLocalSearchStep(
-    local_search=LocalSearchCPUTwoOpt(max_iterations=10),
+    local_search=LocalSearchCPUTourTwoOpt(max_iterations=10),
     evaluation=EvaluationCPUCost(),
   )
   ga_pipelined = GeneticAlgorithm(
     population_size=16,
     mutation_rate=0.02,
     seed=seed,
-    initialization=InitializationCPURandom(seed=seed),
-    selection=SelectionTournament(k=3, seed=seed),
-    crossover=CrossoverOrder(seed=seed),
-    mutation=MutationSwap(seed=seed),
+    initialization=InitializationCPUPermRandom(seed=seed),
+    selection=SelectionCPUTournament(k=3, seed=seed),
+    crossover=CrossoverCPUPermOrder(seed=seed),
+    mutation=MutationCPUPermSwap(seed=seed),
     evaluation=EvaluationCPUCost(),
-    local_search=LocalSearchCPUTwoOpt(max_iterations=10),
+    local_search=LocalSearchCPUTourTwoOpt(max_iterations=10),
     local_search_stage="none",
     pipeline=[post_init_step],
   )
@@ -251,7 +251,7 @@ def test_post_init_contract_identical_initial_fitness_different_best_fitness(bur
 def test_elite_only_step_validation() -> None:
   """Verify EliteOnlyLocalSearchStep constructor validations."""
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   with pytest.raises(ValueError, match="requires a local_search strategy"):
     EliteOnlyLocalSearchStep(local_search=None, evaluation=eval_strat)  # type: ignore[arg-type]
@@ -278,14 +278,14 @@ def test_elite_only_step_refines_only_elites_preserving_non_elites(burma14_probl
   context = ProblemContext(burma14_problem, xp=np, seed=seed)
   timer = PhaseTimer(enabled=True)
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt(max_iterations=10, mode="best")
+  ls_strat = LocalSearchCPUTourTwoOpt(max_iterations=10, mode="best")
 
   elite_count = 3
   pop_size = 10
   step = EliteOnlyLocalSearchStep(local_search=ls_strat, evaluation=eval_strat, elite_count=elite_count)
 
   customers = list(range(burma14_problem.dimension))
-  init_strat = InitializationCPURandom(seed=seed)
+  init_strat = InitializationCPUPermRandom(seed=seed)
   pop = init_strat.initialize(customers, pop_size, context)
   fit = eval_strat.evaluate_batch(pop, context)
 
@@ -345,7 +345,7 @@ def test_elite_only_step_call_count_in_10_generations(burma14_problem: Problem) 
 
 def test_periodic_step_validation() -> None:
   """Verify PeriodicLocalSearchStep constructor validations."""
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   with pytest.raises(ValueError, match="requires a local_search strategy"):
     PeriodicLocalSearchStep(local_search=None)  # type: ignore[arg-type]
@@ -404,7 +404,7 @@ def test_periodic_step_offspring_target(burma14_problem: Problem) -> None:
   """Verify PeriodicLocalSearchStep with target='offspring' refines state.offspring."""
   context = ProblemContext(burma14_problem, xp=np, seed=42)
   timer = PhaseTimer(enabled=True)
-  ls_strat = LocalSearchCPUTwoOpt(max_iterations=5)
+  ls_strat = LocalSearchCPUTourTwoOpt(max_iterations=5)
 
   step = PeriodicLocalSearchStep(local_search=ls_strat, interval=2, target="offspring")
 
@@ -486,17 +486,17 @@ def test_elite_only_step_in_full_ga_evolution(burma14_problem: Problem) -> None:
   ctx = ProblemContext(burma14_problem, xp=np, seed=seed)
 
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt(max_iterations=5, mode="best")
+  ls_strat = LocalSearchCPUTourTwoOpt(max_iterations=5, mode="best")
   elite_step = EliteOnlyLocalSearchStep(local_search=ls_strat, evaluation=eval_strat, elite_count=3)
 
   ga = GeneticAlgorithm(
     population_size=16,
     mutation_rate=0.05,
     seed=seed,
-    initialization=InitializationCPURandom(seed=seed),
-    selection=SelectionTournament(k=3, seed=seed),
-    crossover=CrossoverOrder(seed=seed),
-    mutation=MutationSwap(seed=seed),
+    initialization=InitializationCPUPermRandom(seed=seed),
+    selection=SelectionCPUTournament(k=3, seed=seed),
+    crossover=CrossoverCPUPermOrder(seed=seed),
+    mutation=MutationCPUPermSwap(seed=seed),
     evaluation=eval_strat,
     local_search=ls_strat,
     local_search_stage="none",
@@ -530,7 +530,7 @@ def test_periodic_step_in_full_ga_evolution(burma14_problem: Problem) -> None:
   ctx = ProblemContext(burma14_problem, xp=np, seed=seed)
 
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt(max_iterations=5, mode="best")
+  ls_strat = LocalSearchCPUTourTwoOpt(max_iterations=5, mode="best")
   periodic_step = PeriodicLocalSearchStep(
     local_search=ls_strat,
     interval=3,
@@ -542,10 +542,10 @@ def test_periodic_step_in_full_ga_evolution(burma14_problem: Problem) -> None:
     population_size=16,
     mutation_rate=0.05,
     seed=seed,
-    initialization=InitializationCPURandom(seed=seed),
-    selection=SelectionTournament(k=3, seed=seed),
-    crossover=CrossoverOrder(seed=seed),
-    mutation=MutationSwap(seed=seed),
+    initialization=InitializationCPUPermRandom(seed=seed),
+    selection=SelectionCPUTournament(k=3, seed=seed),
+    crossover=CrossoverCPUPermOrder(seed=seed),
+    mutation=MutationCPUPermSwap(seed=seed),
     evaluation=eval_strat,
     local_search=ls_strat,
     local_search_stage="none",
@@ -578,7 +578,7 @@ def test_stage_anchor_on_all_pipeline_steps() -> None:
   periodic step follows its target (offspring -> before evaluation, population -> after survival).
   """
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   assert PostInitLocalSearchStep(local_search=ls_strat, evaluation=eval_strat).stage_anchor == "pre_selection"
   assert EliteOnlyLocalSearchStep(local_search=ls_strat, evaluation=eval_strat).stage_anchor == "post_survival"
@@ -599,7 +599,7 @@ def test_public_params_expose_declared_knobs() -> None:
   exposes `interval` and `target`.
   """
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   assert PostInitLocalSearchStep(local_search=ls_strat, evaluation=eval_strat).public_params() == {}
   assert EliteOnlyLocalSearchStep(local_search=ls_strat, evaluation=eval_strat, elite_count=3).public_params() == {
@@ -619,7 +619,7 @@ def test_strategies_reports_pipeline_owned_strategies() -> None:
   reports `[local_search]` plus `re_evaluate` only when it is configured.
   """
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   assert PostInitLocalSearchStep(local_search=ls_strat, evaluation=eval_strat).strategies() == [ls_strat, eval_strat]
   assert EliteOnlyLocalSearchStep(local_search=ls_strat, evaluation=eval_strat).strategies() == [ls_strat, eval_strat]
@@ -641,10 +641,10 @@ def _make_ga(pipeline: list[GenerationStep], local_search: LocalSearchStrategy |
     population_size=8,
     mutation_rate=0.02,
     seed=42,
-    initialization=InitializationCPURandom(seed=42),
-    selection=SelectionTournament(k=3, seed=42),
-    crossover=CrossoverOrder(seed=42),
-    mutation=MutationSwap(seed=42),
+    initialization=InitializationCPUPermRandom(seed=42),
+    selection=SelectionCPUTournament(k=3, seed=42),
+    crossover=CrossoverCPUPermOrder(seed=42),
+    mutation=MutationCPUPermSwap(seed=42),
     evaluation=eval_strat,
     local_search=local_search,
     local_search_stage="none",
@@ -708,17 +708,17 @@ def test_custom_pipeline_steps_are_recorded_on_instance() -> None:
   cannot distinguish declared steps from core ones (`BUG-30`).
   EXPECTED: Declared steps are kept verbatim; default construction records none.
   """
-  step = PostInitLocalSearchStep(local_search=LocalSearchCPUTwoOpt(), evaluation=EvaluationCPUCost())
+  step = PostInitLocalSearchStep(local_search=LocalSearchCPUTourTwoOpt(), evaluation=EvaluationCPUCost())
   ga = _make_ga([step])
   assert ga.custom_pipeline_steps == [step]
 
   eval_strat = EvaluationCPUCost()
   ga_default = GeneticAlgorithm(
     population_size=8,
-    initialization=InitializationCPURandom(seed=1),
-    selection=SelectionTournament(k=3, seed=1),
-    crossover=CrossoverOrder(seed=1),
-    mutation=MutationSwap(seed=1),
+    initialization=InitializationCPUPermRandom(seed=1),
+    selection=SelectionCPUTournament(k=3, seed=1),
+    crossover=CrossoverCPUPermOrder(seed=1),
+    mutation=MutationCPUPermSwap(seed=1),
     evaluation=eval_strat,
     local_search_stage="none",
   )
@@ -734,7 +734,7 @@ def test_all_strategies_includes_pipeline_owned_strategies(burma14_problem: Prob
   EXPECTED: Both step strategies appear once, and their counters are aggregated.
   """
   context = ProblemContext(burma14_problem, xp=np, seed=42)
-  step_ls = LocalSearchCPUTwoOpt(max_iterations=2)
+  step_ls = LocalSearchCPUTourTwoOpt(max_iterations=2)
   step_eval = EvaluationCPUCost()
   step = PostInitLocalSearchStep(local_search=step_ls, evaluation=step_eval)
 
@@ -762,7 +762,7 @@ def test_reset_run_metrics_clears_pipeline_owned_counters(burma14_problem: Probl
   EXPECTED: Counters set before the reset read back as zero.
   """
   context = ProblemContext(burma14_problem, xp=np, seed=42)
-  step_ls = LocalSearchCPUTwoOpt(max_iterations=2)
+  step_ls = LocalSearchCPUTourTwoOpt(max_iterations=2)
   step = EliteOnlyLocalSearchStep(local_search=step_ls, evaluation=EvaluationCPUCost(), elite_count=2)
   ga = _make_ga([step])
 
@@ -786,7 +786,7 @@ def test_serialize_custom_pipeline_preserves_params() -> None:
   EXPECTED: Only declared steps are serialized, each with its `params`.
   """
   eval_strat = EvaluationCPUCost()
-  ls_strat = LocalSearchCPUTwoOpt()
+  ls_strat = LocalSearchCPUTourTwoOpt()
 
   steps: list[Any] = [
     PostInitLocalSearchStep(local_search=ls_strat, evaluation=eval_strat),
@@ -825,7 +825,7 @@ def test_example_config_never_combines_pipeline_and_local_search_stage() -> None
 def test_shared_gpu_distance_matrix_is_counted_once_across_strategies(burma14_problem: Problem) -> None:
   """WHAT: shared context GPU buffers are never double- or triple-counted (`BUG-95`).
 
-  WHY: Previously, `EvaluationGPUCost._distance_operands`, `LocalSearchGPUTwoOpt._operands.resolve`
+  WHY: Previously, `EvaluationGPUCost._distance_operands`, `LocalSearchGPUTourTwoOpt._operands.resolve`
   and `GeneticAlgorithm._collect_strategy_metrics` each added `d_distances.nbytes` for the same
   cached `ProblemContext._gpu_distances` handle, inflating `h2d_bytes` by `+8 * n^2` bytes.
   EXPECTED: When two strategies resolve operands from the same context, only the first physical
@@ -868,13 +868,13 @@ def test_shared_gpu_distance_matrix_is_counted_once_across_strategies(burma14_pr
 
 @pytest.mark.gpu
 def test_gpu_shared_distance_matrix_counted_once_end_to_end() -> None:
-  """WHAT: GPU end-to-end check that `EvaluationGPUCost` + `LocalSearchGPUTwoOpt` charge `D` once (`BUG-95`).
+  """WHAT: GPU end-to-end check that `EvaluationGPUCost` + `LocalSearchGPUTourTwoOpt` charge `D` once (`BUG-95`).
 
   WHY: Verifies real `ProblemContext.h2d_bytes` with CuPy on an EXPLICIT matrix so both strategies
   sharing one `ProblemContext` report exactly `1x` matrix upload + `1x` candidate-list upload.
   """
   from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
-  from algorithms.strategies.local_search.two_opt import LocalSearchGPUTwoOpt
+  from algorithms.strategies.local_search.two_opt import LocalSearchGPUTourTwoOpt
   from data_models.problem import Problem
   from protocols.backend import require_gpu
 
@@ -895,7 +895,7 @@ def test_gpu_shared_distance_matrix_counted_once_end_to_end() -> None:
   ctx = ProblemContext(problem, xp=cp, seed=42)
 
   evaluator = EvaluationGPUCost(return_gpu=True)
-  local_search = LocalSearchGPUTwoOpt(max_iterations=1, mode="batch", candidate_k=5)
+  local_search = LocalSearchGPUTourTwoOpt(max_iterations=1, mode="batch", candidate_k=5)
 
   routes_gpu = cp.asarray(np.stack([np.arange(n, dtype=np.int32) for _ in range(4)]), dtype=cp.int32)
   evaluator.evaluate_batch(routes_gpu, ctx)

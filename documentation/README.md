@@ -183,7 +183,7 @@ See [knowledge-base/README.md](./knowledge-base/README.md) for the full thematic
 - [analysis-walkthrough-10-21-docs-cleanup.md](./walkthroughs/analysis-walkthrough-10-21-docs-cleanup.md) — Task 10.21 legacy scripts and documentation cleanup record.
 - [analysis-phase-11-strategy-unification-and-gpu-kernels-walkthrough.md](./walkthroughs/analysis-phase-11-strategy-unification-and-gpu-kernels-walkthrough.md) — Phase 11 Design B strategy unification, host-oracle GPU kernels, and AOT warm-up isolation.
 - [analysis-phase-13-text-updates-and-methodology-walkthrough.md](./walkthroughs/analysis-phase-13-text-updates-and-methodology-walkthrough.md) — Phase 13 Demšar statistical protocol (`DP13-3`, `DP13-4`), CPU 2-opt vectorization, and thesis methodology alignment.
-- [walkthrough_13.4.md](./walkthroughs/walkthrough_13.4.md) — Task 13.4 targeted audit (`BUG-57` `candidate_k` dispatch in `LocalSearchGPUTwoOpt._improve_naive`).
+- [walkthrough_13.4.md](./walkthroughs/walkthrough_13.4.md) — Task 13.4 targeted audit (`BUG-57` `candidate_k` dispatch in `LocalSearchGPUTourTwoOpt._improve_naive`).
 - [analysis-phase-14-consolidation-and-benchmarks-walkthrough.md](./walkthroughs/analysis-phase-14-consolidation-and-benchmarks-walkthrough.md) — Phase 14 homogeneous `results_v4` consolidation, multi-metric CD diagrams, `benchmark_macros.tex`, and `EUC_3D` support.
 
 ## 6. Archive (`archive/`)

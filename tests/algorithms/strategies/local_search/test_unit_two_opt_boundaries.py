@@ -1,7 +1,7 @@
 """Boundary contracts for the unified 2-opt strategies in `two_opt.py`.
 
-`LocalSearchCPUTwoOpt` covers the `best` / `first` / `multi_move` acceptance rules and
-`LocalSearchGPUTwoOpt` covers the `batch` / `multi_move` / `naive` kernel families, so
+`LocalSearchCPUTourTwoOpt` covers the `best` / `first` / `multi_move` acceptance rules and
+`LocalSearchGPUTourTwoOpt` covers the `batch` / `multi_move` / `naive` kernel families, so
 every mode is exercised through the same constructor shape (`DP11-1`).
 
 Each mode must be a no-op for tours shorter than one 2-opt move and for a zero
@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from algorithms.strategies import LocalSearchCPUTwoOpt, LocalSearchGPUTwoOpt
+from algorithms.strategies import LocalSearchCPUTourTwoOpt, LocalSearchGPUTourTwoOpt
 from algorithms.strategies.evaluation.cost_evaluation import EvaluationGPUCost
 from algorithms.strategies.local_search.two_opt import _DEFAULT_MAX_SHARED_TOUR_CITIES, _shared_mem_bytes
 from data_models.problem import Problem
@@ -43,7 +43,7 @@ def test_short_tour_returns_equal_distinct_copy(mode: TwoOptCPUMode, burma14_pro
   tour = np.array([0, 2, 1], dtype=np.int32)
   original = tour.copy()
 
-  improved = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode).improve(tour, context=context)
+  improved = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode).improve(tour, context=context)
 
   assert improved is not tour, "boundary path must not alias the caller's route"
   assert np.array_equal(improved, original)
@@ -63,7 +63,7 @@ def test_zero_iteration_budget_returns_equal_distinct_copy(mode: TwoOptCPUMode, 
   tour = np.arange(burma14_problem.dimension, dtype=np.int32)
   original = tour.copy()
 
-  improved = LocalSearchCPUTwoOpt(max_iterations=0, mode=mode).improve(tour, context=context)
+  improved = LocalSearchCPUTourTwoOpt(max_iterations=0, mode=mode).improve(tour, context=context)
 
   assert improved is not tour, "zero budget must not alias the caller's route"
   assert np.array_equal(improved, original)
@@ -71,7 +71,7 @@ def test_zero_iteration_budget_returns_equal_distinct_copy(mode: TwoOptCPUMode, 
 
 
 def test_cpu_two_opt_rejects_unknown_mode() -> None:
-  """WHAT: `LocalSearchCPUTwoOpt(mode="steepest")`.
+  """WHAT: `LocalSearchCPUTourTwoOpt(mode="steepest")`.
 
   WHY: the mode string is configuration data; a typo must fail at construction time
   instead of silently running a different acceptance rule.
@@ -79,11 +79,11 @@ def test_cpu_two_opt_rejects_unknown_mode() -> None:
   EXPECTED: `ValueError` naming the valid modes.
   """
   with pytest.raises(ValueError, match="Invalid 2-opt CPU mode"):
-    LocalSearchCPUTwoOpt(mode="steepest")  # type: ignore[arg-type]
+    LocalSearchCPUTourTwoOpt(mode="steepest")  # type: ignore[arg-type]
 
 
 def test_gpu_two_opt_rejects_unknown_mode() -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="tiled")`.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="tiled")`.
 
   WHY: an unknown kernel family would otherwise compile the `batch` kernel and report
   results attributed to a kernel that never ran.
@@ -91,7 +91,7 @@ def test_gpu_two_opt_rejects_unknown_mode() -> None:
   EXPECTED: `ValueError` naming the valid modes.
   """
   with pytest.raises(ValueError, match="Invalid 2-opt GPU mode"):
-    LocalSearchGPUTwoOpt(mode="tiled")  # type: ignore[arg-type]
+    LocalSearchGPUTourTwoOpt(mode="tiled")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("mode", [*CPU_TWO_OPT_MODES])
@@ -104,7 +104,7 @@ def test_negative_iteration_budget_is_rejected(mode: TwoOptCPUMode) -> None:
   EXPECTED: `ValueError` at construction time.
   """
   with pytest.raises(ValueError, match="max_iterations must be >= 0"):
-    LocalSearchCPUTwoOpt(max_iterations=-1, mode=mode)
+    LocalSearchCPUTourTwoOpt(max_iterations=-1, mode=mode)
 
 
 @pytest.mark.parametrize("mode", GPU_TWO_OPT_MODES)
@@ -116,7 +116,7 @@ def test_gpu_negative_iteration_budget_is_rejected(mode: TwoOptGPUMode) -> None:
   EXPECTED: `ValueError` at construction time.
   """
   with pytest.raises(ValueError, match="max_iterations must be >= 0"):
-    LocalSearchGPUTwoOpt(max_iterations=-1, mode=mode)
+    LocalSearchGPUTourTwoOpt(max_iterations=-1, mode=mode)
 
 
 def _cupy() -> Any:
@@ -173,12 +173,12 @@ def test_gpu_two_opt_coordinate_mode_matches_dense_matrix(mode: TwoOptGPUMode, b
   distances = ProblemContext(berlin52_problem, xp=np, seed=0).get_cpu_distances()
 
   dense_context = ProblemContext(berlin52_problem, xp=cp, seed=1)
-  dense_strategy = LocalSearchGPUTwoOpt(max_iterations=3, mode=mode)
+  dense_strategy = LocalSearchGPUTourTwoOpt(max_iterations=3, mode=mode)
   dense = dense_strategy.improve_batch(tours, dense_context)
   assert dense_strategy._operands.distances is not None, "the dense path must bind the matrix"
 
   coords_context = ProblemContext(berlin52_problem, xp=cp, seed=1)
-  coords_strategy = LocalSearchGPUTwoOpt(max_iterations=3, mode=mode, max_matrix_dimension=10)
+  coords_strategy = LocalSearchGPUTourTwoOpt(max_iterations=3, mode=mode, max_matrix_dimension=10)
   on_the_fly = coords_strategy.improve_batch(tours, coords_context)
 
   # Assert
@@ -207,8 +207,8 @@ def test_gpu_two_opt_tiled_shared_memory_matches_full_tour(mode: TwoOptGPUMode, 
   tours = _random_tours(n, 3, seed=13)
   context = ProblemContext(berlin52_problem, xp=cp, seed=2)
 
-  full_tour = LocalSearchGPUTwoOpt(max_iterations=3, mode=mode).improve_batch(tours, context)
-  tiled_strategy = LocalSearchGPUTwoOpt(max_iterations=3, mode=mode, max_shared_tour_cities=4)
+  full_tour = LocalSearchGPUTourTwoOpt(max_iterations=3, mode=mode).improve_batch(tours, context)
+  tiled_strategy = LocalSearchGPUTourTwoOpt(max_iterations=3, mode=mode, max_shared_tour_cities=4)
   tiled = tiled_strategy.improve_batch(tours, context)
 
   # Assert
@@ -235,10 +235,10 @@ def test_gpu_two_opt_tiles_large_tour_beyond_shared_memory(mode: TwoOptGPUMode) 
   context = ProblemContext(problem, xp=cp, seed=3)
   tours = _random_tours(n, 1, seed=9)
 
-  untiled = LocalSearchGPUTwoOpt(
+  untiled = LocalSearchGPUTourTwoOpt(
     max_iterations=1, mode=mode, max_matrix_dimension=10, max_shared_tour_cities=10_000
   ).improve_batch(tours, context)
-  tiled_strategy = LocalSearchGPUTwoOpt(
+  tiled_strategy = LocalSearchGPUTourTwoOpt(
     max_iterations=1, mode=mode, max_matrix_dimension=10, max_shared_tour_cities=2048
   )
   tiled = tiled_strategy.improve_batch(tours, context)
@@ -263,7 +263,7 @@ def test_cpu_two_opt_candidate_k_keeps_tour_valid(mode: TwoOptCPUMode, berlin52_
   tour = _random_tours(berlin52_problem.dimension, 1, seed=17)[0]
   original = tour.copy()
 
-  improved = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode, candidate_k=10).improve(tour, context=context)
+  improved = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode, candidate_k=10).improve(tour, context=context)
 
   assert sorted(int(gene) for gene in improved) == list(range(berlin52_problem.dimension))
   assert _closed_cost(improved, distances) <= _closed_cost(original, distances)
@@ -282,15 +282,15 @@ def test_cpu_two_opt_candidate_k_zero_matches_exhaustive(mode: TwoOptCPUMode, be
   context = ProblemContext(berlin52_problem, xp=np, seed=6)
   tour = _random_tours(berlin52_problem.dimension, 1, seed=21)[0]
 
-  restricted_off = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode, candidate_k=0).improve(tour, context=context)
-  exhaustive = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode).improve(tour, context=context)
+  restricted_off = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode, candidate_k=0).improve(tour, context=context)
+  exhaustive = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode).improve(tour, context=context)
 
   np.testing.assert_array_equal(restricted_off, exhaustive)
 
 
 @pytest.mark.gpu
 def test_gpu_two_opt_candidate_list_path(berlin52_problem: Problem) -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="batch")` with `candidate_k` on a 52-city instance.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="batch")` with `candidate_k` on a 52-city instance.
 
   WHY: the kernel builds `pos[tour[idx]] = idx` per block and looks each neighbour up in
   `N_k`; a bad lookup would produce an invalid tour or a worse cost.
@@ -303,7 +303,7 @@ def test_gpu_two_opt_candidate_list_path(berlin52_problem: Problem) -> None:
   tours = _random_tours(n, 3, seed=19)
   context = ProblemContext(berlin52_problem, xp=cp, seed=1)
   distances = ProblemContext(berlin52_problem, xp=np, seed=0).get_cpu_distances()
-  strategy = LocalSearchGPUTwoOpt(max_iterations=5, mode="batch", candidate_k=10)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=5, mode="batch", candidate_k=10)
 
   # Act
   improved = strategy.improve_batch(tours, context)
@@ -317,7 +317,7 @@ def test_gpu_two_opt_candidate_list_path(berlin52_problem: Problem) -> None:
 
 @pytest.mark.gpu
 def test_multi_move_gpu_candidate_list_path(berlin52_problem: Problem) -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="multi_move")` with `candidate_k` on a 52-city instance.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="multi_move")` with `candidate_k` on a 52-city instance.
 
   WHY: the multi-move kernel gained the same `N_k` scan as `two_opt_batch.cu`
   (`DP10-20`); a bad inverse map would corrupt the tour or report a worse cost.
@@ -330,7 +330,7 @@ def test_multi_move_gpu_candidate_list_path(berlin52_problem: Problem) -> None:
   tours = _random_tours(n, 3, seed=23)
   context = ProblemContext(berlin52_problem, xp=cp, seed=1)
   distances = ProblemContext(berlin52_problem, xp=np, seed=0).get_cpu_distances()
-  strategy = LocalSearchGPUTwoOpt(max_iterations=5, mode="multi_move", candidate_k=10)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=5, mode="multi_move", candidate_k=10)
 
   # Act
   improved = strategy.improve_batch(tours, context)
@@ -344,7 +344,7 @@ def test_multi_move_gpu_candidate_list_path(berlin52_problem: Problem) -> None:
 
 @pytest.mark.gpu
 def test_naive_mode_keeps_one_launch_per_route_and_iteration(berlin52_problem: Problem) -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="naive")` on a three-route batch.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="naive")` on a three-route batch.
 
   WHY: the naive family is the Chapter 4 transfer baseline (`two_opt_single.cu`); it must
   still transfer each route individually and launch one kernel per route per iteration,
@@ -359,8 +359,8 @@ def test_naive_mode_keeps_one_launch_per_route_and_iteration(berlin52_problem: P
   tours = _random_tours(n, 3, seed=29)
   context = ProblemContext(berlin52_problem, xp=cp, seed=1)
   distances = ProblemContext(berlin52_problem, xp=np, seed=0).get_cpu_distances()
-  naive = LocalSearchGPUTwoOpt(max_iterations=2, mode="naive")
-  grid = LocalSearchGPUTwoOpt(max_iterations=2, mode="batch")
+  naive = LocalSearchGPUTourTwoOpt(max_iterations=2, mode="naive")
+  grid = LocalSearchGPUTourTwoOpt(max_iterations=2, mode="batch")
 
   # Act
   naive_improved = naive.improve_batch(tours, context)
@@ -395,13 +395,13 @@ def test_gpu_two_opt_batch_and_naive_match_cpu_best_bit_identical(
   ctx_cpu = ProblemContext(berlin52_problem, xp=np, seed=1)
   ctx_gpu = ProblemContext(berlin52_problem, xp=cp, seed=1)
 
-  cpu_improved = LocalSearchCPUTwoOpt(max_iterations=max_iters, mode="best").improve_batch(
+  cpu_improved = LocalSearchCPUTourTwoOpt(max_iterations=max_iters, mode="best").improve_batch(
     tours.copy(), context=ctx_cpu
   )
-  gpu_batch = LocalSearchGPUTwoOpt(max_iterations=max_iters, mode="batch").improve_batch(
+  gpu_batch = LocalSearchGPUTourTwoOpt(max_iterations=max_iters, mode="batch").improve_batch(
     tours.copy(), context=ctx_gpu
   )
-  gpu_naive = LocalSearchGPUTwoOpt(max_iterations=max_iters, mode="naive").improve_batch(
+  gpu_naive = LocalSearchGPUTourTwoOpt(max_iterations=max_iters, mode="naive").improve_batch(
     tours.copy(), context=ctx_gpu
   )
 
@@ -450,9 +450,9 @@ def test_gpu_strategies_share_the_context_distance_matrix() -> None:
   # Act
   evaluator = EvaluationGPUCost()
   evaluator.evaluate_batch(tours, context)
-  batch_strategy = LocalSearchGPUTwoOpt(max_iterations=1, mode="batch")
+  batch_strategy = LocalSearchGPUTourTwoOpt(max_iterations=1, mode="batch")
   batch_strategy.improve_batch(tours, context)
-  multi_move_strategy = LocalSearchGPUTwoOpt(max_iterations=1, mode="multi_move", candidate_k=2)
+  multi_move_strategy = LocalSearchGPUTourTwoOpt(max_iterations=1, mode="multi_move", candidate_k=2)
   multi_move_strategy.improve_batch(tours, context)
 
   # Assert
@@ -477,7 +477,7 @@ def test_gpu_two_opt_keeps_same_named_problems_isolated() -> None:
   cupy: Any = _cupy()
   first = ProblemContext(_explicit_problem("same_name", _FIRST_MATRIX), xp=np, seed=2)
   second = ProblemContext(_explicit_problem("same_name", _SECOND_MATRIX), xp=np, seed=2)
-  strategy = LocalSearchGPUTwoOpt(max_iterations=1, mode="batch")
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=1, mode="batch")
   tour = np.array([[0, 1, 2, 3]], dtype=np.int32)
 
   # Act
@@ -507,7 +507,7 @@ def test_cpu_two_opt_candidate_k_supports_sparse_cvrp_sub_route(mode: TwoOptCPUM
   route = _CVRP_SUB_ROUTE.copy()
 
   # Act
-  improved = LocalSearchCPUTwoOpt(max_iterations=10, mode=mode, candidate_k=3).improve(route, context=context)
+  improved = LocalSearchCPUTourTwoOpt(max_iterations=10, mode=mode, candidate_k=3).improve(route, context=context)
 
   # Assert
   assert sorted(int(gene) for gene in improved) == sorted(int(gene) for gene in route)
@@ -516,7 +516,7 @@ def test_cpu_two_opt_candidate_k_supports_sparse_cvrp_sub_route(mode: TwoOptCPUM
 
 @pytest.mark.gpu
 def test_multi_move_gpu_candidate_k_supports_sparse_sub_route(berlin52_problem: Problem) -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="multi_move", candidate_k=4)` on the sparse CVRP sub-route.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="multi_move", candidate_k=4)` on the sparse CVRP sub-route.
 
   WHY: the kernel candidate path indexes its `positions` buffer by node id, so a route
   whose ids exceed its width must fall back to the exhaustive scan instead of writing
@@ -528,7 +528,7 @@ def test_multi_move_gpu_candidate_k_supports_sparse_sub_route(berlin52_problem: 
   # Arrange
   cp = _cupy()
   context = ProblemContext(berlin52_problem, xp=cp, seed=4)
-  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode="multi_move", candidate_k=4)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=2, mode="multi_move", candidate_k=4)
 
   # Act
   improved = strategy.improve_batch(_CVRP_SUB_ROUTE.copy(), context)
@@ -614,7 +614,7 @@ def test_candidate_mode_skips_the_shared_tour_buffer() -> None:
 
 @pytest.mark.gpu
 def test_batch_gpu_candidate_list_stays_resident_across_generations() -> None:
-  """WHAT: five `improve_batch` calls of `LocalSearchGPUTwoOpt(mode="batch", candidate_k=20)`.
+  """WHAT: five `improve_batch` calls of `LocalSearchGPUTourTwoOpt(mode="batch", candidate_k=20)`.
 
   WHY: `_improve_grid` rebuilt the candidate table on the host, called `int(tour.max())` on
   the GPU array (one D2H sync per generation) and re-uploaded `N_k` on every call (`BUG-27`).
@@ -631,7 +631,7 @@ def test_batch_gpu_candidate_list_stays_resident_across_generations() -> None:
   matrix = matrix + matrix.T
   problem = _explicit_problem("candidate_residency_100", matrix)
   context = ProblemContext(problem, xp=np, seed=13)
-  strategy = LocalSearchGPUTwoOpt(max_iterations=2, mode="batch", candidate_k=20)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=2, mode="batch", candidate_k=20)
   tour = np.arange(size, dtype=np.int32)
   tour = np.stack([rng.permutation(tour)]).astype(np.int32, copy=False)
   device_batch = cupy.asarray(tour, dtype=cupy.int32)
@@ -650,7 +650,7 @@ def test_batch_gpu_candidate_list_stays_resident_across_generations() -> None:
 
 @pytest.mark.gpu
 def test_batch_gpu_candidate_mode_never_reads_the_tour_extent() -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="batch", candidate_k=20)` on a CuPy-resident batch.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="batch", candidate_k=20)` on a CuPy-resident batch.
 
   WHY: `int(tour.max())` on a `cp.ndarray` forces a device-to-host synchronization per
   generation, which is exactly the transfer the candidate cache was meant to avoid
@@ -661,7 +661,7 @@ def test_batch_gpu_candidate_mode_never_reads_the_tour_extent() -> None:
   # Arrange
   cupy: Any = _cupy()
   context = ProblemContext(_explicit_problem("d2h_probe", _FIRST_MATRIX), xp=np, seed=3)
-  strategy = LocalSearchGPUTwoOpt(max_iterations=3, mode="batch", candidate_k=2)
+  strategy = LocalSearchGPUTourTwoOpt(max_iterations=3, mode="batch", candidate_k=2)
   host = np.array([[0, 1, 2, 3], [2, 3, 0, 1]], dtype=np.int32)
   device_batch = cupy.asarray(host, dtype=cupy.int32)
 
@@ -677,7 +677,7 @@ def test_batch_gpu_candidate_mode_never_reads_the_tour_extent() -> None:
 
 @pytest.mark.gpu
 def test_naive_gpu_candidate_mode_keeps_tour_valid(berlin52_problem: Problem) -> None:
-  """WHAT: `LocalSearchGPUTwoOpt(mode="naive", candidate_k=20)` on a 52-city instance.
+  """WHAT: `LocalSearchGPUTourTwoOpt(mode="naive", candidate_k=20)` on a 52-city instance.
 
   WHY: the per-route kernel ignored `candidate_k` and always scanned the whole upper
   triangle (`BUG-57`), so the configuration declared a search budget the reference
@@ -692,7 +692,7 @@ def test_naive_gpu_candidate_mode_keeps_tour_valid(berlin52_problem: Problem) ->
   tours = _random_tours(n, 3, seed=19)
   context = ProblemContext(berlin52_problem, xp=cp, seed=1)
   distances = ProblemContext(berlin52_problem, xp=np, seed=0).get_cpu_distances()
-  strategy = LocalSearchGPUTwoOpt(mode="naive", candidate_k=20, max_iterations=1)
+  strategy = LocalSearchGPUTourTwoOpt(mode="naive", candidate_k=20, max_iterations=1)
 
   # Act
   improved = strategy.improve_batch(tours, context)
@@ -726,8 +726,8 @@ def test_naive_and_batch_gpu_candidate_mode_are_bit_identical(berlin52_problem: 
   context = ProblemContext(berlin52_problem, xp=cp, seed=1)
 
   # Act
-  naive = LocalSearchGPUTwoOpt(mode="naive", candidate_k=20, max_iterations=1).improve_batch(tours, context)
-  batch = LocalSearchGPUTwoOpt(mode="batch", candidate_k=20, max_iterations=1).improve_batch(tours, context)
+  naive = LocalSearchGPUTourTwoOpt(mode="naive", candidate_k=20, max_iterations=1).improve_batch(tours, context)
+  batch = LocalSearchGPUTourTwoOpt(mode="batch", candidate_k=20, max_iterations=1).improve_batch(tours, context)
 
   # Assert
   np.testing.assert_array_equal(np.asarray(naive), np.asarray(batch))
@@ -774,8 +774,8 @@ def test_naive_gpu_candidate_mode_differs_from_the_full_scan() -> None:
   problem, tour = _candidate_blind_instance()
   context = ProblemContext(problem, xp=cp, seed=1)
   assert 22 not in context.get_cpu_candidate_list(20)[0].tolist(), "the gadget needs node 22 outside N_20(0)"
-  full_scan = LocalSearchGPUTwoOpt(mode="naive", max_iterations=1)
-  restricted = LocalSearchGPUTwoOpt(mode="naive", candidate_k=20, max_iterations=1)
+  full_scan = LocalSearchGPUTourTwoOpt(mode="naive", max_iterations=1)
+  restricted = LocalSearchGPUTourTwoOpt(mode="naive", candidate_k=20, max_iterations=1)
 
   # Act
   full = np.asarray(full_scan.improve_batch(tour, context))
